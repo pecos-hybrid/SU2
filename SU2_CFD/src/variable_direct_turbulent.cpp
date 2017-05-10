@@ -288,10 +288,10 @@ void CTurbKEVariable::SetTLFunc(su2double val_viscosity, su2double val_dist, su2
 	//        temp = min(val_kine/val_epsi,0.6*val_kine/(sqrt(6.0)*C_mu*StrainMag*val_zeta));
 	//        Tm = max(temp,C_T*sqrt(nu/val_epsi));
         temp = max(tke/tdr,C_T*sqrt(nu/tdr));
-        Tm = min(temp,0.6*tke/(sqrt(6.0)*C_mu*S*v2));
+        Tm = min(temp,0.6*tke/(sqrt(3.0)*C_mu*S*v2));
 
         //--- Model length scale ---//
-	temp = min(pow(tke,1.5)/tdr, pow(tke,1.5)/(sqrt(6.0)*C_mu*S*v2));
+	temp = min(pow(tke,1.5)/tdr, pow(tke,1.5)/(sqrt(3.0)*C_mu*S*v2));
         Lm = C_L * max(temp,C_eta*pow(pow(nu,3.0)/tdr,0.25));
 
 

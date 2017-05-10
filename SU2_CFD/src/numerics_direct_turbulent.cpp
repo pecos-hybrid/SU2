@@ -1510,7 +1510,7 @@ void CAvgGradCorrected_TurbKE::ComputeResidual(su2double *val_residual, su2doubl
   AD::SetPreaccIn(V_i, nDim+7); AD::SetPreaccIn(V_j, nDim+7);
   AD::SetPreaccIn(TurbVar_Grad_i, nVar, nDim); AD::SetPreaccIn(TurbVar_Grad_j, nVar, nDim);
   AD::SetPreaccIn(TurbVar_i, nVar); AD::SetPreaccIn(TurbVar_j ,nVar);
-  AD::SetPreaccIn(Lm_i); AD::SetPreaccIn(Lm_j);
+  AD::SetPreaccIn(Lm_i); AD::SetPreaccIn(Lm_j); AD::SetPreaccIn(Volume);
 
   if (incompressible) {
     Density_i = V_i[nDim+1];            Density_j = V_j[nDim+1];
@@ -1542,19 +1542,27 @@ void CAvgGradCorrected_TurbKE::ComputeResidual(su2double *val_residual, su2doubl
   diff_kine = 0.5*(diff_i_kine + diff_j_kine);    // Could instead use weighted average!
   diff_epsi = 0.5*(diff_i_epsi + diff_j_epsi);
   diff_zeta = 0.5*(diff_i_zeta + diff_j_zeta);
-  //  diff_f = Lm_i*Lm_i; //here
+  //  diff_f = Density_i*Lm_i*Lm_i; //here
   diff_f = Density_i;
   //  cout << "lm_i:" << Lm_i << "\n";
   
   /*--- Compute vector going from iPoint to jPoint ---*/
+  su2double n_mag, s_mag, alpha;
+  n_mag = 0.0; s_mag = 0.0; alpha = 0.0;
   dist_ij_2 = 0.0; proj_vector_ij = 0.0;
   for (iDim = 0; iDim < nDim; iDim++) {
     Edge_Vector[iDim] = Coord_j[iDim]-Coord_i[iDim];
     dist_ij_2 += Edge_Vector[iDim]*Edge_Vector[iDim];
     proj_vector_ij += Edge_Vector[iDim]*Normal[iDim];
+    n_mag += Normal[iDim]*Normal[iDim];
   }
   if (dist_ij_2 == 0.0) proj_vector_ij = 0.0;
-  else proj_vector_ij = proj_vector_ij/dist_ij_2;
+  else proj_vector_ij = proj_vector_ij/dist_ij_2; //swh: so this is then alpha|n|/|s|
+
+  s_mag = sqrt(dist_ij_2);
+  n_mag = sqrt(n_mag);
+  //if (dist_ij_2 == 0.0) alpha = 0.0;
+  //else alpha = proj_vector_ij/(s_mag*n_mag);
   
   /*--- Mean gradient approximation. Projection of the mean gradient in the direction of the edge ---*/
   for (iVar = 0; iVar < nVar; iVar++) {
@@ -1565,11 +1573,12 @@ void CAvgGradCorrected_TurbKE::ComputeResidual(su2double *val_residual, su2doubl
       Proj_Mean_GradTurbVar_Normal[iVar] += Mean_GradTurbVar[iVar][iDim]*Normal[iDim];
       Proj_Mean_GradTurbVar_Edge[iVar] += Mean_GradTurbVar[iVar][iDim]*Edge_Vector[iDim];
     }
-    Proj_Mean_GradTurbVar_Corrected[iVar] = Proj_Mean_GradTurbVar_Normal[iVar];
-    Proj_Mean_GradTurbVar_Corrected[iVar] -= Proj_Mean_GradTurbVar_Edge[iVar]*proj_vector_ij -
-    (TurbVar_j[iVar]-TurbVar_i[iVar])*proj_vector_ij;
+    // swh: and this term carries extra |n| across all, |n|=Af?
+    Proj_Mean_GradTurbVar_Corrected[iVar] = Proj_Mean_GradTurbVar_Normal[iVar] - Proj_Mean_GradTurbVar_Edge[iVar]*proj_vector_ij + (TurbVar_j[iVar]-TurbVar_i[iVar])*proj_vector_ij;
+
   }
-  
+  //  cout << " GOT YA CORRECTION HERE" << "\n";
+  //  cout << " Vol" << Volume << "\n";
   val_residual[0] = diff_kine*Proj_Mean_GradTurbVar_Corrected[0];
   val_residual[1] = diff_epsi*Proj_Mean_GradTurbVar_Corrected[1];
   val_residual[2] = diff_zeta*Proj_Mean_GradTurbVar_Corrected[2];
@@ -1596,7 +1605,9 @@ void CAvgGradCorrected_TurbKE::ComputeResidual(su2double *val_residual, su2doubl
     Jacobian_i[3][0] = 0.0;
     Jacobian_i[3][1] = 0.0;
     Jacobian_i[3][2] = 0.0;
-    Jacobian_i[3][3] = -diff_f*proj_vector_ij/Density_i;
+    Jacobian_i[3][3] = -diff_f/Density_i * proj_vector_ij;
+    Jacobian_i[3][3] -= 0.5 * diff_f/Density_i * n_mag/Volume;
+    Jacobian_i[3][3] += 0.5 * diff_f/Density_i * proj_vector_ij*s_mag/Volume;
 
 
     Jacobian_j[0][0] = diff_kine*proj_vector_ij/Density_j; 
@@ -1617,7 +1628,9 @@ void CAvgGradCorrected_TurbKE::ComputeResidual(su2double *val_residual, su2doubl
     Jacobian_j[3][0] = 0.0;
     Jacobian_j[3][1] = 0.0;
     Jacobian_j[3][2] = 0.0;
-    Jacobian_j[3][3] = diff_f*proj_vector_ij/Density_i;
+    Jacobian_j[3][3] = diff_f/Density_i * proj_vector_ij;
+    Jacobian_j[3][3] += 0.5 * diff_f/Density_i * n_mag/Volume;
+    Jacobian_j[3][3] -= 0.5 * diff_f/Density_i * proj_vector_ij*s_mag/Volume;
 
   }
   
@@ -1749,6 +1762,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual, su2double
   for (iDim = 0; iDim < nDim; iDim++)
   VelMag += VelInf[iDim]*VelInf[iDim];
   VelMag = sqrt(VelMag);
+  //  cout<< "vel mag:"<< VelMag;
 
   su2double solve_tol = config->GetLinear_Solver_Error();
   su2double Re = config->GetReynolds();
@@ -1784,16 +1798,19 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual, su2double
 
   //--- Model time scale ---//
   T1 = tke/tdr;
-  T2 = 1.0E14; //0.6/(sqrt(6.0)*C_mu*S*zeta);
+  //  T2 = 1.0E14;
+  T2 = 0.6/(sqrt(3.0)*C_mu*S*zeta);
   T3 = C_T*sqrt(nu/tdr);
   T = max(min(T1,T2),T3); 
 
   //--- Model length scale ---//
   L1 = pow(tke,1.5)/tdr;
   //  L1 = sqrt(zeta*(3.0/2.0)) * L1;
-  L2 = 1.0E14; //sqrt(tke)/(sqrt(6.0)*C_mu*S*zeta);
+  //  L2 = 1.0E14;
+  L2 = sqrt(tke)/(sqrt(3.0)*C_mu*S*zeta);
   L3 = C_eta*pow(pow(nu,3.0)/tdr,0.25);
   L = C_L * max(min(L1,L2),L3);
+  //  L = min(L,0.1);
 
   //--- Initial Jacobian ---//
   val_Jacobian_i[0][0] = 0.0;

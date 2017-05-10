@@ -551,6 +551,8 @@ void CTurbSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_contain
     numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
                        geometry->node[jPoint]->GetCoord());
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
+
+    numerics->SetVolume(geometry->node[iPoint]->GetVolume());
     
     /*--- Conservative variables w/o reconstruction ---*/
     
@@ -663,6 +665,15 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
     }
   }
   
+
+//   int rank = MASTER_NODE;
+// #ifdef HAVE_MPI
+//   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+// #endif
+
+//   if (rank == MASTER_NODE) {
+//     std::cout << "Solving turb model system!" << std::endl;
+//   }
   /*--- Solve or smooth the linear system ---*/  
   CSysSolve system;
   system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
@@ -724,7 +735,13 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
           }
           
           for (iVar = 0; iVar < nVar; iVar++) {
-            node[iPoint]->AddConservativeSolution(iVar, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint*nVar+iVar], density, density_old, lowerlimit[iVar], upperlimit[iVar]);
+            // node[iPoint]->AddConservativeSolution(iVar, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint*nVar+iVar], density, density_old, lowerlimit[iVar], upperlimit[iVar]);
+
+            if (iVar==(nVar-1)) { // f
+              node[iPoint]->AddConservativeSolution(iVar, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint*nVar+iVar], 1.0, 1.0, lowerlimit[iVar], upperlimit[iVar]);
+            } else {
+              node[iPoint]->AddConservativeSolution(iVar, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint*nVar+iVar], density, density_old, lowerlimit[iVar], upperlimit[iVar]);
+            }
           }
 	  //f          node[iPoint]->AddSolution(0, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint]);
           
@@ -3436,6 +3453,8 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config, unsigned shor
   Gamma_Minus_One = Gamma - 1.0;
   
   /*--- Dimension of the problem --> dependent of the turbulent model ---*/
+  //nVar = 2;
+  //nVar = 3;
   nVar = 4;
   //  nVar = 3;
   nPoint = geometry->GetnPoint();
@@ -3485,6 +3504,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config, unsigned shor
     /*--- Initialization of the structure of the whole Jacobian ---*/
     if (rank == MASTER_NODE) cout << "Initialize Jacobian structure (KE model)." << endl;
     Jacobian.Initialize(nPoint, nPointDomain, nVar, nVar, true, geometry, config);
+    if (rank == MASTER_NODE) cout << "Finished." << endl;
     
     if ((config->GetKind_Linear_Solver_Prec() == LINELET) ||
         (config->GetKind_Linear_Solver() == SMOOTHER_LINELET)) {
@@ -3621,7 +3641,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config, unsigned shor
   scalar_min = scale/(VelMag*VelMag);
   su2double tke_min = scalar_min*VelMag*VelMag;
   su2double tdr_min = scalar_min*pow(VelMag,3.0)/L_Inf;
-  //su2double v2_min = 2.0/3.0*scalar_min*VelMag*VelMag;
+  su2double v2_min = 2.0/3.0*scalar_min*VelMag*VelMag;
   //  su2double S_min = 1.0E-14;
   //  su2double S_min = max(S,scalar_min*VelMag/L_Inf);
 
@@ -3840,7 +3860,9 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry, CSolver **solver_contain
     /*--- Scalars ---*/
     kine = node[iPoint]->GetSolution(0);
     epsi = node[iPoint]->GetSolution(1);
-    //    zeta = node[iPoint]->GetSolution(2);
+    //zeta = node[iPoint]->GetSolution(2);
+    //v2 = (2.0/3.0)*kine;
+    //f  = 1.0;
     v2 = node[iPoint]->GetSolution(2);
     f = node[iPoint]->GetSolution(3);
     //cout<<"kine: "<<kine<<"\n";
@@ -3879,8 +3901,15 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry, CSolver **solver_contain
     //    muT = constants[0]*max(rho*zeta*kine*Tm,0.0);
     //    muT = max(muT,mu);
     //    muT = constants[0]*max(rho*max(zeta*kine,0.0)/max(epsi,1.0E-9),0.0); //v2
+
+    // Decompute turbulence from mean
     //muT = 0.0;
+
+    // v2-f
     muT = constants[0]*rho*zeta*kine*Tm;
+
+    // standard k-epsilon (more or less)
+    //muT = (2.0/3.0)*constants[0]*rho*kine*kine/epsi;
 
     //muT = constants[0]*rho*2.0/3.0*kine*Tm; //testing...
     node[iPoint]->SetmuT(muT);
@@ -3888,7 +3917,6 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry, CSolver **solver_contain
     //    cout<<"Tm in solver_direct: "<<Tm<<"\n";
     //cout<<"Lm in solver_direct: "<<Lm<<"\n";
   }
-  
 }
 
 void CTurbKESolver::Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics, CConfig *config, unsigned short iMesh) {
@@ -3988,27 +4016,33 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_conta
       //      wall_zeta = (node[jPoint]->GetSolution(2) - node[iPoint]->GetSolution(2));
       //      dkdn = numerics->GetPrimVarGradient(solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(), NULL);
 
+      su2double fwall = node[iPoint]->GetSolution(3);
+
       // swh: needs a modification here... 
       Solution[0] = 0.0;
-      Solution[1] = 2.0*laminar_viscosity*wall_k/(density*distance*distance); //60.0*laminar_viscosity/(density*beta_1*distance*distance);
+      //Solution[1] = 1.0;
+      Solution[1] = 2.0*laminar_viscosity*max(wall_k,0.0)/(density*distance*distance); //60.0*laminar_viscosity/(density*beta_1*distance*distance);
       Solution[2] = 0.0;
       //      Solution[3] = -2.0*laminar_viscosity*wall_zeta/(density*distance*distance);
-      Solution[3] = 0.0; // v2
-      
+      //Solution[3] = 0.0; // v2
+      Solution[3] = fwall; //f_Inf; // don't override soln here.  let linear solve do it.
+
       /*--- Set the solution values and zero the residual ---*/
       node[iPoint]->SetSolution_Old(Solution);
       node[iPoint]->SetSolution(Solution);
       LinSysRes.SetBlock_Zero(iPoint);
-      
+
+      // Set f residual correctly to get right update
+      //LinSysRes.SetBlock(iPoint, 3, fwall - f_Inf);
+      LinSysRes.SetBlock(iPoint, 3, fwall - 0.0);
+
       /*--- Change rows of the Jacobian (includes 1 in the diagonal) ---*/
       for (iVar = 0; iVar < nVar; iVar++) {
         total_index = iPoint*nVar+iVar;
         Jacobian.DeleteValsRowi(total_index);
       }
-      
     }
   }
-  
 }
 
 void CTurbKESolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
@@ -4058,47 +4092,45 @@ void CTurbKESolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_con
 
       // wall boundary conditions (https://turbmodels.larc.nasa.gov/k-e-zeta-f.html)
       Solution[0] = 0.0;
-      Solution[1] = 2.0*laminar_viscosity*wall_k/(density*distance*distance);
+      Solution[1] = 2.0*laminar_viscosity*max(wall_k,0.0)/(density*distance*distance);
       Solution[2] = 0.0;
       //      Solution[3] = -2.0*laminar_viscosity*wall_zeta/(density*distance*distance);
       Solution[3] = 0.0; // v2
-      
+
       /*--- Set the solution values and zero the residual ---*/
       node[iPoint]->SetSolution_Old(Solution);
       node[iPoint]->SetSolution(Solution);
       LinSysRes.SetBlock_Zero(iPoint);
-      
+
       /*--- Change rows of the Jacobian (includes 1 in the diagonal) ---*/
       for (iVar = 0; iVar < nVar; iVar++) {
         total_index = iPoint*nVar+iVar;
         Jacobian.DeleteValsRowi(total_index);
       }
-      
     }
   }
-  
 }
 
 void CTurbKESolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
-  
+
   unsigned long iPoint, iVertex;
   su2double *Normal, *V_infty, *V_domain;
   unsigned short iVar, iDim;
-  
+
   bool grid_movement = config->GetGrid_Movement();
-  
+
   Normal = new su2double[nDim];
-  
+
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-    
+
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-    
-    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/    
+
+    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
     if (geometry->node[iPoint]->GetDomain()) {
-      
+
       /*--- Allocate the value at the infinity ---*/
       V_infty = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
-      
+
       /*--- Retrieve solution at the farfield boundary node ---*/
       V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
       conv_numerics->SetPrimitive(V_domain, V_infty);
@@ -4116,163 +4148,173 @@ void CTurbKESolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container
       Solution_j[1] = node[iPoint]->GetSolution(1);
       Solution_j[2] = node[iPoint]->GetSolution(2);
       Solution_j[3] = node[iPoint]->GetSolution(3);
+      //Solution_j[3] = f_Inf;
 
       conv_numerics->SetTurbVar(Solution_i, Solution_j);
-      
       /*--- Set Normal (it is necessary to change the sign) ---*/
       geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
       for (iDim = 0; iDim < nDim; iDim++)
       Normal[iDim] = -Normal[iDim];
       conv_numerics->SetNormal(Normal);
-      
+
       /*--- Grid Movement ---*/
       if (grid_movement)
       conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(), geometry->node[iPoint]->GetGridVel());
-      
+
       /*--- Compute residuals and Jacobians ---*/
       conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-      
+
       /*--- Add residuals and Jacobians ---*/
       LinSysRes.AddBlock(iPoint, Residual);
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-      
+
     }
   }
-  
+
   delete [] Normal;
-  
 }
 
 void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
                               unsigned short val_marker) {
-  
+
   unsigned short iVar, iDim;
   unsigned long iVertex, iPoint, Point_Normal;
   su2double *V_inlet, *V_domain, *Normal;
-  
+
   Normal = new su2double[nDim];
-  
+
   bool grid_movement  = config->GetGrid_Movement();
-  
+
   string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
-  
+
   /*--- Loop over all the vertices on this boundary marker ---*/
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-    
+
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-    
+
     /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
     if (geometry->node[iPoint]->GetDomain()) {
-      
+
       /*--- Index of the closest interior node ---*/
       Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
-      
+
       /*--- Normal vector for this vertex (negate for outward convention) ---*/
       geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
       for (iDim = 0; iDim < nDim; iDim++) Normal[iDim] = -Normal[iDim];
-      
+
       /*--- Allocate the value at the inlet ---*/
       V_inlet = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
 
       /*--- Retrieve solution at the farfield boundary node ---*/
       V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
-      
+
       /*--- Set various quantities in the solver class ---*/
       conv_numerics->SetPrimitive(V_domain, V_inlet);
-      
+
       /*--- Set the turbulent variable states. Use free-stream KE
        values for the turbulent state at the inflow. ---*/
       for (iVar = 0; iVar < nVar; iVar++)
-      Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
+        Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
 
       Solution_j[0] = kine_Inf;
       Solution_j[1] = epsi_Inf;
       Solution_j[2] = zeta_Inf;
-      //      Solution_j[3] = f_Inf;
-      Solution_j[3] = node[iPoint]->GetSolution(3);
+      Solution_j[3] = f_Inf;
+      //Solution_j[3] = node[iPoint]->GetSolution(3);
       /*
       Solution_j[0] = node[iPoint]->GetSolution(0);
       Solution_j[1] = node[iPoint]->GetSolution(1);
       Solution_j[2] = node[iPoint]->GetSolution(2);
       Solution_j[3] = node[iPoint]->GetSolution(3);
       */
-      
+
       conv_numerics->SetTurbVar(Solution_i, Solution_j);
-      
+
       /*--- Set various other quantities in the solver class ---*/
       conv_numerics->SetNormal(Normal);
-      
+
       if (grid_movement)
       conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(),
                                 geometry->node[iPoint]->GetGridVel());
-      
+
       /*--- Compute the residual using an upwind scheme ---*/
       conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
       LinSysRes.AddBlock(iPoint, Residual);
-      
+
       /*--- Jacobian contribution for implicit integration ---*/
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-      
+
       /*--- Viscous contribution ---*/
       visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
       visc_numerics->SetNormal(Normal);
-      
+
       /*--- Conservative variables w/o reconstruction ---*/
       visc_numerics->SetPrimitive(V_domain, V_inlet);
-      
+
       /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
       visc_numerics->SetTurbVar(Solution_i, Solution_j);
       visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(), node[iPoint]->GetGradient());
-      
+
       /*--- Model length and time scales ---*/
       //visc_numerics->SetF1blending(node[iPoint]->GetF1blending(), node[iPoint]->GetF1blending()); // here
       visc_numerics->SetTm(node[iPoint]->GetTm(), node[iPoint]->GetTm());
       visc_numerics->SetLm(node[iPoint]->GetLm(), node[iPoint]->GetLm());
-      
+
       /*--- Compute residual, and Jacobians ---*/
       visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-      
+
       /*--- Subtract residual, and update Jacobians ---*/
       LinSysRes.SubtractBlock(iPoint, Residual);
       Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
-      
+
+      /*--- HACKERY ON f-eqn: Set the f solution values and zero the residual ---*/
+
+      // Set f residual correctly to get right update
+      LinSysRes.SetBlock(iPoint, 3, Solution_i[3] - f_Inf);
+      Jacobian.DeleteValsRowi(iPoint*nVar+3);
+
+      // node[iPoint]->SetSolution_Old(3, f_Inf);
+      // node[iPoint]->SetSolution(3, f_Inf);
+      // LinSysRes.SetBlock_Zero(iPoint, 3);
+      // Jacobian.DeleteValsRowi(iPoint*nVar+3);
+
     }
   }
-  
+
   /*--- Free locally allocated memory ---*/
   delete[] Normal;
-  
+
 }
 
 void CTurbKESolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
-  
+
   unsigned long iPoint, iVertex, Point_Normal;
   unsigned short iVar, iDim;
   su2double *V_outlet, *V_domain, *Normal;
-  
+
   bool grid_movement  = config->GetGrid_Movement();
-  
+
   Normal = new su2double[nDim];
-  
+
   /*--- Loop over all the vertices on this boundary marker ---*/
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-    
+
     /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
     if (geometry->node[iPoint]->GetDomain()) {
-      
+
       /*--- Index of the closest interior node ---*/
       Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
-      
+
       /*--- Allocate the value at the outlet ---*/
       V_outlet = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
-      
+
       /*--- Retrieve solution at the farfield boundary node ---*/
       V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
-      
+
       /*--- Set various quantities in the solver class ---*/
       conv_numerics->SetPrimitive(V_domain, V_outlet);
-      
+
       /*--- Set the turbulent variables. Here we use a Neumann BC such
        that the turbulent variable is copied from the interior of the
        domain to the outlet before computing the residual.
@@ -4306,53 +4348,68 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container, C
       */
 
       conv_numerics->SetTurbVar(Solution_i, Solution_j);
-      
+
       /*--- Set Normal (negate for outward convention) ---*/
       geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
       for (iDim = 0; iDim < nDim; iDim++)
       Normal[iDim] = -Normal[iDim];
       conv_numerics->SetNormal(Normal);
-      
+
       if (grid_movement)
       conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(),
                                 geometry->node[iPoint]->GetGridVel());
-      
+
       /*--- Compute the residual using an upwind scheme ---*/
       conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
       LinSysRes.AddBlock(iPoint, Residual);
-      
+
       /*--- Jacobian contribution for implicit integration ---*/
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-      
+
       /*--- Viscous contribution ---*/
       visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
       visc_numerics->SetNormal(Normal);
-      
+
       /*--- Conservative variables w/o reconstruction ---*/
       visc_numerics->SetPrimitive(V_domain, V_outlet);
-      
+
       /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
       visc_numerics->SetTurbVar(Solution_i, Solution_j);
       visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(), node[iPoint]->GetGradient());
-      
+
       /*--- Model length and time scales ---*/
       //visc_numerics->SetF1blending(node[iPoint]->GetF1blending(), node[iPoint]->GetF1blending()); // here
       //      visc_numerics->SetTm(node[iPoint]->GetTm(), node[iPoint]->GetTm());
       //      visc_numerics->SetLm(node[iPoint]->GetLm(), node[iPoint]->GetLm());
-      
+
       /*--- Compute residual, and Jacobians ---*/
       visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-      
+
       /*--- Subtract residual, and update Jacobians ---*/
       LinSysRes.SubtractBlock(iPoint, Residual);
       Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
-      
+
+      // Since Solution_j = Solution_i, need to get this part of the Jacobian also
+      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_j);
+
+      // /*--- HACKERY ON f-eqn: Set the f solution values and zero the residual ---*/
+
+      // // Set f residual correctly to get right update
+      // LinSysRes.SetBlock(iPoint, 3, Solution_i[3] - f_Inf);
+      // Jacobian.DeleteValsRowi(iPoint*nVar+3);
+
+
+      // node[iPoint]->SetSolution_Old(3, f_Inf);
+      // node[iPoint]->SetSolution(3, f_Inf);
+      // LinSysRes.SetBlock_Zero(iPoint, 3);
+      // Jacobian.DeleteValsRowi(iPoint*nVar+3);
+
     }
   }
-  
+
   /*--- Free locally allocated memory ---*/
   delete[] Normal;
-  
+
 }
 
 su2double* CTurbKESolver::GetConstants() {
