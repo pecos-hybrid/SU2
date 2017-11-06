@@ -317,7 +317,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
       if (position != string::npos) {
         text_line.erase (0,11);
         config->SetCurrent_UnstTime(atof(text_line.c_str()));
-      } else {
+      } else if (config->GetUnsteady_Simulation() == TIME_STEPPING) {
         config->SetCurrent_UnstTime(0.0);
       }
       
@@ -977,6 +977,9 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
     for (iPoint = 0; iPoint < nPoint; iPoint++)
       node[iPoint] = new CEulerVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
     
+    if (config->GetUnsteady_Simulation() == TIME_STEPPING)
+      config->SetCurrent_UnstTime(0.0);
+
   } else {
         
     /*--- Multizone problems require the number of the zone to be appended. ---*/
@@ -15165,7 +15168,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
       if (position != string::npos) {
         text_line.erase (0,11);
         config->SetCurrent_UnstTime(atof(text_line.c_str()));
-      } else {
+      } else if (config->GetUnsteady_Simulation() == TIME_STEPPING) {
         config->SetCurrent_UnstTime(0.0);
       }
 
