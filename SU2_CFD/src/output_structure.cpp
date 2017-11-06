@@ -3872,7 +3872,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   else
     restart_file <<"EXT_ITER= " << config->GetExtIter() + config->GetExtIter_OffSet() + 1 << endl;
   if (config->GetUnsteady_Simulation() == TIME_STEPPING)
-    restart_file << "TOTAL_TIME= " << config->GetCurrent_UnstTime() << endl;
+    restart_file << "TOTAL_TIME= " << 0.01 << endl;
   
   restart_file.close();
   

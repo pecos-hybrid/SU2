@@ -220,6 +220,12 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
       filename_ = config->GetUnsteady_FileName(filename_, Unst_RestartIter);
     }
 
+    /*--- Ensure that the solver had time=0 if no time is found ---*/
+
+    if (time_stepping) {
+      config->SetCurrent_UnstTime(0.0);
+    }
+
     /*--- Open the restart file, throw an error if this fails. ---*/
     
     restart_file.open(filename_.data(), ios::in);
@@ -15069,6 +15075,12 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
       if (adjoint) Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_AdjointIter())-1;
       else Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_RestartIter())-1;
       filename_ = config->GetUnsteady_FileName(filename_, Unst_RestartIter);
+    }
+
+    /*--- Ensure that the solver had time=0 if no time is found ---*/
+
+    if (time_stepping) {
+      config->SetCurrent_UnstTime(0.0);
     }
 
     /*--- Open the restart file, throw an error if this fails. ---*/
