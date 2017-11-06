@@ -3872,7 +3872,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   else
     restart_file <<"EXT_ITER= " << config->GetExtIter() + config->GetExtIter_OffSet() + 1 << endl;
   if (config->GetUnsteady_Simulation() == TIME_STEPPING)
-    restart_file << "TOTAL_TIME= " << 0.01 << endl;
+    restart_file << "TOTAL_TIME= " << config->GetCurrent_UnstTime() << endl;
   
   restart_file.close();
   
@@ -4688,6 +4688,11 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     if (Unsteady) write_heads = (iIntIter == 0);
     else write_heads = (((iExtIter % (config[val_iZone]->GetWrt_Con_Freq()*40)) == 0));
     
+    /*--- Write the table header if time-stepping simulation is restarting ---*/
+    if (time_stepping && config[val_iZone]->GetRestart())
+      if (config[val_iZone]->GetUnst_RestartIter() == iExtIter)
+        write_heads = true;
+
     bool write_turbo = (((iExtIter % (config[val_iZone]->GetWrt_Con_Freq()*200)) == 0));
     
     /*--- Analogous for dynamic problems (as of now I separate the problems, it may be worthy to do all together later on ---*/

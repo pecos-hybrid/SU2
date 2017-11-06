@@ -4777,6 +4777,9 @@ void CEulerSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container,
     Global_Delta_Time = rbuf_time;
 #endif
     }
+    /*--- NOTE: If we need the RK substeps to be different times than the
+     * full timestep, then the `Delta_Time` value may need to be adjusted.
+     * This is a single value, representing the time across all substeps. ---*/
     for (iPoint = 0; iPoint < nPointDomain; iPoint++)
       node[iPoint]->SetDelta_Time(Global_Delta_Time);
     config->AddCurrent_UnstTime(Global_Delta_Time);
@@ -16451,6 +16454,9 @@ void CNSSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container, CC
     Global_Delta_Time = rbuf_time;
 #endif
     }
+    /*--- NOTE: If we need the RK substeps to be different times than the
+     * full timestep, then the `Delta_Time` value may need to be adjusted.
+     * This is a single value, representing the time across all substeps. ---*/
     for (iPoint = 0; iPoint < nPointDomain; iPoint++)
       node[iPoint]->SetDelta_Time(Global_Delta_Time);
     config->AddCurrent_UnstTime(Global_Delta_Time);
