@@ -158,7 +158,12 @@ void CMultiGridIntegration::MultiGrid_Cycle(CGeometry ***geometry,
         
         solver_container[iZone][iMesh][SolContainer_Position]->Set_OldSolution(geometry[iZone][iMesh]);
         
-        /*--- Compute time step, max eigenvalue, and integration scheme (steady and unsteady problems) ---*/
+        /*--- Compute time step, max eigenvalue, and integration scheme
+         *    (steady and unsteady problems)
+         * XXX: Note that the timestep and timestep are only calculated once
+         * per each timestep.  This means that the "time" is not correctly
+         * set for any RK substeps, so any sources/sinks that depend explicitly
+         * on time will not be computed correctly. ---*/
         
         solver_container[iZone][iMesh][SolContainer_Position]->SetTime_Step(geometry[iZone][iMesh], solver_container[iZone][iMesh], config[iZone], iMesh, Iteration);
         
