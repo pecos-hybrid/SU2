@@ -250,6 +250,8 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
   /*--- Initialize the grid resolution tensor ---*/
 
   ResolutionTensor = new su2double*[nDim];
+  ResolutionValues = new su2double[nDim];
+  ResolutionVectors = new su2double*[nDim];
   for (iDim = 0; iDim < nDim; iDim++) {
     ResolutionTensor[iDim] = new su2double[nDim];
     ResolutionVectors[iDim] = new su2double[nDim];
