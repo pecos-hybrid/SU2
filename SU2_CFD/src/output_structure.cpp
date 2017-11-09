@@ -5481,14 +5481,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             
             if (!Unsteady) cout << endl << " Iter" << "    Time(s)";
             else cout << endl << " IntIter" << " ExtIter";
-<<<<<<< HEAD
-            if (Unsteady ||
-                config[val_iZone]->GetUnsteady_Simulation() == TIME_STEPPING)
-              cout << " Unst. Time";
-||||||| merged common ancestors
-=======
             if (Unsteady || time_stepping) cout << " Unst. Time";
->>>>>>> origin/pecos-dev
             
             //            if (!fluid_structure) {
             if (incompressible) cout << "   Res[Press]" << "     Res[Velx]" << "   CLift(Total)" << "   CDrag(Total)" << endl;
@@ -5543,14 +5536,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             
             if (!Unsteady) cout << endl << " Iter" << "    Time(s)";
             else cout << endl << " IntIter" << " ExtIter";
-<<<<<<< HEAD
-            if (Unsteady ||
-                config[val_iZone]->GetUnsteady_Simulation() == TIME_STEPPING)
-              cout << " Unst. Time";
-||||||| merged common ancestors
-=======
             if (Unsteady || time_stepping) cout << " Unst. Time";
->>>>>>> origin/pecos-dev
+
             if (incompressible) cout << "   Res[Press]";
             else cout << "      Res[Rho]";//, cout << "     Res[RhoE]";
             
