@@ -639,7 +639,7 @@ void CMeanFlowIteration::Update(COutput *output,
   
   /*--- Verify convergence criteria (based on total time) ---*/
 
-  if (config_container[val_iZone]->GetUnsteady_Simulation() == DT_STEPPING_1ST) {
+  if (config_container[val_iZone]->GetUnsteady_Simulation() == TIME_STEPPING) {
     Physical_t = config_container[val_iZone]->GetCurrent_UnstTime();
     if (Physical_t >=  config_container[val_iZone]->GetTotal_UnstTime())
       integration_container[val_iZone][FLOW_SOL]->SetConvergence(true);

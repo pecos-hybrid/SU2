@@ -4411,7 +4411,7 @@ public:
    * value of the current time.
    * \param[in] Amount of time to be added (usually one time step)
    */
-  su2double AddCurrent_UnstTime(su2double delta_time);
+  void AddCurrent_UnstTime(su2double delta_time);
 
   /*!
    * \brief If we are performing an unsteady simulation, set the
