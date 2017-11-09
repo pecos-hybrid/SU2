@@ -1111,7 +1111,8 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   // make sure v2 is well-behaved
   su2double zeta = max(v20/tke_lim, scale);
-  const su2double v2 = max(v20, zeta*tke);
+  // Extra max(..., 0) necessary in case v20 and tke are negative
+  const su2double v2 = max(max(v20, zeta*tke), 0.0);
 
   // Grab other quantities for convenience/readability
   const su2double rho = Density_i;

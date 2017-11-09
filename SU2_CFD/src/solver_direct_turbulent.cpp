@@ -685,14 +685,16 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
         
         for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
           node[iPoint]->AddClippedSolution(0, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint], lowerlimit[0], upperlimit[0]);
-        }        
+        }
+        
         break;
         
       case SA_NEG:
         
         for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
           node[iPoint]->AddSolution(0, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint]);
-        }        
+        }
+        
         break;
 
       case SST:
@@ -737,10 +739,11 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
               node[iPoint]->AddConservativeSolution(iVar, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint*nVar+iVar], density, density_old, lowerlimit[iVar], upperlimit[iVar]);
             }
           }
-          
-        }        
+
+        }
+
         break;
-        
+
     }
   }
   
@@ -770,30 +773,35 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
   
   bool implicit      = (config->GetKind_TimeIntScheme_Turb() == EULER_IMPLICIT);
   bool grid_movement = config->GetGrid_Movement();
-
   
-  /*--- Store the physical time step ---*/  
+  /*--- Store the physical time step ---*/
+  
   TimeStep = config->GetDelta_UnstTimeND();
   
   /*--- Compute the dual time-stepping source term for static meshes ---*/
+  
   if (!grid_movement) {
     
-    /*--- Loop over all nodes (excluding halos) ---*/    
+    /*--- Loop over all nodes (excluding halos) ---*/
+    
     for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
       
       /*--- Retrieve the solution at time levels n-1, n, and n+1. Note that
        we are currently iterating on U^n+1 and that U^n & U^n-1 are fixed,
-       previous solutions that are stored in memory. ---*/      
+       previous solutions that are stored in memory. ---*/
+      
       U_time_nM1 = node[iPoint]->GetSolution_time_n1();
       U_time_n   = node[iPoint]->GetSolution_time_n();
       U_time_nP1 = node[iPoint]->GetSolution();
       
       /*--- CV volume at time n+1. As we are on a static mesh, the volume
-       of the CV will remained fixed for all time steps. ---*/      
+       of the CV will remained fixed for all time steps. ---*/
+      
       Volume_nP1 = geometry->node[iPoint]->GetVolume();
       
       /*--- Compute the dual time-stepping source term based on the chosen
-       time discretization scheme (1st- or 2nd-order).---*/      
+       time discretization scheme (1st- or 2nd-order).---*/
+      
       if (config->GetKind_Turb_Model() == SST) {
         
         /*--- If this is the SST model, we need to multiply by the density
@@ -879,25 +887,30 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
     
     for (iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {
       
-      /*--- Get indices for nodes i & j plus the face normal ---*/      
+      /*--- Get indices for nodes i & j plus the face normal ---*/
+      
       iPoint = geometry->edge[iEdge]->GetNode(0);
       jPoint = geometry->edge[iEdge]->GetNode(1);
       Normal = geometry->edge[iEdge]->GetNormal();
       
-      /*--- Grid velocities stored at nodes i & j ---*/      
+      /*--- Grid velocities stored at nodes i & j ---*/
+      
       GridVel_i = geometry->node[iPoint]->GetGridVel();
       GridVel_j = geometry->node[jPoint]->GetGridVel();
       
       /*--- Compute the GCL term by averaging the grid velocities at the
-       edge mid-point and dotting with the face normal. ---*/      
+       edge mid-point and dotting with the face normal. ---*/
+      
       Residual_GCL = 0.0;
       for (iDim = 0; iDim < nDim; iDim++)
         Residual_GCL += 0.5*(GridVel_i[iDim]+GridVel_j[iDim])*Normal[iDim];
       
-      /*--- Compute the GCL component of the source term for node i ---*/      
+      /*--- Compute the GCL component of the source term for node i ---*/
+      
       U_time_n = node[iPoint]->GetSolution_time_n();
       
-      /*--- Multiply by density at node i for the SST model ---*/      
+      /*--- Multiply by density at node i for the SST model ---*/
+      
       if (config->GetKind_Turb_Model() == SST) {
         Density_n = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
         for (iVar = 0; iVar < nVar; iVar++)
@@ -924,10 +937,12 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
 
       LinSysRes.AddBlock(iPoint, Residual);
       
-      /*--- Compute the GCL component of the source term for node j ---*/      
+      /*--- Compute the GCL component of the source term for node j ---*/
+      
       U_time_n = node[jPoint]->GetSolution_time_n();
       
-      /*--- Multiply by density at node j for the SST model ---*/      
+      /*--- Multiply by density at node j for the SST model ---*/
+      
       if (config->GetKind_Turb_Model() == SST) {
         Density_n = solver_container[FLOW_SOL]->node[jPoint]->GetSolution_time_n()[0];
         for (iVar = 0; iVar < nVar; iVar++)
@@ -981,7 +996,8 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
         
         U_time_n = node[iPoint]->GetSolution_time_n();
         
-        /*--- Multiply by density at node i for the SST model ---*/        
+        /*--- Multiply by density at node i for the SST model ---*/
+        
         if (config->GetKind_Turb_Model() == SST) {
           Density_n = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
           for (iVar = 0; iVar < nVar; iVar++)
@@ -1516,7 +1532,6 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
           muT    = Density*fv1*nu_hat;
           
         }
-
         if (incompressible) {
           if (nDim == 2) point_line >> index >> dull_val >> dull_val >> dull_val >> dull_val >> dull_val >> Solution[0];
           if (nDim == 3) point_line >> index >> dull_val >> dull_val >> dull_val >> dull_val >> dull_val >> dull_val >> dull_val >> Solution[0];
@@ -3772,7 +3787,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
     /*--- Restart the solution from file information ---*/
     ifstream restart_file;
     string filename = config->GetSolution_FlowFileName();
-    
+
     /*--- Modify file name for multizone problems ---*/
     if (nZone >1)
       filename= config->GetMultizone_FileName(filename, iZone);
@@ -4008,7 +4023,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     /*--- Compute the eddy viscosity ---*/
 
-    muT = constants[0]*rho*v2*Tm;
+    muT = constants[0]*rho*zeta*kine*Tm;
 
     node[iPoint]->SetmuT(muT);
 
@@ -4036,11 +4051,17 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
       VelMag += VelInf[iDim]*VelInf[iDim];
     VelMag = sqrt(VelMag);
 
-    /*--- Clipping to avoid nonphysical quantities ---*/
+    /*--- Clipping to avoid nonphysical quantities
+     * We keep "tke_positive" in order to allow tke=0 but clip negative
+     * values.  If tke is some small nonphysical quantity (but not zero),
+     * then it is possible for L1 > L3 and T1 > T3 when the viscous
+     * scales are smaller than this nonphysical limit. ---*/
+    
     const su2double tke_lim = max(kine, scale*VelMag*VelMag);
+    const su2double tke_positive = max(kine, 0.0);
     const su2double tdr_lim = max(epsi, scale*VelMag*VelMag*VelMag/L_inf);
     const su2double zeta_lim = max(v2/tke_lim, scale);
-    const su2double S_FLOOR = 1e-12;
+    const su2double S_FLOOR = scale;
 
     // Grab other quantities for convenience/readability
     const su2double C_mu    = constants[0];
@@ -4050,16 +4071,16 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
     const su2double S       = solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag();; //*sqrt(2.0) already included
 
     //--- Model time scale ---//
-    const su2double T1     = kine/tdr_lim;
+    const su2double T1     = tke_positive/tdr_lim;
     // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
     const su2double T2     = 0.6/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
     const su2double T3     = C_T*sqrt(nu/tdr_lim);
     su2double T = max(min(T1,T2),T3);
 
     //--- Model length scale ---//
-    const su2double L1     = pow(kine,1.5)/tdr_lim;
+    const su2double L1     = pow(tke_positive,1.5)/tdr_lim;
     // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
-    const su2double L2     = sqrt(kine)/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
+    const su2double L2     = sqrt(tke_positive)/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
     const su2double L3     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
     su2double L = max(min(L1,L2),L3); //... mult by C_L in source numerics
 
