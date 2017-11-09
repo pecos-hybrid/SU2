@@ -480,6 +480,7 @@ private:
   su2double Linear_Solver_Error;		/*!< \brief Min error of the linear solver for the implicit formulation. */
   su2double Linear_Solver_Error_FSI_Struc;		/*!< \brief Min error of the linear solver for the implicit formulation in the structural side for FSI problems . */
   unsigned long Linear_Solver_Iter;		/*!< \brief Max iterations of the linear solver for the implicit formulation. */
+  bool Linear_Solver_Max_Iter_Error; /*!< \brief Program will exit with an error if the linear solver exceeds the max iterations. */
   unsigned long Linear_Solver_Iter_FSI_Struc;		/*!< \brief Max iterations of the linear solver for FSI applications and structural solver. */
   unsigned long Linear_Solver_Restart_Frequency;   /*!< \brief Restart frequency of the linear solver for the implicit formulation. */
   su2double SemiSpan;		/*!< \brief Wing Semi span. */
@@ -3138,6 +3139,12 @@ public:
    */
   unsigned long GetLinear_Solver_Iter(void);
   
+  /*!
+   * \brief Check if the program will error out when reaching the max number of iterations
+   * \return True if the program will error out when reaching the max number of iterations
+   */
+  bool GetLinear_Solver_Max_Iter_Error(void);
+
   /*!
    * \brief Get restart frequency of the linear solver for the implicit formulation.
    * \return Restart frequency of the linear solver for the implicit formulation.

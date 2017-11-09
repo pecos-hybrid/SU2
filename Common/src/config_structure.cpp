@@ -999,6 +999,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("LINEAR_SOLVER_ERROR", Linear_Solver_Error, 1E-5);
   /* DESCRIPTION: Maximum number of iterations of the linear solver for the implicit formulation */
   addUnsignedLongOption("LINEAR_SOLVER_ITER", Linear_Solver_Iter, 10);
+  /* DESCRIPTION: Display an error and exit if the linear solver exceeds the max iterations \n DEFAULT: False */
+  addBoolOption("LINEAR_SOLVER_MAX_ITER_ERROR", Linear_Solver_Max_Iter_Error, false);
   /* DESCRIPTION: Maximum number of iterations of the linear solver for the implicit formulation */
   addUnsignedLongOption("LINEAR_SOLVER_RESTART_FREQUENCY", Linear_Solver_Restart_Frequency, 10);
   /* DESCRIPTION: Relaxation of the flow equations solver for the implicit formulation */
