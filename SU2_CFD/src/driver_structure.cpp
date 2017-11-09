@@ -601,10 +601,12 @@ void CDriver::Geometrical_Preprocessing() {
         (config_container[iZone]->GetVisualize_CV() < (long)geometry_container[iZone][MESH_0]->GetnPointDomain()))
       geometry_container[iZone][MESH_0]->VisualizeControlVolume(config_container[iZone], UPDATE);
 
-    /*--- Compute cell center of gravity ---*/
+    /*--- Compute cell resolution tensors ---*/
 
-    if (rank == MASTER_NODE) cout << "Computing cell resolution tensors." << endl;
-    geometry_container[iZone][MESH_0]->SetResolutionTensor();
+    if (config_container[iZone]->isHybrid_Turb_Model()) {
+      if (rank == MASTER_NODE) cout << "Computing cell resolution tensors." << endl;
+      geometry_container[iZone][MESH_0]->SetResolutionTensor();
+    }
 
     /*--- Identify closest normal neighbor ---*/
 
@@ -653,7 +655,7 @@ void CDriver::Geometrical_Preprocessing() {
       geometry_container[iZone][iMGlevel]->SetBoundControlVolume(config_container[iZone], geometry_container[iZone][iMGlevel-1], ALLOCATE);
       geometry_container[iZone][iMGlevel]->SetCoord(geometry_container[iZone][iMGlevel-1]);
 
-      geometry_container[iZone][iMGlevel]->SetResolutionTensor();
+      /*--- No multigrid for turbulence, so no need for resolution tensors ---*/
 
       /*--- Find closest neighbor to a surface point ---*/
 

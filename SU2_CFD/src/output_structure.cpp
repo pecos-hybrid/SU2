@@ -5702,10 +5702,6 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
           cout.width(8); cout << iExtIter;
         }
       }
-      if (Unsteady ||
-          config[val_iZone]->GetUnsteady_Simulation() == TIME_STEPPING) {
-          cout.width(11); cout << config[val_iZone]->GetCurrent_UnstTime();
-      }
       
       
       switch (config[val_iZone]->GetKind_Solver()) {

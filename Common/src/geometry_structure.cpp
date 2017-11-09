@@ -895,7 +895,9 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
     geometry_container[MESH_0]->SetCoord_CG();
     geometry_container[MESH_0]->SetControlVolume(config, UPDATE);
     geometry_container[MESH_0]->SetBoundControlVolume(config, UPDATE);
-    geometry_container[MESH_0]->SetResolutionTensor();
+    if (config->isHybrid_Turb_Model()) {
+      geometry_container[MESH_0]->SetResolutionTensor();
+    }
 
     for (iMesh = 1; iMesh <= config->GetnMGLevels(); iMesh++) {
         /*--- Update the control volume structures ---*/
@@ -903,7 +905,7 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
         geometry_container[iMesh]->SetControlVolume(config,geometry_container[iMesh-1], UPDATE);
         geometry_container[iMesh]->SetBoundControlVolume(config,geometry_container[iMesh-1], UPDATE);
         geometry_container[iMesh]->SetCoord(geometry_container[iMesh-1]);
-        geometry_container[iMesh]->SetResolutionTensor();
+        // Multigrid isn't supported for turbulence, so no resolution tensors
 
     }
 

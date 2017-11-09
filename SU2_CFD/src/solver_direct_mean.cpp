@@ -393,6 +393,8 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   DonorPrimVar = NULL; DonorGlobalIndex = NULL;
   ActDisk_DeltaP = NULL; ActDisk_DeltaT = NULL;
 
+  LinSysKexp = NULL; LinSysKimp = NULL;
+
   Smatrix = NULL; Cvector = NULL;
 
   Secondary=NULL; Secondary_i=NULL; Secondary_j=NULL;
