@@ -703,7 +703,7 @@ unsigned short iDim, jDim;
   for (iDim = 0; iDim < nDim; iDim++) {
     if (eigval[iDim] < 0.0 && eigval[iDim] > -1e-4) {
         eigvalues[iDim] = 0.0;
-    } else if (eigval[iDim] < -1e-6) {
+    } else if (eigval[iDim] < -1e-4) {
       cout << "ERROR: The solver returned a large negative eigenvalue!" << endl;
       cout << "    Eigenvalues: [";
       cout << eigval[0] << ", ";

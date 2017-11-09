@@ -3685,20 +3685,20 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
   // These are used in the AddConservativeSolution calls
   // k
-  lowerlimit[0] = 1.0e-8;
-  upperlimit[0] = 1.0e10;
+  lowerlimit[0] = -1.0e10;
+  upperlimit[0] =  1.0e10;
 
-  // epsi  
-  lowerlimit[1] = 1.0e-8;
-  upperlimit[1] = 1.0e10;
+  // epsi
+  lowerlimit[1] = -1.0e10;
+  upperlimit[1] =  1.0e10;
 
-  // zeta
-  lowerlimit[2] = 1.0e-8;
-  upperlimit[2] = 2.0/3.0;
-  
+  // v2
+  lowerlimit[2] = -1.0e10;
+  upperlimit[2] =  1.0e10;
+
   // f
-  lowerlimit[3] = 1.0e-8;
-  upperlimit[3] = 1.0e8;
+  lowerlimit[3] = -1.0e10;
+  upperlimit[3] =  1.0e10;
 
 
   /*--- Flow infinity initialization stuff ---*/
@@ -3995,7 +3995,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     v2   = node[iPoint]->GetSolution(2);
 
     /*--- T & L ---*/
-    su2double scale = 1.0e-14;
+    su2double scale = EPS;
     VelInf = config->GetVelocity_FreeStreamND();
     VelMag = 0;
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
