@@ -4372,6 +4372,20 @@ public:
   su2double GetCurrent_UnstTime(void);
   
   /*!
+   * \brief If we are performing an unsteady simulation, this adds to the
+   * value of the current time.
+   * \param[in] Amount of time to be added (usually one time step)
+   */
+  void AddCurrent_UnstTime(su2double delta_time);
+
+  /*!
+   * \brief If we are performing an unsteady simulation, set the
+   *  value of current time.
+   * \param[in] val_time - Value of the physical time in an unsteady simulation.
+   */
+  void SetCurrent_UnstTime(su2double val_time);
+
+  /*!
    * \brief Divide the rectbles and hexahedron.
    * \return <code>TRUE</code> if the elements must be divided; otherwise <code>FALSE</code>.
    */

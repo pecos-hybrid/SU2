@@ -1191,6 +1191,10 @@ inline su2double CConfig::GetDelta_UnstTime(void) { return Delta_UnstTime; }
 
 inline su2double CConfig::GetCurrent_UnstTime(void) { return Current_UnstTime; }
 
+inline void CConfig::AddCurrent_UnstTime(su2double delta_time) { Current_UnstTime += delta_time; }
+
+inline void CConfig::SetCurrent_UnstTime(su2double val_time) { Current_UnstTime = val_time; }
+
 inline void CConfig::SetDelta_UnstTimeND(su2double val_delta_unsttimend) { Delta_UnstTimeND = val_delta_unsttimend; }
 
 inline su2double CConfig::GetTotal_UnstTime(void) { return Total_UnstTime; }

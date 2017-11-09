@@ -3871,6 +3871,8 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
     restart_file <<"EXT_ITER= " << config->GetExtIter() + 1 << endl;
   else
     restart_file <<"EXT_ITER= " << config->GetExtIter() + config->GetExtIter_OffSet() + 1 << endl;
+  if (config->GetUnsteady_Simulation() == TIME_STEPPING)
+    restart_file << "TOTAL_TIME= " << config->GetCurrent_UnstTime() << endl;
   
   restart_file.close();
   
@@ -4188,7 +4190,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     unsigned long iExtIter = config[val_iZone]->GetExtIter();
     unsigned long ExtIter_OffSet = config[val_iZone]->GetExtIter_OffSet();
     if (config[val_iZone]->GetUnsteady_Simulation() == DT_STEPPING_1ST ||
-        config[val_iZone]->GetUnsteady_Simulation() == DT_STEPPING_2ND)
+        config[val_iZone]->GetUnsteady_Simulation() == DT_STEPPING_2ND ||
+        config[val_iZone]->GetUnsteady_Simulation() == TIME_STEPPING)
       ExtIter_OffSet = 0;
 
     /*--- WARNING: These buffers have hard-coded lengths. Note that you
@@ -4665,6 +4668,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     
     bool Unsteady = ((config[val_iZone]->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                      (config[val_iZone]->GetUnsteady_Simulation() == DT_STEPPING_2ND));
+    bool time_stepping = config[val_iZone]->GetUnsteady_Simulation() == TIME_STEPPING;
     bool In_NoDualTime = (!DualTime_Iteration && (iExtIter % config[val_iZone]->GetWrt_Con_Freq() == 0));
     bool In_DualTime_0 = (DualTime_Iteration && (iIntIter % config[val_iZone]->GetWrt_Con_Freq_DualTime() == 0));
     bool In_DualTime_1 = (!DualTime_Iteration && Unsteady);
@@ -4687,6 +4691,11 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     if (Unsteady) write_heads = (iIntIter == 0);
     else write_heads = (((iExtIter % (config[val_iZone]->GetWrt_Con_Freq()*40)) == 0));
     
+    /*--- Write the table header if time-stepping simulation is restarting ---*/
+    if (time_stepping && config[val_iZone]->GetRestart())
+      if (config[val_iZone]->GetUnst_RestartIter() == iExtIter)
+        write_heads = true;
+
     bool write_turbo = (((iExtIter % (config[val_iZone]->GetWrt_Con_Freq()*200)) == 0));
     
     /*--- Analogous for dynamic problems (as of now I separate the problems, it may be worthy to do all together later on ---*/
@@ -5140,6 +5149,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             
             if (!Unsteady) cout << endl << " Iter" << "    Time(s)";
             else cout << endl << " IntIter" << " ExtIter";
+            if (Unsteady || time_stepping) cout << " Unst. Time";
             
             //            if (!fluid_structure) {
             if (incompressible) cout << "   Res[Press]" << "     Res[Velx]" << "   CLift(Total)" << "   CDrag(Total)" << endl;
@@ -5194,6 +5204,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             
             if (!Unsteady) cout << endl << " Iter" << "    Time(s)";
             else cout << endl << " IntIter" << " ExtIter";
+            if (Unsteady || time_stepping) cout << " Unst. Time";
             if (incompressible) cout << "   Res[Press]";
             else cout << "      Res[Rho]";//, cout << "     Res[RhoE]";
             
@@ -5359,7 +5370,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
       
       switch (config[val_iZone]->GetKind_Solver()) {
         case EULER : case NAVIER_STOKES:
-          
+
           if (!DualTime_Iteration) {
             if (compressible) ConvHist_file[0] << begin << direct_coeff << flow_resid;
             if (incompressible) ConvHist_file[0] << begin << direct_coeff << flow_resid;
@@ -5374,6 +5385,10 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             ConvHist_file[0].flush();
           }
           
+          if ((Unsteady && DualTime_Iteration) || time_stepping) {
+              cout.width(11); cout << config[val_iZone]->GetCurrent_UnstTime();
+          }
+
     if(DualTime_Iteration || !Unsteady) {
           cout.precision(6);
           cout.setf(ios::fixed, ios::floatfield);
@@ -5427,7 +5442,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
           break;
           
         case RANS :
-          
+
           if (!DualTime_Iteration) {
             ConvHist_file[0] << begin << direct_coeff << flow_resid << turb_resid;
             if (aeroelastic) ConvHist_file[0] << aeroelastic_coeff;
@@ -5438,6 +5453,10 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             if (output_comboObj) ConvHist_file[0] << combo_obj;
             ConvHist_file[0] << end;
             ConvHist_file[0].flush();
+          }
+
+          if ((Unsteady && DualTime_Iteration) || time_stepping) {
+              cout.width(11); cout << config[val_iZone]->GetCurrent_UnstTime();
           }
           
     if(DualTime_Iteration || !Unsteady) {
@@ -14750,10 +14769,12 @@ void COutput::SetRestart_Parallel(CConfig *config, CGeometry *geometry, CSolver 
     restart_file <<"INITIAL_BCTHRUST= " << config->GetInitial_BCThrust() << endl;
     restart_file <<"DCD_DCL_VALUE= " << config->GetdCD_dCL() << endl;
     if (adjoint) restart_file << "SENS_AOA=" << solver[ADJFLOW_SOL]->GetTotal_Sens_AoA() * PI_NUMBER / 180.0 << endl;
-    if (dual_time)
+    if (dual_time || config->GetUnsteady_Simulation() == TIME_STEPPING)
       restart_file <<"EXT_ITER= " << config->GetExtIter() + 1 << endl;
     else
       restart_file <<"EXT_ITER= " << config->GetExtIter() + config->GetExtIter_OffSet() + 1 << endl;
+    if (config->GetUnsteady_Simulation() == TIME_STEPPING)
+      restart_file << "TOTAL_TIME= " << config->GetCurrent_UnstTime() << endl;
   }
   
   /*--- All processors close the file. ---*/

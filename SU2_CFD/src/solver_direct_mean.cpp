@@ -220,6 +220,12 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
       filename_ = config->GetUnsteady_FileName(filename_, Unst_RestartIter);
     }
 
+    /*--- Ensure that the solver had time=0 if no time is found ---*/
+
+    if (time_stepping) {
+      config->SetCurrent_UnstTime(0.0);
+    }
+
     /*--- Open the restart file, throw an error if this fails. ---*/
     
     restart_file.open(filename_.data(), ios::in);
@@ -311,8 +317,18 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
           config->SetExtIter_OffSet(ExtIter_);
       }
       
+      /*--- Total time ---*/
+
+      position = text_line.find ("TOTAL_TIME=",0);
+      if (position != string::npos) {
+        text_line.erase (0,11);
+        config->SetCurrent_UnstTime(atof(text_line.c_str()));
+      } else if (config->GetUnsteady_Simulation() == TIME_STEPPING) {
+        config->SetCurrent_UnstTime(0.0);
+      }
+      
     }
-    
+
     /*--- Close the restart file... we will open this file again... ---*/
     
     restart_file.close();
@@ -967,6 +983,9 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
     for (iPoint = 0; iPoint < nPoint; iPoint++)
       node[iPoint] = new CEulerVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
     
+    if (config->GetUnsteady_Simulation() == TIME_STEPPING)
+      config->SetCurrent_UnstTime(0.0);
+
   } else {
         
     /*--- Multizone problems require the number of the zone to be appended. ---*/
@@ -4621,7 +4640,7 @@ void CEulerSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container,
       (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
 
   bool grid_movement = config->GetGrid_Movement();
-    bool time_steping = config->GetUnsteady_Simulation() == TIME_STEPPING;
+    bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
   bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
   
@@ -4745,7 +4764,12 @@ void CEulerSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container,
   
   /*--- For exact time solution use the minimum delta time of the whole mesh ---*/
   
-  if (time_steping) {
+  if (time_stepping) {
+    /*--- If the unsteady CFL is set to zero, it uses the defined unsteady time step, otherwise
+     * it computes the time step based on the unsteady CFL ---*/
+    if (config->GetUnst_CFL() == 0) {
+      Global_Delta_Time = config->GetDelta_UnstTimeND();
+    } else {
 #ifdef HAVE_MPI
     su2double rbuf_time, sbuf_time;
     sbuf_time = Global_Delta_Time;
@@ -4753,19 +4777,17 @@ void CEulerSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container,
     SU2_MPI::Bcast(&rbuf_time, 1, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
     Global_Delta_Time = rbuf_time;
 #endif
-    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
-            
-            /*--- Sets the regular CFL equal to the unsteady CFL ---*/
-            config->SetCFL(iMesh,config->GetUnst_CFL());
-            
-            /*--- If the unsteady CFL is set to zero, it uses the defined unsteady time step, otherwise
-             it computes the time step based on the unsteady CFL ---*/
-            if (config->GetCFL(iMesh) == 0.0) {
-                node[iPoint]->SetDelta_Time(config->GetDelta_UnstTime());
-            } else {
-                node[iPoint]->SetDelta_Time(Global_Delta_Time);
-            }
-        }
+    }
+    /*--- XXX: Setting the time once each iteration like this works for the
+     * current case, where the time is only used for tracking (i.e. when
+     * the simulation reaches the max time, it stops).  It will not work if 
+     * the actual time is needed as part of the residual calculation.  If
+     * du/dt = F(u, t), the residual will not be calculated correctly.  This
+     * is especially true for RK schemes, which evaluate the residual at
+     * separate times for the substeps. ---*/
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++)
+      node[iPoint]->SetDelta_Time(Global_Delta_Time);
+    config->AddCurrent_UnstTime(Global_Delta_Time);
   }
   
   /*--- Recompute the unsteady time step for the dual time strategy
@@ -15065,6 +15087,12 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
       filename_ = config->GetUnsteady_FileName(filename_, Unst_RestartIter);
     }
 
+    /*--- Ensure that the solver had time=0 if no time is found ---*/
+
+    if (time_stepping) {
+      config->SetCurrent_UnstTime(0.0);
+    }
+
     /*--- Open the restart file, throw an error if this fails. ---*/
     
     restart_file.open(filename_.data(), ios::in);
@@ -15156,6 +15184,16 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
           config->SetExtIter_OffSet(ExtIter_);
       }
       
+      /*--- Total time ---*/
+
+      position = text_line.find ("TOTAL_TIME=",0);
+      if (position != string::npos) {
+        text_line.erase (0,11);
+        config->SetCurrent_UnstTime(atof(text_line.c_str()));
+      } else if (config->GetUnsteady_Simulation() == TIME_STEPPING) {
+        config->SetCurrent_UnstTime(0.0);
+      }
+
     }
     
     /*--- Close the restart file... we will open this file again... ---*/
@@ -15811,6 +15849,9 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
     for (iPoint = 0; iPoint < nPoint; iPoint++)
       node[iPoint] = new CNSVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
     
+    if (config->GetUnsteady_Simulation() == TIME_STEPPING)
+      config->SetCurrent_UnstTime(0.0);
+
   }
   
   else {
@@ -16407,12 +16448,11 @@ void CNSSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container, CC
   
   /*--- For exact time solution use the minimum delta time of the whole mesh ---*/
   if (config->GetUnsteady_Simulation() == TIME_STEPPING) {
-    int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
-
-
+    /*--- If the unsteady CFL is set to zero, it uses the defined unsteady time step, otherwise
+     * it computes the time step based on the unsteady CFL ---*/
+    if (config->GetUnst_CFL() == 0) {
+      Global_Delta_Time = config->GetDelta_UnstTimeND();
+    } else {
 #ifdef HAVE_MPI
     su2double rbuf_time, sbuf_time;
     sbuf_time = Global_Delta_Time;
@@ -16420,19 +16460,17 @@ void CNSSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container, CC
     SU2_MPI::Bcast(&rbuf_time, 1, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
     Global_Delta_Time = rbuf_time;
 #endif
-    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
-            
-            /*--- Sets the regular CFL equal to the unsteady CFL ---*/
-            config->SetCFL(iMesh,config->GetUnst_CFL());
-            
-            /*--- If the unsteady CFL is set to zero, it uses the defined unsteady time step, otherwise
-             it computes the time step based on the unsteady CFL ---*/
-            if (config->GetCFL(iMesh) == 0.0) {
-                node[iPoint]->SetDelta_Time(config->GetDelta_UnstTime());
-            } else {
-                node[iPoint]->SetDelta_Time(Global_Delta_Time);
-            }
-        }
+    }
+    /*--- XXX: Setting the time once each iteration like this works for the
+     * current case, where the time is only used for tracking (i.e. when
+     * the simulation reaches the max time, it stops).  It will not work if 
+     * the actual time is needed as part of the residual calculation.  If
+     * du/dt = F(u, t), the residual will not be calculated correctly.  This
+     * is especially true for RK schemes, which evaluate the residual at
+     * separate times for the substeps. ---*/
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++)
+      node[iPoint]->SetDelta_Time(Global_Delta_Time);
+    config->AddCurrent_UnstTime(Global_Delta_Time);
   }
   
   /*--- Recompute the unsteady time step for the dual time strategy
