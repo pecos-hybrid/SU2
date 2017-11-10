@@ -1529,10 +1529,6 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
         numerics_container[iMGlevel][TURB_SOL][CONV_BOUND_TERM] = new CUpwSca_TurbKE(nDim, nVar_Turb, config);
         numerics_container[iMGlevel][TURB_SOL][VISC_BOUND_TERM] = new CAvgGrad_TurbKE(nDim, nVar_Turb, constants, false, config);
       }
-      else if (zetaf_ke) {
-        numerics_container[iMGlevel][TURB_SOL][CONV_BOUND_TERM] = new CUpwSca_TurbKE(nDim, nVar_Turb, config);
-        numerics_container[iMGlevel][TURB_SOL][VISC_BOUND_TERM] = new CAvgGrad_TurbKE(nDim, nVar_Turb, constants, false, config);
-      }
     }
   }
 
