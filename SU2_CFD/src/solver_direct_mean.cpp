@@ -393,6 +393,8 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   DonorPrimVar = NULL; DonorGlobalIndex = NULL;
   ActDisk_DeltaP = NULL; ActDisk_DeltaT = NULL;
 
+  LinSysKexp = NULL; LinSysKimp = NULL;
+
   Smatrix = NULL; Cvector = NULL;
 
   Secondary=NULL; Secondary_i=NULL; Secondary_j=NULL;
@@ -1411,7 +1413,9 @@ CEulerSolver::~CEulerSolver(void) {
   if (NormalMachIn          != NULL) delete [] NormalMachIn;
   if (NormalMachOut         != NULL) delete [] NormalMachOut;
   if (VelocityOutIs         != NULL) delete [] VelocityOutIs;
-  
+
+  if (LinSysKimp            != NULL) delete [] LinSysKimp;
+  if (LinSysKexp            != NULL) delete [] LinSysKexp;
 }
 
 void CEulerSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
@@ -10894,6 +10898,12 @@ void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container,
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                               solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
         
+        /*--- Pass in relevant information from hybrid model ---*/
+
+        if (config->isHybrid_Turb_Model())
+          HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
+                                                    visc_numerics, iPoint, iPoint);
+
         /*--- Compute and update viscous residual ---*/
         
         visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
@@ -12564,6 +12574,12 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
         if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE)
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
         
+        /*--- Pass in relevant information from hybrid model ---*/
+
+        if (config->isHybrid_Turb_Model())
+          HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
+                                                    visc_numerics, iPoint, iPoint);
+
         /*--- Compute and update residual ---*/
         
         visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
@@ -12739,6 +12755,13 @@ void CEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container,
         visc_numerics->SetPrimitive(V_domain, V_outlet);
         visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
         
+        /*--- Pass in relevant information from hybrid model ---*/
+
+        if (config->isHybrid_Turb_Model())
+          HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
+                                                    visc_numerics, iPoint, iPoint);
+
+
         /*--- Turbulent kinetic energy ---*/
         if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE)
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
@@ -15023,6 +15046,8 @@ CNSSolver::CNSSolver(void) : CEulerSolver() {
   
   CMerit_Visc = NULL; CT_Visc = NULL; CQ_Visc = NULL;
   
+  hybrid_anisotropy = NULL;
+
 }
 
 CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh) : CEulerSolver() {
@@ -15047,7 +15072,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   bool adjoint = (config->GetContinuous_Adjoint()) || (config->GetDiscrete_Adjoint());
   string filename = config->GetSolution_FlowFileName();
   string filename_ = config->GetSolution_FlowFileName();
-  su2double AoA_, AoS_, BCThrust_;
+  su2double AoA_, AoS_, BCThrust_, TotalTime_;
   string::size_type position;
   unsigned long ExtIter_;
 
@@ -15830,6 +15855,24 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
     VelocityOutIs[iMarker]= 0.0;
   }
   
+  /*--- Setup hybridization ---*/
+
+  if (config->isHybrid_Turb_Model()) {
+    switch (config->GetKind_Hybrid_Anisotropy_Model()) {
+      case ISOTROPIC:
+        hybrid_anisotropy = new CHybrid_Isotropic_Visc(nDim);
+        break;
+      case Q_BASED:
+        hybrid_anisotropy = new CHybrid_Aniso_Q(nDim);
+        break;
+      default:
+        cout << "Error: Selected anisotropy model not initialized." << std::endl;
+        cout << "       At line " << __LINE__ << " of file " __FILE__ << std::endl;
+        exit(EXIT_FAILURE);
+    }
+  } else {
+    hybrid_anisotropy = NULL;
+  }
   
   /*--- Initialize the cauchy critera array for fixed CL mode ---*/
   
@@ -16106,6 +16149,7 @@ CNSSolver::~CNSSolver(void) {
     delete [] Inlet_FlowDir;
   }
 
+  if (hybrid_anisotropy != NULL) delete hybrid_anisotropy;
 }
 
 void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned short iRKStep, unsigned short RunTime_EqSystem, bool Output) {
@@ -16210,6 +16254,15 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     StrainMag_Max = max(StrainMag_Max, StrainMag);
     Omega_Max = max(Omega_Max, Omega);
     
+    /*--- Solve for the stress anisotropy ---*/
+
+    if (config->isHybrid_Turb_Model()) {
+      HybridMediator->SetupStressAnisotropy(geometry, solver_container, hybrid_anisotropy, iPoint);
+      hybrid_anisotropy->CalculateViscAnisotropy();
+      node[iPoint]->SetEddyViscAnisotropy(hybrid_anisotropy->GetViscAnisotropy());
+      // The mediator doesn't need to set up the resolved flow solver
+    }
+
   }
   
   /*--- Initialize the Jacobian matrices ---*/
@@ -16535,6 +16588,11 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
       numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                      solver_container[TURB_SOL]->node[jPoint]->GetSolution(0));
     
+    /*--- Pass in relevant information from hybrid model ---*/
+    if (config->isHybrid_Turb_Model())
+      HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
+                                                numerics, iPoint, jPoint);
+
     /*--- Compute and update residual ---*/
     
     numerics->ComputeResidual(Res_Visc, Jacobian_i, Jacobian_j, config);

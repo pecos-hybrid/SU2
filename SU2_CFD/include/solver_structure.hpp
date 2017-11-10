@@ -49,6 +49,7 @@
 #include <stdio.h>
 
 #include "fluid_model.hpp"
+#include "hybrid_RANS_LES_model.hpp"
 #include "numerics_structure.hpp"
 #include "variable_structure.hpp"
 #include "../../Common/include/gauss_structure.hpp"
@@ -3606,6 +3607,12 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   virtual void SetFreeStream_Solution(CConfig *config);
+
+  /*!
+   * \brief A virtual member
+   * \param[in] hybrid_mediator - The mediator object for the hybrid model.
+   */
+  virtual void AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator);
 };
 
 /*!
@@ -3951,6 +3958,9 @@ protected:
   /* Sliding meshes variables */
 
   su2double ***SlidingState;
+
+
+  CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
 
 public:
   
@@ -6083,6 +6093,12 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetFreeStream_Solution(CConfig *config);
+
+  /*!
+   * \brief Add a hybrid mediator object to manage the RANS/LES hybrid model
+   * \param[in] hybrid_mediator - The mediator object
+   */
+  void AddHybridMediator(CAbstract_Hybrid_Mediator *hybrid_mediator);
 };
 
   
@@ -7472,7 +7488,8 @@ private:
   AllBound_HF_Visc,    /*!< \brief Heat load (viscous contribution) for all the boundaries. */
   AllBound_MaxHF_Visc; /*!< \brief Maximum heat flux (viscous contribution) for all boundaries. */
   su2double StrainMag_Max, Omega_Max; /*!< \brief Maximum Strain Rate magnitude and Omega. */
-  
+  CHybrid_Visc_Anisotropy* hybrid_anisotropy; /*!< \brief A model for the eddy viscosity anisotropy */
+
 public:
   
   /*!
@@ -7814,7 +7831,6 @@ public:
    * \return Value of the Omega_Max
    */
   void SetOmega_Max(su2double val_omega_max);
-  
 };
 
 /*!
@@ -8207,7 +8223,8 @@ protected:
   *upperlimit;            /*!< \brief contains upper limits for turbulence variables. */
   su2double Gamma;           /*!< \brief Fluid's Gamma constant (ratio of specific heats). */
   su2double Gamma_Minus_One; /*!< \brief Fluids's Gamma - 1.0  . */
-  
+  CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
+
 public:
   
   /*!
@@ -8330,7 +8347,12 @@ public:
    * \param[in] val_iter - Current external iteration number.
    */
   void LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter);
-  
+
+  /*!
+   * \brief Add a hybrid mediator object to manage the RANS/LES hybrid model
+   * \param[in] hybrid_mediator - The mediator object
+   */
+  void AddHybridMediator(CAbstract_Hybrid_Mediator *hybrid_mediator);
 };
 
 /*!
@@ -8716,7 +8738,7 @@ public:
    */
   void BC_Outlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
                  unsigned short val_marker, unsigned short iRKStep);
-  
+
   /*!
    * \brief Get the constants for the SST model.
    * \return A pointer to an array containing a set of constants
@@ -8792,6 +8814,12 @@ public:
    */
   void Postprocessing(CGeometry *geometry, CSolver **solver_container,
                       CConfig *config, unsigned short iMesh);
+  /*!
+   * \brief Calculates and stores the large-eddy timescale and lengthscale
+   * \param[in] solver_container - Container vector with all the solutions
+   * \param[in] config - Definition of the particular problem.
+   */
+  void CalculateTurbScales(CSolver **solver_container, CConfig *config);
 
   /*!
    * \brief Source term computation.
@@ -9085,6 +9113,363 @@ public:
   su2double *LinSysSolReth;    /*!< \brief vector to store iterative solution of implicit linear system. */
   su2double *LinSysResReth;    /*!< \brief vector to store iterative residual of implicit linear system. */
   su2double *rhsReth;    /*!< \brief right hand side of implicit linear system. */
+};
+
+
+/*!
+ * \class CHybridSolver
+ * \brief Base class for solving the transport equation for the hybrid parameter
+ * \ingroup Hybrid_Parameter_Model
+ * \author C. Pederson
+ * \version 5.0.0 "Raven"
+ */
+class CHybridSolver: public CSolver {
+
+ protected:
+   su2double *FlowPrimVar_i,  /*!< \brief Store the flow solution at point i. */
+   *FlowPrimVar_j;         /*!< \brief Store the flow solution at point j. */
+  CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
+
+ public:
+
+   /*!
+    * \brief Constructor of the class.
+    */
+   CHybridSolver();
+
+   /*!
+    * \brief Destructor of the class.
+    */
+   virtual ~CHybridSolver(void);
+
+   /*!
+    * \brief Constructor of the class.
+    */
+   CHybridSolver(CConfig *config);
+
+   /*!
+    * \brief Impose the send-receive boundary condition.
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] config - Definition of the particular problem.
+    */
+   void Set_MPI_Solution(CGeometry *geometry, CConfig *config);
+
+   /*!
+    * \brief Impose the send-receive boundary condition.
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] config - Definition of the particular problem.
+    */
+   void Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config);
+
+   /*!
+    * \brief Impose the send-receive boundary condition.
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] config - Definition of the particular problem.
+    */
+   void Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config);
+
+   /*!
+    * \brief Impose the send-receive boundary condition.
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] config - Definition of the particular problem.
+    */
+   void Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *config);
+
+   /*!
+    * \brief Compute the viscous residuals for the hybrid parameter transport
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] solver_container - Container vector with all the solutions.
+    * \param[in] numerics - Description of the numerical method.
+    * \param[in] config - Definition of the particular problem.
+    * \param[in] iMesh - Index of the mesh in multigrid computations.
+    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
+    */
+   void Viscous_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
+                                        CConfig *config, unsigned short iMesh, unsigned short iRKStep);
+   /*!
+    * \brief Compute the spatial integration using a upwind scheme.
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] solver_container - Container vector with all the solutions.
+    * \param[in] numerics - Description of the numerical method.
+    * \param[in] config - Definition of the particular problem.
+    * \param[in] iMesh - Index of the mesh in multigrid computations.
+    */
+   void Upwind_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
+                        unsigned short iMesh, unsigned short iRKStep);
+
+   /*!
+    * \brief Impose the Symmetry Plane boundary condition.
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] solver_container - Container vector with all the solutions.
+    * \param[in] conv_numerics - Description of the numerical method.
+    * \param[in] visc_numerics - Description of the numerical method.
+    * \param[in] config - Definition of the particular problem.
+    * \param[in] val_marker - Surface marker where the boundary condition is applied.
+    */
+   void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+                     unsigned short val_marker, unsigned short iRKStep);
+
+   /*!
+    * \brief Update the solution using an implicit solver.
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] solver_container - Container vector with all the solutions.
+    * \param[in] config - Definition of the particular problem.
+    */
+   void ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_container, CConfig *config);
+
+   /*!
+    * \brief Set the total residual adding the term that comes from the Dual Time-Stepping Strategy.
+    * \param[in] geometry - Geometric definition of the problem.
+    * \param[in] solver_container - Container vector with all the solutions.
+    * \param[in] config - Definition of the particular problem.
+    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
+    * \param[in] iMesh - Index of the mesh in multigrid computations.
+    * \param[in] RunTime_EqSystem - System of equations which is going to be solved.
+    */
+   void SetResidual_DualTime(CGeometry *geometry, CSolver **solver_container, CConfig *config,
+                             unsigned short iRKStep, unsigned short iMesh, unsigned short RunTime_EqSystem);
+
+   /*!
+    * \brief Load a solution from a restart file.
+    * \param[in] geometry - Geometrical definition of the problem.
+    * \param[in] solver - Container vector with all of the solvers.
+    * \param[in] config - Definition of the particular problem.
+    * \param[in] val_iter - Current external iteration number.
+    */
+   void LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter);
+
+   /*!
+   * \brief Add a hybrid mediator object to manage the RANS/LES hybrid model
+   * \param[in] hybrid_mediator - The mediator object
+   */
+  void AddHybridMediator(CAbstract_Hybrid_Mediator *hybrid_mediator);
+};
+
+
+/*!
+ * \class CHybridConvSolver
+ * \brief Solver for the transport of the hybrid parameter (for hybrid RANS/LES)
+ * \ingroup Hybrid_Parameter_Model
+ * \author C. Pederson
+ * \version 5.0.0 "Raven"
+ */
+class CHybridConvSolver: public CHybridSolver {
+private:
+  const su2double alpha_Inf;
+
+public:
+  /*!
+   * \brief Constructor of the class.
+   */
+  CHybridConvSolver();
+
+  /*!
+   * \overload
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] FluidModel
+   */
+  CHybridConvSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh);
+
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CHybridConvSolver(void);
+
+  /*!
+   * \brief Restart residual and compute gradients.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
+   * \param[in] RunTime_EqSystem - System of equations which is going to be solved.
+   * \param[in] Output - boolean to determine whether to print output.
+   */
+  void Preprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned short iRKStep, unsigned short RunTime_EqSystem, bool Output);
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] iMesh - Index of the mesh in multigrid computations.
+   */
+  void Postprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config,
+                      unsigned short iMesh);
+
+  /*!
+   * \brief Impose the Navier-Stokes wall boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+                        unsigned short val_marker, unsigned short iRKStep);
+
+  /*!
+   * \brief Impose the Navier-Stokes wall boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+                          unsigned short val_marker, unsigned short iRKStep);
+
+  /*!
+   * \brief Impose the Far Field boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+                    unsigned short val_marker, unsigned short iRKStep);
+
+  /*!
+   * \brief Impose the inlet boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Inlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+                unsigned short val_marker, unsigned short iRKStep);;
+
+  /*!
+   * \brief Impose the outlet boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Outlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+                 unsigned short val_marker, unsigned short iRKStep);
+
+  /*!
+   * \brief Impose the engine inflow boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Engine_Inflow(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
+                        CConfig *config, unsigned short val_marker,
+                        unsigned short iRKStep);
+
+  /*!
+   * \brief Impose the engine exhaust boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Engine_Exhaust(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
+                         CConfig *config, unsigned short val_marker,
+                         unsigned short iRKStep);
+
+  /*!
+   * \brief Impose the interface boundary condition using the residual.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Interface_Boundary(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
+                             CConfig *config, unsigned short val_marker,
+                             unsigned short iRKStep);
+
+  /*!
+   * \brief Impose the near-field boundary condition using the residual.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_NearField_Boundary(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
+                             CConfig *config, unsigned short val_marker,
+                             unsigned short iRKStep);
+
+  /*!
+   * \brief Impose an actuator disk inlet boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_ActDisk_Inlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
+                        CConfig *config, unsigned short val_marker,
+                        unsigned short iRKStep);
+
+  /*!
+   * \brief Impose an actuator disk outlet boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_ActDisk_Outlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
+                         CConfig *config, unsigned short val_marker,
+                         unsigned short iRKStep);
+
+  /*!
+   * \brief Impose an actuator disk inlet boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_ActDisk(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
+                  CConfig *config, unsigned short val_marker, bool inlet_surface,
+                  unsigned short iRKStep);
+
+  /*!
+   * \brief Impose via the residual the Euler wall boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
+                     unsigned short val_marker, unsigned short iRKStep);
+
+  /*!
+   * \brief Set the solution using the Freestream values.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetFreeStream_Solution(CConfig *config);
+
+  void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
+                       CConfig *config, unsigned short iMesh,
+                       unsigned short iRKStep);
+
+  su2double CalculateResolutionAdequacy();
 };
 
 /*!

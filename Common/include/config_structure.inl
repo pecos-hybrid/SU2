@@ -808,6 +808,8 @@ inline su2double CConfig::GetLinear_Solver_Error(void) { return Linear_Solver_Er
 
 inline unsigned long CConfig::GetLinear_Solver_Iter(void) { return Linear_Solver_Iter; }
 
+inline bool CConfig::GetLinear_Solver_Max_Iter_Error(void) { return Linear_Solver_Max_Iter_Error; }
+
 inline unsigned long CConfig::GetLinear_Solver_Restart_Frequency(void) { return Linear_Solver_Restart_Frequency; }
 
 inline su2double CConfig::GetRelaxation_Factor_Flow(void) { return Relaxation_Factor_Flow; }
@@ -1171,6 +1173,8 @@ inline string CConfig::GetSurfSens_FileName(void) { return SurfSens_FileName; }
 
 inline string CConfig::GetVolSens_FileName(void) { return VolSens_FileName; }
 
+inline string CConfig::GetHybrid_Const_FileName(void) { return Hybrid_Const_FileName; }
+
 inline unsigned short CConfig::GetResidual_Func_Flow(void) { return Residual_Func_Flow; }
 
 inline unsigned short CConfig::GetCauchy_Func_Flow(void) { return Cauchy_Func_Flow; }
@@ -1266,6 +1270,14 @@ inline bool CConfig::GetGravityForce(void) { return GravityForce; }
 inline bool CConfig::GetSmoothNumGrid(void) { return SmoothNumGrid; }
 
 inline void CConfig::SetSmoothNumGrid(bool val_smoothnumgrid) { SmoothNumGrid = val_smoothnumgrid; }
+
+inline bool CConfig::isHybrid_Turb_Model(void) { return Hybrid_Turb_Model; }
+
+inline unsigned short CConfig::GetKind_Hybrid_Blending(void) { return Kind_Hybrid_Blending; }
+
+inline unsigned short CConfig::GetKind_Hybrid_Anisotropy_Model(void) { return Kind_Hybrid_Aniso_Model; }
+
+inline su2double CConfig::Get_Hybrid_Model_Const(void) { return Hybrid_Model_Constant; }
 
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
 

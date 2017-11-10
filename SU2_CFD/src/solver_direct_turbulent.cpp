@@ -3157,7 +3157,14 @@ void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
     /*--- Cross diffusion ---*/
     
     numerics->SetCrossDiff(node[iPoint]->GetCrossDiff(),0.0);
-    
+
+    /*--- Pass in relevant information from the hybridization ---*/
+
+    if (config->isHybrid_Turb_Model()) {
+      HybridMediator->SetupRANSNumerics(geometry, solver_container, numerics,
+                                        iPoint, iPoint);
+    }
+
     /*--- Compute the source term ---*/
     
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
@@ -3708,7 +3715,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   lowerlimit[3] = -1.0e10;
   upperlimit[3] =  1.0e10;
 
-  //jump (?)
+
   /*--- Flow infinity initialization stuff ---*/
   su2double rhoInf, *VelInf, muLamInf, Intensity, viscRatio, muT_Inf, Tm_Inf, Lm_Inf;
   rhoInf    = config->GetDensity_FreeStreamND();
@@ -3716,8 +3723,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   muLamInf  = config->GetViscosity_FreeStreamND();
   Intensity = config->GetTurbulenceIntensity_FreeStream();
   viscRatio = config->GetTurb2LamViscRatio_FreeStream();
-
-  // jump
+  
   su2double VelMag = 0;
   for (iDim = 0; iDim < nDim; iDim++) {
     VelMag += VelInf[iDim]*VelInf[iDim];
@@ -4004,7 +4010,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     v2   = node[iPoint]->GetSolution(2);
 
     /*--- T & L ---*/
-    su2double scale = 1.0e-14;
+    su2double scale = EPS;
     VelInf = config->GetVelocity_FreeStreamND();
     VelMag = 0;
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
@@ -4024,10 +4030,79 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
   }
 }
 
+void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
+                                        CConfig *config) {
+
+  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
+    const su2double rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+    const su2double mu = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
+
+    /*--- Scalars ---*/
+    su2double kine = node[iPoint]->GetSolution(0);
+    su2double epsi = node[iPoint]->GetSolution(1);
+    su2double v2   = node[iPoint]->GetSolution(2);
+
+    /*--- Relevant scales ---*/
+    su2double scale = EPS;
+    su2double L_inf = config->GetLength_Reynolds();
+    su2double* VelInf = config->GetVelocity_FreeStreamND();
+    su2double VelMag = 0;
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      VelMag += VelInf[iDim]*VelInf[iDim];
+    VelMag = sqrt(VelMag);
+
+    /*--- Clipping to avoid nonphysical quantities
+     * We keep "tke_positive" in order to allow tke=0 but clip negative
+     * values.  If tke is some small nonphysical quantity (but not zero),
+     * then it is possible for L1 > L3 and T1 > T3 when the viscous
+     * scales are smaller than this nonphysical limit. ---*/
+    
+    const su2double tke_lim = max(kine, scale*VelMag*VelMag);
+    const su2double tke_positive = max(kine, 0.0);
+    const su2double tdr_lim = max(epsi, scale*VelMag*VelMag*VelMag/L_inf);
+    const su2double zeta_lim = max(v2/tke_lim, scale);
+    const su2double S_FLOOR = scale;
+
+    // Grab other quantities for convenience/readability
+    const su2double C_mu    = constants[0];
+    const su2double C_T     = constants[8];
+    const su2double C_eta   = constants[10];
+    const su2double nu      = mu/rho;
+    const su2double S       = solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag();; //*sqrt(2.0) already included
+
+    //--- Model time scale ---//
+    const su2double T1     = tke_positive/tdr_lim;
+    // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
+    const su2double T2     = 0.6/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
+    const su2double T3     = C_T*sqrt(nu/tdr_lim);
+    su2double T = max(min(T1,T2),T3);
+
+    //--- Model length scale ---//
+    const su2double L1     = pow(tke_positive,1.5)/tdr_lim;
+    // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
+    const su2double L2     = sqrt(tke_positive)/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
+    const su2double L3     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
+    su2double L = max(min(L1,L2),L3); //... mult by C_L in source numerics
+
+    /*--- Make sure to store T, L so the hybrid class can access them ---*/
+    node[iPoint]->SetTurbScales(T, L);
+  }
+}
+
 void CTurbKESolver::Source_Residual(CGeometry *geometry,
         CSolver **solver_container, CNumerics *numerics,
         CNumerics *second_numerics, CConfig *config, unsigned short iMesh,
         unsigned short iRKStep) {
+
+  /*--- Compute turbulence scales ---
+   * This calculation is best left here.  In the end, we want to set
+   * T and L for each node.  The Numerics class doesn't have access to the
+   * nodes, so we calculate the turbulence scales here, and pass them into
+   * the numerics class. If this was moved post/pre-processing, it would
+   * only be executed once per timestep, despite inner iterations of implicit
+   * solvers ---*/
+
+  CalculateTurbScales(solver_container, config);
 
   unsigned long iPoint;
 
@@ -4053,62 +4128,9 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
     /*--- Set volume ---*/
     numerics->SetVolume(geometry->node[iPoint]->GetVolume());
 
-    /*--- Compute turbulence scales ---*/
-
-    /*--- This calculation is best left here.  In the end, we want to set
-     * T and L for each node.  The Numerics class doesn't have access to the
-     * nodes, so we calculate the turbulence scales here, and pass them into
-     * the numerics class. If this was moved post/pre-processing, it would
-     * only be executed once per timestep, despite inner iterations of implicit
-     * solvers ---*/
-
-    const su2double rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-    const su2double mu = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
-
-    /*--- Scalars ---*/
-    su2double kine = node[iPoint]->GetSolution(0);
-    su2double epsi = node[iPoint]->GetSolution(1);
-    su2double v2   = node[iPoint]->GetSolution(2);
-
-    /*--- Relevant scales ---*/
-    su2double scale = 1.0e-14;
-    su2double L_inf = config->GetLength_Reynolds();
-    su2double* VelInf = config->GetVelocity_FreeStreamND();
-    su2double VelMag = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      VelMag += VelInf[iDim]*VelInf[iDim];
-    VelMag = sqrt(VelMag);
-
-    /*--- Clipping to avoid nonphysical quantities ---*/
-    const su2double tke_lim = max(kine, scale*VelMag*VelMag);
-    const su2double tdr_lim = max(epsi, scale*VelMag*VelMag*VelMag/L_inf);
-    su2double zeta = max(v2/tke_lim, scale);
-
-    // Grab other quantities for convenience/readability
-    const su2double C_mu    = constants[0];
-    const su2double C_T     = constants[8];
-    const su2double C_eta   = constants[10];
-    const su2double nu      = mu/rho;
-    const su2double S       = solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag();; //*sqrt(2.0) already included
-
-    //--- Model time scale ---//
-    const su2double T1     = tke_lim/tdr_lim;
-    const su2double T2     = 0.6/(sqrt(3.0)*C_mu*S*zeta);
-    const su2double T3     = C_T*sqrt(nu/tdr_lim);
-    su2double T = max(min(T1,T2),T3);
-
-    //--- Model length scale ---//
-    const su2double L1     = pow(tke_lim,1.5)/tdr_lim;
-    const su2double L2     = sqrt(tke_lim)/(sqrt(3.0)*C_mu*S*zeta);
-    const su2double L3     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
-    su2double L = max(min(L1,L2),L3); //... mult by C_L in source numerics
-
-    /*--- Store T, L so the hybrid class can access them ---*/
-    node[iPoint]->SetTurbScales(T, L);
-
     /*--- Pass T, L to the lengthscale ---*/
-    numerics->SetTurbLengthscale(L);
-    numerics->SetTurbTimescale(T);
+    numerics->SetTurbLengthscale(node[iPoint]->GetTurbLengthscale());
+    numerics->SetTurbTimescale(node[iPoint]->GetTurbTimescale());
 
     /*--- Set vorticity and strain rate magnitude ---*/
     numerics->SetVorticity(

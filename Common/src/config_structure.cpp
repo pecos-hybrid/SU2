@@ -565,6 +565,19 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addEnumOption("PHYSICAL_PROBLEM", Kind_Solver, Solver_Map, NO_SOLVER);
   /*!\brief MATH_PROBLEM  \n DESCRIPTION: Mathematical problem \n  Options: DIRECT, ADJOINT \ingroup Config*/
   addMathProblemOption("MATH_PROBLEM", ContinuousAdjoint, false, DiscreteAdjoint, false, Restart_Flow, false);
+
+  /*!\brief HYBRID_TURB_MODEL \n DESCRIPTION: Specify if a hybrid LES/RANS model is used. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
+  addBoolOption("HYBRID_TURB_MODEL", Hybrid_Turb_Model, false);
+
+  /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: CONVECTIVE \ingroup Config */
+  addEnumOption("HYBRID_BLENDING_SCHEME", Kind_Hybrid_Blending, Hybrid_Blending_Map, CONVECTIVE);
+
+  /*! \brief HYBRID_ANISOTROPY_MODEL \n DESCRIPTION: Specify the subgrid anisotropy model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Aniso_Map \endlink \n DEFAULT: ISOTROPIC \ingroup Config */
+  addEnumOption("HYBRID_ANISOTROPY_MODEL", Kind_Hybrid_Aniso_Model, Hybrid_Aniso_Map, ISOTROPIC);
+
+  /*!\brief HYBRID_MODEL_CONSTANT \n DESCRIPTION: Model constant relating the approximate second order structure function to the unresolved kinetic energy  \ingroup Config*/
+  addDoubleOption("HYBRID_MODEL_CONSTANT", Hybrid_Model_Constant, 0.367);
+
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
 
@@ -986,6 +999,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("LINEAR_SOLVER_ERROR", Linear_Solver_Error, 1E-5);
   /* DESCRIPTION: Maximum number of iterations of the linear solver for the implicit formulation */
   addUnsignedLongOption("LINEAR_SOLVER_ITER", Linear_Solver_Iter, 10);
+  /* DESCRIPTION: Display an error and exit if the linear solver exceeds the max iterations \n DEFAULT: False */
+  addBoolOption("LINEAR_SOLVER_MAX_ITER_ERROR", Linear_Solver_Max_Iter_Error, false);
   /* DESCRIPTION: Maximum number of iterations of the linear solver for the implicit formulation */
   addUnsignedLongOption("LINEAR_SOLVER_RESTART_FREQUENCY", Linear_Solver_Restart_Frequency, 10);
   /* DESCRIPTION: Relaxation of the flow equations solver for the implicit formulation */
@@ -1316,6 +1331,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief CONSOLE_OUTPUT_VERBOSITY
    *  \n DESCRIPTION: Verbosity level for console output  \ingroup Config*/
   addEnumOption("CONSOLE_OUTPUT_VERBOSITY", Console_Output_Verb, Verb_Map, VERB_HIGH);
+  /*!\brief CONST_FILENAME \n DESCRIPTION: Input file for the hybrid RANS/LES constants (w/o extension) \n DEFAULT: "" \ingroup Config*/
+  addStringOption("CONST_FILENAME", Hybrid_Const_FileName, string(""));
 
 
   /*!\par CONFIG_CATEGORY: Dynamic mesh definition \ingroup Config*/
@@ -1994,6 +2011,9 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 #ifdef HAVE_MPI
   int size = SINGLE_NODE;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+  rank = MASTER_NODE;
 #endif
   
 #ifndef HAVE_TECIO
@@ -3802,9 +3822,10 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
         switch (Kind_Turb_Model) {
           case SA:     cout << "Spalart Allmaras" << endl; break;
           case SA_NEG: cout << "Negative Spalart Allmaras" << endl; break;
-          case SST:    cout << "Menter's SST"     << endl; break;
-          case KE:     cout << "Zeta-f KE"        << endl; break;
+          case SST:    cout << "Menter's SST"              << endl; break;
+          case KE:     cout << "Zeta-f KE"                 << endl; break;
         }
+        if (Hybrid_Turb_Model) cout << "Hybrid LES/RANS model" << endl;
         break;
       case POISSON_EQUATION: cout << "Poisson equation." << endl; break;
       case WAVE_EQUATION: cout << "Wave equation." << endl; break;
@@ -4526,12 +4547,12 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
             RK_bVec_imp = new su2double[nImp];
             RK_cVec_imp = new su2double[nImp];
             for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
-              RK_bVec[iRKStep] = 0.0;
-              RK_cVec[iRKStep] = 0.0;
+              RK_bVec_imp[iRKStep] = 0.0;
+              RK_cVec_imp[iRKStep] = 0.0;
 
-              RK_aMat[iRKStep] = new su2double [nImp];
+              RK_aMat_imp[iRKStep] = new su2double [nImp];
               for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
-                RK_aMat[iRKStep][jRKStep] = 0.0;
+                RK_aMat_imp[iRKStep][jRKStep] = 0.0;
               }
             }
 
@@ -5437,6 +5458,20 @@ CConfig::~CConfig(void) {
     }
     delete [] RK_aMat;
   }
+  
+  if (RK_cVec_imp != NULL) delete [] RK_cVec_imp;
+  if (RK_bVec_imp != NULL) delete [] RK_bVec_imp;
+
+  // Used for EDIRK s.t. the number of implicit steps is one less
+  // than total number of steps
+  unsigned short nImp = nRKStep - 1;
+
+  if (RK_aMat_imp != NULL) {
+    for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
+      delete [] RK_aMat_imp[iRKStep];
+    }
+    delete [] RK_aMat_imp;
+  }
 
   if (MG_PreSmooth  != NULL) delete [] MG_PreSmooth;
   if (MG_PostSmooth != NULL) delete [] MG_PostSmooth;
@@ -5905,6 +5940,7 @@ unsigned short CConfig::GetContainerPosition(unsigned short val_eqsystem) {
     case RUNTIME_FLOW_SYS:      return FLOW_SOL;
     case RUNTIME_TURB_SYS:      return TURB_SOL;
     case RUNTIME_TRANS_SYS:     return TRANS_SOL;
+    case RUNTIME_HYBRID_SYS:    return HYBRID_SOL;
     case RUNTIME_POISSON_SYS:   return POISSON_SOL;
     case RUNTIME_WAVE_SYS:      return WAVE_SOL;
     case RUNTIME_HEAT_SYS:      return HEAT_SOL;

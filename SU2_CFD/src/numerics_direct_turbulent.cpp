@@ -160,9 +160,9 @@ CAvgGrad_Scalar::~CAvgGrad_Scalar(void) {
 }
 
 void CAvgGrad_Scalar::ComputeResidual(su2double *val_residual,
-                                        su2double **Jacobian_i,
-                                        su2double **Jacobian_j,
-                                        CConfig *config) {
+                                      su2double **Jacobian_i,
+                                      su2double **Jacobian_j,
+                                      CConfig *config) {
 
   AD::StartPreacc();
   AD::SetPreaccIn(Coord_i, nDim); AD::SetPreaccIn(Coord_j, nDim);
@@ -823,15 +823,10 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
     val_residual[1] += (1.0 - F1_i)*CDkw_i*Volume;
     
     /*--- Implicit part ---*/
-    val_Jacobian_i[0][0] = -beta_star*TurbVar_i[1]*Volume;    val_Jacobian_i[0][1] = 0.0;
-    val_Jacobian_i[1][0] = 0.0;                               val_Jacobian_i[1][1] = -2.0*beta_blended*TurbVar_i[1]*Volume;
-
-
-    // // swh:
-    // val_Jacobian_i[0][0] = -beta_star*Density_i*TurbVar_i[1]*Volume;
-    // val_Jacobian_i[0][1] = -beta_star*Density_i*TurbVar_i[0]*Volume;
-    // val_Jacobian_i[1][0] = 0.0;
-    // val_Jacobian_i[1][1] = -2.0*beta_blended*Density_i*TurbVar_i[1]*Volume;
+    val_Jacobian_i[0][0] = -beta_star*Density_i*TurbVar_i[1]*Volume;
+    val_Jacobian_i[0][1] = -beta_star*Density_i*TurbVar_i[0]*Volume;
+    val_Jacobian_i[1][0] = 0.0;
+    val_Jacobian_i[1][1] = -2.0*beta_blended*Density_i*TurbVar_i[1]*Volume;
 
   }
   
@@ -1116,7 +1111,8 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   // make sure v2 is well-behaved
   su2double zeta = max(v20/tke_lim, scale);
-  const su2double v2 = max(v20, zeta*tke);
+  // Extra max(..., 0) necessary in case v20 and tke are negative
+  const su2double v2 = max(max(v20, zeta*tke), 0.0);
 
   // Grab other quantities for convenience/readability
   const su2double rho = Density_i;
@@ -1129,10 +1125,10 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   for (unsigned int iDim = 0; iDim < nDim; iDim++)
     diverg += PrimVar_Grad_i[iDim+1][iDim];
 
-  /*--- Tm and Lm are passed in from the Solver class ---*/
+  /*--- TurbT and TurbL are passed in from the Solver class ---*/
 
   const su2double T1 = tke_lim / tdr_lim;
-  const su2double Lsq = (C_L*Lm)*(C_L*Lm); // C_L isn't used till here
+  const su2double Lsq = (C_L*TurbL)*(C_L*TurbL); // C_L isn't used till here
 
   //--- v2-f ---//
 
@@ -1170,17 +1166,17 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   const su2double C_e1 = C_e1o*(1.0+0.045*sqrt(1.0/zeta));
 
   // ... production
-  Pe = C_e1*Pk/Tm;
+  Pe = C_e1*Pk/TurbT;
 
   Pe_rk  = 0.0;
   Pe_re  = 0.0;
   Pe_rv2 = 0.0;
 
   // ... dissipation
-  De = C_e2*rho*tdr/Tm;
+  De = C_e2*rho*tdr/TurbT;
 
   De_rk  = 0.0;
-  De_re  = C_e2/Tm;
+  De_re  = C_e2/TurbT;
   De_rv2 = 0.0;
 
 
@@ -1215,7 +1211,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   const su2double ttC1m1 = (2.0/3.0)*(C_1 - 1.0);
   const su2double C_2f = C_2p;
 
-  Pf = (C_2f*Pk/tke_lim - (C1m6*zeta - ttC1m1)/Tm) / Lsq;
+  Pf = (C_2f*Pk/tke_lim - (C1m6*zeta - ttC1m1)/TurbT) / Lsq;
 
   // not keeping any derivatives of Pf
 
@@ -1226,17 +1222,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   // check for nans
 #ifndef NDEBUG
-  // bool found_nan = (std::isnan(Pk)  || std::isnan(Dk)  ||
-  //                   std::isnan(Pe)  || std::isnan(De)  ||
-  //                   std::isnan(Pv2) || std::isnan(Dv2) ||
-  //                   std::isnan(Pf)  || std::isnan(Df)  ||
-  //                   std::isnan(Pk_rk)  || std::isnan(Pk_re)  || std::isnan(Pk_rv2)  ||
-  //                   std::isnan(Pe_rk)  || std::isnan(Pe_re)  || std::isnan(Pe_rv2)  ||
-  //                   std::isnan(Pv2_rk) || std::isnan(Pv2_re) || std::isnan(Pv2_rv2) ||
-  //                   std::isnan(Dk_rk)  || std::isnan(Dk_re)  || std::isnan(Dk_rv2)  ||
-  //                   std::isnan(De_rk)  || std::isnan(De_re)  || std::isnan(De_rv2)  ||
-  //                   std::isnan(Dv2_rk) || std::isnan(Dv2_re) || std::isnan(Dv2_rv2) );
-
   bool found_nan = ((Pk!=Pk)         || (Dk!=Dk)         ||
                     (Pe!=Pe)         || (De!=De)         ||
                     (Pv2!=Pv2)       || (Dv2!=Dv2)       ||
@@ -1252,7 +1237,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   if (found_nan) {
     std::cout << "WTF!?! Found a nan at x = " << Coord_i[0] << ", " << Coord_i[1] << std::endl;
     std::cout << "turb state = " << tke << ", " << tdr << ", " << v2 << ", " << f << std::endl;
-    std::cout << "T          = " << Tm  << ", C_e1 = " << C_e1 << std::endl;
+    std::cout << "T          = " << TurbT  << ", C_e1 = " << C_e1 << std::endl;
     std::cout << "TKE eqn    = " << Pk << " - " << Dk << std::endl;
     std::cout << "TDR eqn    = " << Pe << " - " << De << std::endl;
     std::cout << "v2  eqn    = " << Pv2 << " - " << Dv2 << std::endl;
@@ -1298,6 +1283,3 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   AD::SetPreaccOut(val_residual, nVar);
   AD::EndPreacc();
 }
-
-
-

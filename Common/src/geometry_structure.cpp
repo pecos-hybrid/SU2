@@ -895,7 +895,9 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
     geometry_container[MESH_0]->SetCoord_CG();
     geometry_container[MESH_0]->SetControlVolume(config, UPDATE);
     geometry_container[MESH_0]->SetBoundControlVolume(config, UPDATE);
-    geometry_container[MESH_0]->SetResolutionTensor();
+    if (config->isHybrid_Turb_Model()) {
+      geometry_container[MESH_0]->SetResolutionTensor();
+    }
 
     for (iMesh = 1; iMesh <= config->GetnMGLevels(); iMesh++) {
         /*--- Update the control volume structures ---*/
@@ -903,7 +905,7 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
         geometry_container[iMesh]->SetControlVolume(config,geometry_container[iMesh-1], UPDATE);
         geometry_container[iMesh]->SetBoundControlVolume(config,geometry_container[iMesh-1], UPDATE);
         geometry_container[iMesh]->SetCoord(geometry_container[iMesh-1]);
-        geometry_container[iMesh]->SetResolutionTensor();
+        // Multigrid isn't supported for turbulence, so no resolution tensors
 
     }
 
@@ -9600,7 +9602,8 @@ void CGeometry::SetResolutionTensor(void) {
   unsigned short nNode, iNode;
   unsigned long elem_poin;
   su2double temp_value;
-  vector<vector<su2double> > temp_tensor;
+  su2double** temp_tensor;
+  su2double* temp_vector;
   su2double **Coord;
 
   /*--- Compute the resolution tensor for primal mesh elements ---*/
@@ -9636,11 +9639,66 @@ void CGeometry::SetResolutionTensor(void) {
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
           temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
-          node[iPoint]->AddResolutionTensor(iDim, jDim, temp_value);
+          if (temp_value > EPS)
+            node[iPoint]->AddResolutionTensor(iDim, jDim, temp_value);
         }
       }
     }
   }
+
+#ifdef HAVE_LAPACK
+  /*--- NOTE: Since we're using averages across cells, averages of eigenvalues
+   * are not equal to the eigenvalues of the average tensor. ---*/
+  // TODO: Make this section actually compute eigenvalues and eigenvectors.
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_tensor = elem[iElem_global]->GetResolutionVectors();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (jDim = 0; jDim < nDim; jDim++) {
+          temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
+          node[iPoint]->AddResolutionVector(iDim, jDim, temp_value);
+        }
+      }
+    }
+  }
+
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_vector = elem[iElem_global]->GetResolutionValues();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        temp_value = temp_vector[iDim] / (node[iPoint]->GetnElem());
+        node[iPoint]->AddResolutionValue(iDim, temp_value);
+      }
+    }
+  }
+#else
+  /*--- Use an approximate average of the eigenvalues and eigenvectors ---*/
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_tensor = elem[iElem_global]->GetResolutionVectors();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (jDim = 0; jDim < nDim; jDim++) {
+          temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
+          node[iPoint]->AddResolutionVector(iDim, jDim, temp_value);
+        }
+      }
+    }
+  }
+
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_vector = elem[iElem_global]->GetResolutionValues();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        temp_value = temp_vector[iDim] / (node[iPoint]->GetnElem());
+        node[iPoint]->AddResolutionValue(iDim, temp_value);
+      }
+    }
+  }
+#endif
 
   SetResolutionGradient();
 }
@@ -9649,7 +9707,7 @@ void CGeometry::SetResolutionGradient(void) {
   unsigned short iDim, jDim, kDim, lDim;
   unsigned short iVar, iNeigh;
   unsigned long iPoint, jPoint;
-  vector<vector<su2double> > M_temp;
+  su2double** M_temp;
   vector<vector<su2double> > M_i(nDim, vector<su2double>(nDim));
   vector<vector<su2double> > M_j(nDim, vector<su2double>(nDim));
   su2double** Smatrix;

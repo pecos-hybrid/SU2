@@ -457,7 +457,7 @@ fi
 if test "$have_LAPACK" != "no"
 then
 AM_CONDITIONAL(BUILD_LAPACK,true)
-LAPACK_CXX="-DHAVE_LAPACK -I"$with_LAPACK_include""
+LAPACK_CXX="-DHAVE_LAPACK -I"$with_LAPACK_include" -mkl"
 LAPACK_LD="$with_LAPACK_lib"/$LAPACKlib
 else
 AM_CONDITIONAL(BUILD_LAPACK,false)

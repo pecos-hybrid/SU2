@@ -131,6 +131,11 @@ CTurbSSTVariable::CTurbSSTVariable(su2double val_kine, su2double val_omega, su2d
   
   muT = val_muT;
   
+  /*--- Initialization of scales with isotropic turbulence assumption ---*/
+
+  L = sqrt(val_kine)/val_omega;
+  T = 1.0/val_omega;
+
   /*--- Allocate and initialize solution for the dual time strategy ---*/
   
   if (dual_time) {
@@ -210,4 +215,10 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
 }
 
 CTurbKEVariable::~CTurbKEVariable(void) {
+}
+
+su2double CTurbKEVariable::GetAnisoRatio(void) {
+  // XXX: This floor is arbitrary.
+  const su2double TKE_MIN = EPS;
+  return TWO3*Solution[0]/max(TKE_MIN, Solution[2]);
 }
