@@ -267,7 +267,7 @@ void CAvgGrad_HybridConv::ComputeResidual(su2double *val_residual,
 
   if (implicit) {
     Jacobian_i[0][0] = -0.5*(nu_i + nu_j)*proj_vector_ij;
-    Jacobian_j[0][0] = -0.5*(nu_i + nu_j)*proj_vector_ij;
+    Jacobian_j[0][0] =  0.5*(nu_i + nu_j)*proj_vector_ij;
   }
 
   AD::SetPreaccOut(val_residual, nVar);
