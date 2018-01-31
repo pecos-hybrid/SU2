@@ -228,6 +228,13 @@ void CHybrid_Mediator::SetupRANSNumerics(CGeometry* geometry,
 void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
                                               CSolver **solver_container,
                                               unsigned short iPoint) {
+
+  if (config->GetKind_Hybrid_Resolution_Indicator() == RDELTA_INDICATOR) {
+    cout << "ERROR: The RDELTA resolution indicator is not implemented yet." << endl;
+    exit(EXIT_FAILURE);
+  }
+
+
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
   const su2double TKE_MIN = EPS;

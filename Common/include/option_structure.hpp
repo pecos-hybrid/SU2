@@ -651,6 +651,19 @@ static const map<string, ENUM_HYBRID_BLENDING> Hybrid_Blending_Map = CCreateMap<
 ("CONVECTIVE", CONVECTIVE);
 
 /*!
+ * \brief Types of hybrid RANS/LES resolution adeqeuacy indicators.
+ *
+ * These define the way mesh's ability to resolve turbulence is measured.
+ */
+enum ENUM_HYBRID_RES_IND {
+    RK_INDICATOR = 0,    /*!< \brief r_k is a Q-based indicator developed from structure function theory. */
+    RDELTA_INDICATOR = 1 /*!< \brief r_\Delta is a subgrid production based indicator. */
+};
+static const map<string, ENUM_HYBRID_RES_IND> Hybrid_Res_Ind_Map = CCreateMap<string, ENUM_HYBRID_RES_IND>
+("RK", RK_INDICATOR)
+("RDELTA", RDELTA_INDICATOR);
+
+/*!
  * \brief Types of hybrid RANS/LES subgrid anisotropy models.
  */
 enum ENUM_HYBRID_ANISOTROPY {

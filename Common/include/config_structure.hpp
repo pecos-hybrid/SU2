@@ -472,6 +472,7 @@ private:
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
   bool Hybrid_Turb_Model;  /*!< \brief A hybrid RANS/LES model (other than DES) will be used. */
   unsigned short Kind_Hybrid_Blending; /*!< \brief Hybrid RANS/LES blending definition */
+  unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   unsigned short Kind_Hybrid_Aniso_Model; /*!< \brief Hybrid RANS/LES subgrid anisotropy model definition */
   su2double Hybrid_Model_Constant; /*!< \brief Model constant relating the approximate second order structure function to the unresolved turbulent kinetic energy */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
@@ -3329,6 +3330,12 @@ public:
    * \return Kind of blending scheme.
    */
   unsigned short GetKind_Hybrid_Blending(void);
+
+  /*!
+   * \brief Get the kind of hybrid RANS/LES resolution adequacy indicator.
+   * \return Kind of blending scheme.
+   */
+  unsigned short GetKind_Hybrid_Resolution_Indicator(void);
 
   /*!
    * \brief Get the kind of hybrid RANS/LES subgrid anisotropy model.
