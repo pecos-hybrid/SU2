@@ -137,6 +137,10 @@ AC_ARG_ENABLE(complex,
 AC_ARG_ENABLE(normal,
     AS_HELP_STRING([--disable-normal], [build executables with normal datatype (default = yes)]),
     [build_NORMAL=$enableval], [build_NORMAL="yes"])
+AC_ARG_ENABLE(testing,
+    AS_HELP_STRING([--enable-testing], [enable testing with the Boost UTF (default = no)]),
+    [build_TESTS="yes"], [build_TESTS="no"])
+
 
 # Check for the old  MPI option so that we can throw an error
 AC_ARG_WITH(MPI,
@@ -526,6 +530,7 @@ AM_CONDITIONAL([BUILD_SOL],[test $build_SOL != "no"])
 AM_CONDITIONAL([BUILD_GEO],[test $build_GEO != "no"])
 AM_CONDITIONAL([BUILD_PY],[test $build_PY != "no"])
 AM_CONDITIONAL([BUILD_PY_WRAPPER], [test $build_PY_WRAPPER != "no"])
+AM_CONDITIONAL([BUILD_TESTS], [test $build_TESTS != "no"])
 
 ###########################
 
@@ -605,6 +610,7 @@ Build Configuration Summary:
     Mutation++ support:   $have_Mutationpp
     Jsoncpp support: 	  $have_Jsoncpp
     LAPACK support:       $have_LAPACK
+    Boost UTF testing:    $build_TESTS
     Datatype support:
         double              $build_NORMAL
         complex             $build_COMPLEX
