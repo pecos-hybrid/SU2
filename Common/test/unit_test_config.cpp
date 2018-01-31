@@ -35,7 +35,7 @@
 #include <mpi.h>
 #endif
 
-#include "config_structure.hpp"
+#include "../../Common/include/config_structure.hpp"
 
 int main() {
 #ifdef HAVE_MPI

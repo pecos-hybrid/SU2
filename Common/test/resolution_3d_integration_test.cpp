@@ -42,7 +42,7 @@
 #include <limits> // used to find machine epsilon
 #include <cmath>  // std::abs
 
-#include "config_structure.hpp"
+#include "../../Common/include/config_structure.hpp"
 #include "../../Common/include/geometry_structure.hpp"
 
 void WriteQuadMeshFile () {
@@ -219,6 +219,7 @@ void WriteCfgFile() {
 
   cfg_file.open("hextest.cfg", ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
+  cfg_file << "HYBRID_TURB_MODEL= YES" << std::endl;
   cfg_file << "MARKER_FAR= ( top bottom back front left right )"  << std::endl;
   cfg_file << "MESH_FILENAME= hextestgrid.su2" << std::endl;
   cfg_file << "MESH_FORMAT= SU2" << std::endl;
@@ -243,7 +244,8 @@ int main() {
   WriteCfgFile();
 
   // The use of "geometry_aux" is necessary to mock a multigrid configuration
-  CConfig* config = new CConfig("hextest.cfg", SU2_CFD, 0, 1, 2, VERB_NONE);
+  char filename[] = "hextest.cfg";
+  CConfig* config = new CConfig(filename, SU2_CFD, 0, 1, 2, VERB_NONE);
   CGeometry *geometry_aux = NULL;
   geometry_aux = new CPhysicalGeometry(config, 0, 1);
   CGeometry* geometry = new CGeometry();
