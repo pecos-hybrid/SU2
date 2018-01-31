@@ -287,6 +287,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double C_zeta; /*!> \brief Scaling constant for the transformation tensor zeta */
   su2double **Q,        /*!> \brief An approximate 2nd order structure function tensor */
             **Qapprox;  /*!> \brief An approximate 2nd order structure function tensor (used for temporary calculations) */
+  su2double **prodLengthTensor; /*!> \brief Inverse length scale tensor formed from production and v2 (or tke, depending on availability) */
   std::vector<std::vector<su2double> > constants;
   CConfig* config;
 
@@ -296,7 +297,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double wkopt;
   su2double* work;
   su2double eigval[3], eigvec[9], vr[9], wi[3];
-  su2double mat[9];
+  su2double mat[9], matb[9];
   int num_found;
   int isupp[3];
 #endif
@@ -308,6 +309,16 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \return The resolution inadequacy parameter
    */
   su2double CalculateRk(su2double** Q, su2double v2);
+
+  /*!
+   * \brief Calculates the production inverse length scale tensor
+   * \param[in] geometry - A pointer to the geometry
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
+  void ComputeProdLengthTensor(CGeometry* geometry,
+                               CSolver **solver_container,
+                               unsigned short iPoint);
 
   /*!
    * \brief Projects the resolution on a specific vector
@@ -460,6 +471,11 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 
   void SolveEigen(su2double** M, vector<su2double> &eigvalues,
                   vector<vector<su2double> > &eigvectors);
+
+  void SolveGeneralizedEigen(su2double** A, su2double** B,
+			     vector<su2double> &eigvalues,
+			     vector<vector<su2double> > &eigvectors);
+
 };
 
 /*!
