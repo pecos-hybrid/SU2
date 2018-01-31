@@ -33,6 +33,7 @@
 #
 ################################################################################
 
+if BUILD_TESTS
 check_PROGRAMS  =
 check_PROGRAMS += unit_test_config
 check_PROGRAMS += resolution_integration_test
@@ -67,3 +68,5 @@ TESTS += resolution_triangle_test
 
 # Any of above we expect to fail?
 #XFAIL_TESTS =
+
+endif

@@ -31,32 +31,17 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif
+#define BOOST_TEST_MODULE MPI_Test
+#include "MPI_Global_Fixture.hpp"
 
 #include "../../Common/include/config_structure.hpp"
 
-int main() {
-#ifdef HAVE_MPI
-  MPI_Init(NULL,NULL);
-#endif
-
-  int return_flag=0;
+BOOST_AUTO_TEST_CASE(Unit_Test_Config) {
 
   CConfig* test_config;
   test_config = new CConfig();
 
-  // Spot checks
-  if( test_config->GetKind_Regime() != COMPRESSIBLE ) {
-    return_flag = 1;
-  }
+  BOOST_CHECK(test_config->GetKind_Regime() == COMPRESSIBLE);
 
   delete test_config;
-
-#ifdef HAVE_MPI
-  MPI_Finalize();
-#endif
-
-  return return_flag;
 }

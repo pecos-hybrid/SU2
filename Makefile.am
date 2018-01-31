@@ -35,6 +35,7 @@
 
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
+EXTRA_DIST = bootstrap
 
 # build third-party optional dependencies first
 SUBDIRS = externals
