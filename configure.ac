@@ -137,6 +137,13 @@ AC_ARG_ENABLE(complex,
 AC_ARG_ENABLE(normal,
     AS_HELP_STRING([--disable-normal], [build executables with normal datatype (default = yes)]),
     [build_NORMAL=$enableval], [build_NORMAL="yes"])
+AC_ARG_ENABLE(testing,
+    AS_HELP_STRING([--enable-testing], [enable testing with the Boost UTF (default = no)]),
+    [build_TESTS="yes"], [build_TESTS="no"])
+AC_ARG_WITH(Boost-include,
+    AS_HELP_STRING([--with-Boost-include[=ARG]], [Boost include directory, ARG = path to ../boost/include]),
+    [with_Boost_include=$withval], [with_Boost_include="no"])
+
 
 # Check for the old  MPI option so that we can throw an error
 AC_ARG_WITH(MPI,
@@ -423,6 +430,35 @@ AC_SUBST([JSONCPP_LD])
 
 ##########################
 
+AM_CONDITIONAL([BUILD_TESTS], [test $build_TESTS != "no"])
+
+# check Boost include folder for correctness
+Boostheader=boost/test/included/unit_test_framework.hpp
+have_Boost="no"
+if test "$build_TESTS" != "no"
+then
+    if test "$with_Boost_include" != "no"
+    then
+        AC_CHECK_FILE([$with_Boost_include/$Boostheader],[have_Boost='yes'],[have_Boost='no'])
+        if test "$have_Boost" == "no"
+        then
+            AC_MSG_ERROR([Boost include folder specified but header file not found.])
+        fi
+    else
+        have_Boost="no"
+    fi
+    
+    if test "$have_Boost" != "no"
+    then
+        BOOST_CXX="-I"$with_Boost_include""
+    else
+        BOOST_CXX=
+    fi
+fi
+AC_SUBST([BOOST_CXX])
+
+##########################
+
 # check for lib
 #LAPACKlib=liblapacke.a
 LAPACKlib=libmkl_lapack95_lp64.a
@@ -605,6 +641,7 @@ Build Configuration Summary:
     Mutation++ support:   $have_Mutationpp
     Jsoncpp support: 	  $have_Jsoncpp
     LAPACK support:       $have_LAPACK
+    Boost UTF testing:    $build_TESTS
     Datatype support:
         double              $build_NORMAL
         complex             $build_COMPLEX
