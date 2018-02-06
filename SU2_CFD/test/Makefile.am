@@ -44,6 +44,7 @@ libSU2Core_cxx_flags += @LAPACK_CXX@
 libSU2Core_libadd += @LAPACK_LD@
 # endif
 
+# Test Programs
 check_PROGRAMS  =
 check_PROGRAMS += aniso_viscous_flux_inc
 check_PROGRAMS += aniso_viscous_flux
@@ -100,3 +101,21 @@ TESTS += zeta_transform_test
 
 # Any of above we expect to fail?
 #XFAIL_TESTS =
+
+if BUILD_TESTS
+
+AM_CPPFLAGS += -DBUILD_TESTS @BOOST_CXX@
+
+# Test Programs
+check_PROGRAMS += forcing_test
+
+# Test Sources
+forcing_test_SOURCES = forcing_test.cpp
+
+# Tests to be run
+TESTS += forcing_test
+
+# Any of above we expect to fail?
+#XFAIL_TESTS =
+
+endif
