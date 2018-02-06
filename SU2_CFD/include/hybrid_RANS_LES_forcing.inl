@@ -1,7 +1,7 @@
 /*!
- * \file unit_test_config.cpp
- * \brief Test CConfig ctor that gives valid config object without input file.
- * \author T. A. Oliver
+ * \file hybrid_RANS_LES_forcing.inl
+ * \brief Inline functions for the hybrid RANS/LES forcing terms
+ * \author C. Pederson
  * \version 5.0.0 "Raven"
  *
  * SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
@@ -31,23 +31,50 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef BUILD_TESTS
-
-#define BOOST_TEST_MODULE Unit_test_config
-
-#include "../../Common/test/MPI_global_fixture.hpp"
-#include "../../Common/include/config_structure.hpp"
-
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
-
-BOOST_AUTO_TEST_CASE(Unit_Test_Config) {
-
-  CConfig* test_config;
-  test_config = new CConfig();
-
-  BOOST_CHECK(test_config->GetKind_Regime() == COMPRESSIBLE);
-
-  delete test_config;
+inline void CHybridForcing::SetCoord(su2double* val_coord) {
+  Original_Coord = val_coord;
 }
 
-#endif
+inline void CHybridForcing::SetTurbLengthscale(su2double val_L_m) {
+  TurbL = val_L_m;
+}
+
+inline void CHybridForcing::SetTurbTimescale(su2double val_T_m) {
+  TurbT = val_T_m;
+}
+
+inline void CHybridForcing::SetHybridParameter(su2double* val_hybrid_param) {
+  HybridParam = val_hybrid_param[0];
+}
+
+inline void CHybridForcing::SetPrimitive(su2double* val_prim_vars) {
+    PrimVars = val_prim_vars;
+}
+
+inline void CHybridForcing::SetPrimVarGradient(su2double **val_primvar_grad) {
+  PrimVar_Grad = val_primvar_grad;
+}
+
+inline void CHybridForcing::SetTurbVar(su2double *val_turbvar) {
+  TurbVar = val_turbvar;
+}
+
+inline void CHybridForcing::SetHybridSourceTerms(su2double val_S_alpha,
+                                                 su2double val_S_cf) {
+  S_alpha = val_S_alpha;
+  S_cf = val_S_cf;
+}
+
+inline void CHybridForcing::GetStress(su2double** val_tau_F) {
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      val_tau_F[iDim][jDim] = tau_F[iDim][jDim];
+    }
+  }
+}
+
+inline su2double CHybridForcing::GetProduction() { return P_F; };
+
+inline su2double CHybridForcing::GetProductionRatio() {
+  return P_F_unscaled / P_lim;
+};
