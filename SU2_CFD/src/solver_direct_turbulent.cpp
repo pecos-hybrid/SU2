@@ -39,6 +39,8 @@ CTurbSolver::CTurbSolver(void) : CSolver() {
   FlowPrimVar_j = NULL;
   lowerlimit    = NULL;
   upperlimit    = NULL;
+
+  HybridMediator = NULL;
   
 }
 
@@ -51,6 +53,8 @@ CTurbSolver::CTurbSolver(CConfig *config) : CSolver() {
   FlowPrimVar_j = NULL;
   lowerlimit    = NULL;
   upperlimit    = NULL;
+
+  HybridMediator = NULL;
   
 }
 
@@ -3107,6 +3111,13 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     omega = node[iPoint]->GetSolution(1);
     zeta = min(1.0/omega, a1/(strMag*F2));
     muT = min(max(rho*kine*zeta,0.0),1.0);
+
+    /*--- Adjust eddy viscosity based on hybrid parameter ---*/
+    if (config->isHybrid_Turb_Model()) {
+      assert(HybridMediator != NULL);
+      HybridMediator->AdjustEddyViscosity(solver_container, iPoint, &muT);
+    }
+
     node[iPoint]->SetmuT(muT);
     
   }
@@ -3161,6 +3172,7 @@ void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
     /*--- Pass in relevant information from the hybridization ---*/
 
     if (config->isHybrid_Turb_Model()) {
+      assert(HybridMediator != NULL);
       HybridMediator->SetupRANSNumerics(geometry, solver_container, numerics,
                                         iPoint, iPoint);
     }
@@ -4025,6 +4037,12 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     muT = constants[0]*rho*zeta*kine*Tm;
 
+    /*--- Adjust eddy viscosity based on hybrid parameter ---*/
+    if (config->isHybrid_Turb_Model()) {
+      assert(HybridMediator != NULL);
+      HybridMediator->AdjustEddyViscosity(solver_container, iPoint, &muT);
+    }
+
     node[iPoint]->SetmuT(muT);
 
   }
@@ -4138,6 +4156,14 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
 
     numerics->SetStrainMag(
       solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag(), 0.0);
+
+    /*--- Pass in relevant information from the hybridization ---*/
+
+    if (config->isHybrid_Turb_Model()) {
+      assert(HybridMediator != NULL);
+      HybridMediator->SetupRANSNumerics(geometry, solver_container, numerics,
+                                        iPoint, iPoint);
+    }
 
     /*--- Compute the source term ---*/
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
