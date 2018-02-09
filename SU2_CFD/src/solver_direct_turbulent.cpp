@@ -46,6 +46,8 @@ CTurbSolver::CTurbSolver(void) : CSolver() {
   nVertex       = NULL;
   nMarker       = 0;
   Inlet_TurbVars = NULL;
+
+  HybridMediator = NULL;
   
 }
 
@@ -64,6 +66,8 @@ CTurbSolver::CTurbSolver(CGeometry* geometry, CConfig *config) : CSolver() {
   nVertex = new unsigned long[nMarker];
   for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++)
     nVertex[iMarker] = geometry->nVertex[iMarker];
+
+  HybridMediator = NULL;
   
 }
 
@@ -3689,6 +3693,13 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     omega = node[iPoint]->GetSolution(1);
     zeta = min(1.0/omega, a1/(strMag*F2));
     muT = min(max(rho*kine*zeta,0.0),1.0);
+
+    /*--- Adjust eddy viscosity based on hybrid parameter ---*/
+    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+      assert(HybridMediator != NULL);
+      HybridMediator->AdjustEddyViscosity(solver_container, iPoint, &muT);
+    }
+
     node[iPoint]->SetmuT(muT);
     
   }
@@ -3739,7 +3750,15 @@ void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
     /*--- Cross diffusion ---*/
     
     numerics->SetCrossDiff(node[iPoint]->GetCrossDiff(),0.0);
-    
+
+    /*--- Pass in relevant information from the hybridization ---*/
+
+    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+      assert(HybridMediator != NULL);
+      HybridMediator->SetupRANSNumerics(geometry, solver_container, numerics,
+                                        iPoint, iPoint);
+    }
+
     /*--- Compute the source term ---*/
     
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
@@ -4914,6 +4933,12 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     muT = constants[0]*rho*zeta*kine*Tm;
 
+    /*--- Adjust eddy viscosity based on hybrid parameter ---*/
+    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+      assert(HybridMediator != NULL);
+      HybridMediator->AdjustEddyViscosity(solver_container, iPoint, &muT);
+    }
+
     node[iPoint]->SetmuT(muT);
 
   }
@@ -5027,6 +5052,14 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
 
     numerics->SetStrainMag(
       solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag(), 0.0);
+
+    /*--- Pass in relevant information from the hybridization ---*/
+
+    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+      assert(HybridMediator != NULL);
+      HybridMediator->SetupRANSNumerics(geometry, solver_container, numerics,
+                                        iPoint, iPoint);
+    }
 
     /*--- Compute the source term ---*/
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);

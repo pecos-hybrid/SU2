@@ -270,6 +270,30 @@ class CAbstract_Hybrid_Mediator {
                                      CNumerics* visc_numerics,
                                      unsigned short iPoint,
                                      unsigned short jPoint) = 0;
+  /**
+   * \brief Modify the eddy viscosity based off hybrid calculations.
+   *
+   * Many hybrid methods dampen or otherwise modify the RANS eddy viscosity.
+   * Rather than insert that modification explicitly in the RANS models,
+   * the modification is put into this function.  For example, instead of
+   * simply storing the RANS eddy viscosity, you could have the following
+   * code:
+   *
+   * \code
+   * su2double muT = rho*kine*zeta;
+   * HybridMediator->AdjustEddyViscosity(solver_container, iPoint, &muT);
+   * node[iPoint]->SetmuT(muT);
+   * \endcode
+   *
+   * If this function is not implemented, then the eddy viscosity will not
+   * be changed.
+   *
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   * \param[inout] eddy_viscosity - A pointer to the eddy visc. to be modified
+   */
+  void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
+                           su2double *eddy_viscosity) { };
 };
 
 
@@ -468,6 +492,9 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                              unsigned short iPoint,
                              unsigned short jPoint);
 
+  void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
+                           su2double *eddy_viscosity);
+
   /**
    * \brief Returns the constants for the numerical fit for the resolution tensor.
    * \return Constants for the numerical fit for the resolution tensor.
@@ -577,6 +604,9 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                              CNumerics* visc_numerics,
                              unsigned short iPoint,
                              unsigned short jPoint);
+
+  void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
+                           su2double *eddy_viscosity);
 };
 
 /*--- Template definitions:

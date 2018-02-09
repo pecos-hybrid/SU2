@@ -980,6 +980,12 @@ void CHybrid_Mediator::SolveGeneralizedEigen(su2double** A, su2double** B,
 
 }
 
+void CHybrid_Mediator::AdjustEddyViscosity(CSolver **solver_container,
+                                           unsigned short iPoint,
+                                           su2double *eddy_viscosity) {
+  su2double* alpha = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
+  *eddy_viscosity *= alpha[0]*alpha[0];
+}
 
 vector<vector<su2double> > CHybrid_Mediator::GetConstants() {
   return constants;
@@ -1049,4 +1055,12 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   su2double** aniso_i = solver_container[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy();
   su2double** aniso_j = solver_container[FLOW_SOL]->node[jPoint]->GetEddyViscAnisotropy();
   visc_numerics->SetEddyViscAnisotropy(aniso_i, aniso_j);
+}
+
+void CHybrid_Dummy_Mediator::AdjustEddyViscosity(CSolver **solver_container,
+                                                 unsigned short iPoint,
+                                                 su2double *eddy_viscosity) {
+  /*--- Don't adjust the eddy viscosity for a no-hybrid model.
+   * Technically, if alpha=1 everywhere, we could still multiply eddy
+   * viscosity by alpha.  But there's no point in checking multiplication ---*/
 }
