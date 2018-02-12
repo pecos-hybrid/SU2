@@ -129,9 +129,11 @@ CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
 
   Q = new su2double*[nDim];
   Qapprox = new su2double*[nDim];
+  prodLengthTensor = new su2double*[nDim];
   for (unsigned int iDim = 0; iDim < nDim; iDim++) {
     Q[iDim] = new su2double[nDim];
     Qapprox[iDim] = new su2double[nDim];
+    prodLengthTensor[iDim] = new su2double[nDim];
   }
 
   /*--- Load the constants for mapping M to M-tilde ---*/
@@ -505,8 +507,6 @@ void CHybrid_Mediator::ComputeProdLengthTensor(CGeometry* geometry,
   }
 
   // Get primative variables and gradients
-  su2double* val_primvar =
-    solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
   su2double** val_gradprimvar =
     solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
 

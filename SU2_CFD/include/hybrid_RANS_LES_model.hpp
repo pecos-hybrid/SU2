@@ -311,16 +311,6 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double CalculateRk(su2double** Q, su2double v2);
 
   /*!
-   * \brief Calculates the production inverse length scale tensor
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] iPoint - The number of the node being evaluated
-   */
-  void ComputeProdLengthTensor(CGeometry* geometry,
-                               CSolver **solver_container,
-                               unsigned short iPoint);
-
-  /*!
    * \brief Projects the resolution on a specific vector
    * \param[in] resolution_tensor - The tensor representing separation distances
    * \param[in] direction - The direction vector (assumed to be normalized)
@@ -391,6 +381,21 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \brief Destructor for the hybrid mediator object.
    */
   ~CHybrid_Mediator();
+
+  /*!
+   * \brief Calculates the production inverse length scale tensor
+   * \param[in] geometry - A pointer to the geometry
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
+  void ComputeProdLengthTensor(CGeometry* geometry,
+                               CSolver **solver_container,
+                               unsigned short iPoint);
+
+  su2double GetInvLengthScale(unsigned short ival, unsigned short jval) {
+    return prodLengthTensor[ival][jval];
+  }
+
 
   /**
    * \brief RANS needs the hybrid parameter (the energy flow parameter).
