@@ -34,11 +34,12 @@
 ################################################################################
 
 check_PROGRAMS  =
+TESTS  =
+
+if BUILD_TESTS
+
 check_PROGRAMS += unit_test_config
-check_PROGRAMS += resolution_integration_test
-check_PROGRAMS += resolution_3d_integration_test
-check_PROGRAMS += resolution_gradient_test
-check_PROGRAMS += resolution_triangle_test
+check_PROGRAMS += resolution_tensor_test
 
 # Eventually these will likely be required
 AM_CPPFLAGS = -I$(top_srcdir)/Common/include
@@ -47,23 +48,18 @@ AM_CPPFLAGS = -I$(top_srcdir)/Common/include
 LDADD = $(top_builddir)/Common/lib/libSU2.a
 
 # always link to built dependencies from ./externals
-AM_CPPFLAGS += @su2_externals_INCLUDES@
+AM_CPPFLAGS += @su2_externals_INCLUDES@ -DBUILD_TESTS @BOOST_CXX@
 LDADD += @su2_externals_LIBS@
 
 # Test sources
 unit_test_config_SOURCES = unit_test_config.cpp
-resolution_integration_test_SOURCES = resolution_integration_test.cpp
-resolution_3d_integration_test_SOURCES = resolution_3d_integration_test.cpp
-resolution_gradient_test_SOURCES = resolution_gradient_test.cpp
-resolution_triangle_test_SOURCES = resolution_triangle_test.cpp
+resolution_tensor_test_SOURCES = resolution_tensor_test.cpp
 
 # Tests to be run
-TESTS  =
 TESTS += unit_test_config
-TESTS += resolution_integration_test
-TESTS += resolution_3d_integration_test
-TESTS += resolution_gradient_test
-TESTS += resolution_triangle_test
+TESTS += resolution_tensor_test
 
 # Any of above we expect to fail?
 #XFAIL_TESTS =
+
+endif

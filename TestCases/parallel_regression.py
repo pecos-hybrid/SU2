@@ -272,42 +272,9 @@ def main():
     contadj_oneram6.tol       = 0.00001
     test_list.append(contadj_oneram6)
 
-    # Inviscid WEDGE: generalized adjoint and custom DV
-    contadj_wedge             = TestCase('contadj_wedge')
-    contadj_wedge.cfg_dir   = "cont_adj_euler/wedge"
-    contadj_wedge.cfg_file  = "inv_wedge_ROE.cfg"
-    contadj_wedge.test_iter = 10  
-    contadj_wedge.test_vals = [2.780403, -3.223266, -1448300.000000, -0.000000] #last 4 columns
-    contadj_wedge.su2_exec  = "parallel_computation.py -f"
-    contadj_wedge.timeout   = 1600
-    contadj_wedge.tol       = 0.00001
-    test_list.append(contadj_wedge)
-
-    # Inviscid fixed CL NACA0012
-    contadj_fixed_CL_naca0012           = TestCase('contadj_fixedcl_naca0012')
-    contadj_fixed_CL_naca0012.cfg_dir   = "fixed_cl/naca0012"
-    contadj_fixed_CL_naca0012.cfg_file  = "inv_NACA0012_ContAdj.cfg"
-    contadj_fixed_CL_naca0012.test_iter = 500
-    contadj_fixed_CL_naca0012.test_vals = [-2.921695, -8.474107, 0.250530, 0.000003] #last 4 columns
-    contadj_fixed_CL_naca0012.su2_exec  = "parallel_computation.py -f"
-    contadj_fixed_CL_naca0012.timeout   = 1600
-    contadj_fixed_CL_naca0012.tol       = 0.00001
-    test_list.append(contadj_fixed_CL_naca0012)
-
     ###################################
     ### Cont. adj. compressible N-S ###
     ###################################
-
-    # Adjoint laminar cylinder
-    contadj_ns_cylinder           = TestCase('contadj_ns_cylinder')
-    contadj_ns_cylinder.cfg_dir   = "cont_adj_navierstokes/cylinder"
-    contadj_ns_cylinder.cfg_file  = "lam_cylinder.cfg"
-    contadj_ns_cylinder.test_iter = 100
-    contadj_ns_cylinder.test_vals = [-3.659040, -9.117773, 2.056700, -0.000000] #last 4 columns
-    contadj_ns_cylinder.su2_exec  = "parallel_computation.py -f"
-    contadj_ns_cylinder.timeout   = 1600
-    contadj_ns_cylinder.tol       = 0.00001
-    test_list.append(contadj_ns_cylinder)
 
     # Adjoint laminar naca0012 subsonic
     contadj_ns_naca0012_sub           = TestCase('contadj_ns_naca0012_sub')
@@ -356,36 +323,6 @@ def main():
     contadj_rans_rae2822.timeout   = 1600
     contadj_rans_rae2822.tol       = 0.00001
     test_list.append(contadj_rans_rae2822)
-
-    #######################################
-    ### Cont. adj. incompressible Euler ###
-    #######################################
-
-    # Adjoint Incompressible Inviscid NACA0012
-    contadj_incomp_NACA0012           = TestCase('contadj_incomp_NACA0012')
-    contadj_incomp_NACA0012.cfg_dir   = "cont_adj_incomp_euler/naca0012"
-    contadj_incomp_NACA0012.cfg_file  = "incomp_NACA0012.cfg"
-    contadj_incomp_NACA0012.test_iter = 5
-    contadj_incomp_NACA0012.test_vals = [-11.968536, -12.133235, 1.939900, 0.000000] #last 4 columns
-    contadj_incomp_NACA0012.su2_exec  = "parallel_computation.py -f"
-    contadj_incomp_NACA0012.timeout   = 1600
-    contadj_incomp_NACA0012.tol       = 0.00001
-    test_list.append(contadj_incomp_NACA0012)
-
-    #####################################
-    ### Cont. adj. incompressible N-S ###
-    #####################################
-
-    # Adjoint Incompressible Viscous Cylinder
-    contadj_incomp_cylinder           = TestCase('contadj_incomp_cylinder')
-    contadj_incomp_cylinder.cfg_dir   = "cont_adj_incomp_navierstokes/cylinder"
-    contadj_incomp_cylinder.cfg_file  = "lam_incomp_cylinder.cfg"
-    contadj_incomp_cylinder.test_iter = 25
-    contadj_incomp_cylinder.test_vals = [-5.718840, -7.012324, 2.932100, 0.000000] #last 4 columns
-    contadj_incomp_cylinder.su2_exec  = "parallel_computation.py -f"
-    contadj_incomp_cylinder.timeout   = 1600
-    contadj_incomp_cylinder.tol       = 0.00001
-    test_list.append(contadj_incomp_cylinder)
 
     ######################################
     ### Moving Wall                    ###
