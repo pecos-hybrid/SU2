@@ -1420,6 +1420,12 @@ public:
   
   /*!
    * \brief Residual for source term integration.
+   * \param[in] val_production - Value of the Production due to forcing
+   */
+  virtual void SetForcingProduction(su2double val_production);
+
+  /*!
+   * \brief Residual for source term integration.
    * \param[in] val_destruction - Value of the Destruction.
    */
   virtual void SetDestruction(su2double val_destruction);
@@ -4551,6 +4557,7 @@ private:
   C_eta,
   C_e1o,
   C_e2;
+  su2double ForcingProduction;
 
   bool incompressible;
 
@@ -4581,6 +4588,12 @@ public:
                        su2double **val_Jacobian_i, su2double **val_Jacobian_j,
                        CConfig *config);
 
+  /*!
+   * \brief Set the production of TKE due to forcing.
+   * \param[in] val_production - Value of the production due to forcing
+   */
+  void SetForcingProduction(su2double val_production);
+
 };
 
 /*!
@@ -4592,6 +4605,9 @@ public:
  * \version 5.0.0 "Raven"
  */
 class CSourcePieceWise_HybridConv : public CNumerics {
+ private:
+  su2double ProductionRatio; // Ratio of P_f_unscaled and P_lim
+
  public:
 
    /*!

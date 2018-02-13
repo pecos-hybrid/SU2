@@ -260,6 +260,8 @@ inline void CNumerics::SetIntermittency(su2double intermittency_in) { }
 
 inline void CNumerics::SetProduction(su2double val_production) { }
 
+inline void CNumerics::SetForcingProduction(su2double val_production) { }
+
 inline void CNumerics::SetDestruction(su2double val_destruction) { }
 
 inline void CNumerics::SetCrossProduction(su2double val_crossproduction) { }
@@ -483,6 +485,8 @@ inline su2double CSourcePieceWise_TurbSA_Neg::GetProduction(void) { return Produ
 inline su2double CSourcePieceWise_TurbSA_Neg::GetDestruction(void) { return Destruction; }
 
 inline su2double CSourcePieceWise_TurbSA_Neg::GetCrossProduction(void) { return CrossProduction; }
+
+inline void CSourcePieceWise_TurbKE::SetForcingProduction(su2double val_production) { ForcingProduction = val_production; }
 
 inline su2double CUpwTurkel_Flow::GetPrecond_Beta() { return Beta; }
 
