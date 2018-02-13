@@ -99,4 +99,5 @@ TESTS += zeta_unit_cell_test
 TESTS += zeta_transform_test
 
 # Any of above we expect to fail?
-#XFAIL_TESTS =
+XFAIL_TESTS =
+XFAIL_TESTS += hybrid_rdelta_test

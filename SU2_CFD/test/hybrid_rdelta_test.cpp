@@ -68,7 +68,6 @@ struct HybridRdeltaFixture {
   HybridRdeltaFixture()
     : machine_eps(std::numeric_limits<su2double>::epsilon())
   {
-
     WriteCfgFile(3);
     mock_config = new CConfig("hybrid_rdelta_test.cfg", SU2_CFD, 0, 1, 3, VERB_NONE);
 
@@ -150,8 +149,6 @@ BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
-  BOOST_TEST_MESSAGE( "Running ZeroGradientTrival test..." );
-
   mock_solver_array[FLOW_SOL]->node[0]->SetGradient_PrimitiveZero(7);
   mock_solver_array[FLOW_SOL]->node[0]->SetEddyViscosity(0.0);
   mock_mediator->ComputeProdLengthTensor(NULL, mock_solver_array, 0);
@@ -161,6 +158,36 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,2),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,0),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,2),0.0);
+
+}
+
+BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
+
+  mock_solver_array[FLOW_SOL]->node[0]->SetGradient_PrimitiveZero(7);
+
+  // du/dy = 1.0
+  mock_solver_array[FLOW_SOL]->node[0]->SetGradient_Primitive(1, 1, 1.0);
+
+  // mut = 1.0
+  mock_solver_array[FLOW_SOL]->node[0]->SetEddyViscosity(1.0);
+
+  // v2 = 2.0
+  mock_solver_array[TURB_SOL]->node[0]->SetSolution(2, 1.0);
+
+  mock_mediator->ComputeProdLengthTensor(NULL, mock_solver_array, 0);
+
+  // 0,0 and 1,1 entries should be 0.5
+  BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.5,machine_eps);
+  BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(1,1),0.5,machine_eps);
+
+  // everybody else is 0
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,0),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,2),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,0),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,1),0.0);
