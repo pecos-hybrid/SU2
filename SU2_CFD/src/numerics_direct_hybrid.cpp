@@ -112,60 +112,75 @@ void CSourcePieceWise_HybridConv::ComputeResidual(su2double *val_residual,
     error_msg << "  Resolution adequacy: " << Resolution_Adequacy;
     SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
+  if (TurbT <= 0) {
+    cout << "ERROR: Turbulent timescale <= 0!" << endl;
+    cout << "       Turbulent timescale: " << TurbT << endl;
+  }
+  if (HybridParameter_i[0] <= 0) {
+    cout << "ERROR: Hybrid parameter <= 0!" << endl;
+    cout << "       Hybrid parameter: " << HybridParameter_i[0] << endl;
+  }
 #endif
+  // FIXME: Read in C_alpha from file
+  const su2double C_alpha = 0.1;
 
-  /*--- Raising and lowering alpha based on resolution adequacy ---*/
+  /*--- Aliasing for readability ---*/
+  const su2double alpha = HybridParameter_i[0];
 
-  /*--- Turbulent timescale, with correction factor of 4 ---*/
-  su2double T_alpha = 4.0*TurbT;
+  if (config->GetKind_Regime() == INCOMPRESSIBLE) {
+    Density_i = V_i[nDim+1];
+    Laminar_Viscosity_i = V_i[nDim+3];
+  }
+  else {
+    Density_i = V_i[nDim+2];
+    Laminar_Viscosity_i = V_i[nDim+5];
+  }
+  const su2double nu = Laminar_Viscosity_i / Density_i;
+  su2double tke, tdr;
+  switch (config->GetKind_Turb_Model()) {
+    case KE:
+      tke = fmax(TurbVar_i[0], EPS); tdr = TurbVar_i[1];
+      break;
+    default:
+      cout << "Error: Current RANS model not supported for hybrid model." << endl;
+      exit(EXIT_FAILURE);
+  }
+  const su2double alpha_kol = 1.5*sqrt(nu*tdr)/tke;
 
   // Gentle switch between raising and lowering alpha based on resolution
-  su2double S_r;
+  su2double S_alpha;
   if (Resolution_Adequacy >= 1.0)
-    S_r = tanh(Resolution_Adequacy - 1.0);
+    S_alpha = tanh(Resolution_Adequacy - 1.0);
   else
-    S_r = tanh(1.0 - 1.0/Resolution_Adequacy);
+    S_alpha = tanh(1.0 - 1.0/Resolution_Adequacy);
 
-  /*--- D_r causes alpha > 1 to return rapidly to 1 in RANS regions.
-   * But if RANS_Weight << 1, alpha can go above 1. ---*/
-  su2double D_r = RANS_Weight * fmax(HybridParameter_i[0] + S_r - 1, 0);
-
-  /*--- F_r causes alpha to return to 0 if it goes briefly negative.
-   * F_r functions as a built-in clipping which maintains C1 continuity  ---*/
-  su2double F_r = fmin(HybridParameter_i[0] + S_r, 0);
-
-  val_residual[0] = (S_r - D_r - F_r)/T_alpha * Volume;
-
-  /*--- Raising and lowering alpha based on grid coarsening/refinement ---*/
-
-  su2double udMdx; // Dot product of resolved velocity and resolution tensor gradient
-  su2double max_udMdx; // Max value of the convection of the resolution tensor
-  for (unsigned int iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned int jDim = 0; jDim < nDim; jDim++) {
-      udMdx = 0.0;
-      for (unsigned int kDim = 0; kDim < nDim; kDim++) {
-        // This is NOT upwinded.
-        udMdx += V_i[kDim+1] * Resolution_Tensor_Gradient[kDim][iDim][jDim];
-      }
-      if (iDim == 0 and jDim == 0) max_udMdx = udMdx;
-      else if (udMdx > max_udMdx) max_udMdx = udMdx;
-    }
+  su2double S_cf;
+  su2double dS_cf; // Actually, derivative of S_cf/alpha w.r.t. alpha
+  if (Resolution_Adequacy >= 1.0 && alpha > 1.0) {
+    S_cf = alpha;
+    dS_cf = 0.0;
+  } else if (Resolution_Adequacy < 1.0 && alpha < alpha_kol) {
+    S_cf = (alpha - fmin(alpha_kol, 1.0)) - 1.0;
+    if (abs(alpha - fmin(alpha_kol, 1.0)) < EPS)
+      dS_cf = -(fmin(alpha_kol, 1) - 1.0)/(alpha*alpha);
+  } else {
+    S_cf = 0.0;
+    dS_cf = 0.0;
   }
 
-  if (abs(max_udMdx) > EPS) {
-    // Timescale for grid refinement/coarsening
-    su2double T_c = TurbL/max_udMdx;
-    if (S_r >= 0.0 && T_c >= 0.0) {
-      val_residual[0] += 1.0/T_c * Volume;
-    }
-  }
+  su2double S_lim = (ProductionRatio - 1);
+  if (Resolution_Adequacy < 1.0)
+    S_lim *= -1;
 
-  /*--- Jacobian of \alpha with respect to \alpha ---*/
-  val_Jacobian_i[0][0] = 0.0;
-  if (D_r != 0)
-    val_Jacobian_i[0][0] += -RANS_Weight/T_alpha * Volume;
-  if (F_r != 0)
-    val_Jacobian_i[0][0] += -1.0/T_alpha * Volume;
+  val_residual[0] = C_alpha/(alpha*TurbT)*(1+S_lim)*(S_alpha-S_cf) * Volume;
+
+  /*--- Jacobian of alpha with respect to alpha
+   * Split the Jacobian into two terms (for S_alpha/alpha and -S_cf/alpha)
+   * We ignore the derivative of forcing production due to alpha, for
+   * simplicity ---*/
+  val_Jacobian_i[0][0] = -C_alpha/(alpha*alpha*TurbT)*(1+S_lim)*S_alpha;
+  val_Jacobian_i[0][0] -= C_alpha/TurbT*(1+S_lim)*dS_cf;
+  val_Jacobian_i[0][0] *= Volume;
 }
 
 CAvgGrad_HybridConv::CAvgGrad_HybridConv(unsigned short val_nDim,

@@ -131,7 +131,7 @@ class CHybridForcing {
    * \brief Getter for the ratio of the production due to forcing and a rescaled
    * production term.
    *
-   * \return The ratio of P_F / P_lim
+   * \return The ratio of P_F_unscaled / P_lim
    */
   su2double GetProductionRatio();
 

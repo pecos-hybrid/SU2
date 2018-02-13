@@ -74,9 +74,9 @@ void CHybridForcing::BuildForcingStress(su2double* x, su2double** val_tau_F) {
   unsigned short nDim = 3;
   su2double g[3];
 
-  g[0] = cos(x[0])*sin(x[1])*sin(x[2]);
-  g[1] = sin(x[0])*cos(x[1])*sin(x[2]);
-  g[2] = sin(x[0])*sin(x[1])*cos(x[2]);
+  g[0] =  1.0*cos(x[0])*sin(x[1])*sin(x[2]);
+  g[1] =  1.0*sin(x[0])*cos(x[1])*sin(x[2]);
+  g[2] = -2.0*sin(x[0])*sin(x[1])*cos(x[2]);
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {

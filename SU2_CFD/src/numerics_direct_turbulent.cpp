@@ -1478,8 +1478,7 @@ CSourcePieceWise_TurbKE::CSourcePieceWise_TurbKE(unsigned short val_nDim,
                                                  unsigned short val_nVar,
                                                  su2double *constants,
                                                  CConfig *config)
-  :
-  CNumerics(val_nDim, val_nVar, config) {
+  : CNumerics(val_nDim, val_nVar, config) {
 
   incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
 
@@ -1497,6 +1496,9 @@ CSourcePieceWise_TurbKE::CSourcePieceWise_TurbKE(unsigned short val_nDim,
   C_T     = constants[8];
   C_L     = constants[9];
   C_eta   = constants[10];
+
+  /*--- Don't force the turbulence if forcing production is never set ---*/
+  ForcingProduction = 0.0;
 
 }
 
@@ -1532,6 +1534,14 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   const su2double tdr = TurbVar_i[1];
   const su2double v20 = TurbVar_i[2];
   const su2double f   = TurbVar_i[3];
+
+  // XXX: Is this check necessary?
+  su2double alpha;
+  if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+    alpha = HybridParameter_i[0];
+  } else {
+    alpha = 1.0;
+  }
 
   // clip values to avoid non-physical quantities...
 
@@ -1574,13 +1584,14 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
 
   // TKE equation...
-  su2double Pk, Pk_rk, Pk_re, Pk_rv2;
+  su2double Pk, Pk_total, Pk_rk, Pk_re, Pk_rv2;
   su2double Dk, Dk_rk, Dk_re, Dk_rv2;
 
   //... production
   // NB: we ignore the jacobian of production here
 
   Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
+  Pk_total = Pk + ForcingProduction;
 
   Pk_rk  = 0.0;
   Pk_re  = 0.0;
@@ -1602,14 +1613,14 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   const su2double C_e1 = C_e1o*(1.0+0.045*sqrt(1.0/zeta));
 
   // ... production
-  Pe = C_e1*Pk/TurbT;
+  Pe = C_e1*(Pk - ForcingProduction/alpha) / (TurbT*alpha);
 
   Pe_rk  = 0.0;
   Pe_re  = 0.0;
   Pe_rv2 = 0.0;
 
   // ... dissipation
-  De = C_e2*rho*tdr/TurbT;
+  De = C_e2*rho*tdr/(TurbT*alpha);
 
   De_rk  = 0.0;
   De_re  = C_e2/TurbT;
@@ -1622,7 +1633,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   // ... production
   // Limit production of v2 based on max zeta = 2/3
-  Pv2 = rho * min( tke*f, 2.0*Pk/3.0 + 5.0*v2/T1 );
+  Pv2 = rho * min( tke*f, 2.0*(Pk + ForcingProduction)/3.0 + 5.0*v2/T1 );
 
   Pv2_rk  = 0.0;
   Pv2_re  = 0.0;
@@ -1647,7 +1658,8 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   const su2double ttC1m1 = (2.0/3.0)*(C_1 - 1.0);
   const su2double C_2f = C_2p;
 
-  Pf = (C_2f*Pk/tke_lim - (C1m6*zeta - ttC1m1)/TurbT) / Lsq;
+  Pf = (C_2f*(Pk + ForcingProduction)/tke_lim -
+        (C1m6*zeta - ttC1m1)/TurbT) / Lsq;
 
   // not keeping any derivatives of Pf
 
@@ -1684,7 +1696,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   // form source term and Jacobian...
 
   // TKE
-  val_residual[0]      = (Pk      - Dk     ) * Vol;
+  val_residual[0]      = (Pk_total- Dk     ) * Vol;
 
   val_Jacobian_i[0][0] = (Pk_rk   - Dk_rk  ) * Vol;
   val_Jacobian_i[0][1] = (Pk_re   - Dk_re  ) * Vol;
