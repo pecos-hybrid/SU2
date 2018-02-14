@@ -390,7 +390,8 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    */
   void ComputeInvLengthTensor(CVariable* flow_vars,
                               CVariable* turb_vars,
-                              CVariable* hybr_vars);
+                              CVariable* hybr_vars,
+                              int short hybrid_res_ind);
 
   su2double GetInvLengthScale(unsigned short ival, unsigned short jval) {
     return invLengthTensor[ival][jval];

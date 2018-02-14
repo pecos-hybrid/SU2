@@ -53,7 +53,7 @@ void WriteCfgFile(const unsigned short& nDim) {
   cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
   cfg_file << "HYBRID_TURB_MODEL= YES" << std::endl;
   cfg_file << "HYBRID_BLENDING_SCHEME= CONVECTIVE" << std::endl;
-  cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA" << std::endl;
+  cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA_STRAIN_ONLY" << std::endl;
   cfg_file << "HYBRID_ANISOTROPY_MODEL= ISOTROPIC" << std::endl;
   cfg_file.close();
 
@@ -130,7 +130,8 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
   mock_var_array[0]->SetEddyViscosity(0.0);
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2]);
+                                        mock_var_array[2],
+                                        mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,0),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
@@ -162,7 +163,8 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2]);
+                                        mock_var_array[2],
+                                        mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // 0,0 and 1,1 entries should be 0.5
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.5,machine_eps);
@@ -194,7 +196,8 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2]);
+                                        mock_var_array[2],
+                                        mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // 0,0 and 1,1 entries should be 1.0
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),1.0,machine_eps);
@@ -225,7 +228,8 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2]);
+                                        mock_var_array[2],
+                                        mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // 0,0 and 1,1 entries should be 0.0625
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.0625,machine_eps);
@@ -256,7 +260,8 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2]);
+                                        mock_var_array[2],
+                                        mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // 0,0 and 1,1 entries should be 0.0625
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.25,machine_eps);
@@ -301,7 +306,8 @@ BOOST_FIXTURE_TEST_CASE(PureRotation, HybridRdeltaFixture) {
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2]);
+                                        mock_var_array[2],
+                                        mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // Everything should be zero
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,0),0.0);

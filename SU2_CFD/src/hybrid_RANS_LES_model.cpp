@@ -233,12 +233,6 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
                                               CSolver **solver_container,
                                               unsigned short iPoint) {
 
-  if (config->GetKind_Hybrid_Resolution_Indicator() == RDELTA_INDICATOR) {
-    cout << "ERROR: The RDELTA resolution indicator is not implemented yet." << endl;
-    exit(EXIT_FAILURE);
-  }
-
-
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
   const su2double TKE_MIN = EPS;
@@ -250,11 +244,12 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
   su2double* ResolutionValues = geometry->node[iPoint]->GetResolutionValues();
   su2double** ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
 
-  if (config->GetKind_Hybrid_Resolution_Indicator() == RDELTA_INDICATOR) {
+  if (config->GetKind_Hybrid_Resolution_Indicator() != RK_INDICATOR) {
     // Compute production tensor used for rk
     ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
                            solver_container[TURB_SOL]->node[iPoint],
-                           solver_container[HYBRID_SOL]->node[iPoint]);
+                           solver_container[HYBRID_SOL]->node[iPoint],
+                           config->GetKind_Hybrid_Resolution_Indicator());
 
     vector<su2double> eigvalues_MP;
     vector<vector<su2double> > eigvectors_MP;
@@ -496,7 +491,8 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
 
 void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
                                               CVariable* turb_vars,
-                                              CVariable* hybr_vars) {
+                                              CVariable* hybr_vars,
+                                              int short hybrid_res_ind) {
 
   unsigned short iDim, jDim, kDim;
   su2double G[3][3], delta[3][3], Pij[3][3];
@@ -505,6 +501,13 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   // Not intended for use in 2D
   if (nDim == 2) {
     cout << "ERROR: The RDELTA resolution adequacy option is not implemented for 2D!" << endl;
+    cout << "In file: " << __FILE__ << endl;
+    cout << "At line: " << __LINE__ << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (hybrid_res_ind != RDELTA_INDICATOR_STRAIN_ONLY) {
+    cout << "ERROR: Only RDELTA_INDICATOR_STRAIN_ONLY is implemented right now." << endl;
     cout << "In file: " << __FILE__ << endl;
     cout << "At line: " << __LINE__ << endl;
     exit(EXIT_FAILURE);
@@ -554,6 +557,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     v2 = alpha*2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
   } else {
     cout << "ERROR: The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!" << endl;
+    cout << "In file: " << __FILE__ << endl;
+    cout << "At line: " << __LINE__ << endl;
     exit(EXIT_FAILURE);
   }
 
