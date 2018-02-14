@@ -249,8 +249,10 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
   su2double** ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
 
   if (config->GetKind_Hybrid_Resolution_Indicator() == RDELTA_INDICATOR) {
-    // Comput production tensor used for rk (stored in rkTensor)
-    ComputeProdLengthTensor(geometry, solver_container, iPoint);
+    // Compute production tensor used for rk
+    ComputeProdLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
+                            solver_container[TURB_SOL]->node[iPoint],
+                            solver_container[HYBRID_SOL]->node[iPoint]);
 
     vector<su2double> eigvalues_MP;
     vector<vector<su2double> > eigvectors_MP;
@@ -490,9 +492,9 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
 }
 
 
-void CHybrid_Mediator::ComputeProdLengthTensor(CGeometry* geometry,
-                                               CSolver **solver_container,
-                                               unsigned short iPoint) {
+void CHybrid_Mediator::ComputeProdLengthTensor(CVariable* flow_vars,
+                                               CVariable* turb_vars,
+                                               CVariable* hybr_vars) {
 
   unsigned short iDim, jDim, kDim;
   su2double G[3][3], delta[3][3], Pij[3][3];
@@ -507,16 +509,13 @@ void CHybrid_Mediator::ComputeProdLengthTensor(CGeometry* geometry,
   }
 
   // Get primative variables and gradients
-  su2double** val_gradprimvar =
-    solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
+  su2double** val_gradprimvar =  flow_vars->GetGradient_Primitive();
 
   // Get eddy viscosity
-  su2double eddy_viscosity =
-    solver_container[FLOW_SOL]->node[iPoint]->GetEddyViscosity();
+  su2double eddy_viscosity = flow_vars->GetEddyViscosity();
 
   // Get hybrid blend (i.e., alpha)
-  su2double* blend =
-      solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
+  su2double* blend = hybr_vars->GetSolution();
 
   // Bound alpha away from zero
   su2double alpha = max(blend[0],1e-8);
@@ -547,9 +546,9 @@ void CHybrid_Mediator::ComputeProdLengthTensor(CGeometry* geometry,
 
   su2double v2;
   if (config->GetKind_Turb_Model() == KE) {
-    v2 = max(solver_container[TURB_SOL]->node[iPoint]->GetSolution(2),1e-8);
+    v2 = max(turb_vars->GetSolution(2),1e-8);
   } else if (config->GetKind_Turb_Model() == SST) {
-    v2 = 2.0*max(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),1e-8)/3.0;
+    v2 = 2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
   } else {
     cout << "ERROR: The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!" << endl;
     exit(EXIT_FAILURE);

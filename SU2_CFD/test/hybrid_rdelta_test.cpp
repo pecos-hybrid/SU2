@@ -82,60 +82,37 @@ struct HybridRdeltaFixture {
     hybrid_soln = 1.0;
 
     // Alloc mock solver objects
-    mock_solver_array = new CSolver* [MAX_SOLS];
-    for (unsigned short ii=0; ii<MAX_SOLS; ii++) {
-      mock_solver_array[ii] = NULL;
+    mock_var_array = new CVariable* [3];
+    for (unsigned short ii=0; ii<3; ii++) {
+      mock_var_array[ii] = NULL;
     }
-    mock_solver_array[FLOW_SOL]   = new CNSSolver();
-    mock_solver_array[TURB_SOL]   = new CTurbKESolver();
-    mock_solver_array[HYBRID_SOL] = new CHybridConvSolver();
 
     // Alloc mock node within the solver
-    mock_solver_array[FLOW_SOL]->node    = new CVariable*[1];
-    mock_solver_array[FLOW_SOL]->node[0] =
-      new CNSVariable(flow_soln, 3, 5, mock_config);
+    mock_var_array[0] = new CNSVariable(flow_soln, 3, 5, mock_config);
 
-    mock_solver_array[TURB_SOL]->node    = new CVariable*[1];
-    mock_solver_array[TURB_SOL]->node[0] =
-      new CTurbKEVariable(0.0, 0.0, 0.0, 0.0, // k, eps, v2, f
-                          0.0, 0.0, 0.0,      // muT, Tm, Lm
-                          3, 4,               // ndim, nvar
-                          NULL, mock_config); // constants, config
+    mock_var_array[1] = new CTurbKEVariable(0.0, 0.0, 0.0, 0.0, // k, eps, v2, f
+                                            0.0, 0.0, 0.0,      // muT, Tm, Lm
+                                            3, 4,               // ndim, nvar
+                                            NULL, mock_config); // constants, config
 
-    mock_solver_array[HYBRID_SOL]->node    = new CVariable*[1];
-    mock_solver_array[HYBRID_SOL]->node[0] =
-      new CHybridConvVariable(hybrid_soln, 3, 1, mock_config);
+    mock_var_array[2] = new CHybridConvVariable(hybrid_soln, 3, 1, mock_config);
 
     mock_mediator = new CHybrid_Mediator(3, mock_config);
   }
 
   ~HybridRdeltaFixture() {
     delete mock_mediator;
-
-    delete mock_solver_array[HYBRID_SOL]->node[0];
-    delete mock_solver_array[HYBRID_SOL]->node;
-    mock_solver_array[HYBRID_SOL]->node = NULL; // avoid double free
-
-    delete mock_solver_array[TURB_SOL]->node[0];
-    delete mock_solver_array[TURB_SOL]->node;
-    mock_solver_array[TURB_SOL]->node = NULL; // avoid double free
-
-    delete mock_solver_array[FLOW_SOL]->node[0];
-    delete mock_solver_array[FLOW_SOL]->node;
-    mock_solver_array[FLOW_SOL]->node = NULL; // avoid double free
-
-    delete mock_solver_array[HYBRID_SOL];
-    delete mock_solver_array[TURB_SOL];
-    delete mock_solver_array[FLOW_SOL];
-
-    delete mock_solver_array;
+    delete mock_var_array[2];
+    delete mock_var_array[1];
+    delete mock_var_array[0];
+    delete mock_var_array;
     delete mock_config;
   }
 
   const su2double machine_eps;
 
   CConfig *mock_config;
-  CSolver **mock_solver_array;
+  CVariable **mock_var_array;
   CHybrid_Mediator *mock_mediator;
 };
 
@@ -149,9 +126,11 @@ BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
-  mock_solver_array[FLOW_SOL]->node[0]->SetGradient_PrimitiveZero(7);
-  mock_solver_array[FLOW_SOL]->node[0]->SetEddyViscosity(0.0);
-  mock_mediator->ComputeProdLengthTensor(NULL, mock_solver_array, 0);
+  mock_var_array[0]->SetGradient_PrimitiveZero(7);
+  mock_var_array[0]->SetEddyViscosity(0.0);
+  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
+                                         mock_var_array[1],
+                                         mock_var_array[2]);
 
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,0),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
@@ -167,18 +146,20 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
 BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 
-  mock_solver_array[FLOW_SOL]->node[0]->SetGradient_PrimitiveZero(7);
+  mock_var_array[0]->SetGradient_PrimitiveZero(7);
 
   // du/dy = 1.0
-  mock_solver_array[FLOW_SOL]->node[0]->SetGradient_Primitive(1, 1, 1.0);
+  mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
 
   // mut = 1.0
-  mock_solver_array[FLOW_SOL]->node[0]->SetEddyViscosity(1.0);
+  mock_var_array[0]->SetEddyViscosity(1.0);
 
   // v2 = 2.0
-  mock_solver_array[TURB_SOL]->node[0]->SetSolution(2, 1.0);
+  mock_var_array[1]->SetSolution(2, 1.0);
 
-  mock_mediator->ComputeProdLengthTensor(NULL, mock_solver_array, 0);
+  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
+                                         mock_var_array[1],
+                                         mock_var_array[2]);
 
   // 0,0 and 1,1 entries should be 0.5
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.5,machine_eps);

@@ -384,13 +384,13 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 
   /*!
    * \brief Calculates the production inverse length scale tensor
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] iPoint - The number of the node being evaluated
+   * \param[in] flow_vars - Pointer to mean flow variables
+   * \param[in] turb_vars - Pointer to turbulence model variables
+   * \param[in] hybr_vars - Pointer to hybrid model variables
    */
-  void ComputeProdLengthTensor(CGeometry* geometry,
-                               CSolver **solver_container,
-                               unsigned short iPoint);
+  void ComputeProdLengthTensor(CVariable* flow_vars,
+                               CVariable* turb_vars,
+                               CVariable* hybr_vars);
 
   su2double GetInvLengthScale(unsigned short ival, unsigned short jval) {
     return prodLengthTensor[ival][jval];
