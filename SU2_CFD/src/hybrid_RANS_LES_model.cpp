@@ -129,11 +129,11 @@ CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
 
   Q = new su2double*[nDim];
   Qapprox = new su2double*[nDim];
-  prodLengthTensor = new su2double*[nDim];
+  invLengthTensor = new su2double*[nDim];
   for (unsigned int iDim = 0; iDim < nDim; iDim++) {
     Q[iDim] = new su2double[nDim];
     Qapprox[iDim] = new su2double[nDim];
-    prodLengthTensor[iDim] = new su2double[nDim];
+    invLengthTensor[iDim] = new su2double[nDim];
   }
 
   /*--- Load the constants for mapping M to M-tilde ---*/
@@ -207,9 +207,11 @@ CHybrid_Mediator::~CHybrid_Mediator() {
   for (unsigned int iDim = 0; iDim < nDim; iDim++) {
     delete [] Q[iDim];
     delete [] Qapprox[iDim];
+    delete [] invLengthTensor[iDim];
   }
   delete [] Q;
   delete [] Qapprox;
+  delete [] invLengthTensor;
 
 #ifdef HAVE_LAPACK
   mkl_free_buffers();
@@ -250,13 +252,13 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
 
   if (config->GetKind_Hybrid_Resolution_Indicator() == RDELTA_INDICATOR) {
     // Compute production tensor used for rk
-    ComputeProdLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
-                            solver_container[TURB_SOL]->node[iPoint],
-                            solver_container[HYBRID_SOL]->node[iPoint]);
+    ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
+                           solver_container[TURB_SOL]->node[iPoint],
+                           solver_container[HYBRID_SOL]->node[iPoint]);
 
     vector<su2double> eigvalues_MP;
     vector<vector<su2double> > eigvectors_MP;
-    SolveGeneralizedEigen(prodLengthTensor, ResolutionTensor,
+    SolveGeneralizedEigen(invLengthTensor, ResolutionTensor,
                           eigvalues_MP, eigvectors_MP);
     std::vector<su2double>::iterator iter;
     iter = max_element(eigvalues_MP.begin(), eigvalues_MP.end());
@@ -492,9 +494,9 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
 }
 
 
-void CHybrid_Mediator::ComputeProdLengthTensor(CVariable* flow_vars,
-                                               CVariable* turb_vars,
-                                               CVariable* hybr_vars) {
+void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
+                                              CVariable* turb_vars,
+                                              CVariable* hybr_vars) {
 
   unsigned short iDim, jDim, kDim;
   su2double G[3][3], delta[3][3], Pij[3][3];
@@ -573,7 +575,7 @@ void CHybrid_Mediator::ComputeProdLengthTensor(CVariable* flow_vars,
   // set Rk equal to production tensor
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
-      prodLengthTensor[iDim][jDim] = 0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (v2*sqrt(v2)) ;
+      invLengthTensor[iDim][jDim] = 0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (v2*sqrt(v2)) ;
     }
   }
 
@@ -581,8 +583,8 @@ void CHybrid_Mediator::ComputeProdLengthTensor(CVariable* flow_vars,
   // check for nans
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
-      if (prodLengthTensor[iDim][jDim] != prodLengthTensor[iDim][jDim]) {
-        cout << "ERROR: prodLengthTensor has NaN!" << endl;
+      if (invLengthTensor[iDim][jDim] != invLengthTensor[iDim][jDim]) {
+        cout << "ERROR: invLengthTensor has NaN!" << endl;
         exit(EXIT_FAILURE);
       }
     }

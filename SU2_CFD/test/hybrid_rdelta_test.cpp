@@ -128,9 +128,9 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
   mock_var_array[0]->SetGradient_PrimitiveZero(7);
   mock_var_array[0]->SetEddyViscosity(0.0);
-  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
-                                         mock_var_array[1],
-                                         mock_var_array[2]);
+  mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[1],
+                                        mock_var_array[2]);
 
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,0),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
@@ -160,9 +160,9 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   mock_var_array[1]->SetSolution(2, 1.0);  // v2
   mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
-  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
-                                         mock_var_array[1],
-                                         mock_var_array[2]);
+  mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[1],
+                                        mock_var_array[2]);
 
   // 0,0 and 1,1 entries should be 0.5
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.5,machine_eps);
@@ -192,9 +192,9 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   mock_var_array[1]->SetSolution(2, 1.0);  // v2
   mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
-  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
-                                         mock_var_array[1],
-                                         mock_var_array[2]);
+  mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[1],
+                                        mock_var_array[2]);
 
   // 0,0 and 1,1 entries should be 1.0
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),1.0,machine_eps);
@@ -223,9 +223,9 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   mock_var_array[1]->SetSolution(2, 4.0);  // v2
   mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
-  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
-                                         mock_var_array[1],
-                                         mock_var_array[2]);
+  mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[1],
+                                        mock_var_array[2]);
 
   // 0,0 and 1,1 entries should be 0.0625
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.0625,machine_eps);
@@ -254,9 +254,9 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   mock_var_array[1]->SetSolution(2, 1.0);  // v2
   mock_var_array[2]->SetSolution(0, 0.25);  // alpha
 
-  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
-                                         mock_var_array[1],
-                                         mock_var_array[2]);
+  mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[1],
+                                        mock_var_array[2]);
 
   // 0,0 and 1,1 entries should be 0.0625
   BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.25,machine_eps);
@@ -299,9 +299,9 @@ BOOST_FIXTURE_TEST_CASE(PureRotation, HybridRdeltaFixture) {
   // v2 = 2.0
   mock_var_array[1]->SetSolution(2, 1.0);
 
-  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
-                                         mock_var_array[1],
-                                         mock_var_array[2]);
+  mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[1],
+                                        mock_var_array[2]);
 
   // Everything should be zero
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,0),0.0);
