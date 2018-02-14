@@ -495,19 +495,12 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
                                               int short hybrid_res_ind) {
 
   unsigned short iDim, jDim, kDim;
-  su2double G[3][3], delta[3][3], Pij[3][3];
+  su2double Sd[3][3], Om[3][3], delta[3][3], Pij[3][3];
   su2double div_vel;
 
   // Not intended for use in 2D
   if (nDim == 2) {
     cout << "ERROR: The RDELTA resolution adequacy option is not implemented for 2D!" << endl;
-    cout << "In file: " << __FILE__ << endl;
-    cout << "At line: " << __LINE__ << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  if (hybrid_res_ind != RDELTA_INDICATOR_STRAIN_ONLY) {
-    cout << "ERROR: Only RDELTA_INDICATOR_STRAIN_ONLY is implemented right now." << endl;
     cout << "In file: " << __FILE__ << endl;
     cout << "At line: " << __LINE__ << endl;
     exit(EXIT_FAILURE);
@@ -544,8 +537,15 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   // The deviatoric part of the strain rate tensor
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
-      G[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] + val_gradprimvar[jDim+1][iDim]) -
-                      delta[iDim][jDim]*div_vel/3.0;
+      Sd[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] + val_gradprimvar[jDim+1][iDim]) -
+                       delta[iDim][jDim]*div_vel/3.0;
+    }
+  }
+
+  // The rotation rate tensor
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      Om[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] - val_gradprimvar[jDim+1][iDim]);
     }
   }
 
@@ -565,6 +565,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   // NB: Assumes isotropic eddy viscosity
   // TODO: If/when we go back to anisotropic eddy viscosity, make sure
   // change propagates to here
+
+  // Strain only part
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       Pij[iDim][jDim] = 0.0;
@@ -572,12 +574,43 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
         // NB: Assumes that eddy_viscosity is *full* eddy
         // viscosity---i.e., not multiplied by alpha^2---so that
         // alpha^2 is necessary here
-	Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*G[iDim][kDim]*G[kDim][jDim];
+        Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Sd[kDim][jDim];
       }
     }
   }
 
-  // set Rk equal to production tensor
+  switch (hybrid_res_ind) {
+  case RDELTA_INDICATOR_STRAIN_ONLY:
+    // nothing to do here
+    break;
+  case RDELTA_INDICATOR_FULLP:
+    for (iDim = 0; iDim < nDim; iDim++) {
+      for (jDim = 0; jDim < nDim; jDim++) {
+        for (kDim = 0; kDim < nDim; kDim++) {
+          Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Om[jDim][kDim];
+        }
+      }
+    }
+    break;
+  case RDELTA_INDICATOR_FULLP_VELCON:
+    for (iDim = 0; iDim < nDim; iDim++) {
+      for (jDim = 0; jDim < nDim; jDim++) {
+        for (kDim = 0; kDim < nDim; kDim++) {
+          Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Om[kDim][jDim];
+        }
+      }
+    }
+    break;
+  default:
+    cout << "ERROR: Unrecognized RDELTA option." << endl;
+    cout << "In file: " << __FILE__ << endl;
+    cout << "At line: " << __LINE__ << endl;
+    exit(EXIT_FAILURE);
+    break;
+  }
+
+
+  // set inverse length scale tensor
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       invLengthTensor[iDim][jDim] = 0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (v2*sqrt(v2)) ;
