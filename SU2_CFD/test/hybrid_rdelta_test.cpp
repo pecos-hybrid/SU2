@@ -146,16 +146,19 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
 BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 
+  //------------------------------------------------------
+  // Simplest possible case:
+  // du/dy = 1
+  // mut = 1
+  // v2 = 1
+  // alpha = 1
+  //------------------------------------------------------
+
   mock_var_array[0]->SetGradient_PrimitiveZero(7);
-
-  // du/dy = 1.0
   mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
-
-  // mut = 1.0
   mock_var_array[0]->SetEddyViscosity(1.0);
-
-  // v2 = 2.0
-  mock_var_array[1]->SetSolution(2, 1.0);
+  mock_var_array[1]->SetSolution(2, 1.0);  // v2
+  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
   mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
                                          mock_var_array[1],
@@ -169,6 +172,143 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,2),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,2),0.0);
+
+
+  //------------------------------------------------------
+  // Check responds to mut correctly
+  // du/dy = 1
+  // mut = 2
+  // v2 = 1
+  // alpha = 1
+  //------------------------------------------------------
+
+  mock_var_array[0]->SetGradient_PrimitiveZero(7);
+  mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
+  mock_var_array[0]->SetEddyViscosity(2.0);
+  mock_var_array[1]->SetSolution(2, 1.0);  // v2
+  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
+
+  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
+                                         mock_var_array[1],
+                                         mock_var_array[2]);
+
+  // 0,0 and 1,1 entries should be 1.0
+  BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),1.0,machine_eps);
+  BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(1,1),1.0,machine_eps);
+
+  // everybody else is 0
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,2),0.0);
+
+  //------------------------------------------------------
+  // Check responds to v2 correctly
+  // du/dy = 1
+  // mut = 1
+  // v2 = 4
+  // alpha = 1
+  //------------------------------------------------------
+
+  mock_var_array[0]->SetGradient_PrimitiveZero(7);
+  mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
+  mock_var_array[0]->SetEddyViscosity(1.0);
+  mock_var_array[1]->SetSolution(2, 4.0);  // v2
+  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
+
+  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
+                                         mock_var_array[1],
+                                         mock_var_array[2]);
+
+  // 0,0 and 1,1 entries should be 0.0625
+  BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.0625,machine_eps);
+  BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(1,1),0.0625,machine_eps);
+
+  // everybody else is 0
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,2),0.0);
+
+  //------------------------------------------------------
+  // Check responds to alpha correctly
+  // du/dy = 1
+  // mut = 1
+  // v2 = 1
+  // alpha = 0.5
+  //------------------------------------------------------
+
+  mock_var_array[0]->SetGradient_PrimitiveZero(7);
+  mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
+  mock_var_array[0]->SetEddyViscosity(1.0);
+  mock_var_array[1]->SetSolution(2, 1.0);  // v2
+  mock_var_array[2]->SetSolution(0, 0.25);  // alpha
+
+  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
+                                         mock_var_array[1],
+                                         mock_var_array[2]);
+
+  // 0,0 and 1,1 entries should be 0.0625
+  BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(0,0),0.25,machine_eps);
+  BOOST_CHECK_CLOSE(mock_mediator->GetInvLengthScale(1,1),0.25,machine_eps);
+
+  // everybody else is 0
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,2),0.0);
+
+}
+
+BOOST_FIXTURE_TEST_CASE(PureRotation, HybridRdeltaFixture) {
+
+  mock_var_array[0]->SetGradient_PrimitiveZero(7);
+
+
+  // grad(u)
+  mock_var_array[0]->SetGradient_Primitive(1, 0, 0.0 );
+  mock_var_array[0]->SetGradient_Primitive(1, 1, 3.14);
+  mock_var_array[0]->SetGradient_Primitive(1, 2, 1.59);
+
+  // grad(v)
+  mock_var_array[0]->SetGradient_Primitive(2, 0, -3.14);
+  mock_var_array[0]->SetGradient_Primitive(2, 1,  0.0 );
+  mock_var_array[0]->SetGradient_Primitive(2, 2, 42.0 );
+
+  // grad(w)
+  mock_var_array[0]->SetGradient_Primitive(3, 0,  -1.59);
+  mock_var_array[0]->SetGradient_Primitive(3, 1, -42.0 );
+  mock_var_array[0]->SetGradient_Primitive(3, 2,   0.0 );
+
+  // mut = 1.0
+  mock_var_array[0]->SetEddyViscosity(1.0);
+
+  // v2 = 2.0
+  mock_var_array[1]->SetSolution(2, 1.0);
+
+  mock_mediator->ComputeProdLengthTensor(mock_var_array[0],
+                                         mock_var_array[1],
+                                         mock_var_array[2]);
+
+  // Everything should be zero
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,1),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,2),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,0),0.0);
+  BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,1),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(1,2),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,0),0.0);
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,1),0.0);

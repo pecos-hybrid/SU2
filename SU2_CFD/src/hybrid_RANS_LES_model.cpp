@@ -544,11 +544,12 @@ void CHybrid_Mediator::ComputeProdLengthTensor(CVariable* flow_vars,
     }
   }
 
+  // v2 here is *subgrid*, so must multiply by alpha
   su2double v2;
   if (config->GetKind_Turb_Model() == KE) {
-    v2 = max(turb_vars->GetSolution(2),1e-8);
+    v2 = alpha*max(turb_vars->GetSolution(2),1e-8);
   } else if (config->GetKind_Turb_Model() == SST) {
-    v2 = 2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
+    v2 = alpha*2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
   } else {
     cout << "ERROR: The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!" << endl;
     exit(EXIT_FAILURE);
@@ -561,7 +562,10 @@ void CHybrid_Mediator::ComputeProdLengthTensor(CVariable* flow_vars,
     for (jDim = 0; jDim < nDim; jDim++) {
       Pij[iDim][jDim] = 0.0;
       for (kDim = 0; kDim < nDim; kDim++) {
-	Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*G[iDim][kDim]*G[kDim][jDim];
+        // NB: Assumes that eddy_viscosity is *full* eddy
+        // viscosity---i.e., not multiplied by alpha^2---so that
+        // alpha^2 is necessary here
+	Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*G[iDim][kDim]*G[kDim][jDim];
       }
     }
   }
