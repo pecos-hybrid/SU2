@@ -245,7 +245,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
   su2double** ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
 
   if (config->GetKind_Hybrid_Resolution_Indicator() != RK_INDICATOR) {
-    // Compute production tensor used for rk
+    // Compute inverse length scale tensor
     ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
                            solver_container[TURB_SOL]->node[iPoint],
                            solver_container[HYBRID_SOL]->node[iPoint],
@@ -945,10 +945,6 @@ void CHybrid_Mediator::SolveGeneralizedEigen(su2double** A, su2double** B,
 					     vector<vector<su2double> > &eigvectors) {
 unsigned short iDim, jDim;
 
-#ifndef NDEBUG
-  // TODO: Checks on A and B
-#endif
-
   eigvalues.resize(nDim);
   eigvectors.resize(nDim, std::vector<su2double>(nDim));
 
@@ -962,8 +958,9 @@ unsigned short iDim, jDim;
 
   /*--- Call LAPACK routines ---*/
 
-  // itype = 3 ==> we're solving B*A*v = \lambda v
-  info = LAPACKE_dsygv(LAPACK_ROW_MAJOR, 3, 'V', 'U',
+  // itype = 2 ==> we're solving A*B*v = \lambda v
+  // when A = L^{-1} and B = M, this is what we want
+  info = LAPACKE_dsygv(LAPACK_ROW_MAJOR, 2, 'V', 'U',
                        nDim, mat, nDim, matb, nDim, eigval);
   if (info != 0) {
     cout << "ERROR: The generalized eigensolver failed with info = "
@@ -976,18 +973,8 @@ unsigned short iDim, jDim;
     eigvalues[iDim] = eigval[iDim];
 
   /*--- Check the values ---*/
-  for (iDim = 0; iDim < nDim; iDim++) {
-    if (eigval[iDim] < 0.0 && eigval[iDim] > -1e-4) {
-        eigvalues[iDim] = 0.0;
-    } else if (eigval[iDim] < -1e-4) {
-      cout << "ERROR: The generalized eigensolver returned a large negative eigenvalue!" << endl;
-      cout << "       Eigenvalues: [";
-      cout << eigval[0] << ", ";
-      cout << eigval[1] << ", ";
-      cout << eigval[2] << "]" << endl;
-      exit(EXIT_FAILURE);
-    }
-  }
+  // NB: Here, B is SPD and A is assumed symmetric but not necessarily
+  // positive definite.  Thus, don't check positivity of eigenvalues.
 
   /*--- Normalize the eigenvectors by the L2 norm of each vector ---*/
   for (iDim = 0; iDim < nDim; iDim++) {
