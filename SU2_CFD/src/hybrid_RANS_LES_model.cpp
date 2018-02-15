@@ -629,22 +629,6 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   }
 #endif
 
-  // Do we need this stuff?
-  // su2double sum = 0.0;
-  // for (iDim = 0; iDim < nDim; iDim++) {
-  //   for (jDim = 0; jDim < nDim; jDim++) {
-  //     sum += abs(prodLengthTensor[iDim][jDim]);
-  //   }
-  // }
-  // if (sum < EPS) {
-  //   prodLengthTensor[0][0] = prodLengthTensor[1][1] = prodLengthTensor[2][2] = 1e-8;
-  // }
-
-  // // add a bit to diagonal to avoid loss of SPD
-  // prodLengthTensor[0][0] += 1e-10;
-  // prodLengthTensor[1][1] += 1e-10;
-  // prodLengthTensor[2][2] += 1e-10;
-
 }
 
 
