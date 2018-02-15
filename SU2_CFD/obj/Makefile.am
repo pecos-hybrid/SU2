@@ -187,7 +187,8 @@ su2_cfd_ldadd += @ZLIB_LD@
 libSU2Core_cxx_flags += @LAPACK_CXX@
 libSU2Core_libadd += @LAPACK_LD@
 su2_cfd_cxx_flags += @LAPACK_CXX@
-su2_cfd_ldadd += @LAPACK_LD@
+#su2_cfd_ldadd += @LAPACK_LD@
+su2_cfd_ldadd += @LAPACK_LDALL@
 # endif
 
 if BUILD_NORMAL

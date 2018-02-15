@@ -287,6 +287,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double C_zeta; /*!> \brief Scaling constant for the transformation tensor zeta */
   su2double **Q,        /*!> \brief An approximate 2nd order structure function tensor */
             **Qapprox;  /*!> \brief An approximate 2nd order structure function tensor (used for temporary calculations) */
+  su2double **invLengthTensor; /*!> \brief Inverse length scale tensor formed from production and v2 (or tke, depending on availability) */
   std::vector<std::vector<su2double> > constants;
   CConfig* config;
 
@@ -296,7 +297,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double wkopt;
   su2double* work;
   su2double eigval[3], eigvec[9], vr[9], wi[3];
-  su2double mat[9];
+  su2double mat[9], matb[9];
   int num_found;
   int isupp[3];
 #endif
@@ -381,6 +382,22 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    */
   ~CHybrid_Mediator();
 
+  /*!
+   * \brief Calculates the production-based inverse length scale tensor
+   * \param[in] flow_vars - Pointer to mean flow variables
+   * \param[in] turb_vars - Pointer to turbulence model variables
+   * \param[in] hybr_vars - Pointer to hybrid model variables
+   */
+  void ComputeInvLengthTensor(CVariable* flow_vars,
+                              CVariable* turb_vars,
+                              CVariable* hybr_vars,
+                              int short hybrid_res_ind);
+
+  su2double GetInvLengthScale(unsigned short ival, unsigned short jval) {
+    return invLengthTensor[ival][jval];
+  }
+
+
   /**
    * \brief RANS needs the hybrid parameter (the energy flow parameter).
    *
@@ -460,6 +477,11 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 
   void SolveEigen(su2double** M, vector<su2double> &eigvalues,
                   vector<vector<su2double> > &eigvectors);
+
+  void SolveGeneralizedEigen(su2double** A, su2double** B,
+			     vector<su2double> &eigvalues,
+			     vector<vector<su2double> > &eigvectors);
+
 };
 
 /*!

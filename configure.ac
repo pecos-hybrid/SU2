@@ -493,8 +493,15 @@ fi
 if test "$have_LAPACK" != "no"
 then
 AM_CONDITIONAL(BUILD_LAPACK,true)
+# intel
 LAPACK_CXX="-DHAVE_LAPACK -I"$with_LAPACK_include" -mkl"
 LAPACK_LD="$with_LAPACK_lib"/$LAPACKlib
+LAPACK_LDALL="$with_LAPACK_lib"/$LAPACKlib
+#
+# gnu
+#LAPACK_CXX="-DHAVE_LAPACK -m64 -I${MKLROOT}/include -lpthread -lm -ldl"
+#LAPACK_LD=""$with_LAPACK_lib"/libmkl_intel_lp64.a "$with_LAPACK_lib"/libmkl_sequential.a "$with_LAPACK_lib"/libmkl_core.a"
+#LAPACK_LDALL="-L"$with_LAPACK_lib" -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl"
 else
 AM_CONDITIONAL(BUILD_LAPACK,false)
 LAPACK_CXX=
@@ -502,6 +509,7 @@ LAPACK_LD=
 fi
 AC_SUBST([LAPACK_CXX])
 AC_SUBST([LAPACK_LD])
+AC_SUBST([LAPACK_LDALL])
 
 ###########################
 # Determine what versions of the code to build

@@ -1084,6 +1084,11 @@ void CHybridSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig
 
 }
 
+CHybridConvSolver::CHybridConvSolver()
+  : CHybridSolver(), alpha_Inf(1.0) {
+}
+
+
 CHybridConvSolver::CHybridConvSolver(CGeometry *geometry, CConfig *config,
                                      unsigned short iMesh)
 : CHybridSolver(), alpha_Inf(1.0) {
