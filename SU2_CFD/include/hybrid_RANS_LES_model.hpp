@@ -309,6 +309,10 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 
   unsigned short nDim;
   const su2double C_sf; /*!> \brief Model constant relating the structure function to the unresolved turbulent kinetic energy  */
+  su2double C_zeta; /*!> \brief Scaling constant for the transformation tensor zeta */
+  su2double **Q,        /*!> \brief An approximate 2nd order structure function tensor */
+            **Qapprox;  /*!> \brief An approximate 2nd order structure function tensor (used for temporary calculations) */
+  su2double **invLengthTensor; /*!> \brief Inverse length scale tensor formed from production and v2 (or tke, depending on availability) */
   std::vector<std::vector<su2double> > constants;
   CConfig* config;
   CHybridForcing* hybrid_forcing;
@@ -319,7 +323,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double wkopt;
   su2double* work;
   su2double eigval[3], eigvec[9], vr[9], wi[3];
-  su2double mat[9];
+  su2double mat[9], matb[9];
   int num_found;
   int isupp[3];
 #endif
@@ -341,7 +345,57 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double GetProjResolution(su2double** resolution_tensor,
                               vector<su2double> direction);
 
+  /**
+   * \brief Uses a resolution tensor and a gradient-gradient tensor to build an
+   *        approximate two-point structure function tensor
+   * \param[in] val_ResolutionTensor - A tensor representing cell-cell distances
+   * \param[in] val_PrimVar_Grad - The gradient in the resolved velocity field.
+   * \param[out] val_Q - An approximate resolution-scale two-point second-order
+   *                 structure function.
+   */
+  template <class T>
+  void CalculateApproxStructFunc(T val_ResolutionTensor,
+                                 su2double** val_PrimVar_Grad,
+                                 su2double** val_Q);
+
+  /*!
+   * \brief Loads the model fit constants from *.dat files
+   * \param[in] filename - The base name for the files (e.g. [filename]0.dat)
+   * \return The 3 sets of constants pulled from the files.
+   */
+  vector<vector<su2double> > LoadConstants(string filename);
+
+  /*!
+   * \brief Solve for the eigenvalues of Q, given eigenvalues of M
+   *
+   * Solves for the eigenvalues of the expected value of the contracted velocity
+   * differences at grid resolution (Q), given the eigenvalues of the
+   * resolution tensor.
+   *
+   * \param[in] eig_values_M - Eigenvalues of the resolution tensor.
+   * \return The eigenvalues of the expected value of the approx SF tensor.
+   */
+  vector<su2double> GetEigValues_Q(vector<su2double> eig_values_M);
+
+  /*!
+   * \brief Calculates the eigenvalues of a modified resolution tensor.
+   * \param eig_values_M - Eigenvalues of the grid-based resolution tensor.
+   * \return Eigenvalues of a transformation mapping the approximate velocity
+   *         differences at grid resolution to the two-point second-order
+   *         structure function.
+   */
+  vector<su2double> GetEigValues_Zeta(vector<su2double> eig_values_M);
+
  public:
+  /*!
+   * \brief Builds a transformation for the approximate structure function.
+   * \param[in] values_M - The cell-to-cell distances in the "principal
+   *            "directions"
+   */
+  vector<vector<su2double> > BuildZeta(su2double* values_M,
+                                       su2double** vectors_M);
+
+
   /**
    * \brief Constructor for the hybrid mediator object.
    * \param[in] nDim - The number of dimensions of the problem
@@ -353,6 +407,22 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \brief Destructor for the hybrid mediator object.
    */
   ~CHybrid_Mediator();
+
+  /*!
+   * \brief Calculates the production-based inverse length scale tensor
+   * \param[in] flow_vars - Pointer to mean flow variables
+   * \param[in] turb_vars - Pointer to turbulence model variables
+   * \param[in] hybr_vars - Pointer to hybrid model variables
+   */
+  void ComputeInvLengthTensor(CVariable* flow_vars,
+                              CVariable* turb_vars,
+                              CVariable* hybr_vars,
+                              int short hybrid_res_ind);
+
+  su2double GetInvLengthScale(unsigned short ival, unsigned short jval) {
+    return invLengthTensor[ival][jval];
+  }
+
 
   /**
    * \brief RANS needs the hybrid parameter (the energy flow parameter).
@@ -424,12 +494,24 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                              unsigned short iPoint,
                              unsigned short jPoint);
 
+  /**
+   * \brief Returns the constants for the numerical fit for the resolution tensor.
+   * \return Constants for the numerical fit for the resolution tensor.
+   */
+  vector<vector<su2double> > GetConstants();
+
+
   void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
                            su2double *eddy_viscosity);
 
 
   void SolveEigen(su2double** M, vector<su2double> &eigvalues,
                   vector<vector<su2double> > &eigvectors);
+
+  void SolveGeneralizedEigen(su2double** A, su2double** B,
+			     vector<su2double> &eigvalues,
+			     vector<vector<su2double> > &eigvectors);
+
 };
 
 /*!
@@ -529,4 +611,29 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
   void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
                            su2double *eddy_viscosity);
 };
+
+/*--- Template definitions:
+ * These must be placed with the template declarations.  They can be kept here
+ * or moved to an *.inl file that is included in this header. ---*/
+
+template <class T>
+void CHybrid_Mediator::CalculateApproxStructFunc(T val_ResolutionTensor,
+                                                 su2double** val_PrimVar_Grad,
+                                                 su2double** val_Q) {
+  unsigned int iDim, jDim, kDim, lDim, mDim;
+
+  for (iDim = 0; iDim < nDim; iDim++)
+    for (jDim = 0; jDim < nDim; jDim++)
+      val_Q[iDim][jDim] = 0.0;
+
+  for (iDim = 0; iDim < nDim; iDim++)
+    for (jDim = 0; jDim < nDim; jDim++)
+      for (kDim = 0; kDim < nDim; kDim++)
+        for (lDim = 0; lDim < nDim; lDim++)
+          for (mDim = 0; mDim < nDim; mDim++)
+            val_Q[iDim][jDim] += val_ResolutionTensor[iDim][mDim]*
+                             val_PrimVar_Grad[kDim+1][mDim]*
+                             val_PrimVar_Grad[kDim+1][lDim]*
+                             val_ResolutionTensor[lDim][jDim];
+}
 
