@@ -36,6 +36,7 @@
 #include "../../SU2_CFD/include/numerics_structure.hpp"
 #include "../../Common/include/geometry_structure.hpp"
 #include "../../Common/include/mpi_structure.hpp"
+#include "../include/hybrid_RANS_LES_forcing.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -314,6 +315,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double **invLengthTensor; /*!> \brief Inverse length scale tensor formed from production and v2 (or tke, depending on availability) */
   std::vector<std::vector<su2double> > constants;
   CConfig* config;
+  CHybridForcing* hybrid_forcing;
 
   /*--- Data structures for LAPACK ---*/
 #ifdef HAVE_LAPACK

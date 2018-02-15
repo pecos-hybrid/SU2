@@ -119,8 +119,11 @@ inline void CHybrid_Aniso_Q::SetScalars(vector<su2double> val_scalars) {
 
 
 
-CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename)
+CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
+                                   string filename)
    : nDim(nDim), C_sf(0.367), config(config) {
+
+  hybrid_forcing = new CHybridForcing(nDim);
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -206,6 +209,9 @@ CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string 
 }
 
 CHybrid_Mediator::~CHybrid_Mediator() {
+
+  delete hybrid_forcing;
+
   for (unsigned int iDim = 0; iDim < nDim; iDim++) {
     delete [] Q[iDim];
     delete [] Qapprox[iDim];
@@ -229,6 +235,10 @@ void CHybrid_Mediator::SetupRANSNumerics(CGeometry* geometry,
       solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
   /*--- Since this is a source term, we don't need a second point ---*/
   rans_numerics->SetHybridParameter(alpha, NULL);
+
+  su2double forcing = hybrid_forcing->GetProduction();
+  rans_numerics->SetForcingProduction(forcing);
+
 }
 
 void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
@@ -490,6 +500,13 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   su2double** aniso_i = solver_container[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy();
   su2double** aniso_j = solver_container[FLOW_SOL]->node[jPoint]->GetEddyViscAnisotropy();
   visc_numerics->SetEddyViscAnisotropy(aniso_i, aniso_j);
+
+  /*--- Pass the forcing stress tensor to the resolved flow ---*/
+
+  su2double** tau_F_i = solver_container[FLOW_SOL]->node[iPoint]->GetForcingStress();
+  su2double** tau_F_j = solver_container[FLOW_SOL]->node[iPoint]->GetForcingStress();
+  visc_numerics->SetForcingStress(tau_F_i, tau_F_j);
+
 }
 
 

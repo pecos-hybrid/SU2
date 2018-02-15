@@ -33,8 +33,7 @@
 
 #include "../include/hybrid_RANS_LES_forcing.hpp"
 
-CHybridForcing::CHybridForcing(unsigned short nDim, unsigned short nVar)
-    : nDim(nDim), nVar(nVar) {
+CHybridForcing::CHybridForcing(unsigned short nDim) : nDim(nDim) {
 
   Shifted_Coord = new su2double[nDim];
 

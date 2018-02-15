@@ -1110,7 +1110,7 @@ CHybridConvSolver::CHybridConvSolver()
 
 CHybridConvSolver::CHybridConvSolver(CGeometry *geometry, CConfig *config,
                                      unsigned short iMesh)
-: CHybridSolver(), alpha_Inf(1.0) {
+    : CHybridSolver(), alpha_Inf(1.0) {
   unsigned short iVar, iDim, nLineLets;
   unsigned long iPoint;
 

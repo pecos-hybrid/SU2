@@ -1456,12 +1456,6 @@ public:
    * \param[in] val_production - Value of the Production.
    */
   virtual void SetProduction(su2double val_production);
-  
-  /*!
-   * \brief Residual for source term integration.
-   * \param[in] val_production - Value of the Production due to forcing
-   */
-  virtual void SetForcingProduction(su2double val_production);
 
   /*!
    * \brief Residual for source term integration.
@@ -1498,6 +1492,18 @@ public:
    */
   virtual su2double GetGammaBC(void);
   
+  /*!
+   * \brief Residual for source term integration.
+   * \param[in] val_production - Value of the Production due to forcing
+   */
+  virtual void SetForcingProduction(su2double val_production);
+
+  /*!
+   * \brief Ratio of the unmodified forcing production to a limited forcing production
+   * \param[in] val_production - Value of the production ratio
+   */
+  virtual void SetForcingRatio(su2double val_production_ratio);
+
   /*!
    * \overload
    * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i
@@ -5479,8 +5485,8 @@ public:
                        CConfig *config);
 
   /*!
-   * \brief Set the production of TKE due to forcing.
-   * \param[in] val_production - Value of the production due to forcing
+   * \brief Ratio of the unmodified forcing production to a limited forcing production
+   * \param[in] val_production - Value of the production
    */
   void SetForcingProduction(su2double val_production);
 
@@ -5520,6 +5526,12 @@ class CSourcePieceWise_HybridConv : public CNumerics {
    * \param[in] config - Definition of the particular problem.
    */
   void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+
+  /*!
+   * \brief Ratio of the unmodified forcing production to a limited forcing production
+   * \param[in] val_production - Value of the production ratio
+   */
+  void SetForcingRatio(su2double val_production_ratio);
 };
 
 /*!
