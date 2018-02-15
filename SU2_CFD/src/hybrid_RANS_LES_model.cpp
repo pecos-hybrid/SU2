@@ -251,15 +251,15 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
                            solver_container[HYBRID_SOL]->node[iPoint],
                            config->GetKind_Hybrid_Resolution_Indicator());
 
-    vector<su2double> eigvalues_MP;
-    vector<vector<su2double> > eigvectors_MP;
+    vector<su2double> eigvalues_iLM;
+    vector<vector<su2double> > eigvectors_iLM;
     SolveGeneralizedEigen(invLengthTensor, ResolutionTensor,
-                          eigvalues_MP, eigvectors_MP);
+                          eigvalues_iLM, eigvectors_iLM);
     std::vector<su2double>::iterator iter;
-    iter = max_element(eigvalues_MP.begin(), eigvalues_MP.end());
-    unsigned short max_index = distance(eigvalues_MP.begin(), iter);
+    iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
+    unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
 
-    r_k = eigvalues_MP[max_index];
+    r_k = C_sf*eigvalues_iLM[max_index];
 
     // NB: with the r_{\Delta} variants of the model, we should never
     // use w_rans.  So, I set it to nan s.t. if it ever gets used
