@@ -52,7 +52,7 @@
  */
 class CHybridForcing {
  public:
-  CHybridForcing(unsigned short nDim, unsigned short nVar);
+  CHybridForcing(unsigned short nDim);
   ~CHybridForcing();
   /*!
    * \brief Set coordinates of the point.

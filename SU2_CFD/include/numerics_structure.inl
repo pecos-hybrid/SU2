@@ -260,8 +260,6 @@ inline void CNumerics::SetIntermittency(su2double intermittency_in) { }
 
 inline void CNumerics::SetProduction(su2double val_production) { }
 
-inline void CNumerics::SetForcingProduction(su2double val_production) { }
-
 inline void CNumerics::SetDestruction(su2double val_destruction) { }
 
 inline void CNumerics::SetCrossProduction(su2double val_crossproduction) { }
@@ -271,6 +269,8 @@ inline su2double CNumerics::GetProduction(void) { return 0; }
 inline su2double CNumerics::GetDestruction(void) { return 0; }
 
 inline su2double CNumerics::GetCrossProduction(void) { return 0; }
+
+inline void CNumerics::SetForcingProduction(su2double val_production) { }
 
 inline void CNumerics::SetTurbKineticEnergy(su2double val_turb_ke_i, su2double val_turb_ke_j) {
   turb_ke_i = val_turb_ke_i;
@@ -487,6 +487,8 @@ inline su2double CSourcePieceWise_TurbSA_Neg::GetDestruction(void) { return Dest
 inline su2double CSourcePieceWise_TurbSA_Neg::GetCrossProduction(void) { return CrossProduction; }
 
 inline void CSourcePieceWise_TurbKE::SetForcingProduction(su2double val_production) { ForcingProduction = val_production; }
+
+inline void CSourcePieceWise_HybridConv::SetForcingRatio(su2double val_production_ratio) { ProductionRatio = val_production_ratio; }
 
 inline su2double CUpwTurkel_Flow::GetPrecond_Beta() { return Beta; }
 
