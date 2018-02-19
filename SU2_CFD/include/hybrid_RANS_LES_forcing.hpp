@@ -50,15 +50,18 @@
  * this class becomes more stable, it should be dismantled into simpler
  * inline functions.
  */
+
 class CHybridForcing {
  public:
   CHybridForcing(unsigned short nDim);
   ~CHybridForcing();
+
   /*!
    * \brief Set coordinates of the point.
    * \param[in] val_coord - Coordinates of the point.
    */
   void SetCoord(su2double* val_coord);
+
   /*!
    * \brief Set the turbulent timescale
    * \param[in] val_turb_T - Turbulent timescale at point i
@@ -70,26 +73,35 @@ class CHybridForcing {
    * \param[in] val_turb_T - Turbulent lengthscale at point i
    */
   void SetTurbLengthscale(su2double val_turb_L);
+
   /*!
    * \brief Set the value of the hybrid RANS/LES blending variable.
    * \param[in] val_hybrid_param - Value of the hybrid parameter(s)
    */
   void SetHybridParameter(su2double* val_hybrid_param);
+
   void SetPrimitive(su2double* val_prim_vars);
+
   void SetPrimVarGradient(su2double **val_primvar_grad);
+
   /*!
    * \brief Set the value of the turbulent variable.
    * \param[in] val_turbvar - Value of the turbulent variable
    */
   void SetTurbVar(su2double *val_turbvar);
+
   /*!
-   * \brief Set the two hybrid source terms necessary.
-   * @param val_S_alpha
-   * @param val_S_cf
+   * \brief Set the hybrid source terms necessary.
+   * \param val_S_terms - In this case, S_alpha and S_cf
    */
-  void SetHybridSourceTerms(su2double val_S_alpha, su2double val_S_cf);
+  void SetHybridSourceTerms(su2double* val_S_terms);
+
   /**
    * \brief Transform physical coordinates into coordinates used for forcing.
+   *
+   * This method is only left public for testing purposes. It is usually
+   * not necessary to call it manually.  See CalculateForcing instead.
+   *
    * \param[in] x - Physical coordinates
    * \param[in] iDim - The component to be transformed
    * \param[in] val_time - The current time
@@ -97,6 +109,17 @@ class CHybridForcing {
    */
   su2double TransformCoords(su2double* x, unsigned short iDim,
                             su2double val_time);
+
+  /**
+   * \brief Use the coordinates of a point to build the forcing stress at
+   *        that point.
+   *
+   * This method is only left public for testing purposes. It is usually
+   * not necessary to call it manually.  See CalculateForcing instead.
+   *
+   * \param[in] x - Physical coordinates
+   * \param[out] val_tau_F - The unscaled forcing stress
+   */
   void BuildForcingStress(su2double* x, su2double** val_tau_F);
   /**
    * \brief Calculate all of the necessary forcing terms.
@@ -111,14 +134,16 @@ class CHybridForcing {
    * PrimVarGradient) before calling this function.
    */
   void CalculateForcing();
+
   /**
    * \brief Getter for the forcing stress.
    *
    * CalculateForcing() must be executed before this contains any valid data.
    *
-   * \param[out] tau_F - The forcing stress.
+   * \return The forcing stress.
    */
-  void GetStress(su2double** tau_F);
+  su2double** GetStress();
+
   /**
    * \brief Getter for the forcing stress.
    *
@@ -127,13 +152,14 @@ class CHybridForcing {
    * \return The production of turbulent kinetic energy due to forcing
    */
   su2double GetProduction();
+
   /**
    * \brief Getter for the ratio of the production due to forcing and a rescaled
    * production term.
    *
    * \return The ratio of P_F_unscaled / P_lim
    */
-  su2double GetProductionRatio();
+  su2double GetForcingRatio();
 
  private:
   unsigned short nVar, nDim;

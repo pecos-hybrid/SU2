@@ -10110,6 +10110,8 @@ class CHybridConvSolver: public CHybridSolver {
 private:
   const su2double alpha_Inf;
 
+  void CalculateSourceTerms(CSolver **solver_container, CConfig* config);
+
 public:
   /*!
    * \brief Constructor of the class.

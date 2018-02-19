@@ -59,22 +59,17 @@ inline void CHybridForcing::SetTurbVar(su2double *val_turbvar) {
   TurbVar = val_turbvar;
 }
 
-inline void CHybridForcing::SetHybridSourceTerms(su2double val_S_alpha,
-                                                 su2double val_S_cf) {
-  S_alpha = val_S_alpha;
-  S_cf = val_S_cf;
+inline void CHybridForcing::SetHybridSourceTerms(su2double* val_S_terms) {
+  S_alpha = val_S_terms[0];
+  S_cf = val_S_terms[1];
 }
 
-inline void CHybridForcing::GetStress(su2double** val_tau_F) {
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      val_tau_F[iDim][jDim] = tau_F[iDim][jDim];
-    }
-  }
+inline su2double** CHybridForcing::GetStress() {
+  return tau_F;
 }
 
 inline su2double CHybridForcing::GetProduction() { return P_F; };
 
-inline su2double CHybridForcing::GetProductionRatio() {
+inline su2double CHybridForcing::GetForcingRatio() {
   return P_F_unscaled / P_lim;
 };

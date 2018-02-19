@@ -919,6 +919,12 @@ public:
   virtual su2double GetEddyViscAnisotropy(unsigned short iDim,
                                           unsigned short jDim);
 
+  virtual void SetForcingStress(su2double** val_tau_F);
+
+  virtual su2double** GetForcingStress();
+
+  virtual su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
+  
   /*!
    * \brief A virtual member.
    * \return Value of turbulent timescale
@@ -1138,7 +1144,7 @@ public:
    * \param eddy_visc_anisotropy - The normalized anisotropy tensor for the eddy viscosity
    */
   virtual void SetEddyViscAnisotropy(su2double** eddy_visc_anisotropy);
-
+  
   /*!
    * \brief A virtual member.
    * \param[in] val_turb_T - The turbulent timescale
@@ -1823,7 +1829,18 @@ public:
    * \param[in] val_muT
    */
   virtual void SetmuT(su2double val_muT);
-  
+
+  virtual void SetForcingProduction(su2double val_P_F);
+
+  virtual void SetForcingRatio(su2double val_P_F_ratio);
+
+  virtual su2double GetForcingProduction();
+
+  virtual su2double GetForcingRatio();
+
+  virtual void SetSourceTerms(su2double* val_source_terms);
+
+  virtual su2double* GetSourceTerms();
   /*!
    * \brief Add a value to the maximum eigenvalue for the inviscid terms of the PDE.
    * \param[in] val_max_lambda - Value of the maximum eigenvalue for the inviscid terms of the PDE.
@@ -3939,6 +3956,7 @@ private:
   su2double inv_TimeScale;   /*!< \brief Inverse of the reference time scale. */
   su2double Roe_Dissipation; /*!< \brief Roe low dissipation coefficient. */
   su2double Vortex_Tilting;  /*!< \brief Value of the vortex tilting variable for DES length scale computation. */
+  su2double** Forcing_Stress;
   
 public:
   
@@ -4036,6 +4054,13 @@ public:
    * \brief Get a component of the normalized anisotropy of the eddy viscosity
    */
   su2double GetEddyViscAnisotropy(unsigned short iDim, unsigned short jDim);
+  
+  void SetForcingStress(su2double** val_tau_F);
+
+  su2double** GetForcingStress();
+
+  su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
+  
 
   /*!
    * \brief Get the specific heat at constant P of the flow.
@@ -4260,6 +4285,7 @@ class CTurbVariable : public CVariable {
 protected:
   su2double muT;                /*!< \brief Eddy viscosity. */
   su2double *HB_Source;          /*!< \brief Harmonic Balance source term. */
+  su2double Forcing_Production; /*!< \brief Production due to forcing. */
   
 public:
   /*!
@@ -4291,6 +4317,10 @@ public:
    * \param[in] val_muT - Value of the eddy viscosity.
    */
   void SetmuT(su2double val_muT);
+
+  void SetForcingProduction(su2double val_P_F);
+
+  su2double GetForcingProduction();
 };
 
 /*!
@@ -4526,6 +4556,8 @@ class CHybridVariable : public CVariable {
 protected:
   su2double Resolution_Adequacy; /*!< \brief A measure of the ability of the grid to resolve the turbulence */
   su2double RANS_Weight; /*!< \brief The weight given to the RANS solution */
+  su2double Forcing_Ratio;
+  su2double S_terms[2]; /*!< \brief The source terms, S_alpha and S_cf */
 public:
   /*!
    * \brief Constructor of the class.
@@ -4569,6 +4601,14 @@ public:
    * \param[in] val_w_rans - RANS weight
    */
   void SetRANSWeight(su2double val_w_rans);
+
+  void SetForcingRatio(su2double val_P_F_ratio);
+
+  su2double GetForcingRatio();
+
+  void SetSourceTerms(su2double* val_source_terms);
+
+  su2double* GetSourceTerms();
 };
 
 /*! swh

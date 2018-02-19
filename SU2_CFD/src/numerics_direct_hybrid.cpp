@@ -147,28 +147,17 @@ void CSourcePieceWise_HybridConv::ComputeResidual(su2double *val_residual,
   }
   const su2double alpha_kol = 1.5*sqrt(nu*tdr)/tke;
 
-  // Gentle switch between raising and lowering alpha based on resolution
-  su2double S_alpha;
-  if (Resolution_Adequacy >= 1.0)
-    S_alpha = tanh(Resolution_Adequacy - 1.0);
-  else
-    S_alpha = tanh(1.0 - 1.0/Resolution_Adequacy);
-
-  su2double S_cf;
   su2double dS_cf; // Actually, derivative of S_cf/alpha w.r.t. alpha
   if (Resolution_Adequacy >= 1.0 && alpha > 1.0) {
-    S_cf = alpha;
     dS_cf = 0.0;
   } else if (Resolution_Adequacy < 1.0 && alpha < alpha_kol) {
-    S_cf = (alpha - fmin(alpha_kol, 1.0)) - 1.0;
     if (abs(alpha - fmin(alpha_kol, 1.0)) < EPS)
       dS_cf = -(fmin(alpha_kol, 1) - 1.0)/(alpha*alpha);
   } else {
-    S_cf = 0.0;
     dS_cf = 0.0;
   }
 
-  su2double S_lim = (ProductionRatio - 1);
+  su2double S_lim = (Forcing_Ratio - 1);
   if (Resolution_Adequacy < 1.0)
     S_lim *= -1;
 

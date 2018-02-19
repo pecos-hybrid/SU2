@@ -594,14 +594,29 @@ void CHybridConvSolver::Source_Residual(CGeometry *geometry,
 
   bool harmonic_balance = (config->GetUnsteady_Simulation() == HARMONIC_BALANCE);
 
+  /*--- Compute S_alpha and S_cf ---
+   * This calculation is best left here. S_alpha and S_cf are used by forcing,
+   * so they need to be stored for each node. The Numerics class doesn't have
+   * access to the nodes, so we calculate the source terms here, and pass
+   * them into the numerics class. If this were moved into post/pre-processing,
+   * it would only be executed once per timestep, despite inner iterations of
+   * implicit solvers ---*/
+
+  CalculateSourceTerms(solver_container, config);
+
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
     /*--- Conservative variables w/o reconstruction ---*/
 
     numerics->SetPrimitive(solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive(), NULL);
 
+    /*--- Turbulent variables w/o reconstruction ---*/
+
+    numerics->SetTurbVar(solver_container[TURB_SOL]->node[iPoint]->GetSolution(), NULL);
+
     /*--- Pass in the variable of the hybrid parameter itself ---*/
 
+    numerics->SetSourceTerms(node[iPoint]->GetSourceTerms());
     numerics->SetHybridParameter(node[iPoint]->GetSolution(), NULL);
 
     /*--- Set volume ---*/
@@ -611,10 +626,6 @@ void CHybridConvSolver::Source_Residual(CGeometry *geometry,
     /*--- Hybrid method ---*/
 
     HybridMediator->SetupHybridParamNumerics(geometry, solver_container, numerics, iPoint, iPoint);
-
-    /*--- Pass the gradient of the resolution tensor to the numerics ---*/
-
-    numerics->SetGradResolutionTensor(geometry->node[iPoint]->GetResolutionGradient());
 
     /*--- Compute the source term ---*/
 
@@ -630,6 +641,58 @@ void CHybridConvSolver::Source_Residual(CGeometry *geometry,
 
   if (harmonic_balance) {
     SU2_MPI::Error("Harmonic balance is not supported with hybrid methods.", CURRENT_FUNCTION);
+  }
+}
+
+void CHybridConvSolver::CalculateSourceTerms(CSolver **solver_container,
+                                             CConfig* config) {
+
+  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+    // FIXME: Get the real r_k
+    su2double Resolution_Adequacy = 1.0;
+
+    su2double* V_i = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+    su2double Density_i, Laminar_Viscosity_i;
+    if (config->GetKind_Regime() == INCOMPRESSIBLE) {
+      Density_i = V_i[nDim+1];
+      Laminar_Viscosity_i = V_i[nDim+3];
+    }
+    else {
+      Density_i = V_i[nDim+2];
+      Laminar_Viscosity_i = V_i[nDim+5];
+    }
+    const su2double nu = Laminar_Viscosity_i / Density_i;
+    su2double* TurbVar_i = solver_container[TURB_SOL]->node[iPoint]->GetSolution();
+    su2double tke, tdr;
+    switch (config->GetKind_Turb_Model()) {
+      case KE:
+        tke = fmax(TurbVar_i[0], EPS); tdr = TurbVar_i[1];
+        break;
+      default:
+        cout << "Error: Current RANS model not supported for hybrid model." << endl;
+        exit(EXIT_FAILURE);
+    }
+    const su2double alpha_kol = 1.5*sqrt(nu*tdr)/tke;
+
+    su2double S_terms[2];
+    /*--- S_alpha ---*/
+    if (Resolution_Adequacy >= 1.0)
+      S_terms[0] = tanh(Resolution_Adequacy - 1.0);
+    else
+      S_terms[0] = tanh(1.0 - 1.0/Resolution_Adequacy);
+
+    /*--- S_cf ---*/
+    su2double alpha = node[iPoint]->GetSolution()[0];
+    if (Resolution_Adequacy >= 1.0 && alpha > 1.0) {
+      S_terms[1] = alpha;
+    } else if (Resolution_Adequacy < 1.0 && alpha < alpha_kol) {
+      S_terms[1] = (alpha - fmin(alpha_kol, 1.0)) - 1.0;
+    } else {
+      S_terms[1] = 0.0;
+    }
+
+    node[iPoint]->SetSourceTerms(S_terms);
   }
 }
 
