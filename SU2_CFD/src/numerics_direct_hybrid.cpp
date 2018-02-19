@@ -121,8 +121,8 @@ void CSourcePieceWise_HybridConv::ComputeResidual(su2double *val_residual,
     cout << "       Hybrid parameter: " << HybridParameter_i[0] << endl;
   }
 #endif
-  // FIXME: Read in C_alpha from file
-  const su2double C_alpha = 0.1;
+  // FIXME: Check this value
+  const su2double C_alpha = 0.367;
 
   /*--- Aliasing for readability ---*/
   const su2double alpha = HybridParameter_i[0];

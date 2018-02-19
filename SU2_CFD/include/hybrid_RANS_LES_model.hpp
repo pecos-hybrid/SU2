@@ -327,6 +327,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double **invLengthTensor; /*!> \brief Inverse length scale tensor formed from production and v2 (or tke, depending on availability) */
   std::vector<std::vector<su2double> > constants;
   CConfig* config;
+  CHybrid_Visc_Anisotropy* hybrid_anisotropy;
   CHybridForcing* hybrid_forcing;
 
   /*--- Data structures for LAPACK ---*/
@@ -556,6 +557,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
 
   unsigned short nDim;
   su2double* dummy_alpha; // A default value of alpha to pass around
+  CHybrid_Visc_Anisotropy* hybrid_anisotropy;
 
  public:
 

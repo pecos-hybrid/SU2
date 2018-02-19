@@ -15490,8 +15490,6 @@ CNSSolver::CNSSolver(void) : CEulerSolver() {
   
   SlidingState      = NULL;
   SlidingStateNodes = NULL;
-  
-  hybrid_anisotropy = NULL;
 
 }
 
@@ -16182,24 +16180,6 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
     }
   }
 
-  /*--- Setup hybridization ---*/
-
-  if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
-    switch (config->GetKind_Hybrid_Anisotropy_Model()) {
-      case ISOTROPIC:
-        hybrid_anisotropy = new CHybrid_Isotropic_Visc(nDim);
-        break;
-      case Q_BASED:
-        hybrid_anisotropy = new CHybrid_Aniso_Q(nDim);
-        break;
-      default:
-        cout << "Error: Selected anisotropy model not initialized." << std::endl;
-        cout << "       At line " << __LINE__ << " of file " __FILE__ << std::endl;
-        exit(EXIT_FAILURE);
-    }
-  } else {
-    hybrid_anisotropy = NULL;
-  }
 
   /*--- Initialize the solution to the far-field state everywhere. ---*/
 
@@ -16342,7 +16322,6 @@ CNSSolver::~CNSSolver(void) {
     delete [] HeatConjugateVar;
   }
 
-  if (hybrid_anisotropy != NULL) delete hybrid_anisotropy;
 }
 
 void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned short iRKStep, unsigned short RunTime_EqSystem, bool Output) {
@@ -16447,15 +16426,6 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     StrainMag_Max = max(StrainMag_Max, StrainMag);
     Omega_Max = max(Omega_Max, Omega);
     
-    /*--- Solve for the stress anisotropy ---*/
-
-    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
-      HybridMediator->SetupStressAnisotropy(geometry, solver_container, hybrid_anisotropy, iPoint);
-      hybrid_anisotropy->CalculateViscAnisotropy();
-      node[iPoint]->SetEddyViscAnisotropy(hybrid_anisotropy->GetViscAnisotropy());
-      // The mediator doesn't need to set up the resolved flow solver
-    }
-
   }
 
   /*--- Initialize the Jacobian matrices ---*/
@@ -16494,7 +16464,10 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
    */
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
-    HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+      assert(HybridMediator != NULL);
+      HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+    }
   }
   
 }
