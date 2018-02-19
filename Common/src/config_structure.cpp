@@ -581,7 +581,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addEnumOption("HYBRID_ANISOTROPY_MODEL", Kind_Hybrid_Aniso_Model, Hybrid_Aniso_Map, ISOTROPIC);
 
   /*!\brief HYBRID_MODEL_CONSTANT \n DESCRIPTION: Model constant relating the approximate second order structure function to the unresolved kinetic energy  \ingroup Config*/
-  addDoubleOption("HYBRID_MODEL_CONSTANT", Hybrid_Model_Constant, 0.367);
+  addDoubleOption("HYBRID_MODEL_CONSTANT", Hybrid_Model_Constant, 0.1);
 
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);

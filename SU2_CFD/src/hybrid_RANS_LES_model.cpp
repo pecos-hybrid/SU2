@@ -122,6 +122,21 @@ CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
 
   hybrid_forcing = new CHybridForcing(nDim);
 
+  /*--- Setup hybridization ---*/
+
+  switch (config->GetKind_Hybrid_Anisotropy_Model()) {
+    case ISOTROPIC:
+      hybrid_anisotropy = new CHybrid_Isotropic_Visc(nDim);
+      break;
+    case Q_BASED:
+      hybrid_anisotropy = new CHybrid_Aniso_Q(nDim);
+      break;
+    default:
+      cout << "Error: Selected anisotropy model not initialized." << std::endl;
+      cout << "       At line " << __LINE__ << " of file " __FILE__ << std::endl;
+      exit(EXIT_FAILURE);
+  }
+
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -132,7 +147,6 @@ CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
   invLengthTensor = NULL;
 
   if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
-    // TODO: Evaluate if this is all necessary
 
     /*--- Allocate the approximate structure function (used in calcs) ---*/
 
@@ -225,6 +239,7 @@ CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
 CHybrid_Mediator::~CHybrid_Mediator() {
 
   delete hybrid_forcing;
+  delete hybrid_anisotropy;
 
   if (Q != NULL) {
     for (unsigned int iDim = 0; iDim < nDim; iDim++)
@@ -271,7 +286,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
   const su2double TKE_MIN = EPS;
-  su2double r_k, w_rans;
+  su2double r_k;
 
 
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
@@ -296,12 +311,6 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
 
     r_k = C_sf*eigvalues_iLM[max_index];
 
-    // NB: with the r_{\Delta} variants of the model, we should never
-    // use w_rans.  So, I set it to nan s.t. if it ever gets used
-    // inadvertantly, the soln will be obviously wrong.
-    // FIXME: RANS weight still necessary?
-
-    w_rans = std::numeric_limits<su2double>::quiet_NaN();
   }
   else if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
 
@@ -334,7 +343,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
     su2double k = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
     const su2double MIN_VEL_DIFF = fmax(EPS, EPS*k);
     if (total_vel_differences > MIN_VEL_DIFF) {
-      /*--- Only calculate r_k, w_rans if there are resolved velocity differences
+      /*--- Only calculate r_k there are resolved velocity differences
        * at resolution scale.  Otherwise, eigenvector calculation is arbitrary */
 
       /*--- Calculate eigenvectors and eigenvalues of zeta*Q*zeta ---*/
@@ -374,19 +383,8 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
       /*--- Calculate the resolution adequacy parameter ---*/
       r_k = max(max_resolved / fmax(min_unresolved, TKE_MIN), EPS);
 
-
-      /*--- Find the dissipation ratio ---*/
-      su2double C_eps = 0.25;
-      su2double TurbL = solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-      su2double d_max = GetProjResolution(ResolutionTensor,
-                                          eigvectors_zQz[max_index]);
-      su2double r_eps = C_eps * pow(r_k, 1.5) * TurbL / d_max;
-
-      /*--- Calculate the RANS weight ---*/
-      w_rans = tanh(0.5*pow(fmax(r_eps - 1, 0), 0.25));
     } else {
       r_k = 0.0;
-      w_rans = 0.0;
     }
   }
   else {
@@ -395,8 +393,6 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
   }
 
   solver_container[HYBRID_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
-  // FIXME: RANS weight still necessary?
-  solver_container[HYBRID_SOL]->node[iPoint]->SetRANSWeight(w_rans);
 
 }
 
@@ -407,7 +403,6 @@ void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
                                                 unsigned short jPoint) {
 
   /*--- Find and store turbulent length and timescales ---*/
-  // FIXME: Keep both types of timescales?
   su2double turb_T =
       solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
   su2double turb_L =
@@ -432,11 +427,6 @@ void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
   su2double r_k = solver_container[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
   hybrid_param_numerics->SetResolutionAdequacy(r_k);
 
-  /*--- Pass RANS weight into the numerics object ---*/
-  // FIXME: RANS weight still necessary?
-  su2double w_rans = solver_container[HYBRID_SOL]->node[iPoint]->GetRANSWeight();
-  hybrid_param_numerics->SetRANSWeight(w_rans);
-
   /*--- Pass ratio of P_F_tilde to P_lim into numerics object ---*/
   su2double production_ratio =
       solver_container[HYBRID_SOL]->node[iPoint]->GetForcingRatio();
@@ -448,7 +438,7 @@ void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
                                              CHybrid_Visc_Anisotropy* hybrid_anisotropy,
                                              unsigned short iPoint) {
   if (dynamic_cast<CHybrid_Aniso_Q*>(hybrid_anisotropy)) {
-    /*--- XXX: Come up with a beter way to do this, so we only pass what's
+    /*--- XXX: Come up with a better way to do this, so we only pass what's
      * necessary to the anisotropy model. Multiple dispatch? */
     unsigned int iDim, jDim, kDim, lDim;
       /*--- Use the grid-based resolution tensor, not the anisotropy-correcting
@@ -505,6 +495,9 @@ void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
       scalars.push_back(solver_container[HYBRID_SOL]->node[iPoint]->GetRANSWeight());
       hybrid_anisotropy->SetScalars(scalars);
   }
+
+  /*--- The only other option is isotropic, which needs no setup ---*/
+
 }
 
 
@@ -519,7 +512,10 @@ void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
 void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
                                                CSolver **solver_container,
                                                unsigned short iPoint) {
-  // TODO: Set up viscous anisotropy here instead
+  /*--- Setup the viscous anisotropy --*/
+  SetupStressAnisotropy(geometry, solver_container, hybrid_anisotropy, iPoint);
+  hybrid_anisotropy->CalculateViscAnisotropy();
+  solver_container[FLOW_SOL]->node[iPoint]->SetEddyViscAnisotropy(hybrid_anisotropy->GetViscAnisotropy());
 
   /*--- Set up forcing ---*/
   SetupForcing(geometry, solver_container, iPoint);
@@ -679,11 +675,10 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     for (jDim = 0; jDim < nDim; jDim++) {
       Pij[iDim][jDim] = 0.0;
       for (kDim = 0; kDim < nDim; kDim++) {
-        // FIXME: Not true...Check that proper eddy viscosity is used.
-        // NB: Assumes that eddy_viscosity is *full* eddy
-        // viscosity---i.e., not multiplied by alpha^2---so that
-        // alpha^2 is necessary here
-        Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Sd[kDim][jDim];
+        // Assumes that eddy_viscosity is not the full eddy
+        // viscosity---i.e., it is multiplied by alpha^2---so that
+        // alpha^2 is not necessary here
+        Pij[iDim][jDim] += 2.0*eddy_viscosity*Sd[iDim][kDim]*Sd[kDim][jDim];
       }
     }
   }
@@ -696,7 +691,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
         for (kDim = 0; kDim < nDim; kDim++) {
-          Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Om[jDim][kDim];
+          Pij[iDim][jDim] += 2.0*eddy_viscosity*Sd[iDim][kDim]*Om[jDim][kDim];
         }
       }
     }
@@ -705,7 +700,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
         for (kDim = 0; kDim < nDim; kDim++) {
-          Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Om[kDim][jDim];
+          Pij[iDim][jDim] += 2.0*eddy_viscosity*Sd[iDim][kDim]*Om[kDim][jDim];
         }
       }
     }
@@ -1114,15 +1109,20 @@ CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(int nDim, CConfig* config) : nDim
   /*--- Set the default value of the hybrid parameter ---*/
   dummy_alpha = new su2double[1];
   dummy_alpha[0] = 1.0;
+  hybrid_anisotropy = new CHybrid_Isotropic_Visc(nDim);
 }
 
 CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
   delete [] dummy_alpha;
+  delete hybrid_anisotropy;
 }
 
 void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
                                                      CSolver **solver_container,
                                                      unsigned short iPoint) {
+  /*--- Setup the viscous anisotropy --*/
+  hybrid_anisotropy->CalculateViscAnisotropy();
+  solver_container[FLOW_SOL]->node[iPoint]->SetEddyViscAnisotropy(hybrid_anisotropy->GetViscAnisotropy());
 }
 
 void CHybrid_Dummy_Mediator::SetupRANSNumerics(CGeometry* geometry,

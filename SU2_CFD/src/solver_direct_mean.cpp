@@ -15067,8 +15067,6 @@ CNSSolver::CNSSolver(void) : CEulerSolver() {
   /*--- Rotorcraft simulation array initialization ---*/
   
   CMerit_Visc = NULL; CT_Visc = NULL; CQ_Visc = NULL;
-  
-  hybrid_anisotropy = NULL;
 
 }
 
@@ -15877,25 +15875,6 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
     VelocityOutIs[iMarker]= 0.0;
   }
   
-  /*--- Setup hybridization ---*/
-
-  if (config->isHybrid_Turb_Model()) {
-    switch (config->GetKind_Hybrid_Anisotropy_Model()) {
-      case ISOTROPIC:
-        hybrid_anisotropy = new CHybrid_Isotropic_Visc(nDim);
-        break;
-      case Q_BASED:
-        hybrid_anisotropy = new CHybrid_Aniso_Q(nDim);
-        break;
-      default:
-        cout << "Error: Selected anisotropy model not initialized." << std::endl;
-        cout << "       At line " << __LINE__ << " of file " __FILE__ << std::endl;
-        exit(EXIT_FAILURE);
-    }
-  } else {
-    hybrid_anisotropy = NULL;
-  }
-  
   /*--- Initialize the cauchy critera array for fixed CL mode ---*/
   
   if (config->GetFixed_CL_Mode())
@@ -16171,7 +16150,6 @@ CNSSolver::~CNSSolver(void) {
     delete [] Inlet_FlowDir;
   }
 
-  if (hybrid_anisotropy != NULL) delete hybrid_anisotropy;
 }
 
 void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned short iRKStep, unsigned short RunTime_EqSystem, bool Output) {
@@ -16276,15 +16254,6 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     StrainMag_Max = max(StrainMag_Max, StrainMag);
     Omega_Max = max(Omega_Max, Omega);
     
-    /*--- Solve for the stress anisotropy ---*/
-
-    if (config->isHybrid_Turb_Model()) {
-      HybridMediator->SetupStressAnisotropy(geometry, solver_container, hybrid_anisotropy, iPoint);
-      hybrid_anisotropy->CalculateViscAnisotropy();
-      node[iPoint]->SetEddyViscAnisotropy(hybrid_anisotropy->GetViscAnisotropy());
-      // The mediator doesn't need to set up the resolved flow solver
-    }
-
   }
   
   /*--- Initialize the Jacobian matrices ---*/
@@ -16323,7 +16292,10 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
    */
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
-    HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+    if (config->isHybrid_Turb_Model()) {
+      assert(HybridMediator != NULL);
+      HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+    }
   }
   
 }

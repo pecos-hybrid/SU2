@@ -644,8 +644,8 @@ void CHybridConvSolver::CalculateSourceTerms(CSolver **solver_container,
 
   for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
-    // FIXME: Get the real r_k
-    su2double Resolution_Adequacy = 1.0;
+    su2double Resolution_Adequacy =
+        solver_container[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
 
     su2double* V_i = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
     su2double Density_i, Laminar_Viscosity_i;
