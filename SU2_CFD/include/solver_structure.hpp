@@ -9257,6 +9257,8 @@ class CHybridConvSolver: public CHybridSolver {
 private:
   const su2double alpha_Inf;
 
+  void CalculateSourceTerms(CSolver **solver_container, CConfig* config);
+
 public:
   /*!
    * \brief Constructor of the class.
@@ -9469,7 +9471,9 @@ public:
                        CConfig *config, unsigned short iMesh,
                        unsigned short iRKStep);
 
+  // FIXME: Unused method?
   su2double CalculateResolutionAdequacy();
+
 };
 
 /*!

@@ -16312,6 +16312,19 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     }
     
   }
+
+  /*--- Use the hybrid mediator to set up the solver ---
+   * We're only calling this once at the beginning of each outer iteration of
+   * the code.  That means that any setup here is *not* repeated for each inner
+   * iteration of an implicit solve. If the results of an implicit solve are
+   * strongly coupled with the setup here (i.e. hybrid forcing is strongly
+   * coupled with the velocity field), then there may be a splitting error due
+   * to not running the setup for every inner iteration.
+   */
+
+  for (iPoint = 0; iPoint < nPoint; iPoint ++) {
+    HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+  }
   
 }
 

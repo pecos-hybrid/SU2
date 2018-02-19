@@ -272,6 +272,12 @@ inline su2double CNumerics::GetCrossProduction(void) { return 0; }
 
 inline void CNumerics::SetForcingProduction(su2double val_production) { }
 
+inline void CNumerics::SetForcingRatio(su2double val_forcing_ratio) { }
+
+inline void CNumerics::SetSourceTerms(su2double* val_source_terms) { }
+
+inline void CNumerics::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) { }
+
 inline void CNumerics::SetTurbKineticEnergy(su2double val_turb_ke_i, su2double val_turb_ke_j) {
   turb_ke_i = val_turb_ke_i;
   turb_ke_j = val_turb_ke_j;
@@ -443,6 +449,11 @@ inline void CNumerics::SetNormal(su2double *val_normal) { Normal = val_normal; }
 
 inline void CNumerics::SetVolume(su2double val_volume) { Volume = val_volume; }
 
+inline void CAvgGrad_Flow::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) {
+  Forcing_Stress_i = tau_F_i;
+  Forcing_Stress_j = tau_F_j;
+}
+
 inline void CSourcePieceWise_TurbSST::SetF1blending(su2double val_F1_i, su2double val_F1_j) { 
   F1_i = val_F1_i; 
   F1_j = val_F1_j;
@@ -488,7 +499,12 @@ inline su2double CSourcePieceWise_TurbSA_Neg::GetCrossProduction(void) { return 
 
 inline void CSourcePieceWise_TurbKE::SetForcingProduction(su2double val_production) { ForcingProduction = val_production; }
 
-inline void CSourcePieceWise_HybridConv::SetForcingRatio(su2double val_production_ratio) { ProductionRatio = val_production_ratio; }
+inline void CSourcePieceWise_HybridConv::SetForcingRatio(su2double val_production_ratio) { Forcing_Ratio = val_production_ratio; }
+
+inline void CSourcePieceWise_HybridConv::SetSourceTerms(su2double* val_source_terms) {
+  S_alpha = val_source_terms[0];
+  S_cf = val_source_terms[1];
+}
 
 inline su2double CUpwTurkel_Flow::GetPrecond_Beta() { return Beta; }
 

@@ -271,6 +271,18 @@ class CAbstract_Hybrid_Mediator {
                                      CNumerics* visc_numerics,
                                      unsigned short iPoint,
                                      unsigned short jPoint) = 0;
+
+  /**
+   * \brief  Retrieve and pass along all necessary info for resolved solver.
+   *
+   * \param[in] geometry - A pointer to the geometry
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The node being evaluated
+   */
+  virtual void SetupResolvedFlowSolver(CGeometry* geometry,
+                                       CSolver **solver_container,
+                                       unsigned short iPoint) = 0;
+
   /**
    * \brief Modify the eddy viscosity based off hybrid calculations.
    *
@@ -335,6 +347,16 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \return The resolution inadequacy parameter
    */
   su2double CalculateRk(su2double** Q, su2double v2);
+
+  /*!
+   * \brief Setup the hybrid forcing, calculate forcing, and distribute results.
+   * \param[in] geometry - A pointer to the geometry
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The node being evaluated
+   */
+  void SetupForcing(CGeometry* geometry,
+                                      CSolver **solver_container,
+                                      unsigned short iPoint);
 
   /*!
    * \brief Projects the resolution on a specific vector
@@ -495,6 +517,16 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                              unsigned short jPoint);
 
   /**
+   * \brief
+   *
+   * \param[in] geometry - A pointer to the geometry
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The node being evaluated
+   */
+  void SetupResolvedFlowSolver(CGeometry* geometry, CSolver **solver_container,
+                               unsigned short iPoint);
+
+  /**
    * \brief Returns the constants for the numerical fit for the resolution tensor.
    * \return Constants for the numerical fit for the resolution tensor.
    */
@@ -607,6 +639,16 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                              CNumerics* visc_numerics,
                              unsigned short iPoint,
                              unsigned short jPoint);
+
+  /**
+   * \brief
+   *
+   * \param[in] geometry - A pointer to the geometry
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The node being evaluated
+   */
+  void SetupResolvedFlowSolver(CGeometry* geometry, CSolver **solver_container,
+                               unsigned short iPoint);
 
   void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
                            su2double *eddy_viscosity);

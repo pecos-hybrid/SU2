@@ -127,96 +127,122 @@ CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
-  /*--- Allocate the approximate structure function (used in calcs) ---*/
+  Q = NULL;
+  Qapprox = NULL;
+  invLengthTensor = NULL;
 
-  Q = new su2double*[nDim];
-  Qapprox = new su2double*[nDim];
-  invLengthTensor = new su2double*[nDim];
-  for (unsigned int iDim = 0; iDim < nDim; iDim++) {
-    Q[iDim] = new su2double[nDim];
-    Qapprox[iDim] = new su2double[nDim];
-    invLengthTensor[iDim] = new su2double[nDim];
-  }
+  if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
+    // TODO: Evaluate if this is all necessary
 
-  /*--- Load the constants for mapping M to M-tilde ---*/
+    /*--- Allocate the approximate structure function (used in calcs) ---*/
 
-  if (filename == "") {
-    if (rank == MASTER_NODE) {
-      cout << "WARNING: No file given for hybrid RANS/LES constants." << endl;
-      cout << "         Default (hardcoded) values used." << endl;
+    Q = new su2double*[nDim];
+    Qapprox = new su2double*[nDim];
+    invLengthTensor = new su2double*[nDim];
+    for (unsigned int iDim = 0; iDim < nDim; iDim++) {
+      Q[iDim] = new su2double[nDim];
+      Qapprox[iDim] = new su2double[nDim];
+      invLengthTensor[iDim] = new su2double[nDim];
     }
-    constants.resize(3, vector<su2double>(15));
 
-    constants[0][0] =  2.4253168624203;
-    constants[0][1] =  0.3377273122202;
-    constants[0][2] =  0.2454150824949;
-    constants[0][3] = -0.4015732570841;
-    constants[0][4] = -0.3023468205458;
-    constants[0][5] = -0.1386196773678;
-    constants[0][6] =  0.0451966752099;
-    constants[0][7] =  0.0325650620151;
-    constants[0][8] =  0.0093904940685;
-    constants[0][9] = -0.0052447144608;
-    constants[0][10] = -0.0019607919411;
-    constants[0][11] = -0.0005522138218;
-    constants[0][12] =  0.0013947282467;
-    constants[0][13] =  0.0012723863199;
-    constants[0][14] = -0.0000420559137;
+    /*--- Load the constants for mapping M to M-tilde ---*/
 
-    constants[1][0] =  0.6999425502058;
-    constants[1][1] =  0.3056790968854;
-    constants[1][2] = -0.1914576501370;
-    constants[1][3] =  0.0713376305722;
-    constants[1][4] =  0.2874057660774;
-    constants[1][5] =  0.1107104307784;
-    constants[1][6] = -0.0215754933753;
-    constants[1][7] = -0.0652953391552;
-    constants[1][8] = -0.0460413983614;
-    constants[1][9] = -0.0131511446213;
-    constants[1][10] =  0.0015258919631;
-    constants[1][11] =  0.0046851430319;
-    constants[1][12] =  0.0046149483796;
-    constants[1][13] =  0.0020781858721;
-    constants[1][14] =  0.0001722924891;
+    if (filename == "") {
+      if (rank == MASTER_NODE) {
+        cout << "WARNING: No file given for hybrid RANS/LES constants." << endl;
+        cout << "         Default (hardcoded) values used." << endl;
+      }
+      constants.resize(3, vector<su2double>(15));
 
-    constants[2][0] = -0.1451211648913;
-    constants[2][1] = -0.0419089159238;
-    constants[2][2] = -0.0090912831194;
-    constants[2][3] =  0.0120968852318;
-    constants[2][4] = -0.0318033690621;
-    constants[2][5] = -0.0157539031345;
-    constants[2][6] = -0.0007323909092;
-    constants[2][7] =  0.0105452780759;
-    constants[2][8] =  0.0089366657596;
-    constants[2][9] =  0.0030581437094;
-    constants[2][10] = -0.0000170956796;
-    constants[2][11] = -0.0009297436006;
-    constants[2][12] = -0.0010752469431;
-    constants[2][13] = -0.0005650127892;
-    constants[2][14] = -0.0000591358738;
+      constants[0][0] =  2.4253168624203;
+      constants[0][1] =  0.3377273122202;
+      constants[0][2] =  0.2454150824949;
+      constants[0][3] = -0.4015732570841;
+      constants[0][4] = -0.3023468205458;
+      constants[0][5] = -0.1386196773678;
+      constants[0][6] =  0.0451966752099;
+      constants[0][7] =  0.0325650620151;
+      constants[0][8] =  0.0093904940685;
+      constants[0][9] = -0.0052447144608;
+      constants[0][10] = -0.0019607919411;
+      constants[0][11] = -0.0005522138218;
+      constants[0][12] =  0.0013947282467;
+      constants[0][13] =  0.0012723863199;
+      constants[0][14] = -0.0000420559137;
+
+      constants[1][0] =  0.6999425502058;
+      constants[1][1] =  0.3056790968854;
+      constants[1][2] = -0.1914576501370;
+      constants[1][3] =  0.0713376305722;
+      constants[1][4] =  0.2874057660774;
+      constants[1][5] =  0.1107104307784;
+      constants[1][6] = -0.0215754933753;
+      constants[1][7] = -0.0652953391552;
+      constants[1][8] = -0.0460413983614;
+      constants[1][9] = -0.0131511446213;
+      constants[1][10] =  0.0015258919631;
+      constants[1][11] =  0.0046851430319;
+      constants[1][12] =  0.0046149483796;
+      constants[1][13] =  0.0020781858721;
+      constants[1][14] =  0.0001722924891;
+
+      constants[2][0] = -0.1451211648913;
+      constants[2][1] = -0.0419089159238;
+      constants[2][2] = -0.0090912831194;
+      constants[2][3] =  0.0120968852318;
+      constants[2][4] = -0.0318033690621;
+      constants[2][5] = -0.0157539031345;
+      constants[2][6] = -0.0007323909092;
+      constants[2][7] =  0.0105452780759;
+      constants[2][8] =  0.0089366657596;
+      constants[2][9] =  0.0030581437094;
+      constants[2][10] = -0.0000170956796;
+      constants[2][11] = -0.0009297436006;
+      constants[2][12] = -0.0010752469431;
+      constants[2][13] = -0.0005650127892;
+      constants[2][14] = -0.0000591358738;
+
+    } else {
+      constants = LoadConstants(filename);
+    }
+
+    /*--- Calculate scaling constants so that zeta -> kroneckor delta for
+     * isotropic cells ---*/
+    vector<su2double> temp_values = GetEigValues_Q(vector<su2double>(3, 1.0));
+    C_zeta = pow(temp_values[0], 0.5);
 
   } else {
-    constants = LoadConstants(filename);
+    // Resolution indicator is a variant of RDELTA
+
+    invLengthTensor = new su2double*[nDim];
+    for (unsigned int iDim = 0; iDim < nDim; iDim++) {
+      invLengthTensor[iDim] = new su2double[nDim];
+    }
   }
 
-  /*--- Calculate scaling constants so that zeta -> kroneckor delta for
-   * isotropic cells ---*/
-  vector<su2double> temp_values = GetEigValues_Q(vector<su2double>(3, 1.0));
-  C_zeta = pow(temp_values[0], 0.5);
 }
 
 CHybrid_Mediator::~CHybrid_Mediator() {
 
   delete hybrid_forcing;
 
-  for (unsigned int iDim = 0; iDim < nDim; iDim++) {
-    delete [] Q[iDim];
-    delete [] Qapprox[iDim];
-    delete [] invLengthTensor[iDim];
+  if (Q != NULL) {
+    for (unsigned int iDim = 0; iDim < nDim; iDim++)
+      if (Q[iDim] != NULL) delete [] Q[iDim];
+    delete [] Q;
   }
-  delete [] Q;
-  delete [] Qapprox;
-  delete [] invLengthTensor;
+
+  if (Qapprox != NULL) {
+    for (unsigned int iDim = 0; iDim < nDim; iDim++)
+      if (Qapprox[iDim] != NULL) delete [] Qapprox[iDim];
+    delete [] Qapprox;
+  }
+
+  if (invLengthTensor != NULL) {
+    for (unsigned int iDim = 0; iDim < nDim; iDim++)
+      if (invLengthTensor[iDim] != NULL) delete [] invLengthTensor[iDim];
+    delete [] invLengthTensor;
+  }
 
 #ifdef HAVE_LAPACK
   mkl_free_buffers();
@@ -273,6 +299,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
     // NB: with the r_{\Delta} variants of the model, we should never
     // use w_rans.  So, I set it to nan s.t. if it ever gets used
     // inadvertantly, the soln will be obviously wrong.
+    // FIXME: RANS weight still necessary?
 
     w_rans = std::numeric_limits<su2double>::quiet_NaN();
   }
@@ -368,6 +395,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
   }
 
   solver_container[HYBRID_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
+  // FIXME: RANS weight still necessary?
   solver_container[HYBRID_SOL]->node[iPoint]->SetRANSWeight(w_rans);
 
 }
@@ -379,17 +407,9 @@ void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
                                                 unsigned short jPoint) {
 
   /*--- Find and store turbulent length and timescales ---*/
-  su2double turb_T;
-  if (config->GetKind_Turb_Model() == KE) {
-    // Recompute the turbulence timescale **without** the stag. point anomaly
-    const su2double k = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-    const su2double eps = solver_container[TURB_SOL]->node[iPoint]->GetSolution(1);
-    const su2double nu = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
-    const su2double C_T = 6;
-    turb_T = max(k/eps, C_T*sqrt(nu/eps));
-  } else {
-    turb_T = solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-  }
+  // FIXME: Keep both types of timescales?
+  su2double turb_T =
+      solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
   su2double turb_L =
       solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
 
@@ -413,70 +433,142 @@ void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
   hybrid_param_numerics->SetResolutionAdequacy(r_k);
 
   /*--- Pass RANS weight into the numerics object ---*/
-
+  // FIXME: RANS weight still necessary?
   su2double w_rans = solver_container[HYBRID_SOL]->node[iPoint]->GetRANSWeight();
   hybrid_param_numerics->SetRANSWeight(w_rans);
+
+  /*--- Pass ratio of P_F_tilde to P_lim into numerics object ---*/
+  su2double production_ratio =
+      solver_container[HYBRID_SOL]->node[iPoint]->GetForcingRatio();
+  hybrid_param_numerics->SetForcingRatio(production_ratio);
 }
 
 void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
                                              CSolver **solver_container,
                                              CHybrid_Visc_Anisotropy* hybrid_anisotropy,
                                              unsigned short iPoint) {
-  unsigned int iDim, jDim, kDim, lDim;
-  /*--- Use the grid-based resolution tensor, not the anisotropy-correcting
-   * resolution tensor ---*/
-  su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-  su2double** PrimVar_Grad =
-        solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
-  CalculateApproxStructFunc(ResolutionTensor, PrimVar_Grad, Q);
+  if (dynamic_cast<CHybrid_Aniso_Q*>(hybrid_anisotropy)) {
+    /*--- XXX: Come up with a beter way to do this, so we only pass what's
+     * necessary to the anisotropy model. Multiple dispatch? */
+    unsigned int iDim, jDim, kDim, lDim;
+      /*--- Use the grid-based resolution tensor, not the anisotropy-correcting
+       * resolution tensor ---*/
+      su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
+      su2double** PrimVar_Grad =
+            solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
+      CalculateApproxStructFunc(ResolutionTensor, PrimVar_Grad, Q);
 
-  su2double total= 0.0;
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      total += abs(Q[iDim][jDim]);
-    }
-  }
-  if (total < 9*EPS) {
-    /*--- If there are negligible velocity differences at the resolution scale,
-     * set the tensor to the Kroneckor delta ---*/
-    for (iDim = 0; iDim < nDim; iDim++) {
-      for (jDim = 0; jDim < nDim; jDim++) {
-        Q[iDim][jDim] = (iDim == jDim);
+      su2double total= 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (jDim = 0; jDim < nDim; jDim++) {
+          total += abs(Q[iDim][jDim]);
+        }
       }
-    }
-  } else {
-    /*--- Normalize the approximate structure function tensor ---*/
-    su2double norm = 0.0;
-    for (iDim = 0; iDim < nDim; iDim++) {
-      for (jDim = 0; jDim < nDim; jDim++) {
-        norm += Q[iDim][jDim]*Q[jDim][iDim];
+      if (total < 9*EPS) {
+        /*--- If there are negligible velocity differences at the resolution scale,
+         * set the tensor to the Kroneckor delta ---*/
+        for (iDim = 0; iDim < nDim; iDim++) {
+          for (jDim = 0; jDim < nDim; jDim++) {
+            Q[iDim][jDim] = (iDim == jDim);
+          }
+        }
+      } else {
+        /*--- Normalize the approximate structure function tensor ---*/
+        su2double norm = 0.0;
+        for (iDim = 0; iDim < nDim; iDim++) {
+          for (jDim = 0; jDim < nDim; jDim++) {
+            norm += Q[iDim][jDim]*Q[jDim][iDim];
+          }
+        }
+        norm = sqrt(norm);
+        for (iDim=0; iDim < nDim; iDim++) {
+          for (jDim = 0; jDim < nDim; jDim++) {
+            Q[iDim][jDim] /= norm;
+          }
+        }
       }
-    }
-    norm = sqrt(norm);
-    for (iDim=0; iDim < nDim; iDim++) {
-      for (jDim = 0; jDim < nDim; jDim++) {
-        Q[iDim][jDim] /= norm;
+
+    #ifndef NDEBUG
+      su2double trace = Q[0][0] + Q[1][1] + Q[2][2];
+      if (trace > 1e7 || trace < 1e-7) {
+          cout << "ERROR: Trace of the stress anisotropy was unusual." << endl;
+          cout << "       Trace: " << trace << endl;
+          exit(EXIT_FAILURE);
       }
-    }
+    #endif
+
+      hybrid_anisotropy->SetTensor(Q);
+
+      /*--- Retrieve and pass along the resolution adequacy parameter ---*/
+
+      vector<su2double> scalars;
+      scalars.push_back(solver_container[HYBRID_SOL]->node[iPoint]->GetRANSWeight());
+      hybrid_anisotropy->SetScalars(scalars);
   }
-
-#ifndef NDEBUG
-  su2double trace = Q[0][0] + Q[1][1] + Q[2][2];
-  if (trace > 1e7 || trace < 1e-7) {
-      cout << "ERROR: Trace of the stress anisotropy was unusual." << endl;
-      cout << "       Trace: " << trace << endl;
-      exit(EXIT_FAILURE);
-  }
-#endif
-
-  hybrid_anisotropy->SetTensor(Q);
-
-  /*--- Retrieve and pass along the resolution adequacy parameter ---*/
-
-  vector<su2double> scalars;
-  scalars.push_back(solver_container[HYBRID_SOL]->node[iPoint]->GetRANSWeight());
-  hybrid_anisotropy->SetScalars(scalars);
 }
+
+
+/**
+ * \brief The hybrid solver needs the resolution adequacy parameter, which
+ *        is dependent on RANS results.
+ *
+ * \param[in] geometry - A pointer to the geometry
+ * \param[in] solver_container - An array of solvers
+ * \param[in] iPoint - The node being evaluated
+ */
+void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
+                                               CSolver **solver_container,
+                                               unsigned short iPoint) {
+  // TODO: Set up viscous anisotropy here instead
+
+  /*--- Set up forcing ---*/
+  SetupForcing(geometry, solver_container, iPoint);
+}
+
+void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
+                                    CSolver **solver_container,
+                                    unsigned short iPoint) {
+
+  /*--- Pull in all the relevant parameters ---*/
+  su2double* prim_vars =
+      solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+  su2double** prim_var_grad =
+      solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
+  su2double* turb_vars =
+      solver_container[TURB_SOL]->node[iPoint]->GetSolution();
+  su2double turb_L =
+      solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
+  su2double turb_T =
+      solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+  su2double* alpha =
+      solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
+  su2double* S_terms =
+      solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
+  hybrid_forcing->SetCoord(geometry->node[iPoint]->GetCoord());
+  hybrid_forcing->SetPrimitive(prim_vars);
+  hybrid_forcing->SetPrimVarGradient(prim_var_grad);
+  hybrid_forcing->SetTurbVar(turb_vars);
+  hybrid_forcing->SetTurbLengthscale(turb_L);
+  hybrid_forcing->SetTurbTimescale(turb_L);
+  hybrid_forcing->SetHybridParameter(alpha);
+  hybrid_forcing->SetHybridSourceTerms(S_terms);
+
+  /*--- Run calculation now that we've initialized everything ---*/
+  hybrid_forcing->CalculateForcing();
+
+  /*--- Pass results on to respective solvers
+   * We take over some of the work that would normally be in
+   * `SetupRANSSolver` or `SetupHybridSolver` so that the same forcing
+   * values are used for all equations.  This has the advantage of only
+   * requiring one forcing calculation per iteration. ---*/
+  su2double** tau_F = hybrid_forcing->GetStress();
+  solver_container[FLOW_SOL]->node[iPoint]->SetForcingStress(tau_F);
+  su2double P_F = hybrid_forcing->GetProduction();
+  solver_container[TURB_SOL]->node[iPoint]->SetForcingProduction(P_F);
+  su2double P_F_ratio = hybrid_forcing->GetForcingRatio();
+  solver_container[HYBRID_SOL]->node[iPoint]->SetForcingRatio(P_F_ratio);
+}
+
 
 void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
                                              CSolver **solver_container,
@@ -587,6 +679,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     for (jDim = 0; jDim < nDim; jDim++) {
       Pij[iDim][jDim] = 0.0;
       for (kDim = 0; kDim < nDim; kDim++) {
+        // FIXME: Not true...Check that proper eddy viscosity is used.
         // NB: Assumes that eddy_viscosity is *full* eddy
         // viscosity---i.e., not multiplied by alpha^2---so that
         // alpha^2 is necessary here
@@ -1025,6 +1118,11 @@ CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(int nDim, CConfig* config) : nDim
 
 CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
   delete [] dummy_alpha;
+}
+
+void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
+                                                     CSolver **solver_container,
+                                                     unsigned short iPoint) {
 }
 
 void CHybrid_Dummy_Mediator::SetupRANSNumerics(CGeometry* geometry,

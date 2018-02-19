@@ -1460,6 +1460,15 @@ public:
    */
   virtual void SetForcingRatio(su2double val_production_ratio);
 
+  virtual void SetSourceTerms(su2double* val_source_terms);
+
+  /*!
+   * \brief Set the stress tensor coming from turbulent forcing
+   * \param[in] tau_F_i - Value of the forcing stress tensor at node i
+   * \param[in] tau_F_j - Value of the forcing stress tensor at node j
+   */
+  virtual void SetForcingStress(su2double** tau_F_i, su2double** tau_F_j);
+
   /*!
    * \overload
    * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i
@@ -2975,6 +2984,8 @@ protected:
   su2double *Mean_PrimVar,           /*!< \brief Mean primitive variables. */
   *PrimVar_i, *PrimVar_j,           /*!< \brief Primitives variables at point i and 1. */
   **Mean_GradPrimVar,             /*!< \brief Mean value of the gradient. */
+  **Forcing_Stress_i,          /*!< \brief The turbulent forcing stress tensor at point i */
+  **Forcing_Stress_j,          /*!< \brief The turbulent forcing stress tensor at point j */
   Mean_Laminar_Viscosity,                /*!< \brief Mean value of the viscosity. */
   Mean_Eddy_Viscosity,                   /*!< \brief Mean value of the eddy viscosity. */
   Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
@@ -2997,6 +3008,13 @@ public:
    * \brief Destructor of the class.
    */
   ~CAvgGrad_Flow(void);
+  
+  /*!
+   * \brief Set the stress tensor coming from turbulent forcing
+   * \param[in] tau_F_i - Value of the forcing stress tensor at node i
+   * \param[in] tau_F_j - Value of the forcing stress tensor at node j
+   */
+  void SetForcingStress(su2double** tau_F_i, su2double** tau_F_j);
   
   /*!
    * \brief Compute the viscous flow residual using an average of gradients.
@@ -4612,7 +4630,8 @@ public:
  */
 class CSourcePieceWise_HybridConv : public CNumerics {
  private:
-  su2double ProductionRatio; // Ratio of P_f_unscaled and P_lim
+  su2double Forcing_Ratio; // Ratio of P_f_unscaled and P_lim
+  su2double S_alpha, S_cf;
 
  public:
 
@@ -4643,6 +4662,8 @@ class CSourcePieceWise_HybridConv : public CNumerics {
    * \param[in] val_production - Value of the production ratio
    */
   void SetForcingRatio(su2double val_production_ratio);
+
+  void SetSourceTerms(su2double* val_source_terms);
 };
 
 /*!

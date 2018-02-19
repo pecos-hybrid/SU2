@@ -268,6 +268,13 @@ inline su2double CVariable::GetEddyViscAnisotropy(unsigned short iDim,
   return (iDim == jDim);
 }
 
+inline su2double** CVariable::GetForcingStress(void) { return NULL; }
+
+inline su2double CVariable::GetForcingStress(unsigned short iDim,
+                                             unsigned short jDim) {
+  return 0.0;
+}
+
 inline void CVariable::SetGammaEff(void) { }
 
 inline void CVariable::SetGammaSep(su2double gamma_sep) { }
@@ -452,6 +459,8 @@ inline void CVariable::SetRANSWeight(su2double val_w_rans) { }
 
 inline void CVariable::SetEddyViscAnisotropy(su2double** val_anisotropy_i) { }
 
+inline void CVariable::SetForcingStress(su2double** val_tau_F) { }
+
 inline void CVariable::SetThermalConductivity(su2double thermalConductivity) { }
 
 inline void CVariable::SetThermalConductivity(CConfig *config) { }
@@ -507,6 +516,18 @@ inline su2double CVariable::GetF2blending(void) { return 0; }
 inline su2double CVariable::GetmuT() { return 0;}
 
 inline void CVariable::SetmuT(su2double val_muT) { }
+
+inline void CVariable::SetForcingProduction(su2double val_P_F) { }
+
+inline su2double CVariable::GetForcingProduction(void) { return 0; }
+
+inline void CVariable::SetForcingRatio(su2double P_F_ratio) { }
+
+inline su2double CVariable::GetForcingRatio(void) { return 1; }
+
+inline void CVariable::SetSourceTerms(su2double* val_source_terms) { };
+
+inline su2double* CVariable::GetSourceTerms() { };
 
 inline su2double* CVariable::GetSolution_Direct() { return NULL; }
 
@@ -1091,6 +1112,12 @@ inline su2double* CHeatVariable::GetSolution_Direct() { return Solution_Direct;}
 
 inline void CHeatVariable::SetSolution_Direct(su2double *val_solution_direct) { for (unsigned short iVar = 0; iVar < nVar; iVar++) Solution_Direct[iVar] += val_solution_direct[iVar];}
 
+inline void CTurbVariable::SetForcingProduction(su2double val_P_F) {
+  Forcing_Production = val_P_F;
+}
+
+inline su2double CTurbVariable::GetForcingProduction() { return Forcing_Production; }
+
 inline void CTurbSAVariable::SetHarmonicBalance_Source(unsigned short val_var, su2double val_source) { HB_Source[val_var] = val_source; }
 
 inline su2double CTurbSAVariable::GetHarmonicBalance_Source(unsigned short val_var) { return HB_Source[val_var]; }
@@ -1202,6 +1229,20 @@ inline void CHybridVariable::SetRANSWeight(su2double val_w_rans) {RANS_Weight = 
 
 inline su2double CHybridVariable::GetRANSWeight() { return RANS_Weight; }
 
+inline void CHybridVariable::SetForcingRatio(su2double val_P_F_ratio) {
+  Forcing_Ratio = val_P_F_ratio;
+}
+
+inline su2double CHybridVariable::GetForcingRatio() { return Forcing_Ratio; }
+
+inline void CHybridVariable::SetSourceTerms(su2double* val_source_terms) {
+  // Copy values instead of copying pointers to values that may change
+  for (unsigned short iVar = 0; iVar < 2; iVar++)
+    S_terms[iVar] = val_source_terms[iVar];
+}
+
+inline su2double* CHybridVariable::GetSourceTerms() { return S_terms; }
+
 inline void CNSVariable::SetEddyViscAnisotropy(su2double** val_anisotropy) {
     // Copy values instead of copying pointers to values that may change
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
@@ -1216,6 +1257,20 @@ inline su2double** CNSVariable::GetEddyViscAnisotropy() {
 inline su2double CNSVariable::GetEddyViscAnisotropy(unsigned short iDim,
                                                     unsigned short jDim) {
   return Eddy_Visc_Anisotropy[iDim][jDim];
+}
+
+inline void CNSVariable::SetForcingStress(su2double** val_tau_F) {
+    // Copy values instead of copying pointers to values that may change
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      for (unsigned short jDim = 0; jDim < nDim; jDim++)
+        Forcing_Stress[iDim][jDim] = val_tau_F[iDim][jDim];
+}
+
+inline su2double** CNSVariable::GetForcingStress(void) { return Forcing_Stress; }
+
+inline su2double CNSVariable::GetForcingStress(unsigned short iDim,
+                                               unsigned short jDim) {
+  return Forcing_Stress[iDim][jDim];
 }
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() {
