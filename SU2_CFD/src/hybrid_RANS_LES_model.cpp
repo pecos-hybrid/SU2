@@ -120,7 +120,10 @@ inline void CHybrid_Aniso_Q::SetScalars(vector<su2double> val_scalars) {
 CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
    : nDim(nDim), C_sf(config->Get_Hybrid_Model_Const()), config(config) {
 
-  hybrid_forcing = new CHybridForcing(nDim);
+  if (config->isHybrid_Forced())
+    hybrid_forcing = new CHybridForcing(nDim);
+  else
+    hybrid_forcing = NULL;
 
   /*--- Setup hybridization ---*/
 
@@ -238,7 +241,7 @@ CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
 
 CHybrid_Mediator::~CHybrid_Mediator() {
 
-  delete hybrid_forcing;
+  if (hybrid_forcing != NULL) delete hybrid_forcing;
   delete hybrid_anisotropy;
 
   if (Q != NULL) {
@@ -274,8 +277,7 @@ void CHybrid_Mediator::SetupRANSNumerics(CGeometry* geometry,
   /*--- Since this is a source term, we don't need a second point ---*/
   rans_numerics->SetHybridParameter(alpha, NULL);
 
-  su2double forcing = hybrid_forcing->GetProduction();
-  rans_numerics->SetForcingProduction(forcing);
+  /*--- Hybrid forcing (P_F) already set in SetupForcing() ---*/
 
 }
 
@@ -525,44 +527,48 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
                                     CSolver **solver_container,
                                     unsigned short iPoint) {
 
-  /*--- Pull in all the relevant parameters ---*/
-  su2double* prim_vars =
-      solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
-  su2double** prim_var_grad =
-      solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
-  su2double* turb_vars =
-      solver_container[TURB_SOL]->node[iPoint]->GetSolution();
-  su2double turb_L =
-      solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-  su2double turb_T =
-      solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-  su2double* alpha =
-      solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  su2double* S_terms =
-      solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
-  hybrid_forcing->SetCoord(geometry->node[iPoint]->GetCoord());
-  hybrid_forcing->SetPrimitive(prim_vars);
-  hybrid_forcing->SetPrimVarGradient(prim_var_grad);
-  hybrid_forcing->SetTurbVar(turb_vars);
-  hybrid_forcing->SetTurbLengthscale(turb_L);
-  hybrid_forcing->SetTurbTimescale(turb_L);
-  hybrid_forcing->SetHybridParameter(alpha);
-  hybrid_forcing->SetHybridSourceTerms(S_terms);
+  if (hybrid_forcing != NULL) {
 
-  /*--- Run calculation now that we've initialized everything ---*/
-  hybrid_forcing->CalculateForcing();
+    /*--- Pull in all the relevant parameters ---*/
+    su2double* prim_vars =
+        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+    su2double** prim_var_grad =
+        solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
+    su2double* turb_vars =
+        solver_container[TURB_SOL]->node[iPoint]->GetSolution();
+    su2double turb_L =
+        solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
+    su2double turb_T =
+        solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+    su2double* alpha =
+        solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
+    su2double* S_terms =
+        solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
+    hybrid_forcing->SetCoord(geometry->node[iPoint]->GetCoord());
+    hybrid_forcing->SetPrimitive(prim_vars);
+    hybrid_forcing->SetPrimVarGradient(prim_var_grad);
+    hybrid_forcing->SetTurbVar(turb_vars);
+    hybrid_forcing->SetTurbLengthscale(turb_L);
+    hybrid_forcing->SetTurbTimescale(turb_L);
+    hybrid_forcing->SetHybridParameter(alpha);
+    hybrid_forcing->SetHybridSourceTerms(S_terms);
 
-  /*--- Pass results on to respective solvers
-   * We take over some of the work that would normally be in
-   * `SetupRANSSolver` or `SetupHybridSolver` so that the same forcing
-   * values are used for all equations.  This has the advantage of only
-   * requiring one forcing calculation per iteration. ---*/
-  su2double** tau_F = hybrid_forcing->GetStress();
-  solver_container[FLOW_SOL]->node[iPoint]->SetForcingStress(tau_F);
-  su2double P_F = hybrid_forcing->GetProduction();
-  solver_container[TURB_SOL]->node[iPoint]->SetForcingProduction(P_F);
-  su2double P_F_ratio = hybrid_forcing->GetForcingRatio();
-  solver_container[HYBRID_SOL]->node[iPoint]->SetForcingRatio(P_F_ratio);
+    /*--- Run calculation now that we've initialized everything ---*/
+    hybrid_forcing->CalculateForcing();
+
+    /*--- Pass results on to respective solvers
+     * We take over some of the work that would normally be in
+     * `SetupRANSSolver` or `SetupHybridSolver` so that the same forcing
+     * values are used for all equations.  This has the advantage of only
+     * requiring one forcing calculation per iteration. ---*/
+    su2double** tau_F = hybrid_forcing->GetStress();
+    solver_container[FLOW_SOL]->node[iPoint]->SetForcingStress(tau_F);
+    su2double P_F = hybrid_forcing->GetProduction();
+    solver_container[TURB_SOL]->node[iPoint]->SetForcingProduction(P_F);
+    su2double P_F_ratio = hybrid_forcing->GetForcingRatio();
+    solver_container[HYBRID_SOL]->node[iPoint]->SetForcingRatio(P_F_ratio);
+
+  }
 }
 
 

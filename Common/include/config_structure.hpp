@@ -474,6 +474,7 @@ private:
   unsigned short Kind_Hybrid_Blending; /*!< \brief Hybrid RANS/LES blending definition */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   unsigned short Kind_Hybrid_Aniso_Model; /*!< \brief Hybrid RANS/LES subgrid anisotropy model definition */
+  bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
   su2double Hybrid_Model_Constant; /*!< \brief Model constant relating the approximate second order structure function to the unresolved turbulent kinetic energy */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
@@ -3345,6 +3346,12 @@ public:
    * \return Kind of subgrid anisotropy model.
    */
   unsigned short GetKind_Hybrid_Anisotropy_Model(void);
+
+  /*!
+   * \brief Checks if a hybrid LES/RANS method should be forced.
+   * \return True if the hybrid RANS/LES model is to be forced.
+   */
+  bool isHybrid_Forced(void);
 
   /*!
    * \brief Get the hybrid RANS/LES model constant.

@@ -583,6 +583,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief HYBRID_MODEL_CONSTANT \n DESCRIPTION: Model constant relating the approximate second order structure function to the unresolved kinetic energy  \ingroup Config*/
   addDoubleOption("HYBRID_MODEL_CONSTANT", Hybrid_Model_Constant, 0.1);
 
+  /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
+  addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
+
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
 
