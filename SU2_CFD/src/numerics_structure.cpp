@@ -1621,7 +1621,8 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
                   su2double **val_gradprimvar, su2double val_turb_ke,
                   su2double *val_normal,
                   su2double val_laminar_viscosity,
-                  su2double val_eddy_viscosity) {
+                  su2double val_eddy_viscosity,
+                  su2double** val_forcing_stress) {
 
 
   unsigned short iVar, iDim, jDim;
@@ -1640,6 +1641,15 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
       tau[iDim][jDim] = total_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
       - TWO3*total_viscosity*div_vel*delta[iDim][jDim]
                                                  - TWO3*Density*val_turb_ke*delta[iDim][jDim];
+
+  /*--- Add any extra forcing stress from turb. model ---*/
+
+  if (val_forcing_stress != NULL) {
+    for (iDim = 0 ; iDim < nDim; iDim++)
+      for (jDim = 0 ; jDim < nDim; jDim++)
+        tau[iDim][jDim] += val_forcing_stress[iDim][jDim];
+  }
+
   /*--- Gradient of primitive variables -> [Temp vel_x vel_y vel_z Pressure] ---*/
   if (nDim == 2) {
     Flux_Tensor[0][0] = 0.0;
@@ -1684,7 +1694,8 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
                                    su2double val_turb_ke,
                                    su2double *val_normal,
                                    su2double val_laminar_viscosity,
-                                   su2double **val_eddy_viscosity) {
+                                   su2double **val_eddy_viscosity,
+                                   su2double** val_forcing_stress) {
     unsigned short iVar, iDim, jDim, kDim, lDim;
     su2double** total_viscosity, **G;
     su2double heat_flux_factor, div_vel, Cp, Density, trace_eddy_viscosity;
@@ -1740,6 +1751,14 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
           }
         }
       }
+    }
+
+    /*--- Add any extra forcing stress from turb. model ---*/
+
+    if (val_forcing_stress != NULL) {
+      for (iDim = 0 ; iDim < nDim; iDim++)
+        for (jDim = 0 ; jDim < nDim; jDim++)
+          tau[iDim][jDim] += val_forcing_stress[iDim][jDim];
     }
 
     /*--- Gradient of primitive variables -> [Temp vel_x vel_y vel_z Pressure] ---*/

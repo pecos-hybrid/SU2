@@ -869,7 +869,8 @@ public:
   void GetViscousProjFlux(su2double *val_primvar, su2double **val_gradprimvar,
                           su2double val_turb_ke, su2double *val_normal,
                           su2double val_laminar_viscosity,
-                          su2double val_eddy_viscosity);
+                          su2double val_eddy_viscosity,
+                          su2double** val_forcing_stress = NULL);
   /*!
    * \brief Compute the projection of the viscous fluxes into a direction.
    * \param[in] val_primvar - Primitive variables.
@@ -885,7 +886,8 @@ public:
                  su2double **val_gradprimvar, su2double val_turb_ke,
                  su2double *val_normal,
                  su2double val_laminar_viscosity,
-                 su2double **val_eddy_viscosity);
+                 su2double **val_eddy_viscosity,
+                 su2double** val_forcing_stress = NULL);
   /*!
    * \brief Compute the projection of the viscous fluxes into a direction for general fluid model.
    * \param[in] val_primvar - Primitive variables.
