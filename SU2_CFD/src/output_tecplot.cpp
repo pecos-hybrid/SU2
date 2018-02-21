@@ -175,8 +175,9 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         else Tecplot_File << ", \"<greek>m</greek>\", \"C<sub>f</sub>_x\", \"C<sub>f</sub>_y\", \"C<sub>f</sub>_z\", \"h\", \"y<sup>+</sup>\"";
       }
       
-      if (Kind_Solver == RANS) {
-        Tecplot_File << ", \"<greek>m</greek><sub>t</sub>\"";
+      for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+           it != output_vars.end(); ++it) {
+        Tecplot_File << ", \"" << it->Tecplot_Name << "\"";
       }
       
       if (hybrid) {
@@ -3147,8 +3148,9 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       }
     }
     
-    if (Kind_Solver == RANS) {
-      variables << "Eddy_Viscosity ";
+    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+         it != output_vars.end(); ++it) {
+      variables << it->Name;
       *NVar += 1;
     }
     

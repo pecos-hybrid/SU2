@@ -122,6 +122,43 @@ COutput::~COutput(void) {
   
 }
 
+// TODO: Make this work for all zones.
+// TODO: Generalize this to Tensor variables
+// TODO: Generalize this to geometry variables
+
+/*--- This doesn't really have a good separation of concerns.
+ * The output class shouldn't need to know all the details of the solver.
+ * The individual solvers (flow, RANS, grid movement) should tell the
+ * Output class what to store.  The solvers should be registering the
+ * variables themselves. Then we wouldn't have to check config
+ * to know what to output, and there's less potential for bugs.
+ *
+ * I have kept the variable registration here mostly to keep changes
+ * minimal.
+ */
+void COutput::RegisterAllVariables(CConfig** config) {
+  unsigned short iZone = 0;
+  unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
+  bool hybrid = (config[iZone]->isHybrid_Turb_Model());
+
+  if (Kind_Solver == RANS) {
+    COutputVariable eddy_viscosity = {"Eddy_Viscosity",
+                                      "<greek>m</greek><sub>t</sub>", FLOW_SOL,
+                                       &CVariable::GetEddyViscosity};
+    RegisterVariable(eddy_viscosity);
+  }
+}
+
+void COutput::RegisterVariable(COutputVariable variable) {
+  output_vars.push_back(variable);
+}
+
+su2double COutput::RetrieveVariable(CSolver** solver,
+                                    COutputVariable var,
+                                    unsigned long iPoint) {
+   return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)();
+}
+
 void COutput::SetSurfaceCSV_Flow(CConfig *config, CGeometry *geometry,
                                  CSolver *FlowSolver, unsigned long iExtIter,
                                  unsigned short val_iZone) {
@@ -1992,6 +2029,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   
   unsigned short Kind_Solver  = config->GetKind_Solver();
   unsigned short iVar = 0, jVar = 0, FirstIndex = NONE, SecondIndex = NONE, ThirdIndex = NONE;
+  unsigned short iVar_Additional;
   unsigned short nVar_First = 0, nVar_Second = 0, nVar_Third = 0;
   unsigned short iVar_GridVel = 0, iVar_PressCp = 0, iVar_Lam = 0, iVar_MachMean = 0,
   iVar_ViscCoeffs = 0, iVar_HeatCoeffs = 0, iVar_Sens = 0, iVar_Extra = 0, iVar_Eddy = 0, iVar_Sharp = 0,
@@ -2124,8 +2162,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     
     /*--- Add Eddy Viscosity to the restart file ---*/
     
-    if (Kind_Solver == RANS) {
-      iVar_Eddy = nVar_Total; nVar_Total += 1;
+    iVar_Additional = nVar_Total;
+    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+         it != output_vars.end(); ++it) {
+      nVar_Total += 1;
     }
     
     /*--- Add extra hybrid variables to the output ---*/
@@ -2837,56 +2877,57 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       }
     }
     
+    /*--- Communicate the extra variables ---*/
+
+    iVar = iVar_Additional;
     
-    /*--- Communicate the Eddy Viscosity ---*/
-    
-    if (Kind_Solver == RANS) {
-      
+    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+         it != output_vars.end(); ++it) {
       /*--- Loop over this partition to collect the current variable ---*/
-      
+
       jPoint = 0;
       for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
-        
+
         /*--- Check for halos & write only if requested ---*/
-        
+
         if (!Local_Halo[iPoint] || Wrt_Halo) {
-          
-          /*--- Load buffers with the pressure and mach variables. ---*/
-          
-          Buffer_Send_Var[jPoint] = solver[FLOW_SOL]->node[iPoint]->GetEddyViscosity();
+
+          /*--- Load buffers with the extra variables. ---*/
+          Buffer_Send_Var[jPoint] = RetrieveVariable(solver, *it, iPoint);
 
           jPoint++;
         }
       }
-      
+
       /*--- Gather the data on the master node. ---*/
-      
+
 #ifdef HAVE_MPI
       SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
 #else
       for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
 #endif
-      
+
       /*--- The master node unpacks and sorts this variable by global index ---*/
-      
+
       if (rank == MASTER_NODE) {
-        jPoint = 0; iVar = iVar_Eddy;
+        jPoint = 0;
         for (iProcessor = 0; iProcessor < size; iProcessor++) {
           for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
-            
+
             /*--- Get global index, then loop over each variable and store ---*/
-            
+
             iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
             Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
             jPoint++;
           }
-          
+
           /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
-          
+
           jPoint = (iProcessor+1)*nBuffer_Scalar;
         }
       }
-      
+
+      iVar++;
     }
     
     /*--- Communicate the Eddy Viscosity Anisotropy ---*/
@@ -4019,11 +4060,12 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       }
     }
     
-    if (Kind_Solver == RANS) {
-      if (config->GetOutput_FileFormat() == PARAVIEW) {
-        restart_file << "\t\"Eddy_Viscosity\"";
-      } else
-        restart_file << "\t\"<greek>m</greek><sub>t</sub>\"";
+    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+         it != output_vars.end(); ++it) {
+      if (config->GetOutput_FileFormat() == PARAVIEW)
+        restart_file << "\t\"" << it->Name << "\"";
+      else
+        restart_file << "\t\"" << it->Tecplot_Name << "\"";
     }
     
     if (hybrid) {
@@ -10782,6 +10824,14 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back("Y_Plus");
     }
     
+    /*--- Add extra variables ---*/
+
+    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+         it != output_vars.end(); ++it) {
+      nVar_Par += 1;
+      Variable_Names.push_back(it->Name);
+    }
+
     /*--- Add Eddy Viscosity. ---*/
     
     if (Kind_Solver == RANS) {
@@ -11032,9 +11082,10 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         }
         
         /*--- Load data for the Eddy viscosity for RANS. ---*/
-        
-        if (Kind_Solver == RANS) {
-          Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetEddyViscosity(); iVar++;
+        for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+             it != output_vars.end(); ++it) {
+          Local_Data[jPoint][iVar] = RetrieveVariable(solver, *it, iPoint);
+          iVar++;
         }
         
         /*--- Load data for a hybrid RANS/LES model. ---*/

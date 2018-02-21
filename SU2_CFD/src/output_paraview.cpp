@@ -675,11 +675,12 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       
     }
     
-    if (Kind_Solver == RANS) {
-      
-      Paraview_File << "\nSCALARS Eddy_Viscosity float 1\n";
+    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+         it != output_vars.end(); ++it) {
+
+      Paraview_File << "\nSCALARS " << it->Name << " float 1\n";
       Paraview_File << "LOOKUP_TABLE default\n";
-      
+
       for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
         if (surf_sol) {
           if (LocalIndex[iPoint+1] != 0) {
@@ -692,7 +693,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
         }
       }
       VarCounter++;
-      
+
     }
     
     if (hybrid) {
@@ -1594,9 +1595,10 @@ void COutput::SetParaview_MeshASCII(CConfig *config, CGeometry *geometry, unsign
       
     }
     
-    if (Kind_Solver == RANS) {
+    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+         it != output_vars.end(); ++it) {
       
-      Paraview_File << "\nSCALARS Eddy_Viscosity float 1\n";
+      Paraview_File << "\nSCALARS " << it->Name << " float 1\n";
       Paraview_File << "LOOKUP_TABLE default\n";
       
       for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {

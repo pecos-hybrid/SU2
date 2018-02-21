@@ -340,6 +340,10 @@ CDriver::CDriver(char* confFile,
 
   output = new COutput();
 
+  /*--- Register variables for output ---*/
+
+  output->RegisterAllVariables(config_container);
+
   /*--- Open the convergence history file ---*/
 
   if (rank == MASTER_NODE)

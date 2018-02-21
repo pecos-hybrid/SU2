@@ -52,6 +52,17 @@
 #include "../../Common/include/geometry_structure.hpp"
 #include "../../Common/include/config_structure.hpp"
 
+typedef su2double (CVariable::*DataAccessor)();
+/*--- Define a macro to make (()->*(function pointer)) more readable ---*/
+#define CALL_MEMBER_FN(object,ptrToMember)  ((object)->*(ptrToMember))
+
+struct COutputVariable {
+  std::string Name;
+  std::string Tecplot_Name;
+  unsigned short Solver_Type;
+  DataAccessor Accessor;
+};
+
 using namespace std;
 
 /*! 
@@ -127,7 +138,7 @@ class COutput {
   su2double RhoRes_New, RhoRes_Old, RhoRes_Original, CFLThresh, CFLFactor;
   int cgns_base, cgns_zone, cgns_base_results, cgns_zone_results;
   su2double Sum_Total_RadialDistortion, Sum_Total_CircumferentialDistortion; // Add all the distortion to compute a run average.
-
+  std::vector<COutputVariable> output_vars;
   
 protected:
 
@@ -142,6 +153,15 @@ public:
    * \brief Destructor of the class. 
    */
   ~COutput(void);
+
+  void RegisterAllVariables(CConfig** config);
+
+  void RegisterVariable(COutputVariable variable);
+
+  void AddVariable(COutputVariable variable);
+
+  su2double RetrieveVariable(CSolver** solver, COutputVariable var,
+                             unsigned long iPoint);
 
   /*! 
    * \brief Writes and organizes the all the output files, except the history one, for serial computations.
