@@ -1734,7 +1734,8 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
                   su2double *val_normal,
                   su2double val_laminar_viscosity,
                   su2double val_eddy_viscosity,
-                  bool val_qcr) {
+                  bool val_qcr,
+                  su2double** val_forcing_stress) {
 
   unsigned short iVar, iDim, jDim;
   su2double total_viscosity, heat_flux_factor, div_vel, Cp, Density;
@@ -1775,6 +1776,14 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
         }
       }
     }
+  }
+
+  /*--- Add any extra forcing stress from turb. model ---*/
+
+  if (val_forcing_stress != NULL) {
+    for (iDim = 0 ; iDim < nDim; iDim++)
+      for (jDim = 0 ; jDim < nDim; jDim++)
+        tau[iDim][jDim] += val_forcing_stress[iDim][jDim];
   }
 
   /*--- Gradient of primitive variables -> [Temp vel_x vel_y vel_z Pressure] ---*/
@@ -1822,7 +1831,8 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
                                    su2double *val_normal,
                                    su2double val_laminar_viscosity,
                                    su2double **val_eddy_viscosity,
-                                   bool val_qcr) {
+                                   bool val_qcr,
+                                   su2double** val_forcing_stress) {
 
     unsigned short iVar, iDim, jDim, kDim, lDim;
     su2double** total_viscosity, **G;
@@ -1901,6 +1911,14 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
           }
         }
       }
+    }
+
+    /*--- Add any extra forcing stress from turb. model ---*/
+
+    if (val_forcing_stress != NULL) {
+      for (iDim = 0 ; iDim < nDim; iDim++)
+        for (jDim = 0 ; jDim < nDim; jDim++)
+          tau[iDim][jDim] += val_forcing_stress[iDim][jDim];
     }
 
     /*--- Gradient of primitive variables -> [Temp vel_x vel_y vel_z Pressure] ---*/

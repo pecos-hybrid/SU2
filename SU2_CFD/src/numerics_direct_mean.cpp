@@ -4418,6 +4418,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
                                     CConfig *config) {
   unsigned short iDim, jDim, iVar;
   su2double** Mean_Aniso_Eddy_Viscosity = NULL;
+  su2double** Mean_Forcing_Stress = NULL;
 
   /*--- Normalized normal vector ---*/
 
@@ -4440,24 +4441,40 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
   Laminar_Viscosity_i = V_i[nDim+5]; Laminar_Viscosity_j = V_j[nDim+5];
   Eddy_Viscosity_i = V_i[nDim+6]; Eddy_Viscosity_j = V_j[nDim+6];
 
+  /*--- Set up the average eddy viscosity at the face ---*/
+
   if (hasAnisoEddyViscosity) {
 
     Mean_Aniso_Eddy_Viscosity = new su2double*[nDim];
     for (iDim = 0; iDim<nDim; iDim++)
       Mean_Aniso_Eddy_Viscosity[iDim] = new su2double[nDim];
 
-    // I assume here that it is hybrid
+    assert(config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
     for (iDim = 0; iDim<nDim; iDim++) {
       for (jDim = 0; jDim<nDim; jDim++) {
         Mean_Aniso_Eddy_Viscosity[iDim][jDim] = 0.5*
-            (HybridParameter_i[0]*Eddy_Viscosity_i *
-             Eddy_Viscosity_Anisotropy_i[iDim][jDim] +
-             HybridParameter_j[0]*Eddy_Viscosity_j *
-             Eddy_Viscosity_Anisotropy_j[iDim][jDim]);
+            (Eddy_Viscosity_i * Eddy_Viscosity_Anisotropy_i[iDim][jDim] +
+             Eddy_Viscosity_j * Eddy_Viscosity_Anisotropy_j[iDim][jDim]);
       }
     }
   } else {
     Mean_Eddy_Viscosity = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
+  }
+
+  /*--- Set up any forcing stress at the face ---*/
+
+  if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID)
+      && config->isHybrid_Forced()) {
+    Mean_Forcing_Stress = new su2double*[nDim];
+    for (iDim = 0; iDim<nDim; iDim++)
+      Mean_Forcing_Stress[iDim] = new su2double[nDim];
+
+    for (iDim = 0; iDim<nDim; iDim++) {
+      for (jDim = 0; jDim<nDim; jDim++) {
+        Mean_Forcing_Stress[iDim][jDim] =
+            0.5*(Forcing_Stress_i[iDim][jDim] + Forcing_Stress_j[iDim][jDim]);
+      }
+    }
   }
 
   /*--- Mean Viscosities and turbulent kinetic energy---*/
@@ -4478,10 +4495,12 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
 
   if (hasAnisoEddyViscosity) {
     GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Normal,
-                       Mean_Laminar_Viscosity, Mean_Aniso_Eddy_Viscosity, QCR);
+                       Mean_Laminar_Viscosity, Mean_Aniso_Eddy_Viscosity, QCR,
+                       Mean_Forcing_Stress);
   } else {
     GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Normal,
-                       Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, QCR);
+                       Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, QCR,
+                       Mean_Forcing_Stress);
   }
 
   /*--- Update viscous residual ---*/
@@ -4514,7 +4533,8 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
                            Proj_Flux_Tensor, val_Jacobian_i, val_Jacobian_j);
       } else {
         GetViscousProjJacs(Mean_PrimVar, Mean_Laminar_Viscosity,
-                           Mean_Eddy_Viscosity, dist_ij, UnitNormal, Area,
+                           Mean_Eddy_Viscosity,
+                           dist_ij, UnitNormal, Area,
                            Proj_Flux_Tensor, val_Jacobian_i, val_Jacobian_j);
       }
     }

@@ -878,7 +878,8 @@ public:
                           su2double val_turb_ke, su2double *val_normal,
                           su2double val_laminar_viscosity,
                           su2double val_eddy_viscosity,
-                          bool val_qcr);
+                          bool val_qcr,
+                          su2double** val_forcing_stress = NULL);
   /*!
    * \brief Compute the projection of the viscous fluxes into a direction.
    * \param[in] val_primvar - Primitive variables.
@@ -895,7 +896,8 @@ public:
                  su2double *val_normal,
                  su2double val_laminar_viscosity,
                  su2double **val_eddy_viscosity,
-                 bool val_qcr);
+                 bool val_qcr,
+                 su2double** val_forcing_stress = NULL);
 
   /*!
    * \brief Compute the projection of the viscous fluxes into a direction for general fluid model.
