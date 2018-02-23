@@ -3168,11 +3168,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
           // No extra variables
           break;
         case CONVECTIVE:
-          // Add resolution adequacy.
-          variables << "Resolution_Adequacy "; *NVar += 1;
-          variables << "RANS_Weight "; *NVar += 1;
-          variables << "Turb_Lengthscale "; *NVar += 1;
-          variables << "Turb_Timescale "; *NVar += 1;
+          // Already added to additional variables
           break;
       }
     }

@@ -156,9 +156,8 @@ public:
 
   void RegisterAllVariables(CConfig** config);
 
-  void RegisterVariable(COutputVariable variable);
-
-  void AddVariable(COutputVariable variable);
+  void RegisterVariable(std::string name, std::string tecplot_name,
+                        unsigned short solver_type, DataAccessor accessor);
 
   su2double RetrieveVariable(CSolver** solver, COutputVariable var,
                              unsigned long iPoint);

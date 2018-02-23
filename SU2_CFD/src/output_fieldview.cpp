@@ -222,8 +222,9 @@ void COutput::SetFieldViewASCII(CConfig *config, CGeometry *geometry, unsigned s
       FieldView_File << "Laminar_Viscosity\nSkin_Friction_Coefficient\nHeat_Flux\nY_Plus" << endl;
     }
     
-    if (Kind_Solver == RANS) {
-      FieldView_File << "Eddy_Viscosity" << endl;
+    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+         it != output_vars.end(); ++it) {
+      FieldView_File << it->Name << endl;
     }
     
     if (config->GetWrt_SharpEdges()) {

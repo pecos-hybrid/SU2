@@ -142,14 +142,33 @@ void COutput::RegisterAllVariables(CConfig** config) {
   bool hybrid = (config[iZone]->isHybrid_Turb_Model());
 
   if (Kind_Solver == RANS) {
-    COutputVariable eddy_viscosity = {"Eddy_Viscosity",
-                                      "<greek>m</greek><sub>t</sub>", FLOW_SOL,
-                                       &CVariable::GetEddyViscosity};
-    RegisterVariable(eddy_viscosity);
+    RegisterVariable("Eddy_Viscosity", "<greek>m</greek><sub>t</sub>",
+                     FLOW_SOL, &CVariable::GetEddyViscosity);
+  }
+  
+  if (hybrid) {
+    // Add eddy viscosity anisotropy
+    // Add the resolution tensor
+    switch (config[iZone]->GetKind_Hybrid_Blending()) {
+      case RANS_ONLY:
+        // No extra variables
+        break;
+      case CONVECTIVE:
+        RegisterVariable("Resolution_Adequacy", "r<sub>k</sub>", HYBRID_SOL,
+                         &CVariable::GetResolutionAdequacy);
+        RegisterVariable("L_m", "L<sub>m</sub>", TURB_SOL,
+                         &CVariable::GetTurbLengthscale);
+        RegisterVariable("T_m", "T<sub>m</sub>", TURB_SOL,
+                         &CVariable::GetTurbTimescale);
+        break;
+    }
   }
 }
 
-void COutput::RegisterVariable(COutputVariable variable) {
+void COutput::RegisterVariable(std::string name, std::string tecplot_name,
+                               unsigned short solver_type,
+                               DataAccessor accessor) {
+  COutputVariable variable = {name, tecplot_name, solver_type, accessor};
   output_vars.push_back(variable);
 }
 
@@ -2180,8 +2199,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
           // No extra variables
           break;
         case CONVECTIVE:
-          // Add resolution adequacy, RANS weight, length, and timescales
-          iVar_Extra_Hybrid_Vars = nVar_Total; nVar_Total += 4;
+          // Already added to additional variables
           break;
         default:
           cout << "WARNING: Could not find appropriate output for the hybrid model." << endl;
@@ -3041,114 +3059,6 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         }
       }
     }
-
-    /*--- Communicate the Extra Variables for Hybrid RANS/LES ---*/
-    // This will need to be changed if more variables are needed.
-    if (hybrid && (config->GetKind_Hybrid_Blending() == CONVECTIVE)) {
-
-      /*--- Loop over this partition to collect the current variable ---*/
-      
-      jPoint = 0;
-      for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
-        
-        /*--- Check for halos & write only if requested ---*/
-        
-        if (!Local_Halo[iPoint] || Wrt_Halo) {
-
-          /*--- Load buffers with the extra hybrid variables. ---*/
-
-          Buffer_Send_Var[jPoint] = solver[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
-          Buffer_Send_Res[jPoint] = solver[HYBRID_SOL]->node[iPoint]->GetRANSWeight();
-
-          jPoint++;
-        }
-      }
-      
-      /*--- Gather the data on the master node. ---*/
-      
-#ifdef HAVE_MPI
-      SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-      SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-#else
-      for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++)
-        Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
-      for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++)
-        Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
-#endif
-      
-      /*--- The master node unpacks and sorts this variable by global index ---*/
-      
-      if (rank == MASTER_NODE) {
-        jPoint = 0; iVar = iVar_Extra_Hybrid_Vars;
-        for (iProcessor = 0; iProcessor < size; iProcessor++) {
-          for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
-            
-            /*--- Get global index, then loop over each variable and store ---*/
-            
-            iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
-            Data[iVar + 0][iGlobal_Index] = Buffer_Recv_Var[jPoint];
-            Data[iVar + 1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
-            jPoint++;
-          }
-
-          /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
-
-          jPoint = (iProcessor+1)*nBuffer_Scalar;
-        }
-      }
-
-      /*--- Loop over this partition to collect the current variable ---*/
-
-      jPoint = 0;
-      for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
-
-        /*--- Check for halos & write only if requested ---*/
-
-        if (!Local_Halo[iPoint] || Wrt_Halo) {
-
-          /*--- Load buffers with the extra hybrid variables. ---*/
-
-          Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-          Buffer_Send_Res[jPoint] = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-
-          jPoint++;
-        }
-      }
-
-    /*--- Gather the data on the master node. ---*/
-
-#ifdef HAVE_MPI
-    SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-    SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-#else
-    for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++)
-      Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
-    for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++)
-      Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
-#endif
-
-    /*--- The master node unpacks and sorts this variable by global index ---*/
-
-    if (rank == MASTER_NODE) {
-      jPoint = 0; iVar = iVar_Extra_Hybrid_Vars+2;
-      for (iProcessor = 0; iProcessor < size; iProcessor++) {
-        for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
-
-          /*--- Get global index, then loop over each variable and store ---*/
-
-          iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
-          Data[iVar + 0][iGlobal_Index] = Buffer_Recv_Var[jPoint];
-          Data[iVar + 1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
-          jPoint++;
-        }
-
-        /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
-
-        jPoint = (iProcessor+1)*nBuffer_Scalar;
-      }
-    }
-
-  }
 
     /*--- Communicate the Sharp Edges ---*/
     
@@ -10865,11 +10775,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           // No extra variables
           break;
         case CONVECTIVE:
-          // Add resolution adequacy.
-          Variable_Names.push_back("Resolution_Adequacy"); nVar_Par++;
-          Variable_Names.push_back("RANS_Weight"); nVar_Par++;
-          Variable_Names.push_back("Turb_Lengthscale"); nVar_Par++;
-          Variable_Names.push_back("Turb_Timescale"); nVar_Par++;
+          // Already added to additional variables
           break;
       }
     }
@@ -11111,16 +11017,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
               // No extra variables
               break;
             case CONVECTIVE:
-              // Add resolution adequacy and RANS weight
-              Local_Data[jPoint][iVar] = solver[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
-              iVar++;
-              Local_Data[jPoint][iVar] = solver[HYBRID_SOL]->node[iPoint]->GetRANSWeight();
-              iVar++;
-              // Add turbulent length/timescales
-              Local_Data[jPoint][iVar] = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-              iVar++;
-              Local_Data[jPoint][iVar] = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-              iVar++;
+              // Already added to additional variables
               break;
           }
         }

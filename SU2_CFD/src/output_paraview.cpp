@@ -736,26 +736,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
           // No extra variables
           break;
         case CONVECTIVE:
-          // Add resolution adequacy.
-          Paraview_File << "\nSCALARS Resolution_Adequacy float 1\n";
-          Paraview_File << "LOOKUP_TABLE default\n";
-          /*--- Loop over the vars/residuals and write the values to file ---*/
-          for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
-            if (!surf_sol || LocalIndex[iPoint+1] != 0) {
-                Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
-            }
-          }
-          VarCounter++;
-          // Add RANS weight
-          Paraview_File << "\nSCALARS RANS_Weight float 1\n";
-          Paraview_File << "LOOKUP_TABLE default\n";
-          /*--- Loop over the vars/residuals and write the values to file ---*/
-          for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
-            if (!surf_sol || LocalIndex[iPoint+1] != 0) {
-                Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
-            }
-          }
-          VarCounter++;
+          // Already added to additional variables
           break;
       }
     }

@@ -492,8 +492,6 @@ void COutput::SetCGNS_Solution(CConfig *config, CGeometry *geometry, unsigned sh
         if (cgns_err) cg_error_print();
         cgns_err = cg_field_write(cgns_file, cgns_base, cgns_zone, cgns_flow, RealDouble,"Viscosity", Data[iVar], &cgns_field); iVar++;
         if (cgns_err) cg_error_print();
-        cgns_err = cg_field_write(cgns_file, cgns_base, cgns_zone, cgns_flow, RealDouble,"Eddy Viscosity", Data[iVar], &cgns_field); iVar++;
-        if (cgns_err) cg_error_print();
         break;
         
       default:
@@ -501,6 +499,12 @@ void COutput::SetCGNS_Solution(CConfig *config, CGeometry *geometry, unsigned sh
         exit(EXIT_FAILURE); break;
     }
   }  
+
+  for (std::vector<COutputVariable>::iterator it = output_vars.begin();
+       it != output_vars.end(); ++it) {
+    cgns_err = cg_field_write(cgns_file, cgns_base, cgns_zone, cgns_flow, RealDouble, it->Name.c_str(), Data[iVar], &cgns_field); iVar++;
+    if (cgns_err) cg_error_print();
+  }
   
   /*--- Close CGNS file ---*/
   cgns_err = cg_close(cgns_file);
