@@ -527,7 +527,7 @@ inline su2double CVariable::GetForcingRatio(void) { return 1; }
 
 inline void CVariable::SetSourceTerms(su2double* val_source_terms) { };
 
-inline su2double* CVariable::GetSourceTerms() { };
+inline su2double* CVariable::GetSourceTerms() { return NULL; };
 
 inline su2double* CVariable::GetSolution_Direct() { return NULL; }
 

@@ -62,6 +62,8 @@ class CHybridForcing {
    */
   void SetCoord(su2double* val_coord);
 
+  void SetUnstTime(su2double val_time);
+
   /*!
    * \brief Set the turbulent timescale
    * \param[in] val_turb_T - Turbulent timescale at point i

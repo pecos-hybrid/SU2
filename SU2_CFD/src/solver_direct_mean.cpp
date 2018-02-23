@@ -16294,7 +16294,8 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     if (config->isHybrid_Turb_Model()) {
       assert(HybridMediator != NULL);
-      HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+      HybridMediator->SetupResolvedFlowSolver(geometry, solver_container,
+                                              config, iPoint);
     }
   }
   

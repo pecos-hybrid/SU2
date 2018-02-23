@@ -281,6 +281,7 @@ class CAbstract_Hybrid_Mediator {
    */
   virtual void SetupResolvedFlowSolver(CGeometry* geometry,
                                        CSolver **solver_container,
+                                       CConfig* config,
                                        unsigned short iPoint) = 0;
 
   /**
@@ -355,9 +356,8 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The node being evaluated
    */
-  void SetupForcing(CGeometry* geometry,
-                                      CSolver **solver_container,
-                                      unsigned short iPoint);
+  void SetupForcing(CGeometry* geometry, CSolver **solver_container,
+                    CConfig* config, unsigned short iPoint);
 
   /*!
    * \brief Projects the resolution on a specific vector
@@ -525,7 +525,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The node being evaluated
    */
   void SetupResolvedFlowSolver(CGeometry* geometry, CSolver **solver_container,
-                               unsigned short iPoint);
+                               CConfig* config, unsigned short iPoint);
 
   /**
    * \brief Returns the constants for the numerical fit for the resolution tensor.
@@ -650,7 +650,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The node being evaluated
    */
   void SetupResolvedFlowSolver(CGeometry* geometry, CSolver **solver_container,
-                               unsigned short iPoint);
+                               CConfig* config, unsigned short iPoint);
 
   void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
                            su2double *eddy_viscosity);

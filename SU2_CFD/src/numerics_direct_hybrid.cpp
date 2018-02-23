@@ -115,10 +115,6 @@ void CSourcePieceWise_HybridConv::ComputeResidual(su2double *val_residual,
     cout << "ERROR: Turbulent timescale <= 0!" << endl;
     cout << "       Turbulent timescale: " << TurbT << endl;
   }
-  if (HybridParameter_i[0] <= 0) {
-    cout << "ERROR: Hybrid parameter <= 0!" << endl;
-    cout << "       Hybrid parameter: " << HybridParameter_i[0] << endl;
-  }
 #endif
   const su2double C_alpha = config->Get_Hybrid_Model_Const();
 
@@ -149,8 +145,7 @@ void CSourcePieceWise_HybridConv::ComputeResidual(su2double *val_residual,
   if (Resolution_Adequacy >= 1.0 && alpha > 1.0) {
     dS_cf = 0.0;
   } else if (Resolution_Adequacy < 1.0 && alpha < alpha_kol) {
-    if (abs(alpha - fmin(alpha_kol, 1.0)) < EPS)
-      dS_cf = -(fmin(alpha_kol, 1) - 1.0)/(alpha*alpha);
+    dS_cf = -(fmin(alpha_kol, 1) - 1.0)/(alpha*alpha);
   } else {
     dS_cf = 0.0;
   }

@@ -3544,6 +3544,12 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
     }
     delete[] Mean_Aniso_Eddy_Viscosity;
   }
+  if (Mean_Forcing_Stress != NULL) {
+    for (iDim = 0; iDim < nDim; iDim++) {
+      delete[] Mean_Forcing_Stress[iDim];
+    }
+    delete[] Mean_Forcing_Stress;
+  }
 }
 
 CGeneralAvgGrad_Flow::CGeneralAvgGrad_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config) : CNumerics(val_nDim, val_nVar, config) {

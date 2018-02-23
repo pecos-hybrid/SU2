@@ -433,6 +433,9 @@ void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
   su2double production_ratio =
       solver_container[HYBRID_SOL]->node[iPoint]->GetForcingRatio();
   hybrid_param_numerics->SetForcingRatio(production_ratio);
+  su2double* S_terms =
+      solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
+  hybrid_param_numerics->SetSourceTerms(S_terms);
 }
 
 void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
@@ -513,6 +516,7 @@ void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
  */
 void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
                                                CSolver **solver_container,
+                                               CConfig* config,
                                                unsigned short iPoint) {
   /*--- Setup the viscous anisotropy --*/
   SetupStressAnisotropy(geometry, solver_container, hybrid_anisotropy, iPoint);
@@ -520,11 +524,12 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
   solver_container[FLOW_SOL]->node[iPoint]->SetEddyViscAnisotropy(hybrid_anisotropy->GetViscAnisotropy());
 
   /*--- Set up forcing ---*/
-  SetupForcing(geometry, solver_container, iPoint);
+  SetupForcing(geometry, solver_container, config, iPoint);
 }
 
 void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
                                     CSolver **solver_container,
+                                    CConfig* config,
                                     unsigned short iPoint) {
 
   if (hybrid_forcing != NULL) {
@@ -544,6 +549,7 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
         solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
     su2double* S_terms =
         solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
+    hybrid_forcing->SetUnstTime(config->GetCurrent_UnstTime());
     hybrid_forcing->SetCoord(geometry->node[iPoint]->GetCoord());
     hybrid_forcing->SetPrimitive(prim_vars);
     hybrid_forcing->SetPrimVarGradient(prim_var_grad);
@@ -1043,6 +1049,7 @@ unsigned short iDim, jDim;
   eigvectors.resize(nDim, std::vector<su2double>(nDim));
 
 #ifdef HAVE_LAPACK
+
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim< nDim; jDim++) {
       mat[iDim*nDim+jDim]  = A[iDim][jDim];
@@ -1125,6 +1132,7 @@ CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
 
 void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
                                                      CSolver **solver_container,
+                                                     CConfig* config,
                                                      unsigned short iPoint) {
   /*--- Setup the viscous anisotropy --*/
   hybrid_anisotropy->CalculateViscAnisotropy();
