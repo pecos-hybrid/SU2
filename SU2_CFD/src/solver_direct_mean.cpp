@@ -16466,7 +16466,8 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
       assert(HybridMediator != NULL);
-      HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+      HybridMediator->SetupResolvedFlowSolver(geometry, solver_container,
+                                              config, iPoint);
     }
   }
   

@@ -58,10 +58,13 @@ CHybridVariable::CHybridVariable(unsigned short val_nDim,
       Solution_Min[iVar] = 0.0;
     }
 
-    /*--- Initialize resolution adequacy in balanced RANS mode ---*/
+    /*--- Initialize hybrid variables in balanced RANS mode ---*/
 
     Resolution_Adequacy = 1;
     RANS_Weight = 1;
+    Forcing_Ratio = 1.0;
+    S_terms[0] = 0.0;
+    S_terms[1] = 1.0;
 
 }
 
@@ -86,6 +89,7 @@ CHybridConvVariable::CHybridConvVariable(su2double val_hybrid_param,
     /*--- Initialize resolution adequacy in balanced balanced RANS mode ---*/
 
     Resolution_Adequacy = 1;
+    RANS_Weight = 1;
 
 }
 

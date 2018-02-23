@@ -35,6 +35,10 @@ inline void CHybridForcing::SetCoord(su2double* val_coord) {
   Original_Coord = val_coord;
 }
 
+inline void CHybridForcing::SetUnstTime(su2double val_time) {
+  time = val_time;
+}
+
 inline void CHybridForcing::SetTurbLengthscale(su2double val_L_m) {
   TurbL = val_L_m;
 }
