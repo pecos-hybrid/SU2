@@ -549,7 +549,13 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
         solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
     su2double* S_terms =
         solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
-    hybrid_forcing->SetUnstTime(config->GetCurrent_UnstTime());
+    if (config->GetUnsteady_Simulation() == TIME_STEPPING) {
+      hybrid_forcing->SetUnstTime(config->GetCurrent_UnstTime());
+    } else {
+      /*-- Hybrid doesn't make sense in steady-state, but we don't want to
+       * have segfaults if steady state is chosen ---*/
+      hybrid_forcing->SetUnstTime(0.0);
+    }
     hybrid_forcing->SetCoord(geometry->node[iPoint]->GetCoord());
     hybrid_forcing->SetPrimitive(prim_vars);
     hybrid_forcing->SetPrimVarGradient(prim_var_grad);

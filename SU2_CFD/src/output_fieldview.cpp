@@ -229,8 +229,8 @@ void COutput::SetFieldViewASCII(CConfig *config, CGeometry *geometry, unsigned s
     
     for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
          it != output_tensors.end(); ++it) {
-      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+        for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
           FieldView_File << it->Name << "_" << iDim << jDim << endl;
         }
       }

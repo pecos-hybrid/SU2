@@ -508,8 +508,8 @@ void COutput::SetCGNS_Solution(CConfig *config, CGeometry *geometry, unsigned sh
   
   for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
        it != output_tensors.end(); ++it) {
-    for (unsigned short iDim = 0; iDim < geometry->GetnDim(); iDim++) {
-      for (unsigned short jDim = 0; jDim < geometry->GetnDim(); jDim++) {
+    for (unsigned short iDim = 1; iDim < geometry->GetnDim()+1; iDim++) {
+      for (unsigned short jDim = 1; jDim < geometry->GetnDim()+1; jDim++) {
         ostringstream label(it->Name);
         label << "_" << iDim << jDim;
         cgns_err = cg_field_write(cgns_file, cgns_base, cgns_zone, cgns_flow, RealDouble, label.str().c_str(), Data[iVar], &cgns_field); iVar++;

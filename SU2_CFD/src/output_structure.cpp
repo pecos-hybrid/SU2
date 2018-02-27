@@ -146,7 +146,7 @@ void COutput::RegisterAllVariables(CConfig** config) {
   }
   
   if (hybrid) {
-    // Add the resolution tensor
+    // TODO: Add the resolution tensor
     switch (config[iZone]->GetKind_Hybrid_Blending()) {
       case RANS_ONLY:
         // No extra variables
@@ -161,6 +161,12 @@ void COutput::RegisterAllVariables(CConfig** config) {
         RegisterVariable("T_m", "T<sub>m</sub>", TURB_SOL,
                          &CVariable::GetTurbTimescale);
         break;
+    }
+    if (config[iZone]->isHybrid_Forced()) {
+      RegisterVariable("Forcing_Stress", "T", FLOW_SOL,
+                       &CVariable::GetForcingStress);
+      RegisterVariable("Forcing_Production", "P<sub>F<sub>", TURB_SOL,
+                       &CVariable::GetForcingProduction);
     }
   }
 }
@@ -3987,14 +3993,14 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
     for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
          it != output_tensors.end(); ++it) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
-        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-          for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+          for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
             restart_file << "\t\"" << it->Name << "_" << iDim << jDim << "\"";
           }
         }
       } else {
-        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-          for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+          for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
             restart_file << "\t\"" << it->Tecplot_Name;
             restart_file << "<sub>" << iDim << jDim << "</sub>" << "\"";
           }
@@ -10725,25 +10731,20 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back(it->Name);
     }
 
-    /*--- Add Eddy Viscosity. ---*/
-    
-    if (Kind_Solver == RANS) {
-      nVar_Par += 1;
-      Variable_Names.push_back("Eddy_Viscosity");
-      
+    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
+         it != output_tensors.end(); ++it) {
+      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
+        for (unsigned int jDim=1; jDim < nDim+1; jDim++) {
+          nVar_Par += 1;
+          ostringstream label(it->Name);
+          label << "_" << iDim << jDim;
+          Variable_Names.push_back(label.str());
+        }
+      }
     }
 
     if (hybrid) {
-      nVar_Par += 18;
-      Variable_Names.push_back("Eddy_Visc_Aniso_11");
-      Variable_Names.push_back("Eddy_Visc_Aniso_12");
-      Variable_Names.push_back("Eddy_Visc_Aniso_13");
-      Variable_Names.push_back("Eddy_Visc_Aniso_21");
-      Variable_Names.push_back("Eddy_Visc_Aniso_22");
-      Variable_Names.push_back("Eddy_Visc_Aniso_23");
-      Variable_Names.push_back("Eddy_Visc_Aniso_31");
-      Variable_Names.push_back("Eddy_Visc_Aniso_32");
-      Variable_Names.push_back("Eddy_Visc_Aniso_33");
+      nVar_Par += 9;
       Variable_Names.push_back("Resolution_Tensor_11");
       Variable_Names.push_back("Resolution_Tensor_12");
       Variable_Names.push_back("Resolution_Tensor_13");
