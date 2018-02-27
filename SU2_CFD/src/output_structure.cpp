@@ -123,7 +123,6 @@ COutput::~COutput(void) {
 }
 
 // TODO: Make this work for all zones.
-// TODO: Generalize this to Tensor variables
 // TODO: Generalize this to geometry variables
 
 /*--- This doesn't really have a good separation of concerns.
@@ -147,13 +146,14 @@ void COutput::RegisterAllVariables(CConfig** config) {
   }
   
   if (hybrid) {
-    // Add eddy viscosity anisotropy
     // Add the resolution tensor
     switch (config[iZone]->GetKind_Hybrid_Blending()) {
       case RANS_ONLY:
         // No extra variables
         break;
       case CONVECTIVE:
+        RegisterVariable("Eddy_Visc_Anisotropy", "a", FLOW_SOL,
+                         &CVariable::GetEddyViscAnisotropy);
         RegisterVariable("Resolution_Adequacy", "r<sub>k</sub>", HYBRID_SOL,
                          &CVariable::GetResolutionAdequacy);
         RegisterVariable("L_m", "L<sub>m</sub>", TURB_SOL,
@@ -172,10 +172,23 @@ void COutput::RegisterVariable(std::string name, std::string tecplot_name,
   output_vars.push_back(variable);
 }
 
+void COutput::RegisterVariable(std::string name, std::string tecplot_name,
+                               unsigned short solver_type,
+                               TensorAccessor accessor) {
+  COutputTensor tensor = {name, tecplot_name, solver_type, accessor};
+  output_tensors.push_back(tensor);
+}
+
 su2double COutput::RetrieveVariable(CSolver** solver,
                                     COutputVariable var,
                                     unsigned long iPoint) {
    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)();
+}
+
+su2double COutput::RetrieveTensorComponent(CSolver** solver, COutputTensor var,
+                                  unsigned long iPoint, unsigned short iDim,
+                                  unsigned short jDim) {
+  return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim][jDim];
 }
 
 void COutput::SetSurfaceCSV_Flow(CConfig *config, CGeometry *geometry,
@@ -2053,7 +2066,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   unsigned short iVar_GridVel = 0, iVar_PressCp = 0, iVar_Lam = 0, iVar_MachMean = 0,
   iVar_ViscCoeffs = 0, iVar_HeatCoeffs = 0, iVar_Sens = 0, iVar_Extra = 0, iVar_Eddy = 0, iVar_Sharp = 0,
   iVar_FEA_Vel = 0, iVar_FEA_Accel = 0, iVar_FEA_Stress = 0, iVar_FEA_Stress_3D = 0,
-  iVar_FEA_Extra = 0, iVar_SensDim = 0, iVar_Eddy_Anisotropy = 0,
+  iVar_FEA_Extra = 0, iVar_SensDim = 0,
   iVar_Resolution_Tensor = 0, iVar_Extra_Hybrid_Vars = 0;
   unsigned long iPoint = 0, jPoint = 0, iVertex = 0, iMarker = 0;
   su2double Gas_Constant, Mach2Vel, Mach_Motion, RefDensity, RefPressure = 0.0, factor = 0.0;
@@ -2187,23 +2200,16 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       nVar_Total += 1;
     }
     
+    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
+         it != output_tensors.end(); ++it) {
+      nVar_Total += nDim*nDim;
+    }
+
     /*--- Add extra hybrid variables to the output ---*/
 
     if (hybrid) {
-      // Add the eddy viscosity anisotropy (a rank 3 tensor)
-      iVar_Eddy_Anisotropy = nVar_Total; nVar_Total += 9;
       // Add the resolution tensors (a rank 3 tensor)
       iVar_Resolution_Tensor = nVar_Total; nVar_Total += 9;
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case CONVECTIVE:
-          // Already added to additional variables
-          break;
-        default:
-          cout << "WARNING: Could not find appropriate output for the hybrid model." << endl;
-      }
     }
 
     /*--- Add Sharp edges to the restart file ---*/
@@ -2895,7 +2901,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       }
     }
     
-    /*--- Communicate the extra variables ---*/
+    /*--- Communicate the extra scalar variables ---*/
 
     iVar = iVar_Additional;
     
@@ -2947,11 +2953,11 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
       iVar++;
     }
-    
-    /*--- Communicate the Eddy Viscosity Anisotropy ---*/
 
-    if (hybrid) {
-      iVar = iVar_Eddy_Anisotropy;
+    /*--- Communicate the extra tensor variables ---*/
+
+    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
+         it != output_tensors.end(); ++it) {
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
 
@@ -2966,7 +2972,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
               /*--- Load buffers with the variables. ---*/
 
-              Buffer_Send_Var[jPoint] = solver[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy(iDim, jDim);
+              Buffer_Send_Var[jPoint] = RetrieveTensorComponent(solver, *it, iPoint, iDim, jDim);
 
               jPoint++;
             }
@@ -2974,11 +2980,11 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
           /*--- Gather the data on the master node. ---*/
 
-    #ifdef HAVE_MPI
+#ifdef HAVE_MPI
           SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-    #else
+#else
           for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
-    #endif
+#endif
 
           /*--- The master node unpacks and sorts this variable by global index ---*/
 
@@ -3978,28 +3984,25 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"" << it->Tecplot_Name << "\"";
     }
     
-    if (hybrid) {
+    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
+         it != output_tensors.end(); ++it) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
-        restart_file << "\t\"Eddy_Visc_Anisotropy_11\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_12\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_13\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_21\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_22\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_23\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_31\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_32\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_33\"";
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+            restart_file << "\t\"" << it->Name << "_" << iDim << jDim << "\"";
+          }
+        }
       } else {
-        restart_file << "\t\"a<sub>11</sub>\"";
-        restart_file << "\t\"a<sub>12</sub>\"";
-        restart_file << "\t\"a<sub>13</sub>\"";
-        restart_file << "\t\"a<sub>21</sub>\"";
-        restart_file << "\t\"a<sub>22</sub>\"";
-        restart_file << "\t\"a<sub>23</sub>\"";
-        restart_file << "\t\"a<sub>31</sub>\"";
-        restart_file << "\t\"a<sub>32</sub>\"";
-        restart_file << "\t\"a<sub>33</sub>\"";
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+            restart_file << "\t\"" << it->Tecplot_Name;
+            restart_file << "<sub>" << iDim << jDim << "</sub>" << "\"";
+          }
+        }
       }
+    }
+
+    if (hybrid) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
         restart_file << "\t\"Resolution_Tensor_11\"";
         restart_file << "\t\"Resolution_Tensor_12\"";
@@ -4020,26 +4023,6 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"M<sub>31</sub>\"";
         restart_file << "\t\"M<sub>32</sub>\"";
         restart_file << "\t\"M<sub>33</sub>\"";
-      }
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case CONVECTIVE:
-          // Add length/timescales
-          if (config->GetOutput_FileFormat() == PARAVIEW) {
-            restart_file << "\t\"Resolution_Adequacy\"";
-            restart_file << "\t\"RANS_Weight\"";
-            restart_file << "\t\"Turb_Length\"";
-            restart_file << "\t\"Turb_Time\"";
-          } else {
-            restart_file << "\t\"r<sub>k</sub>\"";
-            restart_file << "\t\"w<sub>rans</sub>\"";
-            restart_file << "\t\"L<sub>m</sub>\"";
-            restart_file << "\t\"T<sub>m</sub>\"";
-          } break;
-        default:
-          cout << "WARNING: Could not find appropriate output for the hybrid model." << endl;
       }
     }
 
@@ -10770,14 +10753,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back("Resolution_Tensor_31");
       Variable_Names.push_back("Resolution_Tensor_32");
       Variable_Names.push_back("Resolution_Tensor_33");
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case CONVECTIVE:
-          // Already added to additional variables
-          break;
-      }
     }
 
     /*--- Add the distance to the nearest sharp edge if requested. ---*/
@@ -10987,23 +10962,28 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           
         }
         
-        /*--- Load data for the Eddy viscosity for RANS. ---*/
+        /*--- Load data for the additional variables ---*/
+
         for (std::vector<COutputVariable>::iterator it = output_vars.begin();
              it != output_vars.end(); ++it) {
           Local_Data[jPoint][iVar] = RetrieveVariable(solver, *it, iPoint);
           iVar++;
         }
         
-        /*--- Load data for a hybrid RANS/LES model. ---*/
-        if (hybrid) {
-          // Add eddy viscosity anisotropy
-          su2double** eddy_visc_anisotropy = solver[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy();
-          for (iDim = 0; iDim < nDim; iDim++) {
-            for (jDim = 0; jDim < nDim; jDim++) {
-              Local_Data[jPoint][iVar] = eddy_visc_anisotropy[iDim][jDim];
+        /*--- Load data for the additional tensors ---*/
+
+        for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
+             it != output_tensors.end(); ++it) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              Local_Data[jPoint][iVar] = RetrieveTensorComponent(solver, *it, iPoint, iDim, jDim);
               iVar++;
             }
           }
+        }
+
+        /*--- Load data for a hybrid RANS/LES model. ---*/
+        if (hybrid) {
           // Add the resolution tensor
           su2double** resolution_tensor = geometry->node[iPoint]->GetResolutionTensor();
           for (iDim = 0; iDim < nDim; iDim++) {
@@ -11011,14 +10991,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
               Local_Data[jPoint][iVar] = resolution_tensor[iDim][jDim];
               iVar++;
             }
-          }
-          switch (config->GetKind_Hybrid_Blending()) {
-            case RANS_ONLY:
-              // No extra variables
-              break;
-            case CONVECTIVE:
-              // Already added to additional variables
-              break;
           }
         }
 

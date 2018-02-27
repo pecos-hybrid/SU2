@@ -53,6 +53,7 @@
 #include "../../Common/include/config_structure.hpp"
 
 typedef su2double (CVariable::*DataAccessor)();
+typedef su2double** (CVariable::*TensorAccessor)();
 /*--- Define a macro to make (()->*(function pointer)) more readable ---*/
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object)->*(ptrToMember))
 
@@ -61,6 +62,13 @@ struct COutputVariable {
   std::string Tecplot_Name;
   unsigned short Solver_Type;
   DataAccessor Accessor;
+};
+
+struct COutputTensor {
+  std::string Name;
+  std::string Tecplot_Name;
+  unsigned short Solver_Type;
+  TensorAccessor Accessor;
 };
 
 using namespace std;
@@ -139,6 +147,7 @@ class COutput {
   int cgns_base, cgns_zone, cgns_base_results, cgns_zone_results;
   su2double Sum_Total_RadialDistortion, Sum_Total_CircumferentialDistortion; // Add all the distortion to compute a run average.
   std::vector<COutputVariable> output_vars;
+  std::vector<COutputTensor> output_tensors;
   
 protected:
 
@@ -159,8 +168,15 @@ public:
   void RegisterVariable(std::string name, std::string tecplot_name,
                         unsigned short solver_type, DataAccessor accessor);
 
+  void RegisterVariable(std::string name, std::string tecplot_name,
+                        unsigned short solver_type, TensorAccessor accessor);
+
   su2double RetrieveVariable(CSolver** solver, COutputVariable var,
                              unsigned long iPoint);
+
+  su2double RetrieveTensorComponent(CSolver** solver, COutputTensor var,
+                                    unsigned long iPoint, unsigned short iDim,
+                                    unsigned short jDim);
 
   /*! 
    * \brief Writes and organizes the all the output files, except the history one, for serial computations.

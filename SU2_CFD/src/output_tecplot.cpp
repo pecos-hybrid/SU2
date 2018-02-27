@@ -180,27 +180,20 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         Tecplot_File << ", \"" << it->Tecplot_Name << "\"";
       }
       
+      for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
+           it != output_tensors.end(); ++it) {
+        for (iDim = 0; iDim < nDim; iDim++) {
+          for (jDim = 0; jDim < nDim; jDim++) {
+            Tecplot_File << ", \"" << it->Tecplot_Name;
+            Tecplot_File << "<sub>" << iDim << jDim << "</sub>\"";
+          }
+        }
+      }
+
       if (hybrid) {
         for (iDim = 0; iDim < nDim; iDim++)
           for (jDim = 0; jDim < nDim; jDim++)
-            Tecplot_File << ", \"a<sub>" << iDim << jDim << "</sub>\"";
-        for (iDim = 0; iDim < nDim; iDim++)
-          for (jDim = 0; jDim < nDim; jDim++)
             Tecplot_File << ", \"M<sub>" << iDim << jDim << "</sub>\"";
-        switch (config->GetKind_Hybrid_Blending()) {
-          case RANS_ONLY:
-            // No extra variables
-            break;
-          case CONVECTIVE:
-            // Add resolution adequacy.
-            Tecplot_File << ", \"r<sub>k</sub>\"";
-            Tecplot_File << ", \"w<sub>rans</sub>\"";
-            Tecplot_File << ", \"L<sub>m</sub>\"";
-            Tecplot_File << ", \"T<sub>m</sub>\"";
-            break;
-          default:
-            cout << "WARNING: Could not find appropriate output for hybrid model." << endl;
-        }
       }
 
       if (config->GetWrt_SharpEdges()) {
@@ -3150,27 +3143,25 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
     
     for (std::vector<COutputVariable>::iterator it = output_vars.begin();
          it != output_vars.end(); ++it) {
-      variables << it->Name;
+      variables << it->Name << " ";
       *NVar += 1;
     }
     
+    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
+         it != output_tensors.end(); ++it) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (jDim = 0; jDim < nDim; jDim++) {
+          variables << it->Name << "_" << iDim << jDim << " ";
+          *NVar += 1;
+        }
+      }
+    }
+
     if (config->isHybrid_Turb_Model()) {
-      for (iDim = 0; iDim < nDim; iDim++)
-        for (jDim = 0; jDim < nDim; jDim++)
-          variables << "Eddy_Viscosity_Anisotropy_" << iDim << jDim << " ";
-      *NVar += 9;
       for (iDim = 0; iDim < nDim; iDim++)
         for (jDim = 0; jDim < nDim; jDim++)
           variables << "Resolution_Tensor_" << iDim << jDim << " ";
       *NVar += 9;
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case CONVECTIVE:
-          // Already added to additional variables
-          break;
-      }
     }
 
     if (config->GetWrt_SharpEdges()) {

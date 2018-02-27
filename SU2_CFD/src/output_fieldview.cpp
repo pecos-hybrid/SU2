@@ -227,6 +227,15 @@ void COutput::SetFieldViewASCII(CConfig *config, CGeometry *geometry, unsigned s
       FieldView_File << it->Name << endl;
     }
     
+    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
+         it != output_tensors.end(); ++it) {
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          FieldView_File << it->Name << "_" << iDim << jDim << endl;
+        }
+      }
+    }
+
     if (config->GetWrt_SharpEdges()) {
       if ((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)) {
         FieldView_File << "Sharp_Edge_Dist" << endl;
