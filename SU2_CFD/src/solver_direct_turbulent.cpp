@@ -3788,7 +3788,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
        // Freestream eddy viscosity
        const su2double Tm_Inf = kine_Inf/max(epsi_Inf,tdr_min);
-       const su2double Tkol_inf = constants[8]*sqrt(nu_Inf/max(epsi_Inf, tdr_min));
+       const su2double Tkol_Inf = constants[8]*sqrt(nu_Inf/max(epsi_Inf, tdr_min));
        nuT_Inf = constants[0]*(2.0/3.0)*kine_Inf*max(Tm_Inf, Tkol_Inf);
        muT_Inf = nuT_Inf * rhoInf;
        break;
@@ -3797,8 +3797,8 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
   // Freestream time scale
   su2double Tm_Inf = kine_Inf/max(epsi_Inf,tdr_min);
-  const su2double Tkol_inf = constants[8]*sqrt(nu_Inf/max(epsi_Inf,tdr_min));
-  Tm_Inf = max( Tm_Inf, Tkol_inf );
+  const su2double Tkol_Inf = constants[8]*sqrt(nu_Inf/max(epsi_Inf,tdr_min));
+  Tm_Inf = max( Tm_Inf, Tkol_Inf );
 
 
   // Freestream f
