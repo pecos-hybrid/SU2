@@ -342,7 +342,7 @@ CDriver::CDriver(char* confFile,
 
   /*--- Register variables for output ---*/
 
-  output->RegisterAllVariables(config_container);
+  output->RegisterAllVariables(config_container, nZone);
 
   /*--- Open the convergence history file ---*/
 

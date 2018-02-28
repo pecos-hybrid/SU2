@@ -222,13 +222,13 @@ void COutput::SetFieldViewASCII(CConfig *config, CGeometry *geometry, unsigned s
       FieldView_File << "Laminar_Viscosity\nSkin_Friction_Coefficient\nHeat_Flux\nY_Plus" << endl;
     }
     
-    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-         it != output_vars.end(); ++it) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
       FieldView_File << it->Name << endl;
     }
     
-    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-         it != output_tensors.end(); ++it) {
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
         for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
           FieldView_File << it->Name << "_" << iDim << jDim << endl;

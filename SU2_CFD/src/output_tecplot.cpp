@@ -175,13 +175,13 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         else Tecplot_File << ", \"<greek>m</greek>\", \"C<sub>f</sub>_x\", \"C<sub>f</sub>_y\", \"C<sub>f</sub>_z\", \"h\", \"y<sup>+</sup>\"";
       }
       
-      for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-           it != output_vars.end(); ++it) {
+      for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+           it != output_vars[val_iZone].end(); ++it) {
         Tecplot_File << ", \"" << it->Tecplot_Name << "\"";
       }
       
-      for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-           it != output_tensors.end(); ++it) {
+      for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+           it != output_tensors[val_iZone].end(); ++it) {
         for (iDim = 1; iDim < nDim+1; iDim++) {
           for (jDim = 1; jDim < nDim+1; jDim++) {
             Tecplot_File << ", \"" << it->Tecplot_Name;
@@ -1830,7 +1830,7 @@ void COutput::SetTecplotBinary_DomainSolution(CConfig *config, CGeometry *geomet
   }
   file << ".sol.plt";
   FileType = SOLUTION;
-  variables = AssembleVariableNames(geometry, config, nVar_Consv, &NVar);
+  variables = AssembleVariableNames(geometry, config, val_iZone, nVar_Consv, &NVar);
   if ((config->GetKind_SU2() == SU2_SOL) || (config->GetKind_SU2() == SU2_DOT)) {
     if (Wrt_Unsteady && GridMovement) nVar_Total = NVar;
     else nVar_Total = NVar+dims;
@@ -2733,7 +2733,7 @@ void COutput::SetTecplotBinary_SurfaceSolution(CConfig *config, CGeometry *geome
   }
   file << ".sol.plt";
   FileType = SOLUTION;
-  variables = AssembleVariableNames(geometry, config, nVar_Consv, &NVar);
+  variables = AssembleVariableNames(geometry, config, val_iZone, nVar_Consv, &NVar);
   if ((config->GetKind_SU2() == SU2_SOL) || (config->GetKind_SU2() == SU2_DOT)) {
     if (Wrt_Unsteady && GridMovement) nVar_Total = NVar;
     else nVar_Total = NVar+dims;
@@ -3046,7 +3046,7 @@ void COutput::SetTecplotBinary_SurfaceSolution(CConfig *config, CGeometry *geome
   
 }
 
-string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsigned short nVar_Consv, unsigned short *NVar) {
+string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsigned short val_iZone, unsigned short nVar_Consv, unsigned short *NVar) {
   
   /*--- Local variables ---*/
   stringstream variables; variables.str(string());
@@ -3141,14 +3141,14 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       }
     }
     
-    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-         it != output_vars.end(); ++it) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
       variables << it->Name << " ";
       *NVar += 1;
     }
     
-    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-         it != output_tensors.end(); ++it) {
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       for (iDim = 1; iDim < nDim+1; iDim++) {
         for (jDim = 1; jDim < nDim+1; jDim++) {
           variables << it->Name << "_" << iDim << jDim << " ";

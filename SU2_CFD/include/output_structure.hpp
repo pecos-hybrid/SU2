@@ -146,8 +146,8 @@ class COutput {
   su2double RhoRes_New, RhoRes_Old, RhoRes_Original, CFLThresh, CFLFactor;
   int cgns_base, cgns_zone, cgns_base_results, cgns_zone_results;
   su2double Sum_Total_RadialDistortion, Sum_Total_CircumferentialDistortion; // Add all the distortion to compute a run average.
-  std::vector<COutputVariable> output_vars;
-  std::vector<COutputTensor> output_tensors;
+  std::vector<std::vector<COutputVariable> > output_vars;
+  std::vector<std::vector<COutputTensor> > output_tensors;
   
 protected:
 
@@ -163,13 +163,15 @@ public:
    */
   ~COutput(void);
 
-  void RegisterAllVariables(CConfig** config);
+  void RegisterAllVariables(CConfig** config, unsigned short val_nZone);
 
-  void RegisterVariable(std::string name, std::string tecplot_name,
-                        unsigned short solver_type, DataAccessor accessor);
+  void RegisterScalar(std::string name, std::string tecplot_name,
+                        unsigned short solver_type, DataAccessor accessor,
+                        unsigned short val_zone);
 
-  void RegisterVariable(std::string name, std::string tecplot_name,
-                        unsigned short solver_type, TensorAccessor accessor);
+  void RegisterTensor(std::string name, std::string tecplot_name,
+                      unsigned short solver_type, TensorAccessor accessor,
+                      unsigned short val_zone);
 
   su2double RetrieveVariable(CSolver** solver, COutputVariable var,
                              unsigned long iPoint);
@@ -446,7 +448,7 @@ public:
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] val_iZone - iZone index.
    */
-  string AssembleVariableNames(CGeometry *geometry, CConfig *config, unsigned short nVar_Consv, unsigned short *NVar);
+  string AssembleVariableNames(CGeometry *geometry, CConfig *config, unsigned short val_iZone, unsigned short nVar_Consv, unsigned short *NVar);
 
   /*!
    * \brief Write the nodal coordinates and connectivity to a Tecplot binary mesh file.

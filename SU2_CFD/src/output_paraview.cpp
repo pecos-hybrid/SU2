@@ -675,8 +675,8 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       
     }
     
-    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-         it != output_vars.end(); ++it) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
 
       Paraview_File << "\nSCALARS " << it->Name << " float 1\n";
       Paraview_File << "LOOKUP_TABLE default\n";
@@ -696,8 +696,8 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
 
     }
     
-    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-         it != output_tensors.end(); ++it) {
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       Paraview_File << "\nTENSORS " << it->Name << " float\n";
 
       for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
@@ -1572,8 +1572,8 @@ void COutput::SetParaview_MeshASCII(CConfig *config, CGeometry *geometry, unsign
       
     }
     
-    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-         it != output_vars.end(); ++it) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
       
       Paraview_File << "\nSCALARS " << it->Name << " float 1\n";
       Paraview_File << "LOOKUP_TABLE default\n";
@@ -1593,6 +1593,27 @@ void COutput::SetParaview_MeshASCII(CConfig *config, CGeometry *geometry, unsign
       
     }
     
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
+      Paraview_File << "\nTENSORS " << it->Name << " float\n";
+
+      for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+        if (!surf_sol || LocalIndex[iPoint+1] != 0) {
+          /*--- Loop over the vars/residuals and write the values to file ---*/
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+              VarCounter++;
+            }
+            Paraview_File << endl;
+          }
+          Paraview_File << endl;
+          VarCounter -= nDim*nDim;
+        }
+      }
+      VarCounter += nDim*nDim;
+    }
+
     if (( Kind_Solver == ADJ_EULER         ) ||
         ( Kind_Solver == ADJ_NAVIER_STOKES ) ||
         ( Kind_Solver == ADJ_RANS          )   ) {

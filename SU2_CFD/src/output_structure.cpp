@@ -122,9 +122,6 @@ COutput::~COutput(void) {
   
 }
 
-// TODO: Make this work for all zones.
-// TODO: Generalize this to geometry variables
-
 /*--- This doesn't really have a good separation of concerns.
  * The output class shouldn't need to know all the details of the solver.
  * The individual solvers (flow, RANS, grid movement) should tell the
@@ -135,54 +132,58 @@ COutput::~COutput(void) {
  * I have kept the variable registration here mostly to keep changes
  * minimal.
  */
-void COutput::RegisterAllVariables(CConfig** config) {
-  unsigned short iZone = 0;
-  unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
-  bool hybrid = (config[iZone]->isHybrid_Turb_Model());
+void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
 
-  if (Kind_Solver == RANS) {
-    RegisterVariable("Eddy_Viscosity", "<greek>m</greek><sub>t</sub>",
-                     FLOW_SOL, &CVariable::GetEddyViscosity);
-  }
+  output_vars.resize(val_nZone);
+  output_tensors.resize(val_nZone);
+
+  for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
+    unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
+    bool hybrid = (config[iZone]->isHybrid_Turb_Model());
   
-  if (hybrid) {
-    // TODO: Add the resolution tensor
-    switch (config[iZone]->GetKind_Hybrid_Blending()) {
-      case RANS_ONLY:
-        // No extra variables
-        break;
-      case CONVECTIVE:
-        RegisterVariable("Eddy_Visc_Anisotropy", "a", FLOW_SOL,
-                         &CVariable::GetEddyViscAnisotropy);
-        RegisterVariable("Resolution_Adequacy", "r<sub>k</sub>", HYBRID_SOL,
-                         &CVariable::GetResolutionAdequacy);
-        RegisterVariable("L_m", "L<sub>m</sub>", TURB_SOL,
-                         &CVariable::GetTurbLengthscale);
-        RegisterVariable("T_m", "T<sub>m</sub>", TURB_SOL,
-                         &CVariable::GetTurbTimescale);
-        break;
+    if (Kind_Solver == RANS) {
+      RegisterScalar("Eddy_Viscosity", "<greek>m</greek><sub>t</sub>",
+                       FLOW_SOL, &CVariable::GetEddyViscosity, iZone);
     }
-    if (config[iZone]->isHybrid_Forced()) {
-      RegisterVariable("Forcing_Stress", "T", FLOW_SOL,
-                       &CVariable::GetForcingStress);
-      RegisterVariable("Forcing_Production", "P<sub>F<sub>", TURB_SOL,
-                       &CVariable::GetForcingProduction);
+
+    if (hybrid) {
+      switch (config[iZone]->GetKind_Hybrid_Blending()) {
+        case RANS_ONLY:
+          // No extra variables
+          break;
+        case CONVECTIVE:
+          RegisterTensor("Eddy_Visc_Anisotropy", "a", FLOW_SOL,
+                          &CVariable::GetEddyViscAnisotropy, iZone);
+          RegisterScalar("Resolution_Adequacy", "r<sub>k</sub>", HYBRID_SOL,
+                           &CVariable::GetResolutionAdequacy, iZone);
+          RegisterScalar("L_m", "L<sub>m</sub>", TURB_SOL,
+                           &CVariable::GetTurbLengthscale, iZone);
+          RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
+                           &CVariable::GetTurbTimescale, iZone);
+          break;
+      }
+      if (config[iZone]->isHybrid_Forced()) {
+        RegisterTensor("Forcing_Stress", "T", FLOW_SOL,
+                       &CVariable::GetForcingStress, iZone);
+        RegisterScalar("Forcing_Production", "P<sub>F<sub>", TURB_SOL,
+                       &CVariable::GetForcingProduction, iZone);
+      }
     }
   }
 }
 
-void COutput::RegisterVariable(std::string name, std::string tecplot_name,
+void COutput::RegisterScalar(std::string name, std::string tecplot_name,
                                unsigned short solver_type,
-                               DataAccessor accessor) {
+                               DataAccessor accessor, unsigned short val_zone) {
   COutputVariable variable = {name, tecplot_name, solver_type, accessor};
-  output_vars.push_back(variable);
+  output_vars[val_zone].push_back(variable);
 }
 
-void COutput::RegisterVariable(std::string name, std::string tecplot_name,
-                               unsigned short solver_type,
-                               TensorAccessor accessor) {
+void COutput::RegisterTensor(std::string name, std::string tecplot_name,
+                             unsigned short solver_type,
+                             TensorAccessor accessor, unsigned short val_zone) {
   COutputTensor tensor = {name, tecplot_name, solver_type, accessor};
-  output_tensors.push_back(tensor);
+  output_tensors[val_zone].push_back(tensor);
 }
 
 su2double COutput::RetrieveVariable(CSolver** solver,
@@ -2201,13 +2202,13 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     /*--- Add Eddy Viscosity to the restart file ---*/
     
     iVar_Additional = nVar_Total;
-    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-         it != output_vars.end(); ++it) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
       nVar_Total += 1;
     }
     
-    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-         it != output_tensors.end(); ++it) {
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       nVar_Total += nDim*nDim;
     }
 
@@ -2911,8 +2912,8 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     iVar = iVar_Additional;
     
-    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-         it != output_vars.end(); ++it) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
       /*--- Loop over this partition to collect the current variable ---*/
 
       jPoint = 0;
@@ -2962,8 +2963,8 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the extra tensor variables ---*/
 
-    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-         it != output_tensors.end(); ++it) {
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
 
@@ -3982,16 +3983,16 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       }
     }
     
-    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-         it != output_vars.end(); ++it) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
       if (config->GetOutput_FileFormat() == PARAVIEW)
         restart_file << "\t\"" << it->Name << "\"";
       else
         restart_file << "\t\"" << it->Tecplot_Name << "\"";
     }
     
-    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-         it != output_tensors.end(); ++it) {
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
         for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
           for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
@@ -10725,14 +10726,14 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     
     /*--- Add extra variables ---*/
 
-    for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-         it != output_vars.end(); ++it) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
       nVar_Par += 1;
       Variable_Names.push_back(it->Name);
     }
 
-    for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-         it != output_tensors.end(); ++it) {
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
         for (unsigned int jDim=1; jDim < nDim+1; jDim++) {
           nVar_Par += 1;
@@ -10965,16 +10966,16 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         
         /*--- Load data for the additional variables ---*/
 
-        for (std::vector<COutputVariable>::iterator it = output_vars.begin();
-             it != output_vars.end(); ++it) {
+        for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+             it != output_vars[val_iZone].end(); ++it) {
           Local_Data[jPoint][iVar] = RetrieveVariable(solver, *it, iPoint);
           iVar++;
         }
         
         /*--- Load data for the additional tensors ---*/
 
-        for (std::vector<COutputTensor>::iterator it = output_tensors.begin();
-             it != output_tensors.end(); ++it) {
+        for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+             it != output_tensors[val_iZone].end(); ++it) {
           for (unsigned short iDim = 0; iDim < nDim; iDim++) {
             for (unsigned short jDim = 0; jDim < nDim; jDim++) {
               Local_Data[jPoint][iVar] = RetrieveTensorComponent(solver, *it, iPoint, iDim, jDim);
