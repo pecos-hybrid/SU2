@@ -3729,12 +3729,11 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
 
   /*--- Flow infinity initialization stuff ---*/
-  su2double rhoInf, *VelInf, muLamInf, Intensity, viscRatio, muT_Inf, Tm_Inf, Lm_Inf;
-  rhoInf    = config->GetDensity_FreeStreamND();
-  VelInf    = config->GetVelocity_FreeStreamND();
-  muLamInf  = config->GetViscosity_FreeStreamND();
-  Intensity = config->GetTurbulenceIntensity_FreeStream();
-  viscRatio = config->GetTurb2LamViscRatio_FreeStream();
+  const su2double rhoInf    = config->GetDensity_FreeStreamND();
+  const su2double* VelInf    = config->GetVelocity_FreeStreamND();
+  const su2double mu_Inf  = config->GetViscosity_FreeStreamND();
+  const su2double nu_Inf = mu_Inf / rhoInf;
+  const su2double Intensity = config->GetTurbulenceIntensity_FreeStream();
   
   su2double VelMag = 0;
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -3749,37 +3748,58 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   su2double tke_min = scalar_min*VelMag*VelMag;
   su2double tdr_min = scalar_min*pow(VelMag,3.0)/L_Inf;
 
-
-  // Freestream eddy visc
-  muT_Inf = muLamInf*viscRatio;
-
-  // Convenience: freestream kinematic viscosities
-  const su2double nuInf  = muLamInf/rhoInf;
-  const su2double nutInf = muT_Inf /rhoInf;
-
   // Freestream TKE
   kine_Inf = 1.5*(VelMag*VelMag*Intensity*Intensity);
-
-  // Freestream dissipation
-  epsi_Inf = (2.0/3.0)*constants[0]*(kine_Inf*kine_Inf)/nutInf;
-  const su2double ktmp = 2.0/3.0*constants[0]*constants[8]*kine_Inf/viscRatio;
-  const su2double epsi_Inf_alt = ktmp*ktmp/nuInf;
-  epsi_Inf = min( epsi_Inf, epsi_Inf_alt );
 
   // Fresstream v2
   zeta_Inf = 2.0/3.0*kine_Inf;
 
 
+  su2double Lm_Inf, muT_Inf, nuT_Inf;
+  switch(config->GetKind_FreeStreamTurbOption()) {
+   case EDDY_VISC_RATIO: {
+       // Freestream eddy viscosity
+       const su2double viscRatio = config->GetTurb2LamViscRatio_FreeStream();
+       muT_Inf = mu_Inf * viscRatio;
+       nuT_Inf = muT_Inf / rhoInf;
+
+       // Freestream dissipation
+       epsi_Inf = (2.0/3.0)*constants[0]*(kine_Inf*kine_Inf)/nuT_Inf;
+       const su2double ktmp = 2.0/3.0*constants[0]*constants[8]*kine_Inf/viscRatio;
+       const su2double epsi_Inf_kol = ktmp*ktmp/nu_Inf;
+       epsi_Inf = min( epsi_Inf, epsi_Inf_kol );
+
+       // Frestream turbulence length scale
+       Lm_Inf = pow(kine_Inf,1.5)/max(epsi_Inf,tdr_min);
+       const su2double nu3 = nu_Inf*nu_Inf*nu_Inf;
+       const su2double Lkol_Inf = constants[10]*pow(nu3/max(epsi_Inf,tdr_min),0.25);
+       Lm_Inf = constants[9] * max( Lm_Inf, Lkol_Inf);
+       break;
+     }
+   case TURB_LENGTHSCALE: {
+       // Freestream turbulence length scale
+       su2double Lm_Inf = config->GetTurbLength_FreeStream();
+
+       // Freestream dissipation
+       epsi_Inf = constants[9] * pow(kine_Inf, 1.5) / Lm_Inf;
+       const su2double nu3 = nu_Inf*nu_Inf*nu_Inf;
+       const su2double epsi_kol = nu3*pow(constants[9]*constants[10]/Lm_Inf, 4);
+       epsi_Inf = max(epsi_Inf, epsi_kol);
+
+       // Freestream eddy viscosity
+       const su2double Tm_Inf = kine_Inf/max(epsi_Inf,tdr_min);
+       const su2double Tkol_inf = constants[8]*sqrt(nu_Inf/max(epsi_Inf, tdr_min));
+       nuT_Inf = constants[0]*(2.0/3.0)*kine_Inf*max(Tm_Inf, Tkol_Inf);
+       muT_Inf = nuT_Inf * rhoInf;
+       break;
+     }
+  }
+
   // Freestream time scale
-  Tm_Inf = kine_Inf/max(epsi_Inf,tdr_min);
-  su2double Tkol_inf = constants[8]*sqrt(nuInf/max(epsi_Inf,tdr_min));
+  su2double Tm_Inf = kine_Inf/max(epsi_Inf,tdr_min);
+  const su2double Tkol_inf = constants[8]*sqrt(nu_Inf/max(epsi_Inf,tdr_min));
   Tm_Inf = max( Tm_Inf, Tkol_inf );
 
-  // Freestream length scale
-  Lm_Inf = pow(kine_Inf,1.5)/max(epsi_Inf,tdr_min);
-  const su2double nu3 = nuInf*nuInf*nuInf;
-  const su2double Lkol_Inf = constants[10]*pow(nu3/max(epsi_Inf,tdr_min),0.25);
-  Lm_Inf = constants[9] * max( Lm_Inf, Lkol_Inf);
 
   // Freestream f
   f_Inf = (10.0/3.0+0.3)*epsi_Inf/max(kine_Inf,tke_min);
