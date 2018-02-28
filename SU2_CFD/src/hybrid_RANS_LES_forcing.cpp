@@ -64,8 +64,8 @@ su2double CHybridForcing::TransformCoords(su2double* x,
                                           unsigned short iDim,
                                           su2double val_time) {
   const su2double pi = std::atan(1.0)*4.0;
-  return 2.0*pi/(std::pow(HybridParam, 1.5)*TurbL) *
-      (x[iDim] + PrimVars[iDim+1] * std::fmod(val_time, (HybridParam*TurbT)));
+  return 2.0*pi/(pow(HybridParam, su2double(1.5))*TurbL) *
+      (x[iDim] + PrimVars[iDim+1] * fmod(val_time, (HybridParam*TurbT)));
 }
 
 void CHybridForcing::BuildForcingStress(su2double* x, su2double** val_tau_F) {
