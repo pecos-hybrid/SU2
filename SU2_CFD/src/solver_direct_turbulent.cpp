@@ -4032,6 +4032,9 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
+  /*--- Update the turbulent scales for the eddy viscosity calculation ---*/
+  CalculateTurbScales(solver_container, config);
+
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
 
     /*--- Compute turbulence scales ---*/
