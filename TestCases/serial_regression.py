@@ -169,7 +169,7 @@ def main():
     turb_flatplate_v2f.cfg_dir   = "rans/flatplate"
     turb_flatplate_v2f.cfg_file  = "turb_v2f_flatplate.cfg"
     turb_flatplate_v2f.test_iter = 400
-    turb_flatplate_v2f.test_vals = [-1.431857, 3.700928, -0.187405, 0.003454] #last 4 columns
+    turb_flatplate_v2f.test_vals = [-1.049704, 4.106786, -0.187459, 0.003495] #last 4 columns
     turb_flatplate_v2f.su2_exec  = "SU2_CFD"
     turb_flatplate_v2f.timeout   = 1600
     turb_flatplate_v2f.tol       = 0.00001

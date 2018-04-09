@@ -4032,7 +4032,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
-  /*--- Update the turbulent scales for the eddy viscosity calculation ---*/
+  /*--- Recompute turbulence scales to ensure they're up to date ---*/
   CalculateTurbScales(solver_container, config);
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
@@ -4074,7 +4074,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
                                         CConfig *config) {
 
-  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     const su2double rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
     const su2double mu = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
 
@@ -4139,7 +4139,7 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
    * This calculation is best left here.  In the end, we want to set
    * T and L for each node.  The Numerics class doesn't have access to the
    * nodes, so we calculate the turbulence scales here, and pass them into
-   * the numerics class. If this were moved into post/pre-processing, it would
+   * the numerics class. If this was moved post/pre-processing, it would
    * only be executed once per timestep, despite inner iterations of implicit
    * solvers ---*/
 
