@@ -4000,6 +4000,9 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
+  /*--- Recompute turbulence scales to ensure they're up to date ---*/
+  CalculateTurbScales(solver_container, config);
+
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
 
     /*--- Compute turbulence scales ---*/
@@ -4033,7 +4036,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
                                         CConfig *config) {
 
-  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     const su2double rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
     const su2double mu = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
 
