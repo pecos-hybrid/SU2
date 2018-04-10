@@ -4574,8 +4574,8 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
             RK_bVec_imp[0] = 1.0 - alpha;
             RK_bVec_imp[1] = alpha;
 
-            RK_cVec[0] = alpha;
-            RK_cVec[1] = 1.0;
+            RK_cVec_imp[0] = alpha;
+            RK_cVec_imp[1] = 1.0;
           }
 
           cout << "Linearized IMEX w/ EDIRK for the flow equations." << endl;
