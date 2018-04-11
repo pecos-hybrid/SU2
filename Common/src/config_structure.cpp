@@ -3255,10 +3255,6 @@ void CConfig::SetupRungeKutta() {
   if (nRKStep == 0) {
     if (Kind_TimeIntScheme_Flow == RUNGE_KUTTA_EXPLICIT) {
 
-      if (rank == MASTER_NODE) {
-        cout << "No RK coefficients specified.  Defaulting to classical RK4." << endl;
-      }
-
       nRKStep = 4;
 
       // alloc and zero out space for coefficients
@@ -3290,10 +3286,6 @@ void CConfig::SetupRungeKutta() {
       RK_cVec[3] = 1.0;
 
     } else if (Kind_TimeIntScheme_Flow == RUNGE_KUTTA_LIMEX_EDIRK) {
-
-      if (rank == MASTER_NODE) {
-        cout << "No RK coefficients specified.  Defaulting to a 3 stage, 2nd order scheme." << endl;
-      }
 
       nRKStep = 3;
 
