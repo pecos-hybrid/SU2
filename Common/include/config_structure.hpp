@@ -6908,6 +6908,11 @@ public:
    * \brief Get the AD support.
    */
   bool GetAD_Mode(void);
+
+  /*!
+   * \brief Check the Runge-Kutta coefficients and set to defaults if necessary
+   */
+  void SetupRungeKutta();
 };
 
 #include "config_structure.inl"
