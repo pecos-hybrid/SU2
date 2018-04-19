@@ -581,7 +581,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addEnumOption("HYBRID_ANISOTROPY_MODEL", Kind_Hybrid_Aniso_Model, Hybrid_Aniso_Map, ISOTROPIC);
 
   /*!\brief HYBRID_MODEL_CONSTANT \n DESCRIPTION: Model constant relating the approximate second order structure function to the unresolved kinetic energy  \ingroup Config*/
-  addDoubleOption("HYBRID_MODEL_CONSTANT", Hybrid_Model_Constant, 0.1);
+  addDoubleOption("HYBRID_MODEL_CONSTANT", Hybrid_Model_Constant, 1.0);
 
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
