@@ -4516,8 +4516,6 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
     restart_file <<"EXT_ITER= " << config->GetExtIter() + 1 << endl;
   else
     restart_file <<"EXT_ITER= " << config->GetExtIter() + config->GetExtIter_OffSet() + 1 << endl;
-  if (config->GetUnsteady_Simulation() == TIME_STEPPING)
-    restart_file << "TOTAL_TIME= " << config->GetCurrent_UnstTime() << endl;
   restart_file <<"AOA= " << config->GetAoA() - config->GetAoA_Offset() << endl;
   restart_file <<"SIDESLIP_ANGLE= " << config->GetAoS() - config->GetAoS_Offset() << endl;
   restart_file <<"INITIAL_BCTHRUST= " << config->GetInitial_BCThrust() << endl;
@@ -4525,7 +4523,10 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   restart_file <<"DCMX_DCL_VALUE= " << config->GetdCMx_dCL() << endl;
   restart_file <<"DCMY_DCL_VALUE= " << config->GetdCMy_dCL() << endl;
   restart_file <<"DCMZ_DCL_VALUE= " << config->GetdCMz_dCL() << endl;
+  if (config->GetUnsteady_Simulation() == TIME_STEPPING)
+      restart_file << "TOTAL_TIME= " << config->GetCurrent_UnstTime() << endl;
   if (adjoint) restart_file << "SENS_AOA=" << solver[ADJFLOW_SOL]->GetTotal_Sens_AoA() * PI_NUMBER / 180.0 << endl;
+
 
   /*--- Close the data portion of the restart file. ---*/
 
@@ -17096,7 +17097,7 @@ void COutput::WriteRestart_Parallel_Binary(CConfig *config, CGeometry *geometry,
     SU2_TYPE::GetValue(config->GetdCMx_dCL()),
     SU2_TYPE::GetValue(config->GetdCMy_dCL()),
     SU2_TYPE::GetValue(config->GetdCMz_dCL()),
-    0.0
+    SU2_TYPE::GetValue(config->GetCurrent_UnstTime())
   };
 
   if (adjoint) Restart_Metadata[4] = SU2_TYPE::GetValue(solver[ADJFLOW_SOL]->GetTotal_Sens_AoA() * PI_NUMBER / 180.0);
