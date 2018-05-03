@@ -2588,15 +2588,6 @@ private:
                                 su2double **Jacobian_j, CConfig *config);
 
 public:
-   * \param[out] val_residual - Pointer to the total residual.
-   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
-   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
-   * \param[in] config - Definition of the particular problem.
-   */
-  void FinishResidualCalc(su2double *val_residual, su2double **Jacobian_i,
-                                su2double **Jacobian_j, CConfig *config);
-
-public:
 
   /*!
    * \brief Constructor of the class.
@@ -3884,12 +3875,7 @@ private:
   su2double *Proj_Mean_GradTurbVar_Kappa, *Proj_Mean_GradTurbVar_Edge, *Proj_Mean_GradTurbVar_Corrected;
   su2double *Edge_Vector;
   bool implicit, incompressible;
-<<<<<<< HEAD
   su2double sigma;
-  
-||||||| merged common ancestors
-  su2double sigma, nu_i, nu_j, nu_e, dist_ij_2, proj_vector_ij;
-  unsigned short iVar, iDim;
   
 public:
   
@@ -3899,12 +3885,12 @@ public:
    * \param[in] val_nVar - Number of variables of the problem.
    * \param[in] config - Definition of the particular problem.
    */
-  CAvgGradCorrected_TurbSA(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+  CAvgGradCorrected_TransLM(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
   
   /*!
    * \brief Destructor of the class.
    */
-  ~CAvgGradCorrected_TurbSA(void);
+  ~CAvgGradCorrected_TransLM(void);
   
   /*!
    * \brief Compute the viscous turbulent residual using an average of gradients with correction.
@@ -3917,13 +3903,12 @@ public:
 };
 
 /*!
- * \class CAvgGradCorrected_TurbSA_Neg
- * \brief Class for computing viscous term using average of gradients with correction (Spalart-Allmaras turbulence model).
+ * \class CAvgGrad_TurbSST
+ * \brief Class for computing viscous term using average of gradient with correction (Menter SST turbulence model).
  * \ingroup ViscDiscr
- * \author F. Palacios
- * \version 5.0.0 "Raven"
+ * \author A. Bueno.
  */
-class CAvgGradCorrected_TurbSA_Neg : public CNumerics {
+class CAvgGrad_TurbSST : public CAvgGrad_Scalar {
 private:
   su2double sigma_k1, /*!< \brief Constants for the viscous terms, k-w (1), k-eps (2)*/
   sigma_k2,
@@ -3980,7 +3965,6 @@ public:
  * \brief Computes viscous term using average of gradient (zeta-f KE model).
  * \ingroup ViscDiscr
  * \author S. Haering
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_TurbKE : public CAvgGrad_Scalar {
 private:
@@ -4029,11 +4013,11 @@ public:
 
 };
 
+/*
  * \class CAvgGradCorrected_AdjFlow
  * \brief Class for computing the adjoint viscous terms, including correction.
  * \ingroup ViscDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CAvgGradCorrected_AdjFlow : public CNumerics {
 private:
@@ -4311,7 +4295,6 @@ public:
  * \brief Class for computing viscous term using average of gradients (Hybrid coefficient).
  * \ingroup ViscDiscr
  * \author C. Pederson
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_HybridConv : public CNumerics {
 private:
@@ -5440,7 +5423,6 @@ public:
  * \brief Compute source terms of the zeta-f KE turbulence model equations.
  * \ingroup SourceDiscr
  * \author S. Haering.
- * \version 4.1.3 "Cardinal"
  */
 class CSourcePieceWise_TurbKE : public CNumerics {
 private:
@@ -5497,7 +5479,6 @@ public:
  *        the hybrid parameters (in a hybrid RANS/LES model).
  * \ingroup SourceDiscr
  * \author C. Pederson
- * \version 5.0.0 "Raven"
  */
 class CSourcePieceWise_HybridConv : public CNumerics {
  public:

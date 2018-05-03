@@ -664,7 +664,7 @@ void CTurbSolver::BC_TurboRiemann(CGeometry *geometry, CSolver **solver_containe
 }
 
 
-void CTurbSolver::BC_Giles(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKstep) {
+void CTurbSolver::BC_Giles(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
 
   string Marker_Tag         = config->GetMarker_All_TagBound(val_marker);
 
@@ -3695,7 +3695,7 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
   
 }
 
-void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics, CConfig *config, unsigned short iMesh) {
+void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics, CConfig *config, unsigned short iMesh, unsigned short iRKStep) {
   
   unsigned long iPoint;
   
@@ -4941,8 +4941,9 @@ void CTurbKESolver::Preprocessing(CGeometry *geometry,
   unsigned long iPoint;
 
   unsigned long ExtIter = config->GetExtIter();
-  bool limiter_flow = ((config->GetSpatialOrder_Flow() == SECOND_ORDER_LIMITER) &&
-                       (ExtIter <= config->GetLimiterIter()) );
+  bool disc_adjoint     = config->GetDiscrete_Adjoint();
+  bool limiter_flow     = ((config->GetKind_SlopeLimit_Flow() != NO_LIMITER) && (ExtIter <= config->GetLimiterIter()) && !(disc_adjoint && config->GetFrozen_Limiter_Disc()));
+  bool limiter_turb     = ((config->GetKind_SlopeLimit_Turb() != NO_LIMITER) && (ExtIter <= config->GetLimiterIter()) && !(disc_adjoint && config->GetFrozen_Limiter_Disc()));
 
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
@@ -4964,13 +4965,11 @@ void CTurbKESolver::Preprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
-  if (config->GetSpatialOrder() == SECOND_ORDER_LIMITER) {
-    SetSolution_Limiter(geometry, config);
-  }
+  /*--- Upwind second order reconstruction ---*/
 
-  if (limiter_flow) {
-    solver_container[FLOW_SOL]->SetPrimitive_Limiter(geometry, config);
-  }
+  if (limiter_turb) SetSolution_Limiter(geometry, config);
+
+  if (limiter_flow) solver_container[FLOW_SOL]->SetPrimitive_Limiter(geometry, config);
 
 }
 

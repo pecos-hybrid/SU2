@@ -1208,8 +1208,14 @@ public:
    * \param[in] numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  virtual void BC_ConjugateHeat_Interface(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config, unsigned short val_marker);
+  virtual void BC_ConjugateHeat_Interface(CGeometry *geometry,
+                                          CSolver **solver_container,
+                                          CNumerics *conv_numerics,
+                                          CConfig *config,
+                                          unsigned short val_marker,
+                                          unsigned short iRKStep);
    
  /*!
    * \brief Get the outer state for fluid interface nodes.
@@ -1502,9 +1508,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   virtual void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                               CConfig *config, unsigned short iMesh);
+                               CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief A virtual member.
@@ -7076,9 +7083,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Source term integration.
@@ -8055,6 +8063,7 @@ private:
   AllBound_HF_Visc,    /*!< \brief Heat load (viscous contribution) for all the boundaries. */
   AllBound_MaxHF_Visc; /*!< \brief Maximum heat flux (viscous contribution) for all boundaries. */
   su2double StrainMag_Max, Omega_Max; /*!< \brief Maximum Strain Rate magnitude and Omega. */
+  CHybrid_Visc_Anisotropy* hybrid_anisotropy; /*!< \brief A model for the eddy viscosity anisotropy */
   
 public:
   
@@ -8304,8 +8313,13 @@ public:
    * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_ConjugateHeat_Interface(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CConfig *config, unsigned short val_marker);
+  void BC_ConjugateHeat_Interface(CGeometry *geometry,
+                                  CSolver **solver_container,
+                                  CNumerics *conv_numerics,
+                                  CConfig *config, unsigned short val_marker,
+                                  unsigned short iRKStep);
 
   /*!
    * \brief Set the conjugate heat variables.
@@ -8508,7 +8522,8 @@ private:
   AllBound_HF_Visc,    /*!< \brief Heat load (viscous contribution) for all the boundaries. */
   AllBound_MaxHF_Visc; /*!< \brief Maximum heat flux (viscous contribution) for all boundaries. */
   su2double StrainMag_Max, Omega_Max; /*!< \brief Maximum Strain Rate magnitude and Omega. */
-  
+  CHybrid_Visc_Anisotropy* hybrid_anisotropy; /*!< \brief A model for the eddy viscosity anisotropy */
+
 public:
   
   /*!
@@ -8854,6 +8869,7 @@ protected:
   su2double*** Inlet_TurbVars; /*!< \brief Turbulence variables at inlet profiles */
   unsigned long nMarker, /*!< \brief Total number of markers using the grid information. */
   *nVertex;              /*!< \brief Store nVertex at each marker for deallocation */
+  CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
   
   /* Sliding meshes variables */
 
@@ -8945,6 +8961,14 @@ public:
   
   /*!
    * \brief Impose via the residual the Euler wall boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] numerics - Description of the numerical method.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   */
+  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
+                     unsigned short val_marker, unsigned short iRKStep);
   /*!
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -9131,9 +9155,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Source term computation.
@@ -9426,9 +9451,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Source term computation.
@@ -11077,9 +11103,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Source term integration.
@@ -11143,7 +11170,7 @@ public:
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void BC_Interface_Boundary(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
-                             CConfig *config, unsigned short val_marker, unsigned short iRKStep);
+                             CConfig *config, unsigned short iRKStep);
   using CSolver::BC_Interface_Boundary;
   
   /*!
@@ -11155,7 +11182,7 @@ public:
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void BC_NearField_Boundary(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
-                             CConfig *config, unsigned short val_marker, unsigned short iRKStep);
+                             CConfig *config, unsigned short iRKStep);
   using CSolver::BC_NearField_Boundary;
   
   /*!
@@ -11466,9 +11493,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
 };
 
@@ -11581,9 +11609,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
 };
 
@@ -11727,9 +11756,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Update the solution using an implicit solver.
@@ -11849,9 +11879,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Source term computation.
@@ -11967,9 +11998,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Source term computation.
@@ -12119,9 +12151,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                         CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
 
   /*!
    * \brief Compute the undivided laplacian for the solution.
@@ -12236,10 +12269,13 @@ public:
    * \param[in] solver_container - Container vector with all the solutions.
    * \param[in] numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
-   * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_ConjugateHeat_Interface(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                                          unsigned short val_marker);
+  void BC_ConjugateHeat_Interface(CGeometry *geometry,
+                                  CSolver **solver_container,
+                                  CNumerics *conv_numerics,
+                                  CConfig *config, unsigned short val_marker,
+                                  unsigned short iRKStep);
 
   /*!
    * \brief Set the conjugate heat variables.
@@ -12406,9 +12442,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Update the solution using an implicit solver.
@@ -13225,9 +13262,10 @@ public:
    * \param[in] second_numerics - Description of the second numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] iMesh - Index of the mesh in multigrid computations.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
   void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
-                       CConfig *config, unsigned short iMesh);
+                       CConfig *config, unsigned short iMesh, unsigned short iRKStep);
   
   /*!
    * \brief Source term integration.

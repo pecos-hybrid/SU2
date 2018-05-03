@@ -100,33 +100,6 @@ void CUpwScalar::ComputeResidual(su2double *val_residual,
 
   a0 = 0.5*(q_ij+fabs(q_ij));
   a1 = 0.5*(q_ij-fabs(q_ij));
-<<<<<<< HEAD
-
-  FinishResidualCalc(val_residual, val_Jacobian_i, val_Jacobian_j, config);
-
-
-  AD::SetPreaccOut(val_residual, nVar);
-  AD::EndPreacc();
-
-}
-
-CUpwSca_TurbSA::CUpwSca_TurbSA(unsigned short val_nDim,
-                               unsigned short val_nVar,
-                               CConfig *config)
-    : CUpwScalar(val_nDim, val_nVar, config) {
-}
-
-CUpwSca_TurbSA::~CUpwSca_TurbSA(void) {
-}
-
-void CUpwSca_TurbSA::ExtraADPreaccIn() {
-  AD::SetPreaccIn(V_i, nDim+1); AD::SetPreaccIn(V_j, nDim+1);
-}
-
-void CUpwSca_TurbSA::FinishResidualCalc(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config) {
-
-||||||| merged common ancestors
-=======
 
   FinishResidualCalc(val_residual, val_Jacobian_i, val_Jacobian_j, config);
 
@@ -151,7 +124,6 @@ void CUpwSca_TurbSA::ExtraADPreaccIn() {
 
 void CUpwSca_TurbSA::FinishResidualCalc(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config) {
   
->>>>>>> upstream/develop
   val_residual[0] = a0*TurbVar_i[0]+a1*TurbVar_j[0];
   
   if (implicit) {
@@ -1203,7 +1175,6 @@ void CAvgGrad_TurbSST::FinishResidualCalc(su2double *val_residual, su2double **J
   
 }
 
-
 CSourcePieceWise_TurbSST::CSourcePieceWise_TurbSST(unsigned short val_nDim, unsigned short val_nVar, su2double *constants,
                                                    CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
   
@@ -1255,8 +1226,6 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
   val_Jacobian_i[0][0] = 0.0;    val_Jacobian_i[0][1] = 0.0;
   val_Jacobian_i[1][0] = 0.0;    val_Jacobian_i[1][1] = 0.0;
   
-  //  cout<<" F1_i: "<<F1_i<<"\n";
-
   /*--- Computation of blended constants for the source terms---*/
   
   alfa_blended = F1_i*alfa_1 + (1.0 - F1_i)*alfa_2;
@@ -1265,6 +1234,7 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
   if (dist_i > 1e-10) {
     
     /*--- Production ---*/
+    
     diverg = 0.0;
     for (iDim = 0; iDim < nDim; iDim++)
       diverg += PrimVar_Grad_i[iDim+1][iDim];
@@ -1281,10 +1251,12 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
     val_residual[1] += alfa_blended*Density_i*pw*Volume;
     
     /*--- Dissipation ---*/
+    
     val_residual[0] -= beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]*Volume;
     val_residual[1] -= beta_blended*Density_i*TurbVar_i[1]*TurbVar_i[1]*Volume;
     
     /*--- Cross diffusion ---*/
+    
     val_residual[1] += (1.0 - F1_i)*CDkw_i*Volume;
     
     /*--- Implicit part ---*/

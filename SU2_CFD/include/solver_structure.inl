@@ -777,7 +777,7 @@ inline void CSolver::BC_Electrode(CGeometry *geometry, CSolver **solver_containe
                                   CConfig *config, unsigned short val_marker, unsigned short iRKStep) { }
 
 inline void CSolver::BC_ConjugateHeat_Interface(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
-                      CConfig *config, unsigned short val_marker) { }
+                      CConfig *config, unsigned short val_marker, unsigned short iRKStep) { }
 
 inline void CSolver::GetPower_Properties(CGeometry *geometry, CConfig *config, unsigned short iMesh, bool Output) { }
 

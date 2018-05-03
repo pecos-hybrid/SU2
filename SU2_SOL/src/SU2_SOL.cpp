@@ -203,11 +203,11 @@ int main(int argc, char *argv[]) {
            ((iExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq() == 0) && (iExtIter != 0) &&
             !((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
               (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) ||
-              (config_container[ZONE_0]->GetUnsteady_Simulation() == TIMESTEPPING))) ||
+              (config_container[ZONE_0]->GetUnsteady_Simulation() == TIME_STEPPING))) ||
            (StopCalc) ||
            (((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
              (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) ||
-             (config_container[ZONE_0]->GetUnsteady_Simulation() == TIMESTEPPING)) &&
+             (config_container[ZONE_0]->GetUnsteady_Simulation() == TIME_STEPPING)) &&
             ((iExtIter == 0) || (iExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq_DualTime() == 0))))
 
           &&
@@ -289,11 +289,11 @@ int main(int argc, char *argv[]) {
             ((iExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq() == 0) && (iExtIter != 0) &&
              !((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) ||
-               (config_container[ZONE_0]->GetUnsteady_Simulation() == TIMESTEPPING))) ||
+               (config_container[ZONE_0]->GetUnsteady_Simulation() == TIME_STEPPING))) ||
             (StopCalc) ||
             (((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
-              (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND)
-              (config_container[ZONE_0]->GetUnsteady_Simulation() == TIMESTEPPING)) &&
+              (config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) ||
+              (config_container[ZONE_0]->GetUnsteady_Simulation() == TIME_STEPPING)) &&
              ((iExtIter == 0) || (iExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq_DualTime() == 0)))) {
 
 

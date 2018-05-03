@@ -1821,7 +1821,10 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
                                    su2double val_turb_ke,
                                    su2double *val_normal,
                                    su2double val_laminar_viscosity,
-                                   su2double **val_eddy_viscosity) {
+                                   su2double **val_eddy_viscosity,
+                                   bool val_qcr) {
+
+    // TODO: Add QCR correction
     unsigned short iVar, iDim, jDim, kDim, lDim;
     su2double** total_viscosity, **G;
     su2double heat_flux_factor, div_vel, Cp, Density, trace_eddy_viscosity;

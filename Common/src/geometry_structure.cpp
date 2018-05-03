@@ -1534,82 +1534,6 @@ void CGeometry::ComputeSurf_Curvature(CConfig *config) {
     
     Angle_Defect = new su2double [nPoint];
     Area_Vertex = new su2double [nPoint];
-void CGeometry::ComputeSurf_Curvature(CConfig *config) {
-  unsigned short iMarker, iNeigh_Point, iDim, iNode, iNeighbor_Nodes, Neighbor_Node;
-  unsigned long Neighbor_Point, iVertex, iPoint, jPoint, iElem_Bound, iEdge, nLocalVertex, MaxLocalVertex , *Buffer_Send_nVertex, *Buffer_Receive_nVertex, TotalnPointDomain;
-  int iProcessor, nProcessor;
-  vector<unsigned long> Point_NeighborList, Elem_NeighborList, Point_Triangle, Point_Edge, Point_Critical;
-  vector<unsigned long>::iterator it;
-  su2double U[3] = {0.0,0.0,0.0}, V[3] = {0.0,0.0,0.0}, W[3] = {0.0,0.0,0.0}, Length_U, Length_V, Length_W, CosValue, Angle_Value, *K, *Angle_Defect, *Area_Vertex, *Angle_Alpha, *Angle_Beta, **NormalMeanK, MeanK, GaussK, MaxPrinK, cot_alpha, cot_beta, delta, X1, X2, X3, Y1, Y2, Y3, radius, *Buffer_Send_Coord, *Buffer_Receive_Coord, *Coord, Dist, MinDist, MaxK, MinK, SigmaK;
-  bool *Check_Edge;
-
-  bool fea = ((config->GetKind_Solver()==FEM_ELASTICITY) || (config->GetKind_Solver()==DISC_ADJ_FEM));
-  
-  /*--- Allocate surface curvature ---*/
-  K = new su2double [nPoint];
-  for (iPoint = 0; iPoint < nPoint; iPoint++) K[iPoint] = 0.0;
-  
-  if (nDim == 2) {
-    
-    /*--- Loop over all the markers ---*/
-    for (iMarker = 0; iMarker < nMarker; iMarker++) {
-      
-      if (config->GetMarker_All_KindBC(iMarker) != SEND_RECEIVE) {
-        
-        /*--- Loop through all marker vertices again, this time also
-         finding the neighbors of each node.---*/
-        for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++) {
-          iPoint  = vertex[iMarker][iVertex]->GetNode();
-          
-          if (node[iPoint]->GetDomain()) {
-            /*--- Loop through neighbors. In 2-D, there should be 2 nodes on either
-             side of this vertex that lie on the same surface. ---*/
-            Point_Edge.clear();
-            
-            for (iNeigh_Point = 0; iNeigh_Point < node[iPoint]->GetnPoint(); iNeigh_Point++) {
-              Neighbor_Point = node[iPoint]->GetPoint(iNeigh_Point);
-              
-              /*--- Check if this neighbor lies on the surface. If so,
-               add to the list of neighbors. ---*/
-              if (node[Neighbor_Point]->GetPhysicalBoundary()) {
-                Point_Edge.push_back(Neighbor_Point);
-              }
-              
-            }
-            
-            if (Point_Edge.size() == 2) {
-              
-              /*--- Compute the curvature using three points ---*/
-              X1 = node[iPoint]->GetCoord(0);
-              X2 = node[Point_Edge[0]]->GetCoord(0);
-              X3 = node[Point_Edge[1]]->GetCoord(0);
-              Y1 = node[iPoint]->GetCoord(1);
-              Y2 = node[Point_Edge[0]]->GetCoord(1);
-              Y3 = node[Point_Edge[1]]->GetCoord(1);
-              
-              radius = sqrt(((X2-X1)*(X2-X1) + (Y2-Y1)*(Y2-Y1))*
-                            ((X2-X3)*(X2-X3) + (Y2-Y3)*(Y2-Y3))*
-                            ((X3-X1)*(X3-X1) + (Y3-Y1)*(Y3-Y1)))/
-              (2.0*fabs(X1*Y2+X2*Y3+X3*Y1-X1*Y3-X2*Y1-X3*Y2)+EPS);
-              
-              K[iPoint] = 1.0/radius;
-              node[iPoint]->SetCurvature(K[iPoint]);
-            }
-            
-          }
-          
-        }
-        
-      }
-      
-    }
-    
-  }
-  
-  else {
-    
-    Angle_Defect = new su2double [nPoint];
-    Area_Vertex = new su2double [nPoint];
     for (iPoint = 0; iPoint < nPoint; iPoint++) {
       Angle_Defect[iPoint] = 2*PI_NUMBER;
       Area_Vertex[iPoint] = 0.0;
@@ -10389,188 +10313,8 @@ void CPhysicalGeometry::ComputeNSpan(CConfig *config, unsigned short val_iZone, 
             }
           }
         }
-        }
-
-        /*--- Entries of c:= transpose(A)*b ---*/
-
-        for (iDim = 0; iDim < nDim; iDim++)
-          for (jDim = 0; jDim < nDim; jDim++)
-            for (kDim = 0; kDim < nDim; kDim++)
-              cvector[iDim][jDim][kDim] += (Coord_j[iDim] - Coord_i[iDim])*
-                  (M_j[jDim][kDim] - M_i[jDim][kDim])/weight;
       }
 
-    }
-
-    /*--- Entries of upper triangular matrix R ---*/
-    if (r11 >= 0.0) r11 = sqrt(r11); else r11 = 0.0;
-    if (r11 != 0.0) r12 = r12/r11; else r12 = 0.0;
-    if (r22-r12*r12 >= 0.0) r22 = sqrt(r22-r12*r12); else r22 = 0.0;
-
-    if (nDim == 3) {
-      if (r11 != 0.0) r13 = r13/r11; else r13 = 0.0;
-      if ((r22 != 0.0) && (r11*r22 != 0.0)) r23 = r23_a/r22 - r23_b*r12/(r11*r22); else r23 = 0.0;
-      if (r33-r23*r23-r13*r13 >= 0.0) r33 = sqrt(r33-r23*r23-r13*r13); else r33 = 0.0;
-    }
-
-    /*--- Compute determinant ---*/
-
-    if (nDim == 2) detR2 = (r11*r22)*(r11*r22);
-    else detR2 = (r11*r22*r33)*(r11*r22*r33);
-
-    /*--- Detect singular matrices ---*/
-
-    if (abs(detR2) <= EPS) { detR2 = 1.0; singular = true; }
-
-    /*--- S matrix := inv(R)*traspose(inv(R)) ---*/
-    if (singular) {
-      for (iDim = 0; iDim < nDim; iDim++)
-        for (jDim = 0; jDim < nDim; jDim++)
-          Smatrix[iDim][jDim] = 0.0;
-    }
-    else {
-      if (nDim == 2) {
-        Smatrix[0][0] = (r12*r12+r22*r22)/detR2;
-        Smatrix[0][1] = -r11*r12/detR2;
-        Smatrix[1][0] = Smatrix[0][1];
-        Smatrix[1][1] = r11*r11/detR2;
-      }
-      else {
-        z11 = r22*r33; z12 = -r12*r33; z13 = r12*r23-r13*r22;
-        z22 = r11*r33; z23 = -r11*r23; z33 = r11*r22;
-        Smatrix[0][0] = (z11*z11+z12*z12+z13*z13)/detR2;
-        Smatrix[0][1] = (z12*z22+z13*z23)/detR2;
-        Smatrix[0][2] = (z13*z33)/detR2;
-        Smatrix[1][0] = Smatrix[0][1];
-        Smatrix[1][1] = (z22*z22+z23*z23)/detR2;
-        Smatrix[1][2] = (z23*z33)/detR2;
-        Smatrix[2][0] = Smatrix[0][2];
-        Smatrix[2][1] = Smatrix[1][2];
-        Smatrix[2][2] = (z33*z33)/detR2;
-      }
-    }
-
-    /*--- Computation of the gradient: S*c ---*/
-    for (iDim = 0; iDim < nDim; iDim++) {
-      for (jDim = 0; jDim < nDim; jDim++) {
-        for (kDim = 0; kDim < nDim; kDim++) {
-          product = 0.0;
-          for (lDim = 0; lDim < nDim; lDim++) {
-            product += Smatrix[iDim][lDim]*cvector[lDim][jDim][kDim];
-          }
-          node[iPoint]->SetResolutionGradient(iDim, jDim, kDim, product);
-        }
-      }
-    }
-
-  } /**-- End of point loop ---*/
-
-  /*--- Deallocate memory ---*/
-
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      delete [] cvector[iDim][jDim];
-    }
-    delete [] cvector[iDim];
-  }
-  delete [] cvector;
-
-  for (iDim = 0; iDim < nDim; iDim++) {
-    delete [] Smatrix[iDim];
-  }
-  delete [] Smatrix;
-}
-
-void CPhysicalGeometry::SetBoundControlVolume(CConfig *config, unsigned short action) {
-  unsigned short Neighbor_Node, iMarker, iNode, iNeighbor_Nodes, iDim;
-  unsigned long Neighbor_Point, iVertex, iPoint, iElem;
-  long iEdge;
-  su2double Area, *NormalFace = NULL;
-  
-  /*--- Update values of faces of the edge ---*/
-  
-  if (action != ALLOCATE)
-    for (iMarker = 0; iMarker < nMarker; iMarker++)
-      for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++)
-        vertex[iMarker][iVertex]->SetZeroValues();
-  
-  su2double *Coord_Edge_CG = new su2double [nDim];
-  su2double *Coord_Elem_CG = new su2double [nDim];
-  su2double *Coord_Vertex = new su2double [nDim];
-  
-  /*--- Loop over all the markers ---*/
-  
-  for (iMarker = 0; iMarker < nMarker; iMarker++)
-    
-  /*--- Loop over all the boundary elements ---*/
-    
-    for (iElem = 0; iElem < nElem_Bound[iMarker]; iElem++)
-      
-    /*--- Loop over all the nodes of the boundary ---*/
-      
-      for (iNode = 0; iNode < bound[iMarker][iElem]->GetnNodes(); iNode++) {
-        iPoint = bound[iMarker][iElem]->GetNode(iNode);
-        iVertex = node[iPoint]->GetVertex(iMarker);
-        
-        /*--- Loop over the neighbor nodes, there is a face for each one ---*/
-        
-        for (iNeighbor_Nodes = 0; iNeighbor_Nodes < bound[iMarker][iElem]->GetnNeighbor_Nodes(iNode); iNeighbor_Nodes++) {
-          Neighbor_Node = bound[iMarker][iElem]->GetNeighbor_Nodes(iNode, iNeighbor_Nodes);
-          Neighbor_Point = bound[iMarker][iElem]->GetNode(Neighbor_Node);
-          
-          /*--- Shared edge by the Neighbor Point and the point ---*/
-          
-          iEdge = FindEdge(iPoint, Neighbor_Point);
-          for (iDim = 0; iDim < nDim; iDim++) {
-            Coord_Edge_CG[iDim] = edge[iEdge]->GetCG(iDim);
-            Coord_Elem_CG[iDim] = bound[iMarker][iElem]->GetCG(iDim);
-            Coord_Vertex[iDim] = node[iPoint]->GetCoord(iDim);
-||||||| merged common ancestors
-void CPhysicalGeometry::SetBoundControlVolume(CConfig *config, unsigned short action) {
-  unsigned short Neighbor_Node, iMarker, iNode, iNeighbor_Nodes, iDim;
-  unsigned long Neighbor_Point, iVertex, iPoint, iElem;
-  long iEdge;
-  su2double Area, *NormalFace = NULL;
-  
-  /*--- Update values of faces of the edge ---*/
-  
-  if (action != ALLOCATE)
-    for (iMarker = 0; iMarker < nMarker; iMarker++)
-      for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++)
-        vertex[iMarker][iVertex]->SetZeroValues();
-  
-  su2double *Coord_Edge_CG = new su2double [nDim];
-  su2double *Coord_Elem_CG = new su2double [nDim];
-  su2double *Coord_Vertex = new su2double [nDim];
-  
-  /*--- Loop over all the markers ---*/
-  
-  for (iMarker = 0; iMarker < nMarker; iMarker++)
-    
-  /*--- Loop over all the boundary elements ---*/
-    
-    for (iElem = 0; iElem < nElem_Bound[iMarker]; iElem++)
-      
-    /*--- Loop over all the nodes of the boundary ---*/
-      
-      for (iNode = 0; iNode < bound[iMarker][iElem]->GetnNodes(); iNode++) {
-        iPoint = bound[iMarker][iElem]->GetNode(iNode);
-        iVertex = node[iPoint]->GetVertex(iMarker);
-        
-        /*--- Loop over the neighbor nodes, there is a face for each one ---*/
-        
-        for (iNeighbor_Nodes = 0; iNeighbor_Nodes < bound[iMarker][iElem]->GetnNeighbor_Nodes(iNode); iNeighbor_Nodes++) {
-          Neighbor_Node = bound[iMarker][iElem]->GetNeighbor_Nodes(iNode, iNeighbor_Nodes);
-          Neighbor_Point = bound[iMarker][iElem]->GetNode(Neighbor_Node);
-          
-          /*--- Shared edge by the Neighbor Point and the point ---*/
-          
-          iEdge = FindEdge(iPoint, Neighbor_Point);
-          for (iDim = 0; iDim < nDim; iDim++) {
-            Coord_Edge_CG[iDim] = edge[iEdge]->GetCG(iDim);
-            Coord_Elem_CG[iDim] = bound[iMarker][iElem]->GetCG(iDim);
-            Coord_Vertex[iDim] = node[iPoint]->GetCoord(iDim);
-=======
       /*--- storing the local number of span---*/
       nSpan_loc = nSpan;
       /*--- if parallel computing the global number of span---*/
@@ -12214,6 +11958,301 @@ void CPhysicalGeometry::SetCoord_CG(void) {
       if (Coord[iNode] != NULL) delete[] Coord[iNode];
     if (Coord != NULL) delete[] Coord;
   }
+}
+
+void CGeometry::SetResolutionTensor(void) {
+  unsigned long iElem, iElem_global, iPoint;
+  unsigned short iDim, jDim;
+  unsigned short nNode, iNode;
+  unsigned long elem_poin;
+  su2double temp_value;
+  su2double** temp_tensor;
+  su2double* temp_vector;
+  su2double **Coord;
+
+  /*--- Compute the resolution tensor for primal mesh elements ---*/
+
+  for (iElem = 0; iElem<nElem; iElem++) {
+    nNode = elem[iElem]->GetnNodes();
+    Coord = new su2double* [nNode];
+
+    /*--- Store the coordinates for all the element nodes ---*/
+
+    for (iNode = 0; iNode < nNode; iNode++) {
+      elem_poin = elem[iElem]->GetNode(iNode);
+      Coord[iNode] = new su2double [nDim];
+      for (iDim = 0; iDim < nDim; iDim++)
+        Coord[iNode][iDim]=node[elem_poin]->GetCoord(iDim);
+    }
+
+    /*--- Compute the elemental resolution tensor coordinates ---*/
+
+    elem[iElem]->SetResolutionTensor(Coord);
+
+    for (iNode = 0; iNode < nNode; iNode++)
+      if (Coord[iNode] != NULL) delete[] Coord[iNode];
+    if (Coord != NULL) delete[] Coord;
+  }
+
+  /*--- Use the primal mesh to create the CV Resolution Tensors ---*/
+
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_tensor = elem[iElem_global]->GetResolutionTensor();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (jDim = 0; jDim < nDim; jDim++) {
+          temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
+          if (temp_value > EPS)
+            node[iPoint]->AddResolutionTensor(iDim, jDim, temp_value);
+        }
+      }
+    }
+  }
+
+#ifdef HAVE_LAPACK
+  /*--- NOTE: Since we're using averages across cells, averages of eigenvalues
+   * are not equal to the eigenvalues of the average tensor. ---*/
+  // TODO: Make this section actually compute eigenvalues and eigenvectors.
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_tensor = elem[iElem_global]->GetResolutionVectors();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (jDim = 0; jDim < nDim; jDim++) {
+          temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
+          node[iPoint]->AddResolutionVector(iDim, jDim, temp_value);
+        }
+      }
+    }
+  }
+
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_vector = elem[iElem_global]->GetResolutionValues();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        temp_value = temp_vector[iDim] / (node[iPoint]->GetnElem());
+        node[iPoint]->AddResolutionValue(iDim, temp_value);
+      }
+    }
+  }
+#else
+  /*--- Use an approximate average of the eigenvalues and eigenvectors ---*/
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_tensor = elem[iElem_global]->GetResolutionVectors();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (jDim = 0; jDim < nDim; jDim++) {
+          temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
+          node[iPoint]->AddResolutionVector(iDim, jDim, temp_value);
+        }
+      }
+    }
+  }
+
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      iElem_global = node[iPoint]->GetElem(iElem);
+      temp_vector = elem[iElem_global]->GetResolutionValues();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        temp_value = temp_vector[iDim] / (node[iPoint]->GetnElem());
+        node[iPoint]->AddResolutionValue(iDim, temp_value);
+      }
+    }
+  }
+#endif
+
+  SetResolutionGradient();
+}
+
+void CGeometry::SetResolutionGradient(void) {
+  unsigned short iDim, jDim, kDim, lDim;
+  unsigned short iVar, iNeigh;
+  unsigned long iPoint, jPoint;
+  su2double** M_temp;
+  vector<vector<su2double> > M_i(nDim, vector<su2double>(nDim));
+  vector<vector<su2double> > M_j(nDim, vector<su2double>(nDim));
+  su2double** Smatrix;
+  su2double *Coord_i, *Coord_j,
+  r11, r12, r13, r22, r23, r23_a, r23_b, r33, weight, detR2, z11, z12, z13,
+  z22, z23, z33, product;
+  bool singular = false;
+
+  /** We use the least squares method to calculate gradients on the
+   *  unstructured mesh.
+   *
+   *  Vector representation is:
+   *  dM_{jk}/dx_i is stored in cvector as M[i][j][k]
+   */
+
+  /*--- Set up a scratch array for building the gradient ---*/
+  su2double*** cvector = new su2double** [nDim];
+  for (iDim = 0; iDim<nDim; iDim++) {
+    cvector[iDim] = new su2double* [nDim];
+    for (jDim = 0; jDim < nDim; jDim++) {
+      cvector[iDim][jDim] = new su2double [nDim];
+    }
+  }
+
+  /*--- Set up a scratch matrix for least-squares calculations ---*/
+  Smatrix = new su2double* [nDim];
+  for (iDim = 0; iDim<nDim; iDim++)
+    Smatrix[iDim] = new su2double[nDim];
+
+  /*--- Loop over points of the grid ---*/
+
+  for (iPoint = 0; iPoint < GetnPointDomain(); iPoint++) {
+
+    /*--- Set the value of the singular ---*/
+    singular = false;
+
+    /*--- Get coordinates ---*/
+
+    Coord_i = node[iPoint]->GetCoord();
+
+    /*--- Get the resolution squared at point i ---*/
+    M_temp = node[iPoint]->GetResolutionTensor();
+    for (iDim = 0; iDim < nDim; iDim++) {
+      for (jDim = 0; jDim < nDim; jDim++) {
+        M_i[iDim][jDim] = 0.0;
+        for (kDim = 0; kDim < nDim; kDim++) {
+          M_i[iDim][jDim] += M_temp[kDim][iDim]*M_temp[kDim][jDim];
+        }
+      }
+    }
+
+    /*--- Initialization of variables ---*/
+    for (iDim = 0; iDim < nDim; iDim++)
+      for (jDim = 0; jDim < nDim; jDim++)
+        for (kDim = 0; kDim < nDim; kDim++)
+          cvector[iDim][jDim][kDim] = 0.0;
+
+    r11 = 0.0; r12 = 0.0; r13 = 0.0; r22 = 0.0;
+    r23 = 0.0; r23_a = 0.0; r23_b = 0.0; r33 = 0.0;
+
+    for (iNeigh = 0; iNeigh < node[iPoint]->GetnPoint(); iNeigh++) {
+      jPoint = node[iPoint]->GetPoint(iNeigh);
+      Coord_j = node[jPoint]->GetCoord();
+
+      /*--- Get the resolution squared at point j ---*/
+      M_temp = node[jPoint]->GetResolutionTensor();
+      for (iDim = 0; iDim < nDim; iDim++) {
+        for (jDim = 0; jDim < nDim; jDim++) {
+          M_j[iDim][jDim] = 0.0;
+          for (kDim = 0; kDim < nDim; kDim++) {
+            M_j[iDim][jDim] += M_temp[kDim][iDim]*M_temp[kDim][jDim];
+          }
+        }
+      }
+
+      weight = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++)
+        weight += (Coord_j[iDim]-Coord_i[iDim])*(Coord_j[iDim]-Coord_i[iDim]);
+
+      /*--- Summations for entries of upper triangular matrix R ---*/
+
+      if (weight != 0.0) {
+
+        r11 += (Coord_j[0]-Coord_i[0])*(Coord_j[0]-Coord_i[0])/weight;
+        r12 += (Coord_j[0]-Coord_i[0])*(Coord_j[1]-Coord_i[1])/weight;
+        r22 += (Coord_j[1]-Coord_i[1])*(Coord_j[1]-Coord_i[1])/weight;
+        if (nDim == 3) {
+          r13   += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+          r23_a += (Coord_j[1]-Coord_i[1])*(Coord_j[2]-Coord_i[2])/weight;
+          r23_b += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+          r33   += (Coord_j[2]-Coord_i[2])*(Coord_j[2]-Coord_i[2])/weight;
+        }
+
+        /*--- Entries of c:= transpose(A)*b ---*/
+
+        for (iDim = 0; iDim < nDim; iDim++)
+          for (jDim = 0; jDim < nDim; jDim++)
+            for (kDim = 0; kDim < nDim; kDim++)
+              cvector[iDim][jDim][kDim] += (Coord_j[iDim] - Coord_i[iDim])*
+                  (M_j[jDim][kDim] - M_i[jDim][kDim])/weight;
+      }
+
+    }
+
+    /*--- Entries of upper triangular matrix R ---*/
+    if (r11 >= 0.0) r11 = sqrt(r11); else r11 = 0.0;
+    if (r11 != 0.0) r12 = r12/r11; else r12 = 0.0;
+    if (r22-r12*r12 >= 0.0) r22 = sqrt(r22-r12*r12); else r22 = 0.0;
+
+    if (nDim == 3) {
+      if (r11 != 0.0) r13 = r13/r11; else r13 = 0.0;
+      if ((r22 != 0.0) && (r11*r22 != 0.0)) r23 = r23_a/r22 - r23_b*r12/(r11*r22); else r23 = 0.0;
+      if (r33-r23*r23-r13*r13 >= 0.0) r33 = sqrt(r33-r23*r23-r13*r13); else r33 = 0.0;
+    }
+
+    /*--- Compute determinant ---*/
+
+    if (nDim == 2) detR2 = (r11*r22)*(r11*r22);
+    else detR2 = (r11*r22*r33)*(r11*r22*r33);
+
+    /*--- Detect singular matrices ---*/
+
+    if (abs(detR2) <= EPS) { detR2 = 1.0; singular = true; }
+
+    /*--- S matrix := inv(R)*traspose(inv(R)) ---*/
+    if (singular) {
+      for (iDim = 0; iDim < nDim; iDim++)
+        for (jDim = 0; jDim < nDim; jDim++)
+          Smatrix[iDim][jDim] = 0.0;
+    }
+    else {
+      if (nDim == 2) {
+        Smatrix[0][0] = (r12*r12+r22*r22)/detR2;
+        Smatrix[0][1] = -r11*r12/detR2;
+        Smatrix[1][0] = Smatrix[0][1];
+        Smatrix[1][1] = r11*r11/detR2;
+      }
+      else {
+        z11 = r22*r33; z12 = -r12*r33; z13 = r12*r23-r13*r22;
+        z22 = r11*r33; z23 = -r11*r23; z33 = r11*r22;
+        Smatrix[0][0] = (z11*z11+z12*z12+z13*z13)/detR2;
+        Smatrix[0][1] = (z12*z22+z13*z23)/detR2;
+        Smatrix[0][2] = (z13*z33)/detR2;
+        Smatrix[1][0] = Smatrix[0][1];
+        Smatrix[1][1] = (z22*z22+z23*z23)/detR2;
+        Smatrix[1][2] = (z23*z33)/detR2;
+        Smatrix[2][0] = Smatrix[0][2];
+        Smatrix[2][1] = Smatrix[1][2];
+        Smatrix[2][2] = (z33*z33)/detR2;
+      }
+    }
+
+    /*--- Computation of the gradient: S*c ---*/
+    for (iDim = 0; iDim < nDim; iDim++) {
+      for (jDim = 0; jDim < nDim; jDim++) {
+        for (kDim = 0; kDim < nDim; kDim++) {
+          product = 0.0;
+          for (lDim = 0; lDim < nDim; lDim++) {
+            product += Smatrix[iDim][lDim]*cvector[lDim][jDim][kDim];
+          }
+          node[iPoint]->SetResolutionGradient(iDim, jDim, kDim, product);
+        }
+      }
+    }
+
+  } /**-- End of point loop ---*/
+
+  /*--- Deallocate memory ---*/
+
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      delete [] cvector[iDim][jDim];
+    }
+    delete [] cvector[iDim];
+  }
+  delete [] cvector;
+
+  for (iDim = 0; iDim < nDim; iDim++) {
+    delete [] Smatrix[iDim];
+  }
+  delete [] Smatrix;
 }
 
 void CPhysicalGeometry::SetBoundControlVolume(CConfig *config, unsigned short action) {
@@ -15452,7 +15491,7 @@ void CPhysicalGeometry::SetSensitivity(CConfig *config) {
   if (compressible)        { skipVar += skipMult*(nDim+2); }
   if (sst && !frozen_visc) { skipVar += skipMult*2;}
   if (sa && !frozen_visc)  { skipVar += skipMult*1;}
-  if (ke && #!frozen_visc) { skipVar += skipMult*4;}
+  if (ke && !frozen_visc)  { skipVar += skipMult*4;}
   if (grid_movement)       { skipVar += nDim;}
 
   /*--- Read all lines in the restart file ---*/

@@ -2813,10 +2813,10 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 
 		if (config->GetDiscard_InFiles() == false) {
                       cout << "SU2 will use the unsteady time found in the solution file as the initial time: " << Total_Time_  << endl;
-                      config->SetUnst_Total_Time(Total_Time_);
+                      config->SetCurrent_UnstTime(Total_Time_);
 		}
 		else {
-			if ((config->GetAoA() != Total_Time_) &&  (rank == MASTER_NODE))
+			if ((config->GetCurrent_UnstTime() != Total_Time_) &&  (rank == MASTER_NODE))
 				cout <<"WARNING: Discarding the unsteady total time in the solution file." << endl;
 		}
 

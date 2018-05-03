@@ -213,7 +213,6 @@ public:
    * \param[in] **val_block - Block to set to A(i, j).
    */
   void SetBlockTransposed_ILUMatrix(unsigned long block_i, unsigned long block_j, su2double *val_block);
-<<<<<<< HEAD
 
 	/*!
 	 * \brief Subtracts the specified block to the sparse matrix.

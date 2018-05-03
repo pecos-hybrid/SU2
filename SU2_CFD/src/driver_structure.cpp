@@ -1466,6 +1466,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
       case SST:    menter_sst = true; constants = solver_container[MESH_0][TURB_SOL]->GetConstants(); break;
       case KE:     zetaf_ke = true; constants = solver_container[MESH_0][TURB_SOL]->GetConstants(); break;
       default: SU2_MPI::Error("Specified turbulence model unavailable or none selected", CURRENT_FUNCTION); break;
+    }
   }
   hybrid = config->isHybrid_Turb_Model();
   
@@ -2392,7 +2393,7 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
       case SA_E: e_spalart_allmaras = true; break;
       case SA_E_COMP: e_comp_spalart_allmaras = true; break;
       case KE:     zetaf_ke = true;             break;
-
+    }
   }
   
   /*--- Solver definition for the template problem ---*/

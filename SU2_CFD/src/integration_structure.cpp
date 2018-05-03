@@ -200,10 +200,10 @@ void CIntegration::Space_Integration(CGeometry *geometry,
         break;
       case CHT_WALL_INTERFACE: 
         if ((MainSolver == HEAT_SOL) || (MainSolver == FLOW_SOL && config->GetKind_Regime() == COMPRESSIBLE)) {
-          solver_container[MainSolver]->BC_ConjugateHeat_Interface(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
+          solver_container[MainSolver]->BC_ConjugateHeat_Interface(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker, iRKStep);
         }
         else {
-          solver_container[MainSolver]->BC_HeatFlux_Wall(geometry, solver_container, numerics[CONV_BOUND_TERM], numerics[VISC_BOUND_TERM], config, iMarker);
+          solver_container[MainSolver]->BC_HeatFlux_Wall(geometry, solver_container, numerics[CONV_BOUND_TERM], numerics[VISC_BOUND_TERM], config, iMarker, iRKStep);
         }
         break;
     } 

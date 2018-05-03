@@ -13096,7 +13096,7 @@ void CEulerSolver::BC_NearField_Boundary(CGeometry *geometry, CSolver **solver_c
 void CEulerSolver::BC_ActDisk_Inlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
                                     CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
   
-  BC_ActDisk(geometry, solver_container, conv_numerics, visc_numerics, config, val_marker, true);
+  BC_ActDisk(geometry, solver_container, conv_numerics, visc_numerics, config, val_marker, true, iRKStep);
   
 }
 
@@ -14257,10 +14257,6 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
    it down to the coarse levels. We alo call the preprocessing routine
    on the fine level in order to have all necessary quantities updated,
    especially if this is a turbulent simulation (eddy viscosity). ---*/
-  
-  BC_ActDisk(geometry, solver_container, conv_numerics, visc_numerics, config, val_marker, true, iRKStep);
-  
-}
 
   solver[MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
   solver[MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
@@ -15526,6 +15522,11 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
 
   bool roe_turkel = (config->GetKind_Upwind_Flow() == TURKEL);
   bool low_mach_prec = config->Low_Mach_Preconditioning();
+  bool implicit = ((config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+                   (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+                   (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
+  bool implicit_rk = ((config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+                      (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   
   bool adjoint = (config->GetContinuous_Adjoint()) || (config->GetDiscrete_Adjoint());
   string filename_ = config->GetSolution_FlowFileName();
@@ -16192,6 +16193,25 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
     }
   }
 
+  /*--- Setup hybridization ---*/
+
+  if (config->isHybrid_Turb_Model()) {
+    switch (config->GetKind_Hybrid_Anisotropy_Model()) {
+      case ISOTROPIC:
+        hybrid_anisotropy = new CHybrid_Isotropic_Visc(nDim);
+        break;
+      case Q_BASED:
+        hybrid_anisotropy = new CHybrid_Aniso_Q(nDim);
+        break;
+      default:
+        cout << "Error: Selected anisotropy model not initialized." << std::endl;
+        cout << "       At line " << __LINE__ << " of file " __FILE__ << std::endl;
+        exit(EXIT_FAILURE);
+    }
+  } else {
+    hybrid_anisotropy = NULL;
+  }
+
   /*--- Initialize the solution to the far-field state everywhere. ---*/
 
   for (iPoint = 0; iPoint < nPoint; iPoint++)
@@ -16332,7 +16352,8 @@ CNSSolver::~CNSSolver(void) {
     }
     delete [] HeatConjugateVar;
   }
-  
+
+  if (hybrid_anisotropy != NULL) delete hybrid_anisotropy;
 }
 
 void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned short iRKStep, unsigned short RunTime_EqSystem, bool Output) {
@@ -17860,7 +17881,7 @@ void CNSSolver::SetRoe_Dissipation(CGeometry *geometry, CConfig *config){
   }
 }
 
-void CNSSolver::BC_ConjugateHeat_Interface(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CConfig *config, unsigned short val_marker) {
+void CNSSolver::BC_ConjugateHeat_Interface(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
 
   unsigned short iVar, jVar, iDim, jDim, Wall_Function;
   unsigned long iVertex, iPoint, Point_Normal, total_index;
