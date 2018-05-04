@@ -221,12 +221,6 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
       filename_ = config->GetUnsteady_FileName(filename_, Unst_RestartIter);
     }
 
-    /*--- Ensure that the solver had time=0 if no time is found ---*/
-
-    if (time_stepping) {
-      config->SetCurrent_UnstTime(0.0);
-    }
-
     /*--- Read and store the restart metadata. ---*/
 
     Read_SU2_Restart_Metadata(geometry, config, false, filename_);
@@ -834,9 +828,6 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
 
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CEulerVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
-
-  if (config->GetUnsteady_Simulation() == TIME_STEPPING)
-    config->SetCurrent_UnstTime(0.0);
 
   /*--- Check that the initial solution is physical, report any non-physical nodes ---*/
 

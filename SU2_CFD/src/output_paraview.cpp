@@ -747,7 +747,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
         case RANS_ONLY:
           // No extra variables
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           // Add resolution adequacy.
           Paraview_File << "\nSCALARS Resolution_Adequacy float 1\n";
           Paraview_File << "LOOKUP_TABLE default\n";

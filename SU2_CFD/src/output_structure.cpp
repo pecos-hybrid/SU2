@@ -2404,7 +2404,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         case RANS_ONLY:
           // No extra variables
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           // Add resolution adequacy, RANS weight, length, and timescales
           iVar_Extra_Hybrid_Vars = nVar_Total; nVar_Total += 4;
           break;
@@ -3272,7 +3272,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the Extra Variables for Hybrid RANS/LES ---*/
     // This will need to be changed if more variables are needed.
-    if (hybrid && (config->GetKind_Hybrid_Blending() == CONVECTIVE)) {
+    if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
 
       /*--- Loop over this partition to collect the current variable ---*/
       
@@ -4402,7 +4402,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         case RANS_ONLY:
           // No extra variables
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           // Add length/timescales
           if (config->GetOutput_FileFormat() == PARAVIEW) {
             restart_file << "\t\"Resolution_Adequacy\"";
@@ -7089,6 +7089,7 @@ void COutput::SpecialOutput_ForcesBreakdown(CSolver ****solver, CGeometry ***geo
           case SA:        Breakdown_file << "Spalart Allmaras" << "\n"; break;
           case SA_NEG:    Breakdown_file << "Negative Spalart Allmaras" << "\n"; break;
           case SST:       Breakdown_file << "Menter's SST"     << "\n"; break;
+          case KE:        Breakdown_file << "Durbin's k-epsilon-v2-f" << "\n"; break;
         }
         break;
     }
@@ -12403,10 +12404,18 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     if (config->GetKind_Turb_Model() == SST) {
       Variable_Names.push_back("TKE");
       Variable_Names.push_back("Omega");
+    } else if (config->GetKind_Turb_Model() == KE) {
+      Variable_Names.push_back("TKE");
+      Variable_Names.push_back("Dissipation");
+      Variable_Names.push_back("v2");
+      Variable_Names.push_back("f");
     } else {
       /*--- S-A variants ---*/
       Variable_Names.push_back("Nu_Tilde");
     }
+  }
+  if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+    Variable_Names.push_back("Alpha");
   }
   if (incompressible && weakly_coupled_heat) Variable_Names.push_back("Temperature");
 
@@ -12435,10 +12444,18 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         if (config->GetKind_Turb_Model() == SST) {
           Variable_Names.push_back("Limiter_TKE");
           Variable_Names.push_back("Limiter_Omega");
+        } else if (config->GetKind_Turb_Model() == KE) {
+          Variable_Names.push_back("Limiter_TKE");
+          Variable_Names.push_back("Limiter_Dissipation");
+          Variable_Names.push_back("Limiter_v2");
+          Variable_Names.push_back("Limiter_f");
         } else {
           /*--- S-A variants ---*/
           Variable_Names.push_back("Limiter_Nu_Tilde");
         }
+      }
+      if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+        Variable_Names.push_back("Limiter_Alpha");
       }
     }
     
@@ -12462,10 +12479,18 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         if (config->GetKind_Turb_Model() == SST) {
           Variable_Names.push_back("Residual_TKE");
           Variable_Names.push_back("Residual_Omega");
+        } else if (config->GetKind_Turb_Model() == KE) {
+          Variable_Names.push_back("Residual_TKE");
+          Variable_Names.push_back("Residual_Dissipation");
+          Variable_Names.push_back("Residual_v2");
+          Variable_Names.push_back("Residual_f");
         } else {
           /*--- S-A variants ---*/
           Variable_Names.push_back("Residual_Nu_Tilde");
         }
+      }
+      if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+        Variable_Names.push_back("Residual_Alpha");
       }
     }
     
@@ -12562,7 +12587,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         case RANS_ONLY:
           // No extra variables
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           // Add resolution adequacy.
           Variable_Names.push_back("Resolution_Adequacy"); nVar_Par++;
           Variable_Names.push_back("RANS_Weight"); nVar_Par++;
@@ -12838,7 +12863,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
             case RANS_ONLY:
               // No extra variables
               break;
-            case CONVECTIVE:
+            case DYNAMIC_HYBRID:
               // Add resolution adequacy and RANS weight
               Local_Data[jPoint][iVar] = solver[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
               iVar++;
@@ -12918,6 +12943,7 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
   bool grid_movement  = (config->GetGrid_Movement());
   bool Wrt_Halo       = config->GetWrt_Halo(), isPeriodic;
+  bool hybrid         = config->isHybrid_Turb_Model();
   
   int *Local_Halo;
   
@@ -12982,10 +13008,18 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
     if (config->GetKind_Turb_Model() == SST) {
       Variable_Names.push_back("Adjoint_TKE");
       Variable_Names.push_back("Adjoint_Omega");
+    } else if (config->GetKind_Turb_Model() == KE) {
+      Variable_Names.push_back("Adjoint_TKE");
+      Variable_Names.push_back("Adjoint_Dissipation");
+      Variable_Names.push_back("Adjoint_v2");
+      Variable_Names.push_back("Adjoint_f");
     } else {
       /*--- S-A variants ---*/
       Variable_Names.push_back("Adjoint_Nu_Tilde");
     }
+  }
+  if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+    Variable_Names.push_back("Adjoint_Alpha");
   }
 
 
@@ -13028,10 +13062,18 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
         if (config->GetKind_Turb_Model() == SST) {
           Variable_Names.push_back("Limiter_Adjoint_TKE");
           Variable_Names.push_back("Limiter_Adjoint_Omega");
+        } else if (config->GetKind_Turb_Model() == KE) {
+          Variable_Names.push_back("Limiter_Adjoint_TKE");
+          Variable_Names.push_back("Limiter_Adjoint_Dissipation");
+          Variable_Names.push_back("Limiter_Adjoint_v2");
+          Variable_Names.push_back("Limiter_Adjoint_f");
         } else {
           /*--- S-A variants ---*/
           Variable_Names.push_back("Limiter_Adjoint_Nu_Tilde");
         }
+      }
+      if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+        Variable_Names.push_back("Limiter_Adjoint_Alpha");
       }
     }
     
@@ -13056,10 +13098,18 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
         if (config->GetKind_Turb_Model() == SST) {
           Variable_Names.push_back("Residual_Adjoint_TKE");
           Variable_Names.push_back("Residual_Adjoint_Omega");
+        } else if (config->GetKind_Turb_Model() == KE) {
+          Variable_Names.push_back("Residual_Adjoint_TKE");
+          Variable_Names.push_back("Residual_Adjoint_Dissipation");
+          Variable_Names.push_back("Residual_Adjoint_v2");
+          Variable_Names.push_back("Residual_Adjoint_f");
         } else {
           /*--- S-A variants ---*/
           Variable_Names.push_back("Residual_Adjoint_Nu_Tilde");
         }
+      }
+      if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+        Variable_Names.push_back("Residual_Adjoint_Alpha");
       }
     }
     

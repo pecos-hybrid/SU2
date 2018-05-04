@@ -195,7 +195,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
           case RANS_ONLY:
             // No extra variables
             break;
-          case CONVECTIVE:
+          case DYNAMIC_HYBRID:
             // Add resolution adequacy.
             Tecplot_File << ", \"r<sub>k</sub>\"";
             Tecplot_File << ", \"w<sub>rans</sub>\"";
@@ -3083,7 +3083,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
         case RANS_ONLY:
           // No extra variables
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           // Add resolution adequacy.
           variables << "Resolution_Adequacy "; *NVar += 1;
           variables << "RANS_Weight "; *NVar += 1;

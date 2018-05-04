@@ -879,7 +879,7 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
       case RANS_ONLY:
         hybrid_mediator = new CHybrid_Dummy_Mediator(nDim, config);
         break;
-      case CONVECTIVE:
+      case DYNAMIC_HYBRID:
         hybrid_mediator = new CHybrid_Mediator(nDim, config, config->GetHybrid_Const_FileName());
         break;
     }
@@ -925,7 +925,7 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
             solver_container[iMGlevel][HYBRID_SOL] = new CHybridConvSolver(geometry[iMGlevel], config, iMGlevel);
             solver_container[iMGlevel][HYBRID_SOL]->AddHybridMediator(hybrid_mediator);
             break;
-          case CONVECTIVE:
+          case DYNAMIC_HYBRID:
             solver_container[iMGlevel][HYBRID_SOL] = new CHybridConvSolver(geometry[iMGlevel], config, iMGlevel);
             solver_container[iMGlevel][HYBRID_SOL]->AddHybridMediator(hybrid_mediator);
             break;
@@ -1866,7 +1866,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
            * do absolutely nothing ---*/
           numerics_container[iMGlevel][HYBRID_SOL][CONV_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           numerics_container[iMGlevel][HYBRID_SOL][CONV_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
           break;
         default:
@@ -1883,7 +1883,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
           /*-- See the note under convection numerics --*/
           numerics_container[iMGlevel][HYBRID_SOL][VISC_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, true, config);
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           numerics_container[iMGlevel][HYBRID_SOL][VISC_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, true, config);
           break;
         default:
@@ -1898,7 +1898,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
         case RANS_ONLY:
           numerics_container[iMGlevel][HYBRID_SOL][SOURCE_FIRST_TERM] = new CSourceNothing(nDim, nVar_Hybrid, config);
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           numerics_container[iMGlevel][HYBRID_SOL][SOURCE_FIRST_TERM] = new CSourcePieceWise_HybridConv(nDim, nVar_Hybrid, config);
           break;
         default:
@@ -1916,7 +1916,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
           numerics_container[iMGlevel][HYBRID_SOL][CONV_BOUND_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
           numerics_container[iMGlevel][HYBRID_SOL][VISC_BOUND_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, false, config);
           break;
-        case CONVECTIVE:
+        case DYNAMIC_HYBRID:
           numerics_container[iMGlevel][HYBRID_SOL][CONV_BOUND_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
           numerics_container[iMGlevel][HYBRID_SOL][VISC_BOUND_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, false, config);
           break;

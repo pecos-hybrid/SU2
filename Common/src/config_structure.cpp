@@ -563,6 +563,8 @@ void CConfig::SetPointersNull(void) {
 
   nSpanMaxAllZones = 1;
   
+  Current_UnstTime = 0.0;
+
 }
 
 void CConfig::SetRunTime_Options(void) {
@@ -628,7 +630,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief HYBRID_TURB_MODEL \n DESCRIPTION: Specify if a hybrid LES/RANS model is used. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_TURB_MODEL", Hybrid_Turb_Model, false);
 
-  /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: CONVECTIVE \ingroup Config */
+  /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: DYNAMIC_HYBRID \ingroup Config */
   addEnumOption("HYBRID_BLENDING_SCHEME", Kind_Hybrid_Blending, Hybrid_Blending_Map, DYNAMIC_HYBRID);
 
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
