@@ -5967,7 +5967,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             switch (config[val_iZone]->GetKind_Turb_Model()) {
               case SA: case SA_NEG: case SA_E: case SA_E_COMP: case SA_COMP:        cout << "       Res[nu]"; break;
               case SST:	      cout << "     Res[kine]" << "     Res[omega]"; break;
-              case KE:	   cout << "      Res[kine]" << "      Res[epsi]" << "       Res[zeta]" << "       Res[f]    "; break;
+              case KE:	   cout << "     Res[kine]" << "     Res[epsi]" << "     Res[zeta]" << "        Res[f]"; break;
             }
 
             if (hybrid)
@@ -6158,6 +6158,9 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             cout.width(8); cout << iIntIter;
             cout.width(8); cout << iExtIter;
           }
+          if ((Unsteady && DualTime_Iteration) || time_stepping) {
+            cout.width(11); cout << config[val_iZone]->GetCurrent_UnstTime();
+          }
         }
         else if (fem) {
           if (!DualTime_Iteration) {
@@ -6211,10 +6214,6 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
 
           /*--- Write screen output ---*/
           if (val_iZone == 0 || fluid_structure){
-            // TODO: Check that this snippet is inserted in the proper place
-            if ((Unsteady && DualTime_Iteration) || time_stepping) {
-              cout.width(11); cout << config[val_iZone]->GetCurrent_UnstTime();
-            }
             if(DualTime_Iteration || !Unsteady) {
               cout.precision(6);
               cout.setf(ios::fixed, ios::floatfield);
@@ -6315,9 +6314,9 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
                 case 2: cout.width(14); cout << log10(residual_turbulent[0]);
                         cout.width(15); cout << log10(residual_turbulent[1]); break;
                 case 4: cout.width(14); cout << log10(residual_turbulent[0]);
-                        cout.width(15); cout << log10(residual_turbulent[1]);
-                        cout.width(16); cout << log10(residual_turbulent[2]);
-                        cout.width(17); cout << log10(residual_turbulent[3]); break;
+                        cout.width(14); cout << log10(residual_turbulent[1]);
+                        cout.width(14); cout << log10(residual_turbulent[2]);
+                        cout.width(14); cout << log10(residual_turbulent[3]); break;
               }
 
               if (hybrid) {
