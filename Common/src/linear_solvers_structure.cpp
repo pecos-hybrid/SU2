@@ -712,10 +712,7 @@ unsigned long CSysSolve::Solve(CSysMatrix & Jacobian, CSysVector & LinSysRes, CS
   }
 
   if (config->GetLinear_Solver_Max_Iter_Error() && (IterLinSol >= MaxIter)) {
-    cout << "ERROR: Ran to the max number of iterations on the linear solver!" << endl;
-    cout << "       iter = " << IterLinSol << "\tmax iter = " << MaxIter << endl;
-    cout << "       error = " << LinSysRes.norm() << "\ttol = " << SolverTol << endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("Ran to the max number of iterations on the linear solver!", CURRENT_FUNCTION);
   }
 
   return IterLinSol;

@@ -854,14 +854,12 @@ inline void CSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solv
 
 inline void CSolver::LIMEX_RK_SMR91_Iteration(CGeometry *geometry, CSolver **solver_container, 
                                               CConfig *config, unsigned short iRKStep) { 
-  std::cout << "ERROR: SMR 91 time advance not implemented for this solver" << std::endl;
-  exit(EXIT_FAILURE);
+  SU2_MPI::Error("SMR 91 time advance not implemented for this solver.", CURRENT_FUNCTION);
 }
 
 inline void CSolver::LIMEX_RK_EDIRK_Iteration(CGeometry *geometry, CSolver **solver_container, 
                                               CConfig *config, unsigned short iRKStep) { 
-  std::cout << "ERROR: EDIRK time advance not implemented for this solver" << std::endl;
-  exit(EXIT_FAILURE);
+  SU2_MPI::Error("EDIRK time advance not implemented for this solver.", CURRENT_FUNCTION);
 }
 
 

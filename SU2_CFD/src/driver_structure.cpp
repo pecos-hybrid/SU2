@@ -1843,16 +1843,18 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
 
   if (hybrid) {
     if (hybrid && not(turbulent)) {
-      cout << "No turbulence model specified." << endl;
-      cout << "Please specify a RANS model to be used with the hybrid model." << endl;
-      exit(EXIT_FAILURE);
+      ostringstream error_msg;
+      error_msg << "No turbulence model specified." << endl;
+      error_msg << "Please specify a RANS model to be used with the hybrid model.";
+      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
     }
 
 		/*--- Check if the combination of hybridization and RANS model are valid ---*/
     if (hybrid && not(menter_sst || zetaf_ke)) {
-      cout << "Specified RANS model has not been implemented for hybrid RANS/LES." << endl;
-      cout << "Currently supported RANS models: SST, k-epsilon-v2-f" << endl;
-      exit(EXIT_FAILURE);
+      ostringstream error_msg;
+      error_msg << "Specified RANS model has not been implemented for hybrid RANS/LES." << endl;
+      error_msg << "Currently supported RANS models: SST, k-epsilon-v2-f";
+      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
     }
 
     /*--- Definition of the convective scheme for each equation and mesh level ---*/
@@ -1870,8 +1872,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
           numerics_container[iMGlevel][HYBRID_SOL][CONV_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
           break;
         default:
-          cout << "Convective numerics not found for specified hybrid blending scheme." << endl;
-          exit(EXIT_FAILURE);
+          SU2_MPI::Error("Convective numerics not found for specified hybrid blending scheme.", CURRENT_FUNCTION);
       }
     }
 
@@ -1887,8 +1888,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
           numerics_container[iMGlevel][HYBRID_SOL][VISC_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, true, config);
           break;
         default:
-            cout << "Viscous numerics not found for specified hybrid blending scheme." << endl;
-            exit(EXIT_FAILURE);
+          SU2_MPI::Error("Viscous numerics not found for specified hybrid blending scheme.", CURRENT_FUNCTION);
       }
     }
 
@@ -1902,8 +1902,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
           numerics_container[iMGlevel][HYBRID_SOL][SOURCE_FIRST_TERM] = new CSourcePieceWise_HybridConv(nDim, nVar_Hybrid, config);
           break;
         default:
-          cout << "Source numerics not found for specified hybrid blending scheme." << endl;
-          exit(EXIT_FAILURE);
+          SU2_MPI::Error("Source numerics not found for specified hybrid blending scheme.", CURRENT_FUNCTION);
       }
       numerics_container[iMGlevel][HYBRID_SOL][SOURCE_SECOND_TERM] = new CSourceNothing(nDim, nVar_Hybrid, config);
     }
@@ -1921,7 +1920,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
           numerics_container[iMGlevel][HYBRID_SOL][VISC_BOUND_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, false, config);
           break;
         default:
-          cout << "Boundary numerics not found for specified hybrid blending scheme." << endl; exit(EXIT_FAILURE);
+          SU2_MPI::Error("Boundary numerics not found for specified hybrid blending scheme.", CURRENT_FUNCTION);
       }
     }
   }
@@ -2198,7 +2197,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
           else if (e_spalart_allmaras) {SU2_MPI::Error("Adjoint Edward's SA turbulence model not implemented.", CURRENT_FUNCTION);}
           else if (comp_spalart_allmaras) {SU2_MPI::Error("Adjoint CC SA turbulence model not implemented.", CURRENT_FUNCTION);}
           else if (e_comp_spalart_allmaras) {SU2_MPI::Error("Adjoint CC Edward's SA turbulence model not implemented.", CURRENT_FUNCTION);}
-          else if (zetaf_ke) {cout << "Adjoint K-E turbulence model not implemented." << endl; exit(EXIT_FAILURE);}
+          else if (zetaf_ke) {SU2_MPI::Error("Adjoint K-E turbulence model not implemented.", CURRENT_FUNCTION);}
         break;
       default :
         SU2_MPI::Error("Convective scheme not implemented (adj_turb).", CURRENT_FUNCTION);
@@ -2216,7 +2215,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
       else if (e_spalart_allmaras) {SU2_MPI::Error("Adjoint Edward's SA turbulence model not implemented.", CURRENT_FUNCTION);}
       else if (comp_spalart_allmaras) {SU2_MPI::Error("Adjoint CC SA turbulence model not implemented.", CURRENT_FUNCTION);}
       else if (e_comp_spalart_allmaras) {SU2_MPI::Error("Adjoint CC Edward's SA turbulence model not implemented.", CURRENT_FUNCTION);}
-      else if (zetaf_ke) {cout << "Adjoint K-E turbulence model not implemented." << endl; exit(EXIT_FAILURE);}
+      else if (zetaf_ke) {SU2_MPI::Error("Adjoint K-E turbulence model not implemented.", CURRENT_FUNCTION);}
     }
     
     /*--- Definition of the source term integration scheme for each equation and mesh level ---*/
@@ -2230,7 +2229,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
       else if (e_spalart_allmaras) {SU2_MPI::Error("Adjoint Edward's SA turbulence model not implemented.", CURRENT_FUNCTION);}
       else if (comp_spalart_allmaras) {SU2_MPI::Error("Adjoint CC SA turbulence model not implemented.", CURRENT_FUNCTION);}
       else if (e_comp_spalart_allmaras) {SU2_MPI::Error("Adjoint CC Edward's SA turbulence model not implemented.", CURRENT_FUNCTION);}
-      else if (zetaf_ke) {cout << "Adjoint K-E turbulence model not implemented." << endl; exit(EXIT_FAILURE);}
+      else if (zetaf_ke) {SU2_MPI::Error("Adjoint K-E turbulence model not implemented.", CURRENT_FUNCTION);}
     }
     
     /*--- Definition of the boundary condition method ---*/
@@ -2241,7 +2240,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
       else if (e_spalart_allmaras) {SU2_MPI::Error("Adjoint Edward's SA turbulence model not implemented.", CURRENT_FUNCTION);}
       else if (comp_spalart_allmaras) {SU2_MPI::Error("Adjoint CC SA turbulence model not implemented.", CURRENT_FUNCTION);}
       else if (e_comp_spalart_allmaras) {SU2_MPI::Error("Adjoint CC Edward's SA turbulence model not implemented.", CURRENT_FUNCTION);}
-      else if (zetaf_ke) {cout << "Adjoint K-E turbulence model not implemented." << endl; exit(EXIT_FAILURE);}
+      else if (zetaf_ke) {SU2_MPI::Error("Adjoint K-E turbulence model not implemented.", CURRENT_FUNCTION);}
     }
     
   }

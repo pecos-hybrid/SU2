@@ -79,9 +79,10 @@ CHybrid_Aniso_Q::CHybrid_Aniso_Q(unsigned short nDim)
 void CHybrid_Aniso_Q::CalculateViscAnisotropy() {
 #ifndef NDEBUG
   if (rans_weight < 0 || rans_weight > 1) {
-    cout << "ERROR: Isotropic weighting in hybrid RANS/LES was not in range [0,1]" << endl;
-    cout << "       weight = " << rans_weight << endl;
-    exit(EXIT_FAILURE);
+    ostringstream error_msg;
+    error_msg << "Isotropic weighting in hybrid RANS/LES was not in range [0,1]" << endl;
+    error_msg << "    weight = " << rans_weight << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
 #endif
   su2double LES_weight = (1.0 - rans_weight);
@@ -106,10 +107,11 @@ inline void CHybrid_Aniso_Q::SetTensor(su2double** val_approx_struct_func) {
 inline void CHybrid_Aniso_Q::SetScalars(vector<su2double> val_scalars) {
 #ifndef NDEBUG
   if (val_scalars.size() != 1) {
-    cout << "ERROR: Improper number of scalars passed to anisotropy model!" << endl;
-    cout << "       Expected: 1" << endl;
-    cout << "       Found:    " << val_scalars.size() << endl;
-    exit(EXIT_FAILURE);
+    ostringstream error_msg;
+    error_msg << "Improper number of scalars passed to anisotropy model!" << endl;
+    error_msg << "    Expected: 1" << endl;
+    error_msg << "    Found:    " << val_scalars.size() << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
 #endif
   rans_weight = val_scalars[0];
@@ -330,8 +332,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
           break;
         }
         default: {
-          cout << "ERROR: The hybrid mediator is not set up for your turb. model!" << endl;
-          exit(EXIT_FAILURE);
+          SU2_MPI::Error("The hybrid mediator is not set up for your turb. model!", CURRENT_FUNCTION);
         }
       }
 
@@ -354,8 +355,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
     }
   }
   else {
-    cout << "ERROR: Unrecognized HYBRID_RESOLUTION_INDICATOR value!" << endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("Unrecognized HYBRID_RESOLUTION_INDICATOR value!", CURRENT_FUNCTION);
   }
 
   solver_container[HYBRID_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
@@ -386,12 +386,10 @@ void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
 
 #ifndef NDEBUG
   if (turb_T <= 0) {
-    cout << "Error: Turbulent timescale was " << turb_T << std::endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("Turbulent timescale was non-positive!", CURRENT_FUNCTION);
   }
   if (turb_L <= 0) {
-    cout << "Error: Turbulent timescale was " << turb_L << std::endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("Turbulent lengthscale was non-positive!", CURRENT_FUNCTION);
   }
 #endif
 
@@ -453,10 +451,16 @@ void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
 
 #ifndef NDEBUG
   su2double trace = Q[0][0] + Q[1][1] + Q[2][2];
-  if (trace > 1e7 || trace < 1e-7) {
-      cout << "ERROR: Trace of the stress anisotropy was unusual." << endl;
-      cout << "       Trace: " << trace << endl;
-      exit(EXIT_FAILURE);
+  if (trace > 1e7) {
+    ostringstream error_msg;
+    error_msg << "Trace of the stress anisotropy was unusually large." << endl;
+    error_msg << "       Trace: " << trace << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  } else if (trace < 1e-7) {
+    ostringstream error_msg;
+    error_msg << "Trace of the stress anisotropy was unusually small." << endl;
+    error_msg << "       Trace: " << trace << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
 #endif
 
@@ -500,10 +504,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   // Not intended for use in 2D
   if (nDim == 2) {
-    cout << "ERROR: The RDELTA resolution adequacy option is not implemented for 2D!" << endl;
-    cout << "In file: " << __FILE__ << endl;
-    cout << "At line: " << __LINE__ << endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("The RDELTA resolution adequacy option is not implemented for 2D!", CURRENT_FUNCTION);
   }
 
   // Get primative variables and gradients
@@ -556,10 +557,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   } else if (config->GetKind_Turb_Model() == SST) {
     v2 = alpha*2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
   } else {
-    cout << "ERROR: The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!" << endl;
-    cout << "In file: " << __FILE__ << endl;
-    cout << "At line: " << __LINE__ << endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
 
   // NB: Assumes isotropic eddy viscosity
@@ -602,10 +600,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     }
     break;
   default:
-    cout << "ERROR: Unrecognized RDELTA option." << endl;
-    cout << "In file: " << __FILE__ << endl;
-    cout << "At line: " << __LINE__ << endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("Unrecognized RDELTA option.", CURRENT_FUNCTION);
     break;
   }
 
@@ -622,8 +617,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       if (invLengthTensor[iDim][jDim] != invLengthTensor[iDim][jDim]) {
-        cout << "ERROR: invLengthTensor has NaN!" << endl;
-        exit(EXIT_FAILURE);
+        SU2_MPI::Error("invLengthTensor has NaN!", CURRENT_FUNCTION);
       }
     }
   }
@@ -640,10 +634,11 @@ su2double CHybrid_Mediator::GetProjResolution(su2double** resolution_tensor,
   for (unsigned short iDim = 0; iDim < nDim; iDim++)
     magnitude_squared += direction[iDim]*direction[iDim];
   if (abs(magnitude_squared - 1.0) > 1e-7) {
-    cout << "ERROR: The unit vector for the projected resolution calc had a ";
-    cout << "magnitude greater than 1!" << endl;
-    cout << "    Magnitude: " << sqrt(magnitude_squared) << endl;
-    exit(EXIT_FAILURE);
+    ostringstream error_msg;
+    error_msg << "The unit vector for the projected resolution calc had a ";
+    error_msg << "magnitude greater than 1!" << endl;
+    error_msg << "    Magnitude: " << sqrt(magnitude_squared);
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
 #endif
 
@@ -674,9 +669,10 @@ vector<vector<su2double> > CHybrid_Mediator::LoadConstants(string filename) {
       }
       file.close();
     } else {
-      cout << "ERROR: Could not open the hybrid constants file." << endl;
-      cout << "       Tried reading file " << fullname << endl;
-      exit(EXIT_FAILURE);
+      ostringstream error_msg;
+      error_msg << "Could not open the hybrid constants file." << endl;
+      error_msg << "       Tried reading file " << fullname;
+      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
     }
   }
   return output;
@@ -699,8 +695,7 @@ vector<su2double> CHybrid_Mediator::GetEigValues_Q(vector<su2double> eigvalues_M
   }
 #ifndef NDEBUG
   if (a < 1 || b < 1) {
-    cout << "ERROR: Normalization in the zeta transformation failed!" << endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("Normalization in the zeta transformation failed!", CURRENT_FUNCTION);
   }
 #endif
 
@@ -771,8 +766,7 @@ vector<vector<su2double> > CHybrid_Mediator::BuildZeta(su2double* values_M,
   }
   return zeta;
 #else
-  cout << "Eigensolver without LAPACK not implemented; please use LAPACK." << endl;
-  exit(EXIT_FAILURE);
+  SU2_MPI::Error("Eigensolver without LAPACK not implemented; please use LAPACK.", CURRENT_FUNCTION);
 #endif
 
 }
@@ -788,8 +782,7 @@ vector<su2double> CHybrid_Mediator::GetEigValues_Zeta(vector<su2double> eigvalue
 #ifndef NDEBUG
   for (int iDim = 0; iDim < nDim; iDim++) {
     if (eigvalues_Q[iDim] != eigvalues_Q[iDim]) {
-      cout << "ERROR: At least one computed eigenvalue was NaN!" << endl;
-      exit(EXIT_FAILURE);
+      SU2_MPI::Error("At least one computed eigenvalue was NaN!", CURRENT_FUNCTION);
     }
   }
 #endif
@@ -819,8 +812,7 @@ unsigned short iDim, jDim;
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       if (M[iDim][jDim] != M[iDim][jDim]) {
-        cout << "ERROR: SolveEigen received a matrix with NaN!" << endl;
-        exit(EXIT_FAILURE);
+        SU2_MPI::Error("SolveEigen received a matrix with NaN!", CURRENT_FUNCTION);
       }
     }
   }
@@ -831,8 +823,7 @@ unsigned short iDim, jDim;
     }
   }
   if (sum < EPS) {
-    cout << "ERROR: SolveEigen received an empty matrix!" << endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("SolveEigen received an empty matrix!", CURRENT_FUNCTION);
   }
 
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -840,15 +831,16 @@ unsigned short iDim, jDim;
       if (iDim == jDim) continue;
       if (abs(M[iDim][jDim] - M[jDim][iDim]) > 1e-10 &&
           abs(M[iDim][jDim] - M[jDim][iDim])/abs(M[iDim][jDim]) > 1e-6) {
-        cout << "ERROR: SolveEigen received a non-symmetric matrix!" << endl;
-        cout << "    The difference between elements" << endl;
-        cout << "      [" << iDim << ", " << jDim << "] and [" << jDim << ", " << iDim << "]" << endl;
-        cout << "      was: " << M[iDim][jDim] - M[jDim][iDim] << endl;
-        cout << "    Matrix:" << endl;
-        cout << "      [[" << M[0][0] << ", " << M[0][1] << ", " << M[0][2] << "]" << endl;
-        cout << "       [" << M[1][0] << ", " << M[1][1] << ", " << M[1][2] << "]" << endl;
-        cout << "       [" << M[2][0] << ", " << M[2][1] << ", " << M[2][2] << "]]" << endl;
-        exit(EXIT_FAILURE);
+        ostringstream error_msg;
+        error_msg << "SolveEigen received a non-symmetric matrix!" << endl;
+        error_msg << "    The difference between elements" << endl;
+        error_msg << "      [" << iDim << ", " << jDim << "] and [" << jDim << ", " << iDim << "]" << endl;
+        error_msg << "      was: " << M[iDim][jDim] - M[jDim][iDim] << endl;
+        error_msg << "    Matrix:" << endl;
+        error_msg << "      [[" << M[0][0] << ", " << M[0][1] << ", " << M[0][2] << "]" << endl;
+        error_msg << "       [" << M[1][0] << ", " << M[1][1] << ", " << M[1][2] << "]" << endl;
+        error_msg << "       [" << M[2][0] << ", " << M[2][1] << ", " << M[2][2] << "]]";
+        SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
       }
     }
   }
@@ -868,8 +860,10 @@ unsigned short iDim, jDim;
 
   info = LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nDim, mat, nDim, eigval);
   if (info != 0) {
-    cout << "ERROR: The solver failed to compute eigenvalues." << endl;
-    exit(EXIT_FAILURE);
+    ostringstream error_msg;
+    error_msg << "The solver failed to compute eigenvalues." << endl;
+    error_msg << "The info variable was set to: " << info;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
 
   /*--- Rewrite arrays to eigenvalues output ---*/
@@ -883,12 +877,13 @@ unsigned short iDim, jDim;
     if (eigval[iDim] < 0.0 && eigval[iDim] > -1e-4) {
         eigvalues[iDim] = 0.0;
     } else if (eigval[iDim] < -1e-4) {
-      cout << "ERROR: The solver returned a large negative eigenvalue!" << endl;
-      cout << "    Eigenvalues: [";
-      cout << eigval[0] << ", ";
-      cout << eigval[1] << ", ";
-      cout << eigval[2] << "]" << endl;
-      exit(EXIT_FAILURE);
+      ostringstream error_msg;
+      error_msg << "The solver returned a large negative eigenvalue!" << endl;
+      error_msg << "    Eigenvalues: [";
+      error_msg << eigval[0] << ", ";
+      error_msg << eigval[1] << ", ";
+      error_msg << eigval[2] << "]" << endl;
+      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
     }
   }
 
@@ -918,10 +913,8 @@ unsigned short iDim, jDim;
     }
   }
 #else
-  cout << "Eigensolver without LAPACK not implemented; please use LAPACK." << endl;
-  exit(EXIT_FAILURE);
+  SU2_MPI::Error("Eigensolver without LAPACK not implemented; please use LAPACK.", CURRENT_FUNCTION);
 #endif
-
 }
 
 void CHybrid_Mediator::SolveGeneralizedEigen(su2double** A, su2double** B,
@@ -947,9 +940,10 @@ unsigned short iDim, jDim;
   info = LAPACKE_dsygv(LAPACK_ROW_MAJOR, 2, 'V', 'U',
                        nDim, mat, nDim, matb, nDim, eigval);
   if (info != 0) {
-    cout << "ERROR: The generalized eigensolver failed with info = "
-         << info << "." << endl;
-    exit(EXIT_FAILURE);
+    ostringstream error_msg;
+    error_msg << "The generalized eigensolver failed with info = "
+         << info << ".";
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
 
   /*--- Rewrite arrays to eigenvalues output ---*/
@@ -978,8 +972,7 @@ unsigned short iDim, jDim;
     }
   }
 #else
-  cout << "Generalized eigensolver without LAPACK not implemented; please use LAPACK." << endl;
-  exit(EXIT_FAILURE);
+  SU2_MPI::Error("Eigensolver without LAPACK not implemented; please use LAPACK.", CURRENT_FUNCTION);
 #endif
 
 }

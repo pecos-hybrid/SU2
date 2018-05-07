@@ -622,8 +622,7 @@ void CHybridConvSolver::Source_Residual(CGeometry *geometry,
   }
 
   if (harmonic_balance) {
-    cout << "Error: Harmonic balance is not supported with hybrid methods." << endl;
-    exit(EXIT_FAILURE);
+    SU2_MPI::Error("Harmonic balance is not supported with hybrid methods.", CURRENT_FUNCTION);
   }
 }
 
@@ -974,6 +973,8 @@ void CHybridSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig
   if (dual_time|| time_stepping)
     restart_filename = config->GetUnsteady_FileName(restart_filename, val_iter);
 
+  // FIXME: Update this with the new way to load restart files.
+
   /*--- Open the restart file, throw an error if this fails. ---*/
 
   restart_file.open(restart_filename.data(), ios::in);
@@ -1293,11 +1294,7 @@ CHybridConvSolver::CHybridConvSolver(CGeometry *geometry, CConfig *config,
         nVarTotal += 4;
         break;
       default:
-        if (rank == MASTER_NODE) {
-          cout << "ERROR: Restarts have not been implemented for your" << endl;
-          cout << "   combination of RANS model and hybrid RANS/LES."  << endl;
-          exit(EXIT_FAILURE);
-        }
+        SU2_MPI::Error("Restarts have not been implemented for your combination of RANS model and hybrid RANS/LES.", CURRENT_FUNCTION);
         break;
     }
     ostringstream header_name;
@@ -1920,14 +1917,13 @@ void CHybridConvSolver::BC_ActDisk(CGeometry *geometry, CSolver **solver_contain
 
 void CHybridConvSolver::BC_Interface_Boundary(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
                                           CConfig *config, unsigned short val_marker, unsigned short iRKstep) {
-  cout << "ERROR: Interface boundary conditions are not implemented for the hybrid parameter solver!" << endl;
-  exit(EXIT_FAILURE);
+
+  SU2_MPI::Error("Interface boundary conditions are not implemented for the hybrid parameter solver!", CURRENT_FUNCTION);
 }
 
 void CHybridConvSolver::BC_NearField_Boundary(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
                                           CConfig *config, unsigned short val_marker, unsigned short iRKstep) {
-  cout << "ERROR: Near-field boundary conditions are not implemented for the hybrid parameter solver!" << endl;
-  exit(EXIT_FAILURE);
+  SU2_MPI::Error("Near-field boundary conditions are not implemented for the hybrid parameter solver!", CURRENT_FUNCTION);
 }
 
 void CHybridConvSolver::SetFreeStream_Solution(CConfig *config) {

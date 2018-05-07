@@ -1831,10 +1831,7 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
 
     // TODO: Add 2D option, mostly for testing
     if (nDim == 2) {
-      cout << "ERROR: The anisotropic eddy viscosity has not been implemented for 2D!" << endl;
-      cout << "In file: " << __FILE__ << endl;
-      cout << "At line: " << __LINE__ << endl;
-      exit(EXIT_FAILURE);
+      SU2_MPI::Error("The anisotropic eddy viscosity has not been implemented for 2D!", CURRENT_FUNCTION);
     }
 
     Density = val_primvar[nDim+2];
