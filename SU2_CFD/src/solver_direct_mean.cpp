@@ -4619,8 +4619,9 @@ void CEulerSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container,
      * separate times for the substeps. ---*/
     for (iPoint = 0; iPoint < nPointDomain; iPoint++)
       node[iPoint]->SetDelta_Time(Global_Delta_Time);
-    if (Iteration > 0)
-      config->AddCurrent_UnstTime(Global_Delta_Time);
+    bool first_time_step = (Iteration == 0) ||
+        (config->GetRestart() && Iteration == config->GetUnst_RestartIter());
+    if (first_time_step) config->AddCurrent_UnstTime(Global_Delta_Time);
   }
   
   /*--- Recompute the unsteady time step for the dual time strategy
@@ -16729,8 +16730,9 @@ void CNSSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container, CC
      * separate times for the substeps. ---*/
     for (iPoint = 0; iPoint < nPointDomain; iPoint++)
       node[iPoint]->SetDelta_Time(Global_Delta_Time);
-    if (Iteration > 0)
-      config->AddCurrent_UnstTime(Global_Delta_Time);
+    bool first_time_step = (Iteration == 0) ||
+        (config->GetRestart() && (Iteration == config->GetUnst_RestartIter()));
+    if (!first_time_step) config->AddCurrent_UnstTime(Global_Delta_Time);
   }
   
   /*--- Recompute the unsteady time step for the dual time strategy

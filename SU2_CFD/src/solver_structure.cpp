@@ -2691,6 +2691,11 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 					text_line.erase (0,9); ExtIter_ = atoi(text_line.c_str());
 				}
 
+        position = text_line.find ("TOTAL_TIME=",0);
+        if (position != string::npos) {
+          text_line.erase (0,11); Total_Time_ = atof(text_line.c_str());
+        }
+
 				/*--- Angle of attack ---*/
 
 				position = text_line.find ("AOA=",0);
@@ -2710,11 +2715,6 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 				position = text_line.find ("INITIAL_BCTHRUST=",0);
 				if (position != string::npos) {
 					text_line.erase (0,17); BCThrust_ = atof(text_line.c_str());
-				}
-
-				position = text_line.find ("TOTAL_TIME=",0);
-				if (position != string::npos) {
-					text_line.erase (0,4); Total_Time_ = atof(text_line.c_str());
 				}
 
 				if (adjoint_run) {
@@ -2812,12 +2812,15 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 		/*--- Total unsteady simulation time ---*/
 
 		if (config->GetDiscard_InFiles() == false) {
-                      cout << "SU2 will use the unsteady time found in the solution file as the initial time: " << Total_Time_  << endl;
-                      config->SetCurrent_UnstTime(Total_Time_);
+		  if ((abs(config->GetCurrent_UnstTime() - Total_Time_) > EPS) &&
+		      (rank == MASTER_NODE)) {
+          cout << "Initial time set to the unsteady time from the restart file." << endl;
+		  }
+		  config->SetCurrent_UnstTime(Total_Time_);
 		}
 		else {
 			if ((config->GetCurrent_UnstTime() != Total_Time_) &&  (rank == MASTER_NODE))
-				cout <<"WARNING: Discarding the unsteady total time in the solution file." << endl;
+				cout <<"WARNING: Discarding the unsteady time in the solution file." << endl;
 		}
 
 
