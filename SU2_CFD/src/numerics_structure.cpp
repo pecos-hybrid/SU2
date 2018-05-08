@@ -1824,7 +1824,6 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
                                    su2double **val_eddy_viscosity,
                                    bool val_qcr) {
 
-    // TODO: Add QCR correction
     unsigned short iVar, iDim, jDim, kDim, lDim;
     su2double** total_viscosity, **G;
     su2double heat_flux_factor, div_vel, Cp, Density, trace_eddy_viscosity;
@@ -1874,6 +1873,31 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
           for (lDim = 0; lDim < nDim; lDim++) {
             tau[iDim][jDim] -= 2.0*total_viscosity[kDim][lDim]*
                                G[kDim][lDim]*delta[iDim][jDim];
+          }
+        }
+      }
+    }
+
+    if (val_qcr){
+      su2double den_aux, c_cr1=0.3, O_ik, O_jk;
+      unsigned short kDim;
+
+      /*--- Denominator Antisymmetric normalized rotation tensor ---*/
+
+      den_aux = 0.0;
+      for (iDim = 0 ; iDim < nDim; iDim++)
+        for (jDim = 0 ; jDim < nDim; jDim++)
+          den_aux += val_gradprimvar[iDim+1][jDim] * val_gradprimvar[iDim+1][jDim];
+      den_aux = sqrt(max(den_aux,1E-10));
+
+      /*--- Adding the QCR contribution ---*/
+
+      for (iDim = 0 ; iDim < nDim; iDim++){
+        for (jDim = 0 ; jDim < nDim; jDim++){
+          for (kDim = 0 ; kDim < nDim; kDim++){
+            O_ik = (val_gradprimvar[iDim+1][kDim] - val_gradprimvar[kDim+1][iDim])/ den_aux;
+            O_jk = (val_gradprimvar[jDim+1][kDim] - val_gradprimvar[kDim+1][jDim])/ den_aux;
+            tau[iDim][jDim] -= c_cr1 * ((O_ik * tau[jDim][kDim]) + (O_jk * tau[iDim][kDim]));
           }
         }
       }
