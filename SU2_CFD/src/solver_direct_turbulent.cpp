@@ -4764,168 +4764,50 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   f_Inf = (10.0/3.0+0.3)*epsi_Inf/max(kine_Inf,tke_min);
 
 
-  /*--- Restart the solution from file information ---*/
-  if (!restart || (iMesh != MESH_0)) {
-    for (iPoint = 0; iPoint < nPoint; iPoint++) {
-      node[iPoint] = new CTurbKEVariable(kine_Inf, epsi_Inf, zeta_Inf, f_Inf,
-                                         muT_Inf, Tm_Inf, Lm_Inf,
-                                         nDim, nVar, constants, config);
+  /*--- Initialize the solution to the far-field state everywhere. ---*/
 
-    }
-
-  } else {
-
-    /*--- Restart the solution from file information ---*/
-    ifstream restart_file;
-    string filename = config->GetSolution_FlowFileName();
-
-    /*--- Modify file name for multizone problems ---*/
-    if (nZone >1)
-      filename= config->GetMultizone_FileName(filename, iZone);
-
-    /*--- Modify file name for an unsteady restart ---*/
-    if (dual_time || time_stepping) {
-      int Unst_RestartIter;
-
-      if (adjoint) {
-        Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_AdjointIter()) - 1;
-      } else if (config->GetUnsteady_Simulation() == DT_STEPPING_1ST ||
-                 time_stepping) {
-        Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_RestartIter())-1;
-      } else {
-        Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_RestartIter())-2;
-      }
-
-      filename = config->GetUnsteady_FileName(filename, Unst_RestartIter);
-    }
-
-    /*--- Open the restart file, throw an error if this fails. ---*/
-    restart_file.open(filename.data(), ios::in);
-    if (restart_file.fail()) {
-      cout << "There is no turbulent restart file named "
-           << filename << " !!" << endl;
-      exit(EXIT_FAILURE);
-    }
-
-    /*--- In case this is a parallel simulation, we need to perform the
-     Global2Local index transformation first. ---*/
-
-    map<unsigned long,unsigned long> Global2Local;
-    map<unsigned long,unsigned long>::const_iterator MI;
-
-    /*--- Now fill array with the transform values only for local points ---*/
-    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
-      Global2Local[geometry->node[iPoint]->GetGlobalIndex()] = iPoint;
-    }
-
-    /*--- Read all lines in the restart file ---*/
-    long iPoint_Local; unsigned long iPoint_Global = 0; string text_line; unsigned long iPoint_Global_Local = 0;
-    unsigned short rbuf_NotMatching = 0, sbuf_NotMatching = 0;
-
-    /*--- The first line is the header ---*/
-    getline (restart_file, text_line);
-
-    for (iPoint_Global = 0; iPoint_Global < geometry->GetGlobal_nPointDomain(); iPoint_Global++ ) {
-
-      getline (restart_file, text_line);
-
-      istringstream point_line(text_line);
-
-      /*--- Retrieve local index. If this node from the restart file lives
-       on the current processor, we will load and instantiate the vars. ---*/
-
-      MI = Global2Local.find(iPoint_Global);
-      if (MI != Global2Local.end()) {
-
-        iPoint_Local = Global2Local[iPoint_Global];
-
-        if (compressible) {
-          if (nDim == 2) {
-            point_line >> index
-                       >> dull_val >> dull_val >> dull_val
-                       >> dull_val >> dull_val >> dull_val
-                       >> Solution[0] >> Solution[1]
-                       >> Solution[2] >> Solution[3];
-          }
-          if (nDim == 3) {
-            point_line >> index
-                       >> dull_val >> dull_val >> dull_val >> dull_val
-                       >> dull_val >> dull_val >> dull_val >> dull_val
-                       >> Solution[0] >> Solution[1]
-                       >> Solution[2] >> Solution[3];
-          }
-        }
-        if (incompressible) {
-          cout << "WARNING: Have not tested v2-f with incompressible!!" << endl;
-          cout << "         Proceed at your own risk!!                " << endl;
-
-          if (nDim == 2) {
-            point_line >> index
-                       >> dull_val >> dull_val >> dull_val
-                       >> dull_val >> dull_val
-                       >> Solution[0] >> Solution[1]
-                       >> Solution[2] >> Solution[3];
-          }
-
-          if (nDim == 3) {
-            point_line >> index
-                       >> dull_val >> dull_val >> dull_val >> dull_val
-                       >> dull_val >> dull_val >> dull_val
-                       >> Solution[0] >> Solution[1]
-                       >> Solution[2] >> Solution[3];
-          }
-        }
-
-        /*--- Instantiate the solution at this node, note that the muT_Inf should recomputed ---*/
-        node[iPoint_Local] = new CTurbKEVariable(Solution[0], Solution[1],
-                                                 Solution[2], Solution[3],
-                                                 muT_Inf, Tm_Inf, Lm_Inf,
-                                                 nDim, nVar, constants, config);
-        iPoint_Global_Local++;
-      }
-
-    }
-
-    /*--- Detect a wrong solution file ---*/
-
-    if (iPoint_Global_Local < nPointDomain) { sbuf_NotMatching = 1; }
-
-#ifndef HAVE_MPI
-    rbuf_NotMatching = sbuf_NotMatching;
-#else
-    SU2_MPI::Allreduce(&sbuf_NotMatching, &rbuf_NotMatching, 1, MPI_UNSIGNED_SHORT, MPI_SUM, MPI_COMM_WORLD);
-#endif
-    if (rbuf_NotMatching != 0) {
-      if (rank == MASTER_NODE) {
-        cout << endl << "The solution file " << filename.data() << " doesn't match with the mesh file!" << endl;
-        cout << "It could be empty lines at the end of the file." << endl << endl;
-      }
-#ifndef HAVE_MPI
-      exit(EXIT_FAILURE);
-#else
-      MPI_Barrier(MPI_COMM_WORLD);
-      MPI_Abort(MPI_COMM_WORLD,1);
-      MPI_Finalize();
-#endif
-    }
-
-    /*--- Instantiate the variable class with an arbitrary solution
-     at any halo/periodic nodes. The initial solution can be arbitrary,
-     because a send/recv is performed immediately in the solver. ---*/
-    for (iPoint = nPointDomain; iPoint < nPoint; iPoint++) {
-      node[iPoint] = new CTurbKEVariable(Solution[0], Solution[1],
-                                         Solution[2], Solution[3],
-                                         muT_Inf, Tm_Inf, Lm_Inf,
-                                         nDim, nVar, constants, config);
-    }
-
-    /*--- Close the restart file ---*/
-    restart_file.close();
-  }
+  for (iPoint = 0; iPoint < nPoint; iPoint++)
+    node[iPoint] = new CTurbKEVariable(kine_Inf, epsi_Inf, zeta_Inf, f_Inf,
+                                       muT_Inf, Tm_Inf, Lm_Inf,
+                                       nDim, nVar, constants, config);
 
   /*--- MPI solution ---*/
+
+  //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
+  Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
 
+  /*--- Initializate quantities for SlidingMesh Interface ---*/
+
+  unsigned long iMarker;
+
+  SlidingState       = new su2double*** [nMarker];
+  SlidingStateNodes  = new int*         [nMarker];
+
+  for (iMarker = 0; iMarker < nMarker; iMarker++){
+
+    SlidingState[iMarker]      = NULL;
+    SlidingStateNodes[iMarker] = NULL;
+
+    if (config->GetMarker_All_KindBC(iMarker) == FLUID_INTERFACE){
+
+      SlidingState[iMarker]       = new su2double**[geometry->GetnVertex(iMarker)];
+      SlidingStateNodes[iMarker]  = new int        [geometry->GetnVertex(iMarker)];
+
+      for (iPoint = 0; iPoint < geometry->GetnVertex(iMarker); iPoint++){
+        SlidingState[iMarker][iPoint] = new su2double*[nPrimVar+1];
+
+        SlidingStateNodes[iMarker][iPoint] = 0;
+        for (iVar = 0; iVar < nPrimVar+1; iVar++)
+          SlidingState[iMarker][iPoint][iVar] = NULL;
+      }
+
+    }
+  }
+
+  /*--- Set up inlet profiles, if necessary ---*/
+
+  SetInlet(config);
 }
 
 CTurbKESolver::~CTurbKESolver(void) {
