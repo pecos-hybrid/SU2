@@ -9764,10 +9764,17 @@ public:
   su2double* GetConstants();
 
   /*!
-   * \brief A virtual member.
+   * \brief Set the solution using the Freestream values.
    * \param[in] config - Definition of the particular problem.
    */
-  virtual void SetFreeStream_Solution(CConfig *config);
+  void SetFreeStream_Solution(CConfig *config);
+
+
+  /*!
+   * \brief Setup the inlet per the config file and stores the result
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetInlet(CConfig *config);
 
 };
 
