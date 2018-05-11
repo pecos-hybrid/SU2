@@ -38,13 +38,19 @@ CHybridSolver::CHybridSolver()
 
   FlowPrimVar_i = NULL;
   FlowPrimVar_j = NULL;
+  nMarker       = 0;
 
 }
 
-CHybridSolver::CHybridSolver(CConfig *config) : CSolver() {
+CHybridSolver::CHybridSolver(CGeometry* geometry, CConfig *config) : CSolver() {
 
   FlowPrimVar_i = NULL;
   FlowPrimVar_j = NULL;
+  nMarker       = config->GetnMarker_All();
+  /*--- Store the number of vertices on each marker for deallocation later ---*/
+  nVertex = new unsigned long[nMarker];
+  for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++)
+    nVertex[iMarker] = geometry->nVertex[iMarker];
 
 }
 
@@ -948,57 +954,46 @@ void CHybridSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_c
 
 
 
-void CHybridSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter) {
+void CHybridSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter, bool val_update_geo) {
 
   /*--- Restart the solution from file information ---*/
 
   unsigned short iVar, iMesh;
   unsigned long iPoint, index, iChildren, Point_Fine;
-  su2double dull_val, Area_Children, Area_Parent, *Solution_Fine;
+  su2double Area_Children, Area_Parent, *Solution_Fine;
   bool compressible   = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
   bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
   bool time_stepping = (config->GetUnsteady_Simulation() == TIME_STEPPING);
+  unsigned short iZone = config->GetiZone();
+  unsigned short nZone = config->GetnZone();
+
   string UnstExt, text_line;
   ifstream restart_file;
   string restart_filename = config->GetSolution_FlowFileName();
-  int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
+
+  /*--- Modify file name for multizone problems ---*/
+  if (nZone >1)
+    restart_filename = config->GetMultizone_FileName(restart_filename, iZone);
 
   /*--- Modify file name for an unsteady restart ---*/
 
   if (dual_time|| time_stepping)
     restart_filename = config->GetUnsteady_FileName(restart_filename, val_iter);
 
-  // FIXME: Update this with the new way to load restart files.
+  /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
 
-  /*--- Open the restart file, throw an error if this fails. ---*/
-
-  restart_file.open(restart_filename.data(), ios::in);
-  if (restart_file.fail()) {
-    if (rank == MASTER_NODE)
-      cout << "There is no flow restart file!! " << restart_filename.data() << "."<< endl;
-    exit(EXIT_FAILURE);
+  if (config->GetRead_Binary_Restart()) {
+    Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
+  } else {
+    Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
   }
 
-  /*--- In case this is a parallel simulation, we need to perform the
-   Global2Local index transformation first. ---*/
-
-  map<unsigned long,unsigned long> Global2Local;
-  map<unsigned long,unsigned long>::const_iterator MI;
-
-  /*--- Now fill array with the transform values only for local points ---*/
-
-  for (iPoint = 0; iPoint < geometry[MESH_0]->GetnPointDomain(); iPoint++) {
-    Global2Local[geometry[MESH_0]->node[iPoint]->GetGlobalIndex()] = iPoint;
-  }
-
-  /*--- Read all lines in the restart file ---*/
-
+  int counter = 0;
   long iPoint_Local = 0; unsigned long iPoint_Global = 0;
+  unsigned long iPoint_Global_Local = 0;
+  unsigned short rbuf_NotMatching = 0, sbuf_NotMatching = 0;
 
   /*--- Skip flow variables ---*/
 
@@ -1026,44 +1021,58 @@ void CHybridSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig
       break;
   }
 
-  /*--- The first line is the header ---*/
+  /*--- Load data from the restart into correct containers. ---*/
 
-  getline (restart_file, text_line);
-
+  counter = 0;
   for (iPoint_Global = 0; iPoint_Global < geometry[MESH_0]->GetGlobal_nPointDomain(); iPoint_Global++ ) {
 
-    getline (restart_file, text_line);
-
-    istringstream point_line(text_line);
 
     /*--- Retrieve local index. If this node from the restart file lives
      on the current processor, we will load and instantiate the vars. ---*/
 
-    MI = Global2Local.find(iPoint_Global);
-    if (MI != Global2Local.end()) {
+    iPoint_Local = geometry[MESH_0]->GetGlobal_to_Local_Point(iPoint_Global);
 
-      iPoint_Local = Global2Local[iPoint_Global];
+    if (iPoint_Local > -1) {
+      
+      /*--- We need to store this point's data, so jump to the correct
+       offset in the buffer of data from the restart file and load it. ---*/
 
-      point_line >> index;
-      for (iVar = 0; iVar < skipVars; iVar++) { point_line >> dull_val;}
-      for (iVar = 0; iVar < nVar; iVar++) { point_line >> Solution[iVar];}
+      index = counter*Restart_Vars[1] + skipVars;
+      for (iVar = 0; iVar < nVar; iVar++) Solution[iVar] = Restart_Data[index+iVar];
       node[iPoint_Local]->SetSolution(Solution);
+      iPoint_Global_Local++;
 
+      /*--- Increment the overall counter for how many points have been loaded. ---*/
+      counter++;
     }
 
   }
 
-  /*--- Close the restart file ---*/
+  /*--- Detect a wrong solution file ---*/
 
-  restart_file.close();
+  if (iPoint_Global_Local < nPointDomain) { sbuf_NotMatching = 1; }
+
+#ifndef HAVE_MPI
+  rbuf_NotMatching = sbuf_NotMatching;
+#else
+  SU2_MPI::Allreduce(&sbuf_NotMatching, &rbuf_NotMatching, 1, MPI_UNSIGNED_SHORT, MPI_SUM, MPI_COMM_WORLD);
+#endif
+  if (rbuf_NotMatching != 0) {
+    SU2_MPI::Error(string("The solution file ") + restart_filename + string(" doesn't match with the mesh file!\n") +
+                   string("It could be empty lines at the end of the file."), CURRENT_FUNCTION);
+  }
 
   /*--- MPI solution and compute the eddy viscosity ---*/
 
+//TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart.
   solver[MESH_0][HYBRID_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
-  solver[MESH_0][HYBRID_SOL]->Postprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0);
+  solver[MESH_0][HYBRID_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
+
+  solver[MESH_0][FLOW_SOL]->Preprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
+  solver[MESH_0][TURB_SOL]->Postprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0);
 
   /*--- Interpolate the solution down to the coarse multigrid levels ---*/
-
+  
   for (iMesh = 1; iMesh <= config->GetnMGLevels(); iMesh++) {
     for (iPoint = 0; iPoint < geometry[iMesh]->GetnPoint(); iPoint++) {
       Area_Parent = geometry[iMesh]->node[iPoint]->GetVolume();
@@ -1079,8 +1088,15 @@ void CHybridSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig
       solver[iMesh][HYBRID_SOL]->node[iPoint]->SetSolution(Solution);
     }
     solver[iMesh][HYBRID_SOL]->Set_MPI_Solution(geometry[iMesh], config);
+    solver[iMesh][FLOW_SOL]->Preprocessing(geometry[iMesh], solver[iMesh], config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
     solver[iMesh][HYBRID_SOL]->Postprocessing(geometry[iMesh], solver[iMesh], config, iMesh);
   }
+
+  /*--- Delete the class memory that is used to load the restart. ---*/
+
+  if (Restart_Vars != NULL) delete [] Restart_Vars;
+  if (Restart_Data != NULL) delete [] Restart_Data;
+  Restart_Vars = NULL; Restart_Data = NULL;
 
 }
 
@@ -1215,177 +1231,76 @@ CHybridConvSolver::CHybridConvSolver(CGeometry *geometry, CConfig *config,
 
 
   /*--- Restart the solution from file information ---*/
-  if (!restart || (iMesh != MESH_0)) {
-    for (iPoint = 0; iPoint < nPoint; iPoint++)
-      node[iPoint] = new CHybridConvVariable(alpha_Inf, nDim, nVar, config);
-  }
-  else {
-
-    /*--- Restart the solution from file information ---*/
-    ifstream restart_file;
-    string filename = config->GetSolution_FlowFileName();
-    int Unst_RestartIter;
-
-    /*--- Modify file name for multizone problems ---*/
-    if (nZone >1)
-      filename= config->GetMultizone_FileName(filename, iZone);
-
-    /*--- Modify file name for an unsteady restart ---*/
-    if (dual_time) {
-      if (adjoint) {
-        Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_AdjointIter()) - 1;
-      } else if (config->GetUnsteady_Simulation() == DT_STEPPING_1ST)
-        Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_RestartIter())-1;
-      else
-        Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_RestartIter())-2;
-      filename = config->GetUnsteady_FileName(filename, Unst_RestartIter);
-    }
-
-    /*--- Modify file name for a simple unsteady restart ---*/
-
-    if (time_stepping) {
-      if (adjoint) {
-        Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_AdjointIter()) - 1;
-      } else {
-        Unst_RestartIter = SU2_TYPE::Int(config->GetUnst_RestartIter())-1;
-      }
-      filename = config->GetUnsteady_FileName(filename, Unst_RestartIter);
-    }
-
-    /*--- Open the restart file, throw an error if this fails. ---*/
-    restart_file.open(filename.data(), ios::in);
-    if (restart_file.fail()) {
-      cout << "There is no restart file!!" << endl;
-      exit(EXIT_FAILURE);
-    }
-
-    /*--- In case this is a parallel simulation, we need to perform the
-     Global2Local index transformation first. ---*/
-
-    map<unsigned long,unsigned long> Global2Local;
-    map<unsigned long,unsigned long>::const_iterator MI;
-
-    /*--- Now fill array with the transform values only for local points ---*/
-    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
-      Global2Local[geometry->node[iPoint]->GetGlobalIndex()] = iPoint;
-    }
-
-    /*--- Read all lines in the restart file ---*/
-
-    long iPoint_Local; unsigned long iPoint_Global = 0; string text_line; unsigned long iPoint_Global_Local = 0;
-    unsigned short rbuf_NotMatching = 0, sbuf_NotMatching = 0;
-
-    /*--- The first line is the header. Check to see if this is a hybrid restart
-     * file, or if it is a RANS restart ---*/
-
-    getline (restart_file, text_line);
-    bool isRANS = false;
-    unsigned short nVarTotal = nDim+1; // Velocities plus a state variable
-    if (compressible) nVarTotal += 1;
-    nVarTotal += nVar; // Hybrid variable(s)
-    switch(config->GetKind_Turb_Model()) {
-      case SA:
-        nVarTotal += 1;
-        break;
-      case SST:
-        nVarTotal += 2;
-        break;
-      case KE:
-        nVarTotal += 4;
-        break;
-      default:
-        SU2_MPI::Error("Restarts have not been implemented for your combination of RANS model and hybrid RANS/LES.", CURRENT_FUNCTION);
-        break;
-    }
-    ostringstream header_name;
-    header_name << "Conservative_" << nVarTotal;
-    if (text_line.find(header_name.str()) == string::npos) isRANS = true;
-
-    if (isRANS) {
-
-      /*--- Restart file is RANS, not hybrid.  Restart with initial values
-       * of hybrid parameter ---*/
-      if (rank == MASTER_NODE) {
-        cout << "Restart file does not appear to contain hybrid variable(s)." << endl;
-        cout << "Starting solution using RANS variables and initial conditions for hybrid variable(s)." << endl;
-      }
-      for (iPoint = 0; iPoint < nPoint; iPoint++)
-        node[iPoint] = new CHybridConvVariable(alpha_Inf, nDim, nVar, config);
-
-    } else {
-
-      /*--- Restart file *should* contain hybrid parameter. Load normally ---*/
-
-      for (iPoint_Global = 0; iPoint_Global < geometry->GetGlobal_nPointDomain(); iPoint_Global++ ) {
-
-        getline (restart_file, text_line);
-
-        istringstream point_line(text_line);
-
-        /*--- Retrieve local index. If this node from the restart file lives
-         on the current processor, we will load and instantiate the vars. ---*/
-
-        MI = Global2Local.find(iPoint_Global);
-        if (MI != Global2Local.end()) {
-
-          iPoint_Local = Global2Local[iPoint_Global];
-
-          unsigned short nSkipVars = nVarTotal - 1;
-          point_line >> index;
-          for (iVar = 0; iVar < nSkipVars; iVar++) {
-            point_line >> dull_val;
-          }
-          point_line >> Solution[0];
-
-          /*--- Instantiate the solution at this node  ---*/
-          node[iPoint_Local] = new CHybridConvVariable(Solution[0], nDim, nVar, config);
-          iPoint_Global_Local++;
-        }
-
-      }
-
-      /*--- Detect a wrong solution file ---*/
-
-      if (iPoint_Global_Local < nPointDomain) { sbuf_NotMatching = 1; }
-
-#ifndef HAVE_MPI
-      rbuf_NotMatching = sbuf_NotMatching;
-#else
-      SU2_MPI::Allreduce(&sbuf_NotMatching, &rbuf_NotMatching, 1, MPI_UNSIGNED_SHORT, MPI_SUM, MPI_COMM_WORLD);
-#endif
-      if (rbuf_NotMatching != 0) {
-        if (rank == MASTER_NODE) {
-          cout << endl << "The solution file " << filename.data() << " doesn't match with the mesh file!" << endl;
-          cout << "It could be empty lines at the end of the file." << endl << endl;
-        }
-#ifndef HAVE_MPI
-        exit(EXIT_FAILURE);
-#else
-        MPI_Barrier(MPI_COMM_WORLD);
-        MPI_Abort(MPI_COMM_WORLD,1);
-        MPI_Finalize();
-#endif
-      }
-
-      /*--- Instantiate the variable class with an arbitrary solution
-       at any halo/periodic nodes. The initial solution can be arbitrary,
-       because a send/recv is performed immediately in the solver. ---*/
-      for (iPoint = nPointDomain; iPoint < nPoint; iPoint++) {
-        node[iPoint] = new CHybridConvVariable(alpha_Inf, nDim, nVar, config);
-      }
-    }
-
-    /*--- Close the restart file ---*/
-    restart_file.close();
-
-  }
+  for (iPoint = 0; iPoint < nPoint; iPoint++)
+    node[iPoint] = new CHybridConvVariable(alpha_Inf, nDim, nVar, config);
 
   /*--- MPI solution ---*/
+
+  //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
   Set_MPI_Solution(geometry, config);
+  Set_MPI_Solution(geometry, config);
+
+  /*--- Initializate quantities for SlidingMesh Interface ---*/
+
+  unsigned long iMarker;
+
+  SlidingState       = new su2double*** [nMarker];
+  SlidingStateNodes  = new int*         [nMarker];
+
+  for (iMarker = 0; iMarker < nMarker; iMarker++){
+
+    SlidingState[iMarker]      = NULL;
+    SlidingStateNodes[iMarker] = NULL;
+
+    if (config->GetMarker_All_KindBC(iMarker) == FLUID_INTERFACE){
+
+      SlidingState[iMarker]       = new su2double**[geometry->GetnVertex(iMarker)];
+      SlidingStateNodes[iMarker]  = new int        [geometry->GetnVertex(iMarker)];
+
+      for (iPoint = 0; iPoint < geometry->GetnVertex(iMarker); iPoint++){
+        SlidingState[iMarker][iPoint] = new su2double*[nPrimVar+1];
+
+        SlidingStateNodes[iMarker][iPoint] = 0;
+        for (iVar = 0; iVar < nPrimVar+1; iVar++)
+          SlidingState[iMarker][iPoint][iVar] = NULL;
+      }
+
+    }
+  }
+
+  /*--- Set up inlet profiles, if necessary ---*/
+
+  SetInlet(config);
 
 }
 
 CHybridConvSolver::~CHybridConvSolver(void) {
+
+  unsigned long iMarker, iVertex;
+  unsigned short iVar;
+  
+  if ( SlidingState != NULL ) {
+    for (iMarker = 0; iMarker < nMarker; iMarker++) {
+      if ( SlidingState[iMarker] != NULL ) {
+        for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++)
+          if ( SlidingState[iMarker][iVertex] != NULL ){
+            for (iVar = 0; iVar < nPrimVar+1; iVar++)
+              delete [] SlidingState[iMarker][iVertex][iVar];
+            delete [] SlidingState[iMarker][iVertex];
+          }
+        delete [] SlidingState[iMarker];
+      }
+    }
+    delete [] SlidingState;
+  }
+  
+  if ( SlidingStateNodes != NULL ){
+    for (iMarker = 0; iMarker < nMarker; iMarker++){
+        if (SlidingStateNodes[iMarker] != NULL)
+            delete [] SlidingStateNodes[iMarker];  
+    }
+    delete [] SlidingStateNodes;
+  }
 
 }
 

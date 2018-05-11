@@ -1046,6 +1046,7 @@ void CDriver::Solver_Restart(CSolver ***solver_container, CGeometry **geometry,
   bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
   bool adjoint = (config->GetDiscrete_Adjoint() || config->GetContinuous_Adjoint());
   bool dynamic = (config->GetDynamic_Analysis() == DYNAMIC); // Dynamic simulation (FSI).
+  bool hybrid = (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID);
 
   if (dual_time) {
     if (adjoint) val_iter = SU2_TYPE::Int(config->GetUnst_AdjointIter())-1;
@@ -1090,6 +1091,9 @@ void CDriver::Solver_Restart(CSolver ***solver_container, CGeometry **geometry,
     }
     if (turbulent) {
       solver_container[MESH_0][TURB_SOL]->LoadRestart(geometry, solver_container, config, val_iter, update_geo);
+    }
+    if (hybrid) {
+      solver_container[MESH_0][HYBRID_SOL]->LoadRestart(geometry, solver_container, config, val_iter, update_geo);
     }
     if (fem) {
       if (dynamic) val_iter = SU2_TYPE::Int(config->GetDyn_RestartIter())-1;

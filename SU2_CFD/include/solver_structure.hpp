@@ -9971,7 +9971,15 @@ class CHybridSolver: public CSolver {
  protected:
    su2double *FlowPrimVar_i,  /*!< \brief Store the flow solution at point i. */
    *FlowPrimVar_j;         /*!< \brief Store the flow solution at point j. */
+  unsigned long nMarker, /*!< \brief Total number of markers using the grid information. */
+  *nVertex;              /*!< \brief Store nVertex at each marker for deallocation */
   CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
+
+  /* Sliding meshes variables */
+
+  su2double ****SlidingState;
+  int **SlidingStateNodes;
+
 
  public:
 
@@ -9988,7 +9996,7 @@ class CHybridSolver: public CSolver {
    /*!
     * \brief Constructor of the class.
     */
-   CHybridSolver(CConfig *config);
+   CHybridSolver(CGeometry *geometry, CConfig *config);
 
    /*!
     * \brief Impose the send-receive boundary condition.
@@ -10080,8 +10088,9 @@ class CHybridSolver: public CSolver {
     * \param[in] solver - Container vector with all of the solvers.
     * \param[in] config - Definition of the particular problem.
     * \param[in] val_iter - Current external iteration number.
+    * \param[in] val_update_geo - Flag for updating coords and grid velocity.
     */
-   void LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter);
+   void LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter, bool val_update_geo);
 
    /*!
    * \brief Add a hybrid mediator object to manage the RANS/LES hybrid model
