@@ -38,6 +38,7 @@ CHybridSolver::CHybridSolver()
 
   FlowPrimVar_i = NULL;
   FlowPrimVar_j = NULL;
+  nVertex       = NULL;
   nMarker       = 0;
 
 }
@@ -47,6 +48,7 @@ CHybridSolver::CHybridSolver(CGeometry* geometry, CConfig *config) : CSolver() {
   FlowPrimVar_i = NULL;
   FlowPrimVar_j = NULL;
   nMarker       = config->GetnMarker_All();
+  
   /*--- Store the number of vertices on each marker for deallocation later ---*/
   nVertex = new unsigned long[nMarker];
   for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++)
@@ -58,6 +60,7 @@ CHybridSolver::~CHybridSolver(void) {
 
   if (FlowPrimVar_i != NULL) delete [] FlowPrimVar_i;
   if (FlowPrimVar_j != NULL) delete [] FlowPrimVar_j;
+  if (nVertex != NULL) delete [] nVertex;
 
 }
 
@@ -68,7 +71,7 @@ void CHybridSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
-  MPI_Status status;
+  SU2_MPI::Status status;
 #endif
 
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
@@ -145,7 +148,7 @@ void CHybridSolver::Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config) {
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
-  MPI_Status status;
+  SU2_MPI::Status status;
 #endif
 
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
@@ -224,7 +227,7 @@ void CHybridSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *conf
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
-  MPI_Status status;
+  SU2_MPI::Status status;
 #endif
 
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
@@ -343,7 +346,7 @@ void CHybridSolver::Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *confi
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
-  MPI_Status status;
+  SU2_MPI::Status status;
 #endif
 
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
@@ -676,7 +679,7 @@ void CHybridSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solve
   unsigned long iPoint, total_index;
   su2double Delta, Vol, density_old = 0.0, density = 0.0;
 
-  bool adjoint = config->GetContinuous_Adjoint();
+  bool adjoint = config->GetContinuous_Adjoint() || (config->GetDiscrete_Adjoint() && config->GetFrozen_Visc_Disc());
   bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
 
@@ -1067,9 +1070,12 @@ void CHybridSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig
 //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart.
   solver[MESH_0][HYBRID_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
   solver[MESH_0][HYBRID_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
+  solver[MESH_0][HYBRID_SOL]->Postprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0);
 
-  solver[MESH_0][FLOW_SOL]->Preprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
-  solver[MESH_0][TURB_SOL]->Postprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0);
+  /*--- Run through processing again to propagate changes in hybrid state ---*/
+  // TODO: Check if this is necessary
+  // solver[MESH_0][FLOW_SOL]->Preprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
+  // solver[MESH_0][TURB_SOL]->Postprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0);
 
   /*--- Interpolate the solution down to the coarse multigrid levels ---*/
   
@@ -1088,8 +1094,9 @@ void CHybridSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig
       solver[iMesh][HYBRID_SOL]->node[iPoint]->SetSolution(Solution);
     }
     solver[iMesh][HYBRID_SOL]->Set_MPI_Solution(geometry[iMesh], config);
-    solver[iMesh][FLOW_SOL]->Preprocessing(geometry[iMesh], solver[iMesh], config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
     solver[iMesh][HYBRID_SOL]->Postprocessing(geometry[iMesh], solver[iMesh], config, iMesh);
+    // solver[iMesh][FLOW_SOL]->Preprocessing(geometry[iMesh], solver[iMesh], config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
+    // solver[iMesh][TURB_SOL]->Postprocessing(geometry[iMesh], solver[iMesh], config, iMesh);
   }
 
   /*--- Delete the class memory that is used to load the restart. ---*/
@@ -1109,27 +1116,13 @@ CHybridConvSolver::CHybridConvSolver(CGeometry *geometry, CConfig *config,
                                      unsigned short iMesh)
 : CHybridSolver(), alpha_Inf(1.0) {
   unsigned short iVar, iDim, nLineLets;
-  unsigned long iPoint, index;
-  su2double Density_Inf, Viscosity_Inf, dull_val;
-
-  unsigned short iZone = config->GetiZone();
-  unsigned short nZone = geometry->GetnZone();
-  bool restart = (config->GetRestart() || config->GetRestart_Flow());
-  bool adjoint = (config->GetContinuous_Adjoint()) || (config->GetDiscrete_Adjoint());
-  bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
-  bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
-  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
-                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
-  bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
-
-  int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
+  unsigned long iPoint;
+  su2double Density_Inf, Viscosity_Inf;
 
   /*--- Dimension of the problem --> dependent on the hybrid model ---*/
 
   nVar = 1;
+  nPrimVar = 1;
   nPoint = geometry->GetnPoint();
   nPointDomain = geometry->GetnPointDomain();
 
@@ -1845,6 +1838,3 @@ void CHybridConvSolver::SetFreeStream_Solution(CConfig *config) {
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint]->SetSolution(0, alpha_Inf);
 }
-
-
-

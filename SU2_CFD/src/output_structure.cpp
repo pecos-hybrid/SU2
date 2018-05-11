@@ -12306,8 +12306,9 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   unsigned short nDim = geometry->GetnDim();
   
   unsigned long iVar, jVar;
-  unsigned long iPoint, jPoint, FirstIndex = NONE, SecondIndex = NONE, iMarker, iVertex;
-  unsigned long nVar_First = 0, nVar_Second = 0, nVar_Consv_Par = 0;
+  unsigned long iPoint, jPoint, iMarker, iVertex;
+  unsigned long FirstIndex = NONE, SecondIndex = NONE, ThirdIndex = NONE;
+  unsigned long nVar_First = 0, nVar_Second = 0, nVar_Third = 0, nVar_Consv_Par = 0;
   
   su2double RefArea = config->GetRefArea();
   su2double Gamma = config->GetGamma();
@@ -12353,10 +12354,12 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     case RANS : FirstIndex = FLOW_SOL; SecondIndex = TURB_SOL; break;
     default: SecondIndex = NONE; break;
   }
+  if (hybrid) ThirdIndex = HYBRID_SOL;
   
   nVar_First = solver[FirstIndex]->GetnVar();
   if (SecondIndex != NONE) nVar_Second = solver[SecondIndex]->GetnVar();
-  nVar_Consv_Par = nVar_First + nVar_Second;
+  if (ThirdIndex != NONE) nVar_Third = solver[ThirdIndex]->GetnVar();
+  nVar_Consv_Par = nVar_First + nVar_Second + nVar_Third;
   
   /*--------------------------------------------------------------------------*/
   /*--- Step 1: Register the variables that will be output. To register a  ---*/
@@ -12413,7 +12416,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back("Nu_Tilde");
     }
   }
-  if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+  if (hybrid) {
     Variable_Names.push_back("Alpha");
   }
   if (incompressible && weakly_coupled_heat) Variable_Names.push_back("Temperature");
@@ -12453,7 +12456,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Variable_Names.push_back("Limiter_Nu_Tilde");
         }
       }
-      if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+      if (hybrid) {
         Variable_Names.push_back("Limiter_Alpha");
       }
     }
@@ -12488,7 +12491,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Variable_Names.push_back("Residual_Nu_Tilde");
         }
       }
-      if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+      if (hybrid) {
         Variable_Names.push_back("Residual_Alpha");
       }
     }
@@ -12744,6 +12747,16 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       if (SecondIndex != NONE) {
         for (jVar = 0; jVar < nVar_Second; jVar++) {
           Local_Data[jPoint][iVar] = solver[SecondIndex]->node[iPoint]->GetSolution(jVar);
+          iVar++;
+        }
+      }
+
+      /*--- If we're using an extra hybrid RANS/LES transport equation, then
+       * load data for the hybrid variables ---*/
+
+      if (ThirdIndex != NONE && hybrid) {
+        for (jVar = 0; jVar < nVar_Third; jVar++) {
+          Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetSolution(jVar);
           iVar++;
         }
       }
@@ -13017,9 +13030,6 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
       Variable_Names.push_back("Adjoint_Nu_Tilde");
     }
   }
-  if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
-    Variable_Names.push_back("Adjoint_Alpha");
-  }
 
 
   /*--- For the discrete adjoint, we have the full field of sensitivity
@@ -13071,9 +13081,6 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
           Variable_Names.push_back("Limiter_Adjoint_Nu_Tilde");
         }
       }
-      if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
-        Variable_Names.push_back("Limiter_Adjoint_Alpha");
-      }
     }
     
     /*--- Add the residuals ---*/
@@ -13106,9 +13113,6 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
           /*--- S-A variants ---*/
           Variable_Names.push_back("Residual_Adjoint_Nu_Tilde");
         }
-      }
-      if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
-        Variable_Names.push_back("Residual_Adjoint_Alpha");
       }
     }
     
