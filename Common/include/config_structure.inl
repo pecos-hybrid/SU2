@@ -1517,15 +1517,11 @@ inline bool CConfig::GetSmoothNumGrid(void) { return SmoothNumGrid; }
 
 inline void CConfig::SetSmoothNumGrid(bool val_smoothnumgrid) { SmoothNumGrid = val_smoothnumgrid; }
 
-inline bool CConfig::isHybrid_Turb_Model(void) { return Hybrid_Turb_Model; }
-
 inline unsigned short CConfig::GetKind_Hybrid_Blending(void) { return Kind_Hybrid_Blending; }
 
 inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { return Kind_Hybrid_Res_Ind; }
 
 inline unsigned short CConfig::GetKind_Hybrid_Anisotropy_Model(void) { return Kind_Hybrid_Aniso_Model; }
-
-inline su2double CConfig::Get_Hybrid_Model_Const(void) { return Hybrid_Model_Constant; }
 
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
 
@@ -1822,6 +1818,11 @@ inline su2double* CConfig::GetFFD_BSplineOrder(){return FFD_BSpline_Order;}
 inline unsigned long CConfig::GetWrt_Surf_Freq_DualTime(void) { return Wrt_Surf_Freq_DualTime; }
 
 inline unsigned short CConfig::GetKind_HybridRANSLES(void) {return Kind_HybridRANSLES; }
+
+inline bool CConfig::isDESBasedModel(void) {
+  return ((Kind_HybridRANSLES == SA_DES)  || (Kind_HybridRANSLES == SA_DDES) ||
+          (Kind_HybridRANSLES == SA_ZDES) || (Kind_HybridRANSLES == SA_EDDES));
+}
 
 inline unsigned short CConfig::GetKind_RoeLowDiss(void) {return Kind_RoeLowDiss; }
 

@@ -120,7 +120,7 @@ inline void CHybrid_Aniso_Q::SetScalars(vector<su2double> val_scalars) {
 
 
 CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
-   : nDim(nDim), C_sf(config->Get_Hybrid_Model_Const()), config(config) {
+   : nDim(nDim), C_sf(0.367), config(config) {
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI

@@ -9637,7 +9637,7 @@ void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container,
         
         /*--- Pass in relevant information from hybrid model ---*/
 
-        if (config->isHybrid_Turb_Model())
+        if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID)
           HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
                                                     visc_numerics, iPoint, iPoint);
 
@@ -16187,7 +16187,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
 
   /*--- Setup hybridization ---*/
 
-  if (config->isHybrid_Turb_Model()) {
+  if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
     switch (config->GetKind_Hybrid_Anisotropy_Model()) {
       case ISOTROPIC:
         hybrid_anisotropy = new CHybrid_Isotropic_Visc(nDim);
@@ -16452,7 +16452,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     
     /*--- Solve for the stress anisotropy ---*/
 
-    if (config->isHybrid_Turb_Model()) {
+    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
       HybridMediator->SetupStressAnisotropy(geometry, solver_container, hybrid_anisotropy, iPoint);
       hybrid_anisotropy->CalculateViscAnisotropy();
       node[iPoint]->SetEddyViscAnisotropy(hybrid_anisotropy->GetViscAnisotropy());
@@ -16509,7 +16509,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
       if (tkeNeeded) turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
       
-      if (config->GetKind_HybridRANSLES() != NO_HYBRIDRANSLES){
+      if (config->isDESBasedModel()){
         DES_LengthScale = solver_container[TURB_SOL]->node[iPoint]->GetDES_LengthScale();
       }
     }
@@ -16795,7 +16795,7 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
                                      solver_container[TURB_SOL]->node[jPoint]->GetSolution(0));
     
     /*--- Pass in relevant information from hybrid model ---*/
-    if (config->isHybrid_Turb_Model())
+    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID)
       HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
                                                 numerics, iPoint, jPoint);
 
@@ -17859,10 +17859,10 @@ void CNSSolver::SetRoe_Dissipation(CGeometry *geometry, CConfig *config){
   for (iPoint = 0; iPoint < nPoint; iPoint++){
     
     if (kind_roe_dissipation == FD || kind_roe_dissipation == FD_DUCROS){
-      if (config->GetKind_HybridRANSLES() == NO_HYBRIDRANSLES){
-        wall_distance = geometry->node[iPoint]->GetWall_Distance();
-      } else {
+      if (config->isDESBasedModel()){
         wall_distance = node[iPoint]->GetDES_LengthScale();
+      } else {
+        wall_distance = geometry->node[iPoint]->GetWall_Distance();
       }
       
       node[iPoint]->SetRoe_Dissipation_FD(wall_distance);

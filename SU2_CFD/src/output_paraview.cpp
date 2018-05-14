@@ -55,7 +55,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
   bool disc_adj = config->GetDiscrete_Adjoint();
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
   bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
-  bool hybrid = config->isHybrid_Turb_Model();
+  bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
 
 
   char cstr[200], buffer[50];
@@ -708,7 +708,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       
     }
     
-    if (hybrid) {
+    if (dynamic_hybrid) {
       Paraview_File << "\nTENSORS Eddy_Viscosity_Anisotropy float\n";
 
       for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
@@ -747,7 +747,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
         case RANS_ONLY:
           // No extra variables
           break;
-        case DYNAMIC_HYBRID:
+        case FULL_TRANSPORT:
           // Add resolution adequacy.
           Paraview_File << "\nSCALARS Resolution_Adequacy float 1\n";
           Paraview_File << "LOOKUP_TABLE default\n";

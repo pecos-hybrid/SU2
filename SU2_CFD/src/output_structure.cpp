@@ -2293,7 +2293,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
                          ( config->GetKind_Solver() == ADJ_NAVIER_STOKES ) ||
                          ( config->GetKind_Solver() == ADJ_RANS          )   );
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
-  bool hybrid = (config->isHybrid_Turb_Model());
+  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   
   unsigned short iDim, jDim;
   unsigned short nDim = geometry->GetnDim();
@@ -2328,7 +2328,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     case RANS :
       FirstIndex = FLOW_SOL; SecondIndex = TURB_SOL;
       if (transition) ThirdIndex=TRANS_SOL;
-      else if (hybrid) ThirdIndex=HYBRID_SOL;
+      else if (dynamic_hybrid) ThirdIndex=HYBRID_SOL;
       else if (config->GetWeakly_Coupled_Heat()) ThirdIndex = HEAT_SOL;
       else ThirdIndex = NONE;
       break;
@@ -2395,7 +2395,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     
     /*--- Add extra hybrid variables to the output ---*/
 
-    if (hybrid) {
+    if (dynamic_hybrid) {
       // Add the eddy viscosity anisotropy (a rank 3 tensor)
       iVar_Eddy_Anisotropy = nVar_Total; nVar_Total += 9;
       // Add the resolution tensors (a rank 3 tensor)
@@ -2404,7 +2404,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         case RANS_ONLY:
           // No extra variables
           break;
-        case DYNAMIC_HYBRID:
+        case FULL_TRANSPORT:
           // Add resolution adequacy, RANS weight, length, and timescales
           iVar_Extra_Hybrid_Vars = nVar_Total; nVar_Total += 4;
           break;
@@ -3160,7 +3160,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     
     /*--- Communicate the Eddy Viscosity Anisotropy ---*/
 
-    if (hybrid) {
+    if (dynamic_hybrid) {
       iVar = iVar_Eddy_Anisotropy;
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
@@ -3216,7 +3216,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the Resolution Tensor ---*/
 
-    if (hybrid) {
+    if (dynamic_hybrid) {
       iVar = iVar_Resolution_Tensor;
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
@@ -3272,7 +3272,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the Extra Variables for Hybrid RANS/LES ---*/
     // This will need to be changed if more variables are needed.
-    if (hybrid && (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID)) {
+    if (dynamic_hybrid && (config->GetKind_Hybrid_Blending() == FULL_TRANSPORT)) {
 
       /*--- Loop over this partition to collect the current variable ---*/
       
@@ -4249,7 +4249,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   bool grid_movement = config->GetGrid_Movement();
   bool dynamic_fem = (config->GetDynamic_Analysis() == DYNAMIC);
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
-  bool hybrid = (config->isHybrid_Turb_Model());
+  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
   ofstream restart_file;
   ofstream meta_file;
@@ -4355,7 +4355,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"<greek>m</greek><sub>t</sub>\"";
     }
     
-    if (hybrid) {
+    if (dynamic_hybrid) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
         restart_file << "\t\"Eddy_Visc_Anisotropy_11\"";
         restart_file << "\t\"Eddy_Visc_Anisotropy_12\"";
@@ -4402,7 +4402,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         case RANS_ONLY:
           // No extra variables
           break;
-        case DYNAMIC_HYBRID:
+        case FULL_TRANSPORT:
           // Add length/timescales
           if (config->GetOutput_FileFormat() == PARAVIEW) {
             restart_file << "\t\"Resolution_Adequacy\"";
@@ -4416,7 +4416,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
             restart_file << "\t\"T<sub>m</sub>\"";
           } break;
         default:
-          cout << "WARNING: Could not find appropriate output for the hybrid model." << endl;
+          cout << "WARNING: Could not find appropriate output for the dynamic_hybrid model." << endl;
       }
     }
 
@@ -4601,7 +4601,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
   bool actuator_disk = ((config->GetnMarker_ActDiskInlet() != 0) || (config->GetnMarker_ActDiskOutlet() != 0));
   bool turbulent = ((config->GetKind_Solver() == RANS) || (config->GetKind_Solver() == ADJ_RANS) ||
                     (config->GetKind_Solver() == DISC_ADJ_RANS));
-  bool hybrid = config->isHybrid_Turb_Model();
+  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   bool cont_adj = config->GetContinuous_Adjoint();
   bool disc_adj = config->GetDiscrete_Adjoint();
   bool frozen_visc = (cont_adj && config->GetFrozen_Visc_Cont()) ||( disc_adj && config->GetFrozen_Visc_Disc());
@@ -4767,7 +4767,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
 
       ConvHist_file[0] << flow_resid;
       if (turbulent) ConvHist_file[0] << turb_resid;
-      if (hybrid) ConvHist_file[0] << hybrid_resid;
+      if (dynamic_hybrid) ConvHist_file[0] << hybrid_resid;
       if (weakly_coupled_heat) ConvHist_file[0] << heat_resid;
       if (aeroelastic) ConvHist_file[0] << aeroelastic_coeff;
       if (output_per_surface) ConvHist_file[0] << monitoring_coeff;
@@ -4972,7 +4972,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     bool actuator_disk = ((config[val_iZone]->GetnMarker_ActDiskInlet() != 0) || (config[val_iZone]->GetnMarker_ActDiskOutlet() != 0));
     bool inv_design = (config[val_iZone]->GetInvDesign_Cp() || config[val_iZone]->GetInvDesign_HeatFlux());
     bool transition = (config[val_iZone]->GetKind_Trans_Model() == LM);
-    bool hybrid = (config[val_iZone]->isHybrid_Turb_Model());
+    const bool dynamic_hybrid = (config[val_iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
     bool thermal = (config[val_iZone]->GetKind_Solver() == RANS || config[val_iZone]->GetKind_Solver()  == NAVIER_STOKES);
     bool turbulent = ((config[val_iZone]->GetKind_Solver() == RANS) || (config[val_iZone]->GetKind_Solver() == ADJ_RANS) ||
                       (config[val_iZone]->GetKind_Solver() == DISC_ADJ_RANS));
@@ -5086,7 +5086,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         case KE:     nVar_Turb = 4; break;
       }
     }
-    if (hybrid) nVar_Hybrid = 1;
+    if (dynamic_hybrid) nVar_Hybrid = 1;
     if (transition) nVar_Trans = 2;
     if (wave) nVar_Wave = 2;
     if (heat) nVar_Heat = 1;
@@ -5301,7 +5301,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         
         /*--- Hybrid parameter solver ---*/
         
-        if (hybrid) {
+        if (dynamic_hybrid) {
           for (iVar = 0; iVar < nVar_Hybrid; iVar++)
             residual_hybrid[iVar] = solver_container[val_iZone][FinestMesh][HYBRID_SOL]->GetRes_RMS(iVar);
         }
@@ -5643,8 +5643,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               }
             }
 
-            /*--- Hybrid RANS/LES hybrid parameter transport model ---*/
-            if (hybrid) {
+            /*--- Hybrid RANS/LES dynamic_hybrid parameter transport model ---*/
+            if (dynamic_hybrid) {
               SPRINTF(hybrid_resid, ", %12.10f", log10(residual_hybrid[0]));
             }
             
@@ -5970,7 +5970,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               case KE:	   cout << "     Res[kine]" << "     Res[epsi]" << "     Res[zeta]" << "        Res[f]"; break;
             }
 
-            if (hybrid)
+            if (dynamic_hybrid)
               cout << "    Res[alpha]";
 
             if (weakly_coupled_heat) {
@@ -6319,7 +6319,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
                         cout.width(14); cout << log10(residual_turbulent[3]); break;
               }
 
-              if (hybrid) {
+              if (dynamic_hybrid) {
                 cout.width(14); cout << log10(residual_hybrid[0]);
               }
 
@@ -12320,7 +12320,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   bool compressible         = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible       = (config->GetKind_Regime() == INCOMPRESSIBLE);
   bool transition           = (config->GetKind_Trans_Model() == BC);
-  bool hybrid         = config->isHybrid_Turb_Model();
+  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   bool grid_movement        = (config->GetGrid_Movement());
   bool Wrt_Halo             = config->GetWrt_Halo(), isPeriodic;
   bool weakly_coupled_heat  = config->GetWeakly_Coupled_Heat();
@@ -12354,7 +12354,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     case RANS : FirstIndex = FLOW_SOL; SecondIndex = TURB_SOL; break;
     default: SecondIndex = NONE; break;
   }
-  if (hybrid) ThirdIndex = HYBRID_SOL;
+  if (dynamic_hybrid) ThirdIndex = HYBRID_SOL;
   
   nVar_First = solver[FirstIndex]->GetnVar();
   if (SecondIndex != NONE) nVar_Second = solver[SecondIndex]->GetnVar();
@@ -12416,7 +12416,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back("Nu_Tilde");
     }
   }
-  if (hybrid) {
+  if (dynamic_hybrid) {
     Variable_Names.push_back("Alpha");
   }
   if (incompressible && weakly_coupled_heat) Variable_Names.push_back("Temperature");
@@ -12456,7 +12456,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Variable_Names.push_back("Limiter_Nu_Tilde");
         }
       }
-      if (hybrid) {
+      if (dynamic_hybrid) {
         Variable_Names.push_back("Limiter_Alpha");
       }
     }
@@ -12491,7 +12491,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Variable_Names.push_back("Residual_Nu_Tilde");
         }
       }
-      if (hybrid) {
+      if (dynamic_hybrid) {
         Variable_Names.push_back("Residual_Alpha");
       }
     }
@@ -12565,7 +12565,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 			}
     }
 
-    if (hybrid) {
+    if (dynamic_hybrid) {
       nVar_Par += 18;
       Variable_Names.push_back("Eddy_Visc_Aniso_11");
       Variable_Names.push_back("Eddy_Visc_Aniso_12");
@@ -12589,7 +12589,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         case RANS_ONLY:
           // No extra variables
           break;
-        case DYNAMIC_HYBRID:
+        case FULL_TRANSPORT:
           // Add resolution adequacy.
           Variable_Names.push_back("Resolution_Adequacy"); nVar_Par++;
           Variable_Names.push_back("RANS_Weight"); nVar_Par++;
@@ -12617,7 +12617,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       }
     }
     
-    if (config->GetKind_HybridRANSLES()!=NO_HYBRIDRANSLES){
+    if (config->isDESBasedModel()){
       nVar_Par +=1;
       Variable_Names.push_back("DES_LengthScale");
       nVar_Par +=1;
@@ -12751,10 +12751,10 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         }
       }
 
-      /*--- If we're using an extra hybrid RANS/LES transport equation, then
-       * load data for the hybrid variables ---*/
+      /*--- If we're using an extra dynamic_hybrid RANS/LES transport equation, then
+       * load data for the dynamic_hybrid variables ---*/
 
-      if (ThirdIndex != NONE && hybrid) {
+      if (ThirdIndex != NONE && dynamic_hybrid) {
         for (jVar = 0; jVar < nVar_Third; jVar++) {
           Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetSolution(jVar);
           iVar++;
@@ -12853,8 +12853,8 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetEddyViscosity(); iVar++;
         }
         
-        /*--- Load data for a hybrid RANS/LES model. ---*/
-        if (hybrid) {
+        /*--- Load data for a dynamic_hybrid RANS/LES model. ---*/
+        if (dynamic_hybrid) {
           // Add eddy viscosity anisotropy
           su2double** eddy_visc_anisotropy = solver[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy();
           for (iDim = 0; iDim < nDim; iDim++) {
@@ -12875,7 +12875,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
             case RANS_ONLY:
               // No extra variables
               break;
-            case DYNAMIC_HYBRID:
+            case FULL_TRANSPORT:
               // Add resolution adequacy and RANS weight
               Local_Data[jPoint][iVar] = solver[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
               iVar++;
@@ -12902,7 +12902,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Local_Data[jPoint][iVar] = solver[TURB_SOL]->node[iPoint]->GetGammaBC(); iVar++;
         }
         
-        if (config->GetKind_HybridRANSLES()!=NO_HYBRIDRANSLES){
+        if (config->isDESBasedModel()){
           Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetDES_LengthScale(); iVar++; 
           Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetWall_Distance(); iVar++;
         }
@@ -12955,7 +12955,6 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
   bool grid_movement  = (config->GetGrid_Movement());
   bool Wrt_Halo       = config->GetWrt_Halo(), isPeriodic;
-  bool hybrid         = config->isHybrid_Turb_Model();
   
   int *Local_Halo;
   

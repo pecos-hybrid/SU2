@@ -6503,7 +6503,7 @@ unsigned long CIncNSSolver::SetPrimitive_Variables(CSolver **solver_container, C
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
       if (tkeNeeded) turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
       
-      if (config->GetKind_HybridRANSLES() != NO_HYBRIDRANSLES){
+      if (config->isDESBasedModel()){
         DES_LengthScale = solver_container[TURB_SOL]->node[iPoint]->GetDES_LengthScale();
       }
     }

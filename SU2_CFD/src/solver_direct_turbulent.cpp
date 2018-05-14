@@ -1623,7 +1623,7 @@ void CTurbSASolver::Preprocessing(CGeometry *geometry, CSolver **solver_containe
 
   if (limiter_flow) solver_container[FLOW_SOL]->SetPrimitive_Limiter(geometry, config);
 
-  if (kind_hybridRANSLES != NO_HYBRIDRANSLES){
+  if (config->isDESBasedModel()){
     
     /*--- Set the vortex tilting coefficient at every node if required ---*/
     
@@ -1725,17 +1725,17 @@ void CTurbSASolver::Source_Residual(CGeometry *geometry, CSolver **solver_contai
 
     /*--- Get Hybrid RANS/LES Type and set the appropriate wall distance ---*/     
     
-    if (config->GetKind_HybridRANSLES() == NO_HYBRIDRANSLES) {
+    if (config->isDESBasedModel()) {
+
+      /*--- Set DES length scale ---*/
+
+      numerics->SetDistance(node[iPoint]->GetDES_LengthScale(), 0.0);
           
+    } else {
+
       /*--- Set distance to the surface ---*/
           
       numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(), 0.0);
-    
-    } else {
-    
-      /*--- Set DES length scale ---*/
-      
-      numerics->SetDistance(node[iPoint]->GetDES_LengthScale(), 0.0);
       
     }
 

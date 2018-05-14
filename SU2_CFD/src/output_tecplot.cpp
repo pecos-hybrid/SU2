@@ -41,7 +41,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
   
   unsigned short iDim, jDim, iVar, nDim = geometry->GetnDim();
   unsigned short Kind_Solver = config->GetKind_Solver();
-  bool hybrid = config->isHybrid_Turb_Model();
+  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   
   unsigned long iPoint, iElem, iNode;
   unsigned long iExtIter = config->GetExtIter();
@@ -184,7 +184,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         Tecplot_File << ", \"<greek>m</greek><sub>t</sub>\"";
       }
       
-      if (hybrid) {
+      if (dynamic_hybrid) {
         for (iDim = 0; iDim < nDim; iDim++)
           for (jDim = 0; jDim < nDim; jDim++)
             Tecplot_File << ", \"a<sub>" << iDim << jDim << "</sub>\"";
@@ -195,7 +195,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
           case RANS_ONLY:
             // No extra variables
             break;
-          case DYNAMIC_HYBRID:
+          case FULL_TRANSPORT:
             // Add resolution adequacy.
             Tecplot_File << ", \"r<sub>k</sub>\"";
             Tecplot_File << ", \"w<sub>rans</sub>\"";
@@ -203,7 +203,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
             Tecplot_File << ", \"T<sub>m</sub>\"";
             break;
           default:
-            cout << "WARNING: Could not find appropriate output for hybrid model." << endl;
+            cout << "WARNING: Could not find appropriate output for dynamic_hybrid model." << endl;
         }
       }
 
@@ -3070,7 +3070,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       *NVar += 1;
     }
     
-    if (config->isHybrid_Turb_Model()) {
+    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
       for (iDim = 0; iDim < nDim; iDim++)
         for (jDim = 0; jDim < nDim; jDim++)
           variables << "Eddy_Viscosity_Anisotropy_" << iDim << jDim << " ";
@@ -3083,7 +3083,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
         case RANS_ONLY:
           // No extra variables
           break;
-        case DYNAMIC_HYBRID:
+        case FULL_TRANSPORT:
           // Add resolution adequacy.
           variables << "Resolution_Adequacy "; *NVar += 1;
           variables << "RANS_Weight "; *NVar += 1;

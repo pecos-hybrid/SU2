@@ -514,7 +514,7 @@ void CFluidIteration::Iterate(COutput *output,
                                                                      config_container, RUNTIME_HEAT_SYS, IntIter, val_iZone);
   }
   
-  if (config_container[val_iZone]->isHybrid_Turb_Model()) {
+  if (config_container[val_iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
 
     /*--- Solve the transport model for the hybrid parameter ---*/
 
@@ -593,7 +593,7 @@ void CFluidIteration::Update(COutput *output,
     
     /*--- Update dual time solver for the hybrid parameter  equation ---*/
 
-    if (config_container[val_iZone]->isHybrid_Turb_Model()) {
+    if (config_container[val_iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
       integration_container[val_iZone][HYBRID_SOL]->SetDualTime_Solver(geometry_container[val_iZone][MESH_0], solver_container[val_iZone][MESH_0][HYBRID_SOL], config_container[val_iZone], MESH_0);
       integration_container[val_iZone][HYBRID_SOL]->SetConvergence(false);
     }

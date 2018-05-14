@@ -627,20 +627,14 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief MATH_PROBLEM  \n DESCRIPTION: Mathematical problem \n  Options: DIRECT, ADJOINT \ingroup Config*/
   addMathProblemOption("MATH_PROBLEM", ContinuousAdjoint, false, DiscreteAdjoint, false, Restart_Flow, false);
 
-  /*!\brief HYBRID_TURB_MODEL \n DESCRIPTION: Specify if a hybrid LES/RANS model is used. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
-  addBoolOption("HYBRID_TURB_MODEL", Hybrid_Turb_Model, false);
-
-  /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: DYNAMIC_HYBRID \ingroup Config */
-  addEnumOption("HYBRID_BLENDING_SCHEME", Kind_Hybrid_Blending, Hybrid_Blending_Map, DYNAMIC_HYBRID);
-
+    /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: DYNAMIC_HYBRID \ingroup Config */
+  addEnumOption("HYBRID_BLENDING_SCHEME", Kind_Hybrid_Blending, Hybrid_Blending_Map, FULL_TRANSPORT);
+  
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RK_INDICATOR);
 
   /*! \brief HYBRID_ANISOTROPY_MODEL \n DESCRIPTION: Specify the subgrid anisotropy model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Aniso_Map \endlink \n DEFAULT: ISOTROPIC \ingroup Config */
   addEnumOption("HYBRID_ANISOTROPY_MODEL", Kind_Hybrid_Aniso_Model, Hybrid_Aniso_Map, ISOTROPIC);
-
-  /*!\brief HYBRID_MODEL_CONSTANT \n DESCRIPTION: Model constant relating the approximate second order structure function to the unresolved kinetic energy  \ingroup Config*/
-  addDoubleOption("HYBRID_MODEL_CONSTANT", Hybrid_Model_Constant, 0.367);
 
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
@@ -4379,7 +4373,6 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case KE:     cout << "Zeta-f KE"                 << endl; break;
         }
         if (QCR) cout << "Using Quadratic Constitutive Relation, 2000 version (QCR2000)" << endl;
-        // TODO: Merge these hybrid config options.
         cout << "Hybrid RANS/LES: ";
         switch (Kind_HybridRANSLES){
           case NO_HYBRIDRANSLES: cout <<  "No Hybrid RANS/LES" << endl; break;
@@ -4387,8 +4380,8 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case SA_DDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Standard SGS" << endl; break;
           case SA_ZDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Vorticity-based SGS" << endl; break;
           case SA_EDDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Shear-layer Adapted SGS" << endl; break;
+          case DYNAMIC_HYBRID: cout << "Dynamic Hybrid Model" << endl; break;
         }
-        if (Hybrid_Turb_Model) cout << "Hybrid LES/RANS model" << endl;
         break;
       case POISSON_EQUATION: cout << "Poisson equation." << endl; break;
       case WAVE_EQUATION: cout << "Wave equation." << endl; break;

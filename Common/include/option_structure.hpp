@@ -725,11 +725,11 @@ static const map<string, ENUM_TURB_MODEL> Turb_Model_Map = CCreateMap<string, EN
  */
 enum ENUM_HYBRID_BLENDING {
     RANS_ONLY = 0, /*!< \brief Kind of hybrid RANS/LES blending (RANS only). */
-    DYNAMIC_HYBRID = 1 /*!< \brief Kind of hybrid RANS/LES blending (Convective). */
+    FULL_TRANSPORT = 1 /*!< \brief Kind of hybrid RANS/LES blending (Full transport). */
 };
 static const map<string, ENUM_HYBRID_BLENDING> Hybrid_Blending_Map = CCreateMap<string, ENUM_HYBRID_BLENDING>
 ("RANS_ONLY", RANS_ONLY)
-("DYNAMIC_HYBRID", DYNAMIC_HYBRID);
+("FULL_TRANSPORT", FULL_TRANSPORT);
 
 /*!
  * \brief Types of hybrid RANS/LES resolution adeqeuacy indicators.
@@ -781,14 +781,16 @@ enum ENUM_HYBRIDRANSLES {
   SA_DES   = 1, /*!< \brief Kind of Hybrid RANS/LES (SA - Detached Eddy Simulation (DES)). */
   SA_DDES  = 2,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Delta_max SGS ). */
   SA_ZDES  = 3,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Vorticity based SGS like Zonal DES). */
-  SA_EDDES  = 4  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Shear Layer Adapted SGS: Enhanced DDES). */
+  SA_EDDES  = 4,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Shear Layer Adapted SGS: Enhanced DDES). */
+  DYNAMIC_HYBRID = 5 /*!< \brief Dynamic hybrid RANS/LES model. */
 };
 static const map<string, ENUM_HYBRIDRANSLES> HybridRANSLES_Map = CCreateMap<string, ENUM_HYBRIDRANSLES>
 ("NONE", NO_HYBRIDRANSLES)
 ("SA_DES", SA_DES)
 ("SA_DDES", SA_DDES)
 ("SA_ZDES", SA_ZDES)
-("SA_EDDES", SA_EDDES);
+("SA_EDDES", SA_EDDES)
+("DYNAMIC_HYBRID", DYNAMIC_HYBRID);
 
 /*!
  * \brief types of Roe Low Dissipation Schemes

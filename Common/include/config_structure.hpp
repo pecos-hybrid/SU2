@@ -519,11 +519,9 @@ private:
   Kind_Struct_Solver,		/*!< \brief Determines the geometric condition (small or large deformations) for structural analysis. */
   Kind_DV_FEA;				/*!< \brief Kind of Design Variable for FEA problems.*/
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
-  bool Hybrid_Turb_Model;  /*!< \brief A hybrid RANS/LES model (other than DES) will be used. */
   unsigned short Kind_Hybrid_Blending; /*!< \brief Hybrid RANS/LES blending definition */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   unsigned short Kind_Hybrid_Aniso_Model; /*!< \brief Hybrid RANS/LES subgrid anisotropy model definition */
-  su2double Hybrid_Model_Constant; /*!< \brief Model constant relating the approximate second order structure function to the unresolved turbulent kinetic energy */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -3749,12 +3747,6 @@ public:
    * \return Kind of the SU2 software component.
    */
   void SetKind_SU2(unsigned short val_kind_su2);
-  
-  /*!
-   * \brief Checks if a hybrid LES/RANS method based on k-blending is used
-   * \return True if a hybrid method is used
-   */
-  bool isHybrid_Turb_Model(void);
 
   /*!
    * \brief Get the kind of hybrid RANS/LES blending scheme.
@@ -3773,12 +3765,6 @@ public:
    * \return Kind of subgrid anisotropy model.
    */
   unsigned short GetKind_Hybrid_Anisotropy_Model(void);
-
-  /*!
-   * \brief Get the hybrid RANS/LES model constant.
-   * \return The hybrid RANS/LES model constant.
-   */
-  su2double Get_Hybrid_Model_Const(void);
 
   /*!
    * \brief Get the kind of the turbulence model.
@@ -8094,6 +8080,12 @@ public:
    * \return Value of Hybrid RANS/LES method.
    */
   unsigned short GetKind_HybridRANSLES(void);
+
+  /*!
+   * \brief Checks if a DES-based hybrid RANS/LES model is required.
+   * \return True if DES, DDES, and DDES variations are required.
+   */
+  bool isDESBasedModel(void);
 
   /*!
    * \brief Get the Kind of Roe Low Dissipation Scheme for Unsteady flows.

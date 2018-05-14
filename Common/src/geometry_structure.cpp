@@ -1374,7 +1374,7 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
   geometry_container[MESH_0]->SetCoord_CG();
   geometry_container[MESH_0]->SetControlVolume(config, UPDATE);
   geometry_container[MESH_0]->SetBoundControlVolume(config, UPDATE);
-  if (config->isHybrid_Turb_Model()) {
+  if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
     geometry_container[MESH_0]->SetResolutionTensor();
   }
   
