@@ -12783,6 +12783,13 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
               iVar++;
             }
           }
+          /*--- Dynamic hybrid RANS/LES Limiters ---*/
+          if (ThirdIndex != NONE && dynamic_hybrid) {
+            for (jVar = 0; jVar < nVar_Third; jVar++) {
+              Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetLimiter_Primitive(jVar);
+              iVar++;
+            }
+          }
         }
         
         /*--- Residuals ---*/
@@ -12796,6 +12803,13 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           if (SecondIndex != NONE) {
             for (jVar = 0; jVar < nVar_Second; jVar++) {
               Local_Data[jPoint][iVar] = solver[SecondIndex]->LinSysRes.GetBlock(iPoint, jVar);
+              iVar++;
+            }
+          }
+          /*--- Dynamic hybrid RANS/LES  ---*/
+          if (ThirdIndex != NONE && dynamic_hybrid) {
+            for (jVar = 0; jVar < nVar_Third; jVar++) {
+              Local_Data[jPoint][iVar] = solver[ThirdIndex]->LinSysRes.GetBlock(iPoint, jVar);
               iVar++;
             }
           }
