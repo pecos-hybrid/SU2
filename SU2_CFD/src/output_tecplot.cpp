@@ -1730,7 +1730,7 @@ void COutput::SetTecplotBinary_DomainSolution(CConfig *config, CGeometry *geomet
   }
   file << ".sol.plt";
   FileType = SOLUTION;
-  variables = AssembleVariableNames(geometry, config, nVar_Consv, &NVar);
+  variables = AssembleVariableNames(geometry, config, val_iZone, nVar_Consv, &NVar);
   if ((config->GetKind_SU2() == SU2_SOL) || (config->GetKind_SU2() == SU2_DOT)) {
     if (Wrt_Unsteady && GridMovement) nVar_Total = NVar;
     else nVar_Total = NVar+dims;
@@ -2657,7 +2657,7 @@ void COutput::SetTecplotBinary_SurfaceSolution(CConfig *config, CGeometry *geome
   }
   file << ".sol.plt";
   FileType = SOLUTION;
-  variables = AssembleVariableNames(geometry, config, nVar_Consv, &NVar);
+  variables = AssembleVariableNames(geometry, config, val_iZone, nVar_Consv, &NVar);
   if ((config->GetKind_SU2() == SU2_SOL) || (config->GetKind_SU2() == SU2_DOT)) {
     if (Wrt_Unsteady && GridMovement) nVar_Total = NVar;
     else nVar_Total = NVar+dims;
@@ -2970,7 +2970,7 @@ void COutput::SetTecplotBinary_SurfaceSolution(CConfig *config, CGeometry *geome
   
 }
 
-string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsigned short nVar_Consv, unsigned short *NVar) {
+string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsigned short val_iZone, unsigned short nVar_Consv, unsigned short *NVar) {
   
   /*--- Local variables ---*/
   stringstream variables; variables.str(string());
@@ -3070,27 +3070,27 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       *NVar += 1;
     }
     
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
+      variables << it->Name << " ";
+      *NVar += 1;
+    }
+    
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
+      for (iDim = 1; iDim < nDim+1; iDim++) {
+        for (jDim = 1; jDim < nDim+1; jDim++) {
+          variables << it->Name << "_" << iDim << jDim << " ";
+          *NVar += 1;
+        }
+      }
+    }
+
     if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
-      for (iDim = 0; iDim < nDim; iDim++)
-        for (jDim = 0; jDim < nDim; jDim++)
-          variables << "Eddy_Viscosity_Anisotropy_" << iDim << jDim << " ";
-      *NVar += 9;
       for (iDim = 0; iDim < nDim; iDim++)
         for (jDim = 0; jDim < nDim; jDim++)
           variables << "Resolution_Tensor_" << iDim << jDim << " ";
       *NVar += 9;
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case FULL_TRANSPORT:
-          // Add resolution adequacy.
-          variables << "Resolution_Adequacy "; *NVar += 1;
-          variables << "RANS_Weight "; *NVar += 1;
-          variables << "Turb_Lengthscale "; *NVar += 1;
-          variables << "Turb_Timescale "; *NVar += 1;
-          break;
-      }
     }
 
     if (config->GetWrt_SharpEdges()) {
