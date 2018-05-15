@@ -740,6 +740,7 @@ private:
   Wrt_Limiters,              /*!< \brief Write residuals to solution file */
   Wrt_SharpEdges,              /*!< \brief Write residuals to solution file */
   Wrt_Halo,                   /*!< \brief Write rind layers in solution files */
+  Wrt_Resolution_Tensors,     /*!< \brief Write resolutions tensors in solution files */
   Plot_Section_Forces;       /*!< \brief Write sectional forces for specified markers. */
   unsigned short Console_Output_Verb,  /*!< \brief Level of verbosity for console output */
   Kind_Average;        /*!< \brief Particular average for the marker analyze. */
@@ -2912,6 +2913,12 @@ public:
    */
   bool GetWrt_Halo(void);
   
+  /*!
+   * \brief Get information about writing the resolution tensors to the solution files.
+   * \return <code>TRUE</code> means that resolution tensors will be written to the solution file.
+   */
+  bool GetWrt_Resolution_Tensors(void);
+
   /*!
    * \brief Get information about writing sectional force files.
    * \return <code>TRUE</code> means that sectional force files will be written for specified markers.

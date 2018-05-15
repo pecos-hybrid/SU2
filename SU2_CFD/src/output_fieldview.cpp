@@ -244,6 +244,15 @@ void COutput::SetFieldViewASCII(CConfig *config, CGeometry *geometry, unsigned s
       }
     }
 
+    if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) &&
+        config->GetWrt_Resolution_Tensors()) {
+      for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+        for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
+          FieldView_File << "Resolution_Tensor_" << iDim << jDim << endl;
+        }
+      }
+    }
+
     if (config->GetWrt_SharpEdges()) {
       if ((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)) {
         FieldView_File << "Sharp_Edge_Dist" << endl;

@@ -750,7 +750,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       VarCounter += nDim*nDim;
     }
 
-    if (dynamic_hybrid) {
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       Paraview_File << "\nTENSORS Resolution_Tensor float\n";
 
       for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {

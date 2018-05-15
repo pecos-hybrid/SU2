@@ -439,23 +439,31 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
 
   for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
     unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
-    const bool dynamic_hybrid = (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+    if (Kind_Solver == RANS) {
+      const bool dynamic_hybrid =
+          (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+
+      if (config[iZone]->GetKind_Turb_Model() == KE) {
+        RegisterScalar("L_m", "L<sub>m</sub>", TURB_SOL,
+                       &CVariable::GetTurbLengthscale, iZone);
+        RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
+                       &CVariable::GetTurbTimescale, iZone);
+      }
   
-    if (dynamic_hybrid) {
-      switch (config[iZone]->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case FULL_TRANSPORT:
+      if (dynamic_hybrid) {
+        if (config[iZone]->GetKind_Hybrid_Anisotropy_Model() != ISOTROPIC) {
           RegisterTensor("Eddy_Visc_Anisotropy", "a", FLOW_SOL,
-                          &CVariable::GetEddyViscAnisotropy, iZone);
-          RegisterScalar("Resolution_Adequacy", "r<sub>k</sub>", HYBRID_SOL,
+                         &CVariable::GetEddyViscAnisotropy, iZone);
+        }
+        switch (config[iZone]->GetKind_Hybrid_Blending()) {
+          case RANS_ONLY:
+            // No extra variables
+            break;
+          case FULL_TRANSPORT:
+            RegisterScalar("Resolution_Adequacy", "r<sub>k</sub>", HYBRID_SOL,
                            &CVariable::GetResolutionAdequacy, iZone);
-          RegisterScalar("L_m", "L<sub>m</sub>", TURB_SOL,
-                           &CVariable::GetTurbLengthscale, iZone);
-          RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
-                           &CVariable::GetTurbTimescale, iZone);
-          break;
+            break;
+        }
       }
     }
   }
@@ -2473,7 +2481,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     }
 
 
-    if (dynamic_hybrid) {
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       // Add the resolution tensors (a rank 3 tensor)
       iVar_Resolution_Tensor = nVar_Total; nVar_Total += 9;
     }
@@ -3334,7 +3342,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the Resolution Tensor ---*/
 
-    if (dynamic_hybrid) {
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       iVar = iVar_Resolution_Tensor;
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
@@ -4392,7 +4400,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       }
     }
 
-    if (dynamic_hybrid) {
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
         restart_file << "\t\"Resolution_Tensor_11\"";
         restart_file << "\t\"Resolution_Tensor_12\"";
@@ -12580,7 +12588,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       }
     }
 
-    if (dynamic_hybrid) {
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       nVar_Par += 9;
       Variable_Names.push_back("Resolution_Tensor_11");
       Variable_Names.push_back("Resolution_Tensor_12");
@@ -12882,7 +12890,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         }
 
         /*--- Load data for a hybrid RANS/LES model. ---*/
-        if (dynamic_hybrid) {
+        if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
           // Add the resolution tensor
           su2double** resolution_tensor = geometry->node[iPoint]->GetResolutionTensor();
           for (iDim = 0; iDim < nDim; iDim++) {

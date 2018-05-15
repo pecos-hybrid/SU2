@@ -1585,6 +1585,8 @@ inline bool CConfig::GetWrt_SharpEdges(void) { return Wrt_SharpEdges; }
 
 inline bool CConfig::GetWrt_Halo(void) { return Wrt_Halo; }
 
+inline bool CConfig::GetWrt_Resolution_Tensors(void) { return Wrt_Resolution_Tensors; }
+
 inline bool CConfig::GetPlot_Section_Forces(void) { return Plot_Section_Forces; }
 
 inline vector<vector<su2double> > CConfig::GetAeroelastic_np1(unsigned short iMarker) { return Aeroelastic_np1[iMarker]; }

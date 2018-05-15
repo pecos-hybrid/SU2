@@ -184,27 +184,25 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         Tecplot_File << ", \"<greek>m</greek><sub>t</sub>\"";
       }
       
-      if (dynamic_hybrid) {
-        for (iDim = 0; iDim < nDim; iDim++)
-          for (jDim = 0; jDim < nDim; jDim++)
-            Tecplot_File << ", \"a<sub>" << iDim << jDim << "</sub>\"";
+      for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+           it != output_vars[val_iZone].end(); ++it) {
+        Tecplot_File << ", \"" << it->Tecplot_Name << "\"";
+      }
+      
+      for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+           it != output_tensors[val_iZone].end(); ++it) {
+        for (iDim = 1; iDim < nDim+1; iDim++) {
+          for (jDim = 1; jDim < nDim+1; jDim++) {
+            Tecplot_File << ", \"" << it->Tecplot_Name;
+            Tecplot_File << "<sub>" << iDim << jDim << "</sub>\"";
+          }
+        }
+      }
+
+      if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
         for (iDim = 0; iDim < nDim; iDim++)
           for (jDim = 0; jDim < nDim; jDim++)
             Tecplot_File << ", \"M<sub>" << iDim << jDim << "</sub>\"";
-        switch (config->GetKind_Hybrid_Blending()) {
-          case RANS_ONLY:
-            // No extra variables
-            break;
-          case FULL_TRANSPORT:
-            // Add resolution adequacy.
-            Tecplot_File << ", \"r<sub>k</sub>\"";
-            Tecplot_File << ", \"w<sub>rans</sub>\"";
-            Tecplot_File << ", \"L<sub>m</sub>\"";
-            Tecplot_File << ", \"T<sub>m</sub>\"";
-            break;
-          default:
-            cout << "WARNING: Could not find appropriate output for dynamic_hybrid model." << endl;
-        }
       }
 
       if (config->GetWrt_SharpEdges()) {
@@ -3086,7 +3084,8 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       }
     }
 
-    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+    if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) &&
+        config->GetWrt_Resolution_Tensors()) {
       for (iDim = 0; iDim < nDim; iDim++)
         for (jDim = 0; jDim < nDim; jDim++)
           variables << "Resolution_Tensor_" << iDim << jDim << " ";
