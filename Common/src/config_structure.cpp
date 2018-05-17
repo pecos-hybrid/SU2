@@ -3342,6 +3342,11 @@ void CConfig::SetupRungeKutta() {
 
       RK_cVec_imp[0] = alpha;
       RK_cVec_imp[1] = 1.0;
+
+    } else if (Kind_TimeIntScheme_Flow == RUNGE_KUTTA_LIMEX_SMR91) {
+      // just need to set number of steps b/c other params are
+      // hardcoded, at least for now
+      nRKStep = 3;
     }
   }
 }
