@@ -3,20 +3,24 @@
  * \brief Headers of the main subroutines for doing the complete dual grid structure.
  *        The subroutines and functions are in the <i>dual_grid_structure.cpp</i> file.
  * \author F. Palacios, T. Economon
- * \version 5.0.0 "Raven"
+ * \version 6.0.1 "Falcon"
  *
- * SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
- *                      Dr. Thomas D. Economon (economon@stanford.edu).
+ * The current SU2 release has been coordinated by the
+ * SU2 International Developers Society <www.su2devsociety.org>
+ * with selected contributions from the open-source community.
  *
- * SU2 Developers: Prof. Juan J. Alonso's group at Stanford University.
- *                 Prof. Piero Colonna's group at Delft University of Technology.
- *                 Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
- *                 Prof. Alberto Guardone's group at Polytechnic University of Milan.
- *                 Prof. Rafael Palacios' group at Imperial College London.
- *                 Prof. Edwin van der Weide's group at the University of Twente.
- *                 Prof. Vincent Terrapon's group at the University of Liege.
+ * The main research teams contributing to the current release are:
+ *  - Prof. Juan J. Alonso's group at Stanford University.
+ *  - Prof. Piero Colonna's group at Delft University of Technology.
+ *  - Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
+ *  - Prof. Alberto Guardone's group at Polytechnic University of Milan.
+ *  - Prof. Rafael Palacios' group at Imperial College London.
+ *  - Prof. Vincent Terrapon's group at the University of Liege.
+ *  - Prof. Edwin van der Weide's group at the University of Twente.
+ *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright (C) 2012-2017 SU2, the open-source CFD code.
+ * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -50,7 +54,6 @@ using namespace std;
  * \brief Class for controlling the dual volume definition. The dual volume is compose by 
  *        three main elements: points, edges, and vertices.
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CDualGrid{
 protected:
@@ -135,7 +138,6 @@ public:
  * \class CPoint
  * \brief Class for point definition (including control volume definition).
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CPoint : public CDualGrid {
 private:
@@ -741,119 +743,131 @@ public:
 	 */
 	void AddNormal(su2double *val_face_normal);
 
-  /*!
-   * \brief Sets the resolution tensor for the given control volume.
-   *
-   * \param[in] iDim - The first array index of the entry to be set.
-   * \param[in] jDim - The second array index of the entry to be set.
-   * \param[in] tensor_value - The value to be set.
-   */
-  void SetResolutionTensor(unsigned short iDim, unsigned short jDim,
-                           su2double tensor_value);
+        /*!
+         * \brief Sets the resolution tensor for the given control volume.
+         *
+         * \param[in] iDim - The first array index of the entry to be set.
+         * \param[in] jDim - The second array index of the entry to be set.
+         * \param[in] tensor_value - The value to be set.
+         */
+        void SetResolutionTensor(unsigned short iDim, unsigned short jDim,
+                                 su2double tensor_value);
 
-  /*!
-   * \brief Adds to the existing resolution tensor for the given control volume
-   *
-   * \param[in] iDim - The first array index of the entry to be added.
-   * \param[in] jDim - The second array index of the entry to be added.
-   * \param[in] tensor_value - The value to be added.
-   */
-  void AddResolutionTensor(unsigned short iDim, unsigned short jDim,
-                           su2double tensor_value);
+        /*!
+         * \brief Adds to the existing resolution tensor for the given control volume
+         *
+         * \param[in] iDim - The first array index of the entry to be added.
+         * \param[in] jDim - The second array index of the entry to be added.
+         * \param[in] tensor_value - The value to be added.
+         */
+        void AddResolutionTensor(unsigned short iDim, unsigned short jDim,
+                                 su2double tensor_value);
 
-  /*!
-   * \brief Gets the resolution tensor for the given control volume
-   *
-   * \return A tensor representing the separation distances
-   *         across the cell in the global coordinates.
-   */
-  su2double** GetResolutionTensor(void) const;
+        /*!
+         * \brief Gets the resolution tensor for the given control volume
+         *
+         * \return A tensor representing the separation distances
+         *         across the cell in the global coordinates.
+         */
+        su2double** GetResolutionTensor(void) const;
 
-  /*!
-   * \brief Gets a specific element of the resolution tensor array
-   * \param[in] iDim - The first array index
-   * \param[in] jDim - The second array index
-   * \return A tensor representing the separation distances
-   *         across the cell in the global coordinates.
-   */
-  su2double GetResolutionTensor(unsigned short iDim,
-                                unsigned short jDim) const;
+        /*!
+         * \brief Gets a specific element of the resolution tensor array
+         * \param[in] iDim - The first array index
+         * \param[in] jDim - The second array index
+         * \return A tensor representing the separation distances
+         *         across the cell in the global coordinates.
+         */
+        su2double GetResolutionTensor(unsigned short iDim,
+                                      unsigned short jDim) const;
 
-  /*!
-   * \brief Sets the gradient of the resolution tensor for the control volume.
-   *
-   * The format is dM_{jk}/dx_{i}
-   *
-   * \param[in] iDim - The direction for the gradient operator.
-   * \param[in] jDim - The first array index of the entry to be set.
-   * \param[in] kDim - The second array index of the entry to be set.
-   * \param[in] grad_value - The scalar value to be used for the entry.
-   */
-  void SetResolutionGradient(unsigned short iDim, unsigned short jDim,
-                             unsigned short kDim, su2double grad_value);
+        /*!
+         * \brief Sets the gradient of the resolution tensor for the control volume.
+         *
+         * The format is dM_{jk}/dx_{i}
+         *
+         * \param[in] iDim - The direction for the gradient operator.
+         * \param[in] jDim - The first array index of the entry to be set.
+         * \param[in] kDim - The second array index of the entry to be set.
+         * \param[in] grad_value - The scalar value to be used for the entry.
+         */
+        void SetResolutionGradient(unsigned short iDim, unsigned short jDim,
+                                   unsigned short kDim, su2double grad_value);
 
-  /*!
-   * \brief Gets the gradient of the resolution tensor for the given CV
-   *
-   * \param[in] iDim - The direction in which to take the gradient
-   * \return A rank 2 tensor representing the gradient of the separation
-   *         distances across the cell in the global coordinates, with
-   *         the gradient taken in direction iDim
-   */
-  su2double** GetResolutionGradient(unsigned short iDim);
+        /*!
+         * \brief Gets the gradient of the resolution tensor for the given CV
+         *
+         * \param[in] iDim - The direction in which to take the gradient
+         * \return A rank 2 tensor representing the gradient of the separation
+         *         distances across the cell in the global coordinates, with
+         *         the gradient taken in direction iDim
+         */
+        su2double** GetResolutionGradient(unsigned short iDim);
 
-  /*!
-   * \brief Gets the gradient of the resolution tensor for the given CV
-   *
-   * \return A rank 3 tensor representing the gradient of the separation
-   *         distances across the cell in the global coordinates.
-   */
-  su2double*** GetResolutionGradient();
+        /*!
+         * \brief Gets the gradient of the resolution tensor for the given CV
+         *
+         * \return A rank 3 tensor representing the gradient of the separation
+         *         distances across the cell in the global coordinates.
+         */
+        su2double*** GetResolutionGradient();
 
-  /*!
-   * \brief Adds to the existing set of values for the resolution tensor.
-   *
-   * These values can be thought of as cell-to-cell distances along the
-   * "principal directions".
-   *
-   * \param[in] iDim - The first array index of the entry to be added.
-   * \param[in] scalar_value - The value to be added.
-   */
-  void AddResolutionValue(unsigned short iDim, su2double scalar_value);
+        /*!
+         * \brief Adds to the existing set of values for the resolution tensor.
+         *
+         * These values can be thought of as cell-to-cell distances along the
+         * "principal directions".
+         *
+         * \param[in] iDim - The first array index of the entry to be added.
+         * \param[in] scalar_value - The value to be added.
+         */
+        void AddResolutionValue(unsigned short iDim, su2double scalar_value);
 
-  /*!
-   * \brief Adds to the existing set of vectors for the resolution tensor.
-   *
-   * These vectors can be thought of as "principal directions" for the
-   * cell-to-cell separations.
-   *
-   * \param[in] iDim - The first array index of the entry to be added.
-   * \param[in] jDim - The second array index of the entry to be added.
-   * \param[in] scalar_value - The value to be added.
-   */
-  void AddResolutionVector(unsigned short iDim, unsigned short jDim,
-                                   su2double scalar_value);
+        /*!
+         * \brief Adds to the existing set of vectors for the resolution tensor.
+         *
+         * These vectors can be thought of as "principal directions" for the
+         * cell-to-cell separations.
+         *
+         * \param[in] iDim - The first array index of the entry to be added.
+         * \param[in] jDim - The second array index of the entry to be added.
+         * \param[in] scalar_value - The value to be added.
+         */
+        void AddResolutionVector(unsigned short iDim, unsigned short jDim,
+                                 su2double scalar_value);
 
-  /*!
-   * \brief Gets the set of values for the resolution tensor.
-   * \return The cell-to-cell distances along the "principal directions" of the
-   *         current cell.
-   */
-  su2double* GetResolutionValues(void);
+        /*!
+         * \brief Gets the set of values for the resolution tensor.
+         * \return The cell-to-cell distances along the "principal directions" of the
+         *         current cell.
+         */
+        su2double* GetResolutionValues(void);
 
-  /**
-   * \brief Gets the set of vectors for the resolution tensor.
-   * \return Vectors representing the "principal directions" for the
-   * cell-to-cell separations.
-   */
-  su2double** GetResolutionVectors(void);
+        /**
+         * \brief Gets the set of vectors for the resolution tensor.
+         * \return Vectors representing the "principal directions" for the
+         * cell-to-cell separations.
+         */
+        su2double** GetResolutionVectors(void);
+
+        /*!
+         * \brief Set the adjoint values of the coordinates.
+         * \param[in] adj_sol - The adjoint values of the coordinates.
+         */
+        void SetAdjointCoord(su2double *adj_coor);
+
+        /*!
+         * \brief Get the adjoint values of the coordinates.
+         * \param[in] adj_sol - The adjoint values of the coordinates.
+         */
+        void GetAdjointCoord(su2double *adj_coor);
+
 };
 
 /*! 
  * \class CEdge
  * \brief Class for defining an edge.
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CEdge : public CDualGrid {
 private:
@@ -990,10 +1004,9 @@ public:
  * \class CVertex
  * \brief Class for vertex definition (equivalent to edges, but for the boundaries).
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CVertex : public CDualGrid {
-private:
+protected:
 	unsigned long *Nodes;	/*!< \brief Vector to store the global nodes of an element. */
 	su2double *Normal;			/*!< \brief Normal coordinates of the element and its center of gravity. */
 	su2double Aux_Var;			/*!< \brief Auxiliar variable defined only on the surface. */
@@ -1353,6 +1366,119 @@ public:
    * \return  - pointer to the vector defining the rotation
    */
   void SetVarRot(su2double* val);
+
+};
+
+/*!
+ * \class CTurboVertex
+ * \brief Class for vertex definition for turbomachinery (equivalent to edges, but for the boundaries).
+ * \author S. Vitale
+ */
+class CTurboVertex : public CVertex {
+private:
+  su2double *TurboNormal;			/*!< \brief Normal for computing correct turbomachinery quantities. */
+  su2double Area;							/*!< \brief Value of the face area associated to the vertex */
+  //	su2double PitchCoord;       /*!< \brief Value of the abscissa pitch wise */
+  su2double AngularCoord;     /*!< \brief Value of the angular coordinate  */
+  su2double DeltaAngularCoord;     /*!< \brief Value of the angular coordinate w.r.t. the minimum pitch point  */
+  su2double RelAngularCoord; /*!< \brief Value of the angular coordinate w.r.t. the minimum pitch point  */
+
+  unsigned long OldVertex;    /*!< \brief Value of the vertex numeration before the ordering */
+  int GlobalIndex;						/*!< \brief Value of the vertex numeration after the ordering and global with respect to MPI partinioning */
+
+public:
+
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_point - Node of the vertex.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   */
+  CTurboVertex(unsigned long val_point, unsigned short val_nDim);
+
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CTurboVertex(void);
+
+  /*!
+   * \brief set Normal in the turbomachinery frame of reference.
+   * \param[in] val_normal - normal vector.
+   */
+  void SetTurboNormal(su2double *val_normal);
+
+  /*!
+   * \brief set face Area.
+   * \param[in] val_area - value of the face area.
+   */
+  void SetArea(su2double val_area);
+
+  /*!
+   * \brief get face Area associate to the vertex.
+   */
+  su2double GetArea(void);
+
+  /*!
+   * \brief Copy the the turbo normal vector of a face.
+   * \param[in] val_normal - Vector where the subroutine is goint to copy the normal (dimensionaless).
+   */
+  void GetTurboNormal(su2double *val_normal);
+
+  /*!
+   * \brief Get the turbo normal to a face where turboperformance are computed .
+   * \return Dimensionaless normal vector, the modulus is the area of the face.
+   */
+  su2double *GetTurboNormal(void);
+
+  /*!
+   * \brief set vertex value not ordered.
+   * \param[in] val_vertex - value of the vertex before ordering.
+   */
+  void SetOldVertex(unsigned long val_vertex);
+
+  /*!
+   * \brief retrieve vertex value not ordered.
+   */
+  unsigned long GetOldVertex(void);
+
+  /*!
+   * \brief set global index for ordered span-wise turbovertex.
+   */
+  void SetGlobalVertexIndex(int globalindex);
+
+  /*!
+   * \brief get global index for ordered span-wise turbovertex.
+   */
+  int GetGlobalVertexIndex(void);
+
+  /*!
+   * \brief set angular coord.
+   */
+  void SetAngularCoord(su2double angCoord);
+
+  /*!
+   * \brief get angular coord.
+   */
+  su2double GetAngularCoord(void);
+
+  /*!
+   * \brief set angular coord.
+   */
+  void SetDeltaAngularCoord(su2double deltaAngCoord);
+
+  /*!
+   * \brief get angular coord.
+   */
+  su2double GetDeltaAngularCoord(void);
+
+  /*!
+   * \brief set angular coord.
+   */
+  void SetRelAngularCoord(su2double minAngCoord);
+
+  /*!
+   * \brief get angular coord.
+   */
+  su2double GetRelAngularCoord(void);
 
 };
 
