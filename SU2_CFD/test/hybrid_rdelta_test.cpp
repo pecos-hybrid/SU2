@@ -51,8 +51,7 @@ void WriteCfgFile(const unsigned short& nDim) {
   cfg_file.open("hybrid_rdelta_test.cfg", ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
-  cfg_file << "HYBRID_TURB_MODEL= YES" << std::endl;
-  cfg_file << "HYBRID_BLENDING_SCHEME= CONVECTIVE" << std::endl;
+  cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
   cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA_STRAIN_ONLY" << std::endl;
   cfg_file << "HYBRID_ANISOTROPY_MODEL= ISOTROPIC" << std::endl;
   cfg_file << "HYBRID_MODEL_CONSTANT= 1.0" << std::endl;

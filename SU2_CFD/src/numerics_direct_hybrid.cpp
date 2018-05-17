@@ -107,9 +107,10 @@ void CSourcePieceWise_HybridConv::ComputeResidual(su2double *val_residual,
 
 #ifndef NDEBUG
   if (Resolution_Adequacy < 0) {
-    cout << "ERROR: Resolution adequacy < 0!" << endl;
-    cout << "       Resolution adequacy: " << Resolution_Adequacy << endl;
-    exit(EXIT_FAILURE);
+    ostringstream error_msg;
+    error_msg << "Resolution adequacy < 0!" << endl;
+    error_msg << "  Resolution adequacy: " << Resolution_Adequacy;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
 #endif
 
