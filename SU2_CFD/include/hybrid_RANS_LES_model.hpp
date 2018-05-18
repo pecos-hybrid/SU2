@@ -375,7 +375,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] nDim - The number of dimensions of the problem
    * \param[in] CConfig - The configuration for the current zone
    */
-  CHybrid_Mediator(int nDim, CConfig* config, string filename="");
+  CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename="");
 
   /**
    * \brief Destructor for the hybrid mediator object.
@@ -503,7 +503,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] nDim - The number of dimensions of the problem
    * \param[in] CConfig - The configuration for the current zone
    */
-  CHybrid_Dummy_Mediator(int nDim, CConfig* config);
+  CHybrid_Dummy_Mediator(unsigned short nDim, CConfig* config);
 
   /**
    * \brief Destructor for the hybrid mediator object.

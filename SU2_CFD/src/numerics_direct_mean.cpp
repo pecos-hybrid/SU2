@@ -4383,8 +4383,8 @@ void CUpwTurkel_Flow::ComputeResidual(su2double *val_residual, su2double **val_J
 
 CAvgGrad_Flow::CAvgGrad_Flow(unsigned short val_nDim, unsigned short val_nVar,
                              CConfig *config, bool aniso_viscosity)
-    : hasAnisoEddyViscosity(aniso_viscosity),
-      CNumerics(val_nDim, val_nVar, config) {
+    : CNumerics(val_nDim, val_nVar, config),
+      hasAnisoEddyViscosity(aniso_viscosity) {
 
   implicit = ( (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
                (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||

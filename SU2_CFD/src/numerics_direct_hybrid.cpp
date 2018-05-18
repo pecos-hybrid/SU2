@@ -173,8 +173,8 @@ CAvgGrad_HybridConv::CAvgGrad_HybridConv(unsigned short val_nDim,
                                          bool correct_grad,
                                          CConfig *config)
     : CNumerics(val_nDim, val_nVar, config),
-      sigma_alpha(10.),
-      correct_gradient(correct_grad) {
+      correct_gradient(correct_grad),
+      sigma_alpha(10.) {
 
   implicit = (config->GetKind_TimeIntScheme_Turb() == EULER_IMPLICIT);
   incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);

@@ -12069,7 +12069,7 @@ void CGeometry::SetResolutionTensor(void) {
 
 void CGeometry::SetResolutionGradient(void) {
   unsigned short iDim, jDim, kDim, lDim;
-  unsigned short iVar, iNeigh;
+  unsigned short iNeigh;
   unsigned long iPoint, jPoint;
   su2double** M_temp;
   vector<vector<su2double> > M_i(nDim, vector<su2double>(nDim));

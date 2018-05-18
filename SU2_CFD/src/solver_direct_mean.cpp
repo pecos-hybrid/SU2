@@ -6247,7 +6247,6 @@ void CEulerSolver::ExplicitRK_Iteration(CGeometry *geometry, CSolver **solver_co
   unsigned long iPoint;
 
   const su2double *RK_coeff_vec;
-  su2double  RK_cVec_val;
   bool adjoint = config->GetContinuous_Adjoint();
 
   const bool final_step = (iRKStep+1 == nRKStep);
@@ -6528,8 +6527,6 @@ void CEulerSolver::LIMEX_RK_SMR91_Iteration(CGeometry *geometry, CSolver **solve
   unsigned long iPoint, total_index;
 
   bool adjoint = config->GetContinuous_Adjoint();
-
-  const bool final_step = (iRKStep+1 == nRKStep);
 
   for (iVar = 0; iVar < nVar; iVar++) {
     SetRes_RMS(iVar, 0.0);
