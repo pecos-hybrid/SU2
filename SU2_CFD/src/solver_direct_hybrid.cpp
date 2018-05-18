@@ -66,7 +66,7 @@ CHybridSolver::~CHybridSolver(void) {
 
 void CHybridSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iMarker, MarkerS, MarkerR;
-  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector, nBufferS_Scalar, nBufferR_Scalar;
+  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double *Buffer_Receive_U = NULL, *Buffer_Send_U = NULL;
 
 #ifdef HAVE_MPI
@@ -88,7 +88,6 @@ void CHybridSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
 
       nVertexS = geometry->nVertex[MarkerS];  nVertexR = geometry->nVertex[MarkerR];
       nBufferS_Vector = nVertexS*nVar;        nBufferR_Vector = nVertexR*nVar;
-      nBufferS_Scalar = nVertexS;             nBufferR_Scalar = nVertexR;
 
       /*--- Allocate Receive and send buffers  ---*/
       Buffer_Receive_U = new su2double [nBufferR_Vector];
@@ -594,7 +593,6 @@ void CHybridConvSolver::Source_Residual(CGeometry *geometry,
   unsigned long iPoint;
 
   bool harmonic_balance = (config->GetUnsteady_Simulation() == HARMONIC_BALANCE);
-  bool transition    = (config->GetKind_Trans_Model() == LM);
 
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
@@ -677,11 +675,9 @@ void CHybridSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solve
 
   unsigned short iVar;
   unsigned long iPoint, total_index;
-  su2double Delta, Vol, density_old = 0.0, density = 0.0;
+  su2double Delta, Vol;
 
   bool adjoint = config->GetContinuous_Adjoint() || (config->GetDiscrete_Adjoint() && config->GetFrozen_Visc_Disc());
-  bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
-  bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
 
   /*--- Set maximum residual to zero ---*/
 
@@ -1117,7 +1113,6 @@ CHybridConvSolver::CHybridConvSolver(CGeometry *geometry, CConfig *config,
 : CHybridSolver(), alpha_Inf(1.0) {
   unsigned short iVar, iDim, nLineLets;
   unsigned long iPoint;
-  su2double Density_Inf, Viscosity_Inf;
 
   /*--- Dimension of the problem --> dependent on the hybrid model ---*/
 
@@ -1216,12 +1211,6 @@ CHybridConvSolver::CHybridConvSolver(CGeometry *geometry, CConfig *config,
     }
 
   }
-
-  /*--- Read farfield conditions from config ---*/
-
-  Density_Inf   = config->GetDensity_FreeStreamND();
-  Viscosity_Inf = config->GetViscosity_FreeStreamND();
-
 
   /*--- Restart the solution from file information ---*/
   for (iPoint = 0; iPoint < nPoint; iPoint++)
@@ -1493,7 +1482,7 @@ void CHybridConvSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container
 
 void CHybridConvSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
                               CConfig *config, unsigned short val_marker, unsigned short iRKstep) {
-  unsigned long iPoint, iVertex, Point_Normal;
+  unsigned long iPoint, iVertex;
   unsigned short iVar, iDim;
   su2double *V_outlet, *V_domain, *Normal;
 
@@ -1509,10 +1498,6 @@ void CHybridConvSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_containe
     /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
 
     if (geometry->node[iPoint]->GetDomain()) {
-
-      /*--- Index of the closest interior node ---*/
-
-      Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
 
       /*--- Allocate the value at the outlet ---*/
 
@@ -1711,7 +1696,7 @@ void CHybridConvSolver::BC_ActDisk_Outlet(CGeometry *geometry, CSolver **solver_
 void CHybridConvSolver::BC_ActDisk(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
                                CConfig *config, unsigned short val_marker, bool inlet_surface, unsigned short iRKstep) {
 
-  unsigned long iPoint, iVertex, GlobalIndex_donor, GlobalIndex, iPoint_Normal;
+  unsigned long iPoint, iVertex, GlobalIndex_donor, GlobalIndex;
   su2double *V_outlet, *V_inlet, *V_domain, *Normal, *UnitNormal, Area, Vn;
   bool ReverseFlow;
   unsigned short iDim;
@@ -1726,7 +1711,6 @@ void CHybridConvSolver::BC_ActDisk(CGeometry *geometry, CSolver **solver_contain
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
 
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-    iPoint_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
     GlobalIndex_donor = solver_container[FLOW_SOL]->GetDonorGlobalIndex(val_marker, iVertex);
     GlobalIndex = geometry->node[iPoint]->GetGlobalIndex();
 

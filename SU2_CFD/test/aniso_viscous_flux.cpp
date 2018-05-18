@@ -110,7 +110,7 @@ int main() {
    */
   su2double eps = std::numeric_limits<su2double>::epsilon();
   numerics.GetViscousProjFlux(prim_var, gradprimvar, turb_ke, normal,
-                        laminar_viscosity, Aniso_Eddy_Viscosity);
+                              laminar_viscosity, Aniso_Eddy_Viscosity, false);
   su2double* output = numerics.Proj_Flux_Tensor;
   su2double correct_output[nVar] = {0.0, 6.0, 4.0, 8.0};
   for (int iVar = 0; iVar < nVar-1; iVar++) {

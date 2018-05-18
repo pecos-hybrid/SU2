@@ -5475,7 +5475,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     
     /*--- Write the table header if time-stepping simulation is restarting ---*/
     if (time_stepping && config[val_iZone]->GetRestart())
-      if (config[val_iZone]->GetUnst_RestartIter() == iExtIter)
+      if (config[val_iZone]->GetUnst_RestartIter() == long(iExtIter))
         write_heads = true;
 
     bool write_turbo = (((iExtIter % (config[val_iZone]->GetWrt_Con_Freq()*40)) == 0) || (iExtIter == (config[val_iZone]->GetnExtIter() -1)));

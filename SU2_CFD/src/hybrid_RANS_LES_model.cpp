@@ -73,7 +73,7 @@ void CHybrid_Isotropic_Visc::CalculateViscAnisotropy() {
 }
 
 CHybrid_Aniso_Q::CHybrid_Aniso_Q(unsigned short nDim)
-  : rans_weight(1.0), CHybrid_Visc_Anisotropy(nDim) {
+  : CHybrid_Visc_Anisotropy(nDim), rans_weight(1.0) {
 }
 
 void CHybrid_Aniso_Q::CalculateViscAnisotropy() {
@@ -119,7 +119,7 @@ inline void CHybrid_Aniso_Q::SetScalars(vector<su2double> val_scalars) {
 
 
 
-CHybrid_Mediator::CHybrid_Mediator(int nDim, CConfig* config, string filename)
+CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename)
    : nDim(nDim), C_sf(0.367), config(config) {
 
   int rank = MASTER_NODE;
@@ -411,7 +411,7 @@ void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
                                              CSolver **solver_container,
                                              CHybrid_Visc_Anisotropy* hybrid_anisotropy,
                                              unsigned short iPoint) {
-  unsigned int iDim, jDim, kDim, lDim;
+  unsigned int iDim, jDim;
   /*--- Use the grid-based resolution tensor, not the anisotropy-correcting
    * resolution tensor ---*/
   su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
@@ -739,6 +739,8 @@ vector<su2double> CHybrid_Mediator::GetEigValues_Q(vector<su2double> eigvalues_M
 vector<vector<su2double> > CHybrid_Mediator::BuildZeta(su2double* values_M,
                                                        su2double** vectors_M) {
 
+  vector<vector<su2double> > zeta(3, vector<su2double>(3,0));
+
 #ifdef HAVE_LAPACK
   unsigned short iDim, jDim, kDim, lDim;
 
@@ -749,7 +751,6 @@ vector<vector<su2double> > CHybrid_Mediator::BuildZeta(su2double* values_M,
   /*--- Solve for the modified resolution tensor  ---*/
   vector<su2double> eigvalues_Zeta = GetEigValues_Zeta(eigvalues_M);
   vector<vector<su2double> > temp(3, vector<su2double>(3));
-  vector<vector<su2double> > zeta(3, vector<su2double>(3,0));
   for (iDim = 0; iDim < nDim; iDim++) {
     temp[iDim][iDim] = eigvalues_Zeta[iDim];
   }
@@ -764,10 +765,12 @@ vector<vector<su2double> > CHybrid_Mediator::BuildZeta(su2double* values_M,
       }
     }
   }
-  return zeta;
 #else
   SU2_MPI::Error("Eigensolver without LAPACK not implemented; please use LAPACK.", CURRENT_FUNCTION);
 #endif
+
+  /*--- This return is placed here to avoid "no return" compiler warnings.---*/
+  return zeta;
 
 }
 
@@ -920,12 +923,12 @@ unsigned short iDim, jDim;
 void CHybrid_Mediator::SolveGeneralizedEigen(su2double** A, su2double** B,
 					     vector<su2double> &eigvalues,
 					     vector<vector<su2double> > &eigvectors) {
-unsigned short iDim, jDim;
 
   eigvalues.resize(nDim);
   eigvectors.resize(nDim, std::vector<su2double>(nDim));
 
 #ifdef HAVE_LAPACK
+  unsigned short iDim, jDim;
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim< nDim; jDim++) {
       mat[iDim*nDim+jDim]  = A[iDim][jDim];
@@ -984,7 +987,9 @@ vector<vector<su2double> > CHybrid_Mediator::GetConstants() {
 
 
 
-CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(int nDim, CConfig* config) : nDim(nDim) {
+CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(unsigned short nDim,
+                                               CConfig* config)
+    : nDim(nDim) {
 
   /*--- Set the default value of the hybrid parameter ---*/
   dummy_alpha = new su2double[1];
@@ -1002,6 +1007,7 @@ void CHybrid_Dummy_Mediator::SetupRANSNumerics(CGeometry* geometry,
                                          unsigned short jPoint) {
   // This next line is just here for testing purposes.
   su2double* alpha = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
+  assert(alpha != NULL);
   rans_numerics->SetHybridParameter(dummy_alpha, dummy_alpha);
 }
 
@@ -1034,6 +1040,8 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   // This next two lines are just here for testing purposes.
   su2double* alpha_i = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
   su2double* alpha_j = solver_container[HYBRID_SOL]->node[jPoint]->GetSolution();
+  assert(alpha_i != NULL);
+  assert(alpha_j != NULL);
   visc_numerics->SetHybridParameter(dummy_alpha, dummy_alpha);
 
   /*--- Pass the stress anisotropy tensor to the resolved flow ---*/

@@ -4544,20 +4544,9 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
       : CTurbSolver() {
 
   unsigned short iVar, iDim, nLineLets;
-  unsigned long iPoint, index;
-  su2double dull_val;
+  unsigned long iPoint;
   ifstream restart_file;
   string text_line;
-
-  unsigned short iZone = config->GetiZone();
-  unsigned short nZone = geometry->GetnZone();
-  bool restart = (config->GetRestart() || config->GetRestart_Flow());
-  bool adjoint = config->GetContinuous_Adjoint();
-  bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
-  bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
-  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
-                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
-  bool time_stepping = (config->GetUnsteady_Simulation() == TIME_STEPPING);
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -5062,7 +5051,7 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
 
   unsigned long iPoint, jPoint, iVertex;
   unsigned short iDim, iVar, jVar;
-  su2double distance, wall_k, wall_zeta;
+  su2double distance, wall_k;
   su2double density = 0.0, laminar_viscosity = 0.0;
 
   bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
@@ -5121,7 +5110,6 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
       //wall_k = max(node[jPoint]->GetSolution(0),1e-8);
       //wall_k = node[jPoint]->GetSolution(0);
       wall_k = node[jPoint]->GetSolution(0);
-      wall_zeta = node[jPoint]->GetSolution(2);
 
       const su2double Vol = geometry->node[iPoint]->GetVolume();
       const su2double dt = solver_container[FLOW_SOL]->node[iPoint]->GetDelta_Time();
@@ -5208,7 +5196,7 @@ void CTurbKESolver::BC_Isothermal_Wall(CGeometry *geometry,
 
   unsigned long iPoint, jPoint, iVertex, total_index;
   unsigned short iDim, iVar;
-  su2double distance, wall_k, wall_zeta;
+  su2double distance, wall_k;
   su2double density = 0.0, laminar_viscosity = 0.0;
 
   bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
@@ -5241,7 +5229,6 @@ void CTurbKESolver::BC_Isothermal_Wall(CGeometry *geometry,
       }
 
       wall_k = node[jPoint]->GetSolution(0);
-      wall_zeta = node[jPoint]->GetSolution(2);
 
       // wall boundary conditions (https://turbmodels.larc.nasa.gov/k-e-zeta-f.html)
       Solution[0] = 0.0;
