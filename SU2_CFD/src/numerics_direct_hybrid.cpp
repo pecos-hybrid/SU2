@@ -117,8 +117,8 @@ void CSourcePieceWise_HybridConv::ComputeResidual(su2double *val_residual,
     cout << "       Turbulent timescale: " << TurbT << endl;
   }
 #endif
-  // FIXME: Check this value
-  const su2double C_alpha = 0.367;
+  
+  const su2double C_alpha = 0.1;
 
   /*--- Aliasing for readability ---*/
   const su2double alpha = HybridParameter_i[0];

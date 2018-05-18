@@ -123,6 +123,8 @@ CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
                                    string filename)
    : nDim(nDim), C_sf(0.367), config(config) {
 
+  const int rank = SU2_MPI::GetRank();
+
   if (config->isHybrid_Forced())
     hybrid_forcing = new CHybridForcing(nDim);
   else
@@ -142,11 +144,6 @@ CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
       cout << "       At line " << __LINE__ << " of file " __FILE__ << std::endl;
       exit(EXIT_FAILURE);
   }
-
-  int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
 
   Q = NULL;
   Qapprox = NULL;
@@ -314,7 +311,8 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
     iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
     unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
 
-    r_k = C_sf*eigvalues_iLM[max_index];
+    const su2double C_r = 1.0;
+    r_k = C_r*eigvalues_iLM[max_index];
 
   }
   else if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
