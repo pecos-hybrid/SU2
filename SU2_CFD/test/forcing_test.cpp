@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(Coordinate_Shifting) {
   const unsigned short nVar = nDim + 2;
   const su2double pi = std::atan(1.0)*4.0;
 
-  CHybridForcing forcing(nDim, nVar);
+  CHybridForcing forcing(nDim);
 
   su2double time = 1.0;
   su2double L_m = 1.0;
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(Forcing_Functions) {
 
   /*--- Setup ---*/
 
-  CHybridForcing forcing(nDim, nVar);
+  CHybridForcing forcing(nDim);
 
   su2double x[nDim];
   su2double prim_vars[nVar];
@@ -120,10 +120,8 @@ BOOST_AUTO_TEST_CASE(Forcing_Functions) {
   /*--- Teardown ---*/
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    delete [] tau_F[iDim];
     delete [] tau_F_exact[iDim];
   }
-  delete [] tau_F;
   delete [] tau_F_exact;
 
 }
@@ -140,9 +138,11 @@ BOOST_AUTO_TEST_CASE(Smoke_Test_for_Forcing) {
   su2double x[nDim];
   su2double prim_vars[nVar];
   su2double turb_vars[4];
+  su2double source_terms[2];
   x[0] = 0.0; x[1] = 0.0; x[2] = 0.0;
   prim_vars[1] = 1.0; prim_vars[2] = 1.0; prim_vars[3] = 1.0;
   turb_vars[0] = 1.0; turb_vars[1] = 1.0;
+  source_terms[0] = 1.0; source_terms[1] = 0.0;
 
   su2double** prim_var_grad = new su2double*[nVar];
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
@@ -151,14 +151,9 @@ BOOST_AUTO_TEST_CASE(Smoke_Test_for_Forcing) {
       prim_var_grad[iVar][iDim] = 0.0;
   }
 
-  su2double** tau_F = new su2double*[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    tau_F[iDim] = new su2double[nDim];
-  }
-
   /*--- Calculate forcing ---*/
 
-  CHybridForcing forcing(nDim, nVar);
+  CHybridForcing forcing(nDim);
 
   forcing.SetCoord(x);
   forcing.SetTurbLengthscale(1.0);
@@ -167,23 +162,17 @@ BOOST_AUTO_TEST_CASE(Smoke_Test_for_Forcing) {
   forcing.SetPrimitive(prim_vars);
   forcing.SetPrimVarGradient(prim_var_grad);
   forcing.SetTurbVar(turb_vars);
-  forcing.SetHybridSourceTerms(1.0, 0.0);
+  forcing.SetHybridSourceTerms(source_terms);
 
-  forcing.GetStress(tau_F);
+  su2double** tau_F = forcing.GetStress();
   su2double P_F = forcing.GetProduction();
-  su2double P_F_over_P_lim = forcing.GetProductionRatio();
+  su2double P_F_over_P_lim = forcing.GetForcingRatio();
 
   /*--- Teardown ---*/
 
   for (unsigned short iVar = 0; iVar < nVar; iVar++)
     delete [] prim_var_grad[iVar];
   delete [] prim_var_grad;
-
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    delete [] tau_F[iDim];
-  }
-  delete [] tau_F;
-
 
 }
 

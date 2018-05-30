@@ -4449,7 +4449,8 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
     for (iDim = 0; iDim<nDim; iDim++)
       Mean_Aniso_Eddy_Viscosity[iDim] = new su2double[nDim];
 
-    assert(config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+    assert(Eddy_Viscosity_Anisotropy_i != NULL);
+    assert(Eddy_Viscosity_Anisotropy_j != NULL);
     for (iDim = 0; iDim<nDim; iDim++) {
       for (jDim = 0; jDim<nDim; jDim++) {
         Mean_Aniso_Eddy_Viscosity[iDim][jDim] = 0.5*
