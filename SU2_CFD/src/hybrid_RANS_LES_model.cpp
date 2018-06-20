@@ -277,7 +277,9 @@ void CHybrid_Mediator::SetupRANSNumerics(CGeometry* geometry,
   /*--- Since this is a source term, we don't need a second point ---*/
   rans_numerics->SetHybridParameter(alpha, NULL);
 
-  /*--- Hybrid forcing (P_F) already set in SetupForcing() ---*/
+  su2double ForcingProduction =
+      solver_container[TURB_SOL]->node[iPoint]->GetForcingProduction();
+  rans_numerics->SetForcingProduction(ForcingProduction);
 
 }
 

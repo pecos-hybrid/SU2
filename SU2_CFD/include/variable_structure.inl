@@ -1489,7 +1489,11 @@ inline su2double** CNSVariable::GetForcingStress(void) { return Forcing_Stress; 
 
 inline su2double CNSVariable::GetForcingStress(unsigned short iDim,
                                                unsigned short jDim) {
-  return Forcing_Stress[iDim][jDim];
+  if (Forcing_Stress != NULL)
+    return Forcing_Stress[iDim][jDim];
+  else
+    SU2_MPI::Error("Attempted to access forcing stress before forcing stress is properly initialized!", CURRENT_FUNCTION);
+    return 0;   // This return is here to make static checkers happy
 }
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() {

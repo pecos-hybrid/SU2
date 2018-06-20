@@ -684,7 +684,7 @@ void CHybridConvSolver::CalculateSourceTerms(CSolver **solver_container,
 
     /*--- S_cf ---*/
     su2double alpha = node[iPoint]->GetSolution()[0];
-    if (Resolution_Adequacy >= 1.0 && alpha > 1.0) {
+    if (Resolution_Adequacy >= 1.0 && alpha >= 1.0) {
       S_terms[1] = alpha;
     } else if (Resolution_Adequacy < 1.0 && alpha < alpha_kol) {
       S_terms[1] = (alpha - fmin(alpha_kol, 1.0)) - 1.0;
