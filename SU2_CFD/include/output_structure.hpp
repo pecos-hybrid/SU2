@@ -56,6 +56,25 @@
 #include "../../Common/include/geometry_structure.hpp"
 #include "../../Common/include/config_structure.hpp"
 
+typedef su2double (CVariable::*DataAccessor)();
+typedef su2double** (CVariable::*TensorAccessor)();
+/*--- Define a macro to make (()->*(function pointer)) more readable ---*/
+#define CALL_MEMBER_FN(object,ptrToMember)  ((object)->*(ptrToMember))
+
+struct COutputVariable {
+  std::string Name;
+  std::string Tecplot_Name;
+  unsigned short Solver_Type;
+  DataAccessor Accessor;
+};
+
+struct COutputTensor {
+  std::string Name;
+  std::string Tecplot_Name;
+  unsigned short Solver_Type;
+  TensorAccessor Accessor;
+};
+
 using namespace std;
 
 /*! 
@@ -130,6 +149,8 @@ class COutput {
   unsigned short wrote_base_file;
   su2double RhoRes_New, *RhoRes_Old;
   int cgns_base, cgns_zone, cgns_base_results, cgns_zone_results;
+  std::vector<std::vector<COutputVariable> > output_vars;
+  std::vector<std::vector<COutputTensor> > output_tensors;
   
   su2double Sum_Total_RadialDistortion, Sum_Total_CircumferentialDistortion; // Add all the distortion to compute a run average.
   bool turbo;
@@ -202,6 +223,23 @@ public:
    * \brief Destructor of the class. 
    */
   ~COutput(void);
+
+  void RegisterAllVariables(CConfig** config, unsigned short val_nZone);
+
+  void RegisterScalar(std::string name, std::string tecplot_name,
+                        unsigned short solver_type, DataAccessor accessor,
+                        unsigned short val_zone);
+
+  void RegisterTensor(std::string name, std::string tecplot_name,
+                      unsigned short solver_type, TensorAccessor accessor,
+                      unsigned short val_zone);
+
+  su2double RetrieveVariable(CSolver** solver, COutputVariable var,
+                             unsigned long iPoint);
+
+  su2double RetrieveTensorComponent(CSolver** solver, COutputTensor var,
+                                    unsigned long iPoint, unsigned short iDim,
+                                    unsigned short jDim);
 
   /*! 
    * \brief Writes and organizes the all the output files, except the history one, for serial computations.
@@ -517,7 +555,7 @@ public:
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] val_iZone - iZone index.
    */
-  string AssembleVariableNames(CGeometry *geometry, CConfig *config, unsigned short nVar_Consv, unsigned short *NVar);
+  string AssembleVariableNames(CGeometry *geometry, CConfig *config, unsigned short val_iZone, unsigned short nVar_Consv, unsigned short *NVar);
 
   /*!
    * \brief Write the nodal coordinates and connectivity to a Tecplot binary mesh file.

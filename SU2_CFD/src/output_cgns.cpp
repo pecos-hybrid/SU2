@@ -505,7 +505,37 @@ void COutput::SetCGNS_Solution(CConfig *config, CGeometry *geometry, unsigned sh
         break;
       }
   }  
+
+  for (std::vector<COutputVariable>::iterator it = output_vars[iZone].begin();
+       it != output_vars[iZone].end(); ++it) {
+    cgns_err = cg_field_write(cgns_file, cgns_base, cgns_zone, cgns_flow, RealDouble, it->Name.c_str(), Data[iVar], &cgns_field); iVar++;
+    if (cgns_err) cg_error_print();
+  }
   
+  for (std::vector<COutputTensor>::iterator it = output_tensors[iZone].begin();
+       it != output_tensors[iZone].end(); ++it) {
+    for (unsigned short iDim = 1; iDim < geometry->GetnDim()+1; iDim++) {
+      for (unsigned short jDim = 1; jDim < geometry->GetnDim()+1; jDim++) {
+        ostringstream label(it->Name);
+        label << "_" << iDim << jDim;
+        cgns_err = cg_field_write(cgns_file, cgns_base, cgns_zone, cgns_flow, RealDouble, label.str().c_str(), Data[iVar], &cgns_field); iVar++;
+        if (cgns_err) cg_error_print();
+      }
+    }
+  }
+
+  if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) &&
+      config->GetWrt_Resolution_Tensors()) {
+    for (unsigned short iDim = 1; iDim < geometry->GetnDim()+1; iDim++) {
+      for (unsigned short jDim = 1; jDim < geometry->GetnDim()+1; jDim++) {
+        ostringstream label("Resolution_Tensor_");
+        label << iDim << jDim;
+        cgns_err = cg_field_write(cgns_file, cgns_base, cgns_zone, cgns_flow, RealDouble, label.str().c_str(), Data[iVar], &cgns_field); iVar++;
+        if (cgns_err) cg_error_print();
+      }
+    }
+  }
+
   /*--- Close CGNS file ---*/
   cgns_err = cg_close(cgns_file);
   if (cgns_err) cg_error_print();

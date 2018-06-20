@@ -708,24 +708,49 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       
     }
     
-    if (dynamic_hybrid) {
-      Paraview_File << "\nTENSORS Eddy_Viscosity_Anisotropy float\n";
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
+
+      Paraview_File << "\nSCALARS " << it->Name << " float 1\n";
+      Paraview_File << "LOOKUP_TABLE default\n";
+
+      for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+        if (surf_sol) {
+          if (LocalIndex[iPoint+1] != 0) {
+            /*--- Loop over the vars/residuals and write the values to file ---*/
+            Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+          }
+        } else {
+          /*--- Loop over the vars/residuals and write the values to file ---*/
+          Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+        }
+      }
+      VarCounter++;
+
+    }
+    
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
+      Paraview_File << "\nTENSORS " << it->Name << " float\n";
 
       for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
         if (!surf_sol || LocalIndex[iPoint+1] != 0) {
           /*--- Loop over the vars/residuals and write the values to file ---*/
-          for (int iDim = 0; iDim < 3; iDim++) {
-            for (int jDim = 0; jDim < 3; jDim++) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
               Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
               VarCounter++;
             }
             Paraview_File << endl;
           }
           Paraview_File << endl;
-          VarCounter -= 9;
+          VarCounter -= nDim*nDim;
         }
       }
-      VarCounter += 9;
+      VarCounter += nDim*nDim;
+    }
+
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       Paraview_File << "\nTENSORS Resolution_Tensor float\n";
 
       for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
@@ -743,33 +768,6 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
         }
       }
       VarCounter += 9;
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case FULL_TRANSPORT:
-          // Add resolution adequacy.
-          Paraview_File << "\nSCALARS Resolution_Adequacy float 1\n";
-          Paraview_File << "LOOKUP_TABLE default\n";
-          /*--- Loop over the vars/residuals and write the values to file ---*/
-          for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
-            if (!surf_sol || LocalIndex[iPoint+1] != 0) {
-                Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
-            }
-          }
-          VarCounter++;
-          // Add RANS weight
-          Paraview_File << "\nSCALARS RANS_Weight float 1\n";
-          Paraview_File << "LOOKUP_TABLE default\n";
-          /*--- Loop over the vars/residuals and write the values to file ---*/
-          for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
-            if (!surf_sol || LocalIndex[iPoint+1] != 0) {
-                Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
-            }
-          }
-          VarCounter++;
-          break;
-      }
     }
 
     if (( Kind_Solver == ADJ_EULER         ) ||
@@ -1665,6 +1663,47 @@ void COutput::SetParaview_MeshASCII(CConfig *config, CGeometry *geometry, unsign
       
     }
     
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
+      
+      Paraview_File << "\nSCALARS " << it->Name << " float 1\n";
+      Paraview_File << "LOOKUP_TABLE default\n";
+      
+      for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+        if (surf_sol) {
+          if (LocalIndex[iPoint+1] != 0) {
+            /*--- Loop over the vars/residuals and write the values to file ---*/
+            Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+          }
+        } else {
+          /*--- Loop over the vars/residuals and write the values to file ---*/
+          Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+        }
+      }
+      VarCounter++;
+      
+    }
+    
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
+      Paraview_File << "\nTENSORS " << it->Name << " float\n";
+
+      for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+        if (!surf_sol || LocalIndex[iPoint+1] != 0) {
+          /*--- Loop over the vars/residuals and write the values to file ---*/
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+              VarCounter++;
+            }
+            Paraview_File << endl;
+          }
+          Paraview_File << endl;
+          VarCounter -= nDim*nDim;
+        }
+      }
+      VarCounter += nDim*nDim;
+    }
     if (( Kind_Solver == ADJ_EULER         ) ||
         ( Kind_Solver == ADJ_NAVIER_STOKES ) ||
         ( Kind_Solver == ADJ_RANS          )   ) {

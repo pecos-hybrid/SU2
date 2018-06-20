@@ -81,7 +81,7 @@ install:
 
 before_script:
     # Get the test cases
-    - git clone -b master https://github.com/su2code/TestCases.git ./TestData
+    - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
     - cp -R ./TestData/* ./TestCases/
 
     # Enter the SU2/TestCases/ directory, which is now ready to run
