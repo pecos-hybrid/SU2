@@ -306,8 +306,8 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    * \param[inout] eddy_viscosity - A pointer to the eddy visc. to be modified
    */
-  void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
-                           su2double *eddy_viscosity) { };
+  virtual void AdjustEddyViscosity(CSolver **solver_container, unsigned short iPoint,
+				   su2double *eddy_viscosity) { };
 };
 
 
