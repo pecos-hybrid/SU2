@@ -230,6 +230,29 @@ void COutput::SetFieldViewASCII(CConfig *config, CGeometry *geometry, unsigned s
       FieldView_File << "Eddy_Viscosity" << endl;
     }
     
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
+      FieldView_File << it->Name << endl;
+    }
+    
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
+      for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+        for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
+          FieldView_File << it->Name << "_" << iDim << jDim << endl;
+        }
+      }
+    }
+
+    if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) &&
+        config->GetWrt_Resolution_Tensors()) {
+      for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+        for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
+          FieldView_File << "Resolution_Tensor_" << iDim << jDim << endl;
+        }
+      }
+    }
+
     if (config->GetWrt_SharpEdges()) {
       if ((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)) {
         FieldView_File << "Sharp_Edge_Dist" << endl;

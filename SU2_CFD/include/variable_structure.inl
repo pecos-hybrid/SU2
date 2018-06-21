@@ -543,6 +543,10 @@ inline void CVariable::SetSourceTerms(su2double* val_source_terms) { };
 
 inline su2double* CVariable::GetSourceTerms() { return NULL; };
 
+inline su2double CVariable::GetSAlpha() { return 0; };
+
+inline su2double CVariable::GetScf() { return 0; }
+
 inline su2double* CVariable::GetSolution_Direct() { return NULL; }
 
 inline void CVariable::SetSolution_Direct(su2double *val_solution_direct) { }
@@ -1462,6 +1466,10 @@ inline void CHybridVariable::SetSourceTerms(su2double* val_source_terms) {
 
 inline su2double* CHybridVariable::GetSourceTerms() { return S_terms; }
 
+inline su2double CHybridVariable::GetSAlpha() { return S_terms[0]; }
+
+inline su2double CHybridVariable::GetScf() { return S_terms[1]; }
+
 inline void CNSVariable::SetEddyViscAnisotropy(su2double** val_anisotropy) {
     // Copy values instead of copying pointers to values that may change
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
@@ -1489,7 +1497,11 @@ inline su2double** CNSVariable::GetForcingStress(void) { return Forcing_Stress; 
 
 inline su2double CNSVariable::GetForcingStress(unsigned short iDim,
                                                unsigned short jDim) {
-  return Forcing_Stress[iDim][jDim];
+  if (Forcing_Stress != NULL)
+    return Forcing_Stress[iDim][jDim];
+  else
+    SU2_MPI::Error("Attempted to access forcing stress before forcing stress is properly initialized!", CURRENT_FUNCTION);
+    return 0;   // This return is here to make static checkers happy
 }
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() {

@@ -422,6 +422,87 @@ COutput::~COutput(void) {
   }
 }
 
+/*--- This doesn't really have a good separation of concerns.
+ * The output class shouldn't need to know all the details of the solver.
+ * The individual solvers (flow, RANS, grid movement) should tell the
+ * Output class what to store.  The solvers should be registering the
+ * variables themselves. Then we wouldn't have to check config
+ * to know what to output, and there's less potential for bugs.
+ *
+ * I have kept the variable registration here mostly to keep changes
+ * minimal.
+ */
+void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
+
+  output_vars.resize(val_nZone);
+  output_tensors.resize(val_nZone);
+
+  for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
+    unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
+    if (Kind_Solver == RANS) {
+      const bool dynamic_hybrid =
+          (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+
+      if (config[iZone]->GetKind_Turb_Model() == KE) {
+        RegisterScalar("L_m", "L<sub>m</sub>", TURB_SOL,
+                       &CVariable::GetTurbLengthscale, iZone);
+        RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
+                       &CVariable::GetTurbTimescale, iZone);
+      }
+  
+      if (dynamic_hybrid) {
+        if (config[iZone]->GetKind_Hybrid_Anisotropy_Model() != ISOTROPIC) {
+          RegisterTensor("Eddy_Visc_Anisotropy", "a", FLOW_SOL,
+                         &CVariable::GetEddyViscAnisotropy, iZone);
+        }
+        switch (config[iZone]->GetKind_Hybrid_Blending()) {
+          case RANS_ONLY:
+            // No extra variables
+            break;
+          case FULL_TRANSPORT:
+            RegisterScalar("Resolution_Adequacy", "r<sub>k</sub>", HYBRID_SOL,
+                           &CVariable::GetResolutionAdequacy, iZone);
+            break;
+        }
+        RegisterScalar("Forcing_Production", "P<sub>F</sub>", TURB_SOL,
+                       &CVariable::GetForcingProduction, iZone);
+        RegisterScalar("Forcing_Ratio", "P<sub>F</sub>", HYBRID_SOL,
+                       &CVariable::GetForcingRatio, iZone);
+        RegisterScalar("S_alpha", "S<sub>a</sub>", HYBRID_SOL,
+                       &CVariable::GetSAlpha, iZone);
+        RegisterScalar("S_cf", "S<sub>cf</sub>", HYBRID_SOL,
+                       &CVariable::GetScf, iZone);
+      }
+    }
+  }
+}
+
+void COutput::RegisterScalar(std::string name, std::string tecplot_name,
+                               unsigned short solver_type,
+                               DataAccessor accessor, unsigned short val_zone) {
+  COutputVariable variable = {name, tecplot_name, solver_type, accessor};
+  output_vars[val_zone].push_back(variable);
+}
+
+void COutput::RegisterTensor(std::string name, std::string tecplot_name,
+                             unsigned short solver_type,
+                             TensorAccessor accessor, unsigned short val_zone) {
+  COutputTensor tensor = {name, tecplot_name, solver_type, accessor};
+  output_tensors[val_zone].push_back(tensor);
+}
+
+su2double COutput::RetrieveVariable(CSolver** solver,
+                                    COutputVariable var,
+                                    unsigned long iPoint) {
+   return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)();
+}
+
+su2double COutput::RetrieveTensorComponent(CSolver** solver, COutputTensor var,
+                                  unsigned long iPoint, unsigned short iDim,
+                                  unsigned short jDim) {
+  return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim][jDim];
+}
+
 void COutput::SetSurfaceCSV_Flow(CConfig *config, CGeometry *geometry,
                                  CSolver *FlowSolver, unsigned long iExtIter,
                                  unsigned short val_iZone) {
@@ -2262,12 +2343,13 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   
   unsigned short Kind_Solver  = config->GetKind_Solver();
   unsigned short iVar = 0, jVar = 0, FirstIndex = NONE, SecondIndex = NONE, ThirdIndex = NONE;
+  unsigned short iVar_Additional;
   unsigned short nVar_First = 0, nVar_Second = 0, nVar_Third = 0;
   unsigned short iVar_GridVel = 0, iVar_PressCp = 0, iVar_Lam = 0, iVar_MachMean = 0,
   iVar_ViscCoeffs = 0, iVar_HeatCoeffs = 0, iVar_Sens = 0, iVar_Extra = 0, iVar_Eddy = 0, iVar_Sharp = 0,
   iVar_FEA_Vel = 0, iVar_FEA_Accel = 0, iVar_FEA_Stress = 0, iVar_FEA_Stress_3D = 0,
-  iVar_FEA_Extra = 0, iVar_SensDim = 0, iVar_Eddy_Anisotropy = 0,
-  iVar_Resolution_Tensor = 0, iVar_Extra_Hybrid_Vars = 0;
+  iVar_FEA_Extra = 0, iVar_SensDim = 0,
+  iVar_Resolution_Tensor = 0;
   unsigned long iPoint = 0, jPoint = 0, iVertex = 0, iMarker = 0;
   su2double Gas_Constant, Mach2Vel, Mach_Motion, RefDensity, RefPressure = 0.0, factor = 0.0;
   
@@ -2392,25 +2474,24 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     if (Kind_Solver == RANS) {
       iVar_Eddy = nVar_Total; nVar_Total += 1;
     }
-    
-    /*--- Add extra hybrid variables to the output ---*/
 
-    if (dynamic_hybrid) {
-      // Add the eddy viscosity anisotropy (a rank 3 tensor)
-      iVar_Eddy_Anisotropy = nVar_Total; nVar_Total += 9;
+    /*--- Add registered variables to the restart file ---*/
+    
+    iVar_Additional = nVar_Total;
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
+      nVar_Total += 1;
+    }
+    
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
+      nVar_Total += nDim*nDim;
+    }
+
+
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       // Add the resolution tensors (a rank 3 tensor)
       iVar_Resolution_Tensor = nVar_Total; nVar_Total += 9;
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case FULL_TRANSPORT:
-          // Add resolution adequacy, RANS weight, length, and timescales
-          iVar_Extra_Hybrid_Vars = nVar_Total; nVar_Total += 4;
-          break;
-        default:
-          cout << "WARNING: Could not find appropriate output for the hybrid model." << endl;
-      }
     }
 
     /*--- Add Sharp edges to the restart file ---*/
@@ -3158,10 +3239,63 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       
     }
     
-    /*--- Communicate the Eddy Viscosity Anisotropy ---*/
+    /*--- Communicate the extra scalar variables ---*/
 
-    if (dynamic_hybrid) {
-      iVar = iVar_Eddy_Anisotropy;
+    iVar = iVar_Additional;
+    
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
+      /*--- Loop over this partition to collect the current variable ---*/
+
+      jPoint = 0;
+      for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+        /*--- Check for halos & write only if requested ---*/
+
+        if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+          /*--- Load buffers with the extra variables. ---*/
+          Buffer_Send_Var[jPoint] = RetrieveVariable(solver, *it, iPoint);
+
+          jPoint++;
+        }
+      }
+
+      /*--- Gather the data on the master node. ---*/
+
+#ifdef HAVE_MPI
+      SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+#else
+      for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+#endif
+
+      /*--- The master node unpacks and sorts this variable by global index ---*/
+
+      if (rank == MASTER_NODE) {
+        jPoint = 0;
+        for (iProcessor = 0; iProcessor < size; iProcessor++) {
+          for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+            /*--- Get global index, then loop over each variable and store ---*/
+
+            iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+            Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+            jPoint++;
+          }
+
+          /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+          jPoint = (iProcessor+1)*nBuffer_Scalar;
+        }
+      }
+
+      iVar++;
+    }
+
+    /*--- Communicate the extra tensor variables ---*/
+
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
 
@@ -3176,7 +3310,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
               /*--- Load buffers with the variables. ---*/
 
-              Buffer_Send_Var[jPoint] = solver[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy(iDim, jDim);
+              Buffer_Send_Var[jPoint] = RetrieveTensorComponent(solver, *it, iPoint, iDim, jDim);
 
               jPoint++;
             }
@@ -3184,11 +3318,11 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
           /*--- Gather the data on the master node. ---*/
 
-    #ifdef HAVE_MPI
+#ifdef HAVE_MPI
           SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-    #else
+#else
           for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
-    #endif
+#endif
 
           /*--- The master node unpacks and sorts this variable by global index ---*/
 
@@ -3216,7 +3350,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the Resolution Tensor ---*/
 
-    if (dynamic_hybrid) {
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       iVar = iVar_Resolution_Tensor;
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
@@ -3270,113 +3404,6 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       }
     }
 
-    /*--- Communicate the Extra Variables for Hybrid RANS/LES ---*/
-    // This will need to be changed if more variables are needed.
-    if (dynamic_hybrid && (config->GetKind_Hybrid_Blending() == FULL_TRANSPORT)) {
-
-      /*--- Loop over this partition to collect the current variable ---*/
-      
-      jPoint = 0;
-      for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
-        
-        /*--- Check for halos & write only if requested ---*/
-        
-        if (!Local_Halo[iPoint] || Wrt_Halo) {
-
-          /*--- Load buffers with the extra hybrid variables. ---*/
-
-          Buffer_Send_Var[jPoint] = solver[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
-          Buffer_Send_Res[jPoint] = solver[HYBRID_SOL]->node[iPoint]->GetRANSWeight();
-
-          jPoint++;
-        }
-      }
-      
-      /*--- Gather the data on the master node. ---*/
-      
-#ifdef HAVE_MPI
-      SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-      SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-#else
-      for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++)
-        Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
-      for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++)
-        Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
-#endif
-      
-      /*--- The master node unpacks and sorts this variable by global index ---*/
-      
-      if (rank == MASTER_NODE) {
-        jPoint = 0; iVar = iVar_Extra_Hybrid_Vars;
-        for (iProcessor = 0; iProcessor < size; iProcessor++) {
-          for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
-            
-            /*--- Get global index, then loop over each variable and store ---*/
-            
-            iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
-            Data[iVar + 0][iGlobal_Index] = Buffer_Recv_Var[jPoint];
-            Data[iVar + 1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
-            jPoint++;
-          }
-
-          /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
-
-          jPoint = (iProcessor+1)*nBuffer_Scalar;
-        }
-      }
-
-      /*--- Loop over this partition to collect the current variable ---*/
-
-      jPoint = 0;
-      for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
-
-        /*--- Check for halos & write only if requested ---*/
-
-        if (!Local_Halo[iPoint] || Wrt_Halo) {
-
-          /*--- Load buffers with the extra hybrid variables. ---*/
-
-          Buffer_Send_Var[jPoint] = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-          Buffer_Send_Res[jPoint] = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-
-          jPoint++;
-        }
-      }
-
-    /*--- Gather the data on the master node. ---*/
-
-#ifdef HAVE_MPI
-    SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-    SU2_MPI::Gather(Buffer_Send_Res, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Res, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
-#else
-    for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++)
-      Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
-    for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++)
-      Buffer_Recv_Res[iPoint] = Buffer_Send_Res[iPoint];
-#endif
-
-    /*--- The master node unpacks and sorts this variable by global index ---*/
-
-    if (rank == MASTER_NODE) {
-      jPoint = 0; iVar = iVar_Extra_Hybrid_Vars+2;
-      for (iProcessor = 0; iProcessor < size; iProcessor++) {
-        for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
-
-          /*--- Get global index, then loop over each variable and store ---*/
-
-          iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
-          Data[iVar + 0][iGlobal_Index] = Buffer_Recv_Var[jPoint];
-          Data[iVar + 1][iGlobal_Index] = Buffer_Recv_Res[jPoint];
-          jPoint++;
-        }
-
-        /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
-
-        jPoint = (iProcessor+1)*nBuffer_Scalar;
-      }
-    }
-
-  }
 
     /*--- Communicate the Sharp Edges ---*/
     
@@ -4355,28 +4382,33 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"<greek>m</greek><sub>t</sub>\"";
     }
     
-    if (dynamic_hybrid) {
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
+      if (config->GetOutput_FileFormat() == PARAVIEW)
+        restart_file << "\t\"" << it->Name << "\"";
+      else
+        restart_file << "\t\"" << it->Tecplot_Name << "\"";
+    }
+    
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
-        restart_file << "\t\"Eddy_Visc_Anisotropy_11\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_12\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_13\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_21\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_22\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_23\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_31\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_32\"";
-        restart_file << "\t\"Eddy_Visc_Anisotropy_33\"";
+        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+          for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
+            restart_file << "\t\"" << it->Name << "_" << iDim << jDim << "\"";
+          }
+        }
       } else {
-        restart_file << "\t\"a<sub>11</sub>\"";
-        restart_file << "\t\"a<sub>12</sub>\"";
-        restart_file << "\t\"a<sub>13</sub>\"";
-        restart_file << "\t\"a<sub>21</sub>\"";
-        restart_file << "\t\"a<sub>22</sub>\"";
-        restart_file << "\t\"a<sub>23</sub>\"";
-        restart_file << "\t\"a<sub>31</sub>\"";
-        restart_file << "\t\"a<sub>32</sub>\"";
-        restart_file << "\t\"a<sub>33</sub>\"";
+        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+          for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {
+            restart_file << "\t\"" << it->Tecplot_Name;
+            restart_file << "<sub>" << iDim << jDim << "</sub>" << "\"";
+          }
+        }
       }
+    }
+
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
         restart_file << "\t\"Resolution_Tensor_11\"";
         restart_file << "\t\"Resolution_Tensor_12\"";
@@ -4398,28 +4430,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"M<sub>32</sub>\"";
         restart_file << "\t\"M<sub>33</sub>\"";
       }
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case FULL_TRANSPORT:
-          // Add length/timescales
-          if (config->GetOutput_FileFormat() == PARAVIEW) {
-            restart_file << "\t\"Resolution_Adequacy\"";
-            restart_file << "\t\"RANS_Weight\"";
-            restart_file << "\t\"Turb_Length\"";
-            restart_file << "\t\"Turb_Time\"";
-          } else {
-            restart_file << "\t\"r<sub>k</sub>\"";
-            restart_file << "\t\"w<sub>rans</sub>\"";
-            restart_file << "\t\"L<sub>m</sub>\"";
-            restart_file << "\t\"T<sub>m</sub>\"";
-          } break;
-        default:
-          cout << "WARNING: Could not find appropriate output for the dynamic_hybrid model." << endl;
-      }
     }
-
 
     if (config->GetWrt_SharpEdges()) {
       if ((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)) {
@@ -12565,17 +12576,28 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 			}
     }
 
-    if (dynamic_hybrid) {
-      nVar_Par += 18;
-      Variable_Names.push_back("Eddy_Visc_Aniso_11");
-      Variable_Names.push_back("Eddy_Visc_Aniso_12");
-      Variable_Names.push_back("Eddy_Visc_Aniso_13");
-      Variable_Names.push_back("Eddy_Visc_Aniso_21");
-      Variable_Names.push_back("Eddy_Visc_Aniso_22");
-      Variable_Names.push_back("Eddy_Visc_Aniso_23");
-      Variable_Names.push_back("Eddy_Visc_Aniso_31");
-      Variable_Names.push_back("Eddy_Visc_Aniso_32");
-      Variable_Names.push_back("Eddy_Visc_Aniso_33");
+    /*--- Add extra variables ---*/
+
+    for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+         it != output_vars[val_iZone].end(); ++it) {
+      nVar_Par += 1;
+      Variable_Names.push_back(it->Name);
+    }
+
+    for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+         it != output_tensors[val_iZone].end(); ++it) {
+      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
+        for (unsigned int jDim=1; jDim < nDim+1; jDim++) {
+          nVar_Par += 1;
+          ostringstream label(it->Name);
+          label << "_" << iDim << jDim;
+          Variable_Names.push_back(label.str());
+        }
+      }
+    }
+
+    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
+      nVar_Par += 9;
       Variable_Names.push_back("Resolution_Tensor_11");
       Variable_Names.push_back("Resolution_Tensor_12");
       Variable_Names.push_back("Resolution_Tensor_13");
@@ -12585,18 +12607,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back("Resolution_Tensor_31");
       Variable_Names.push_back("Resolution_Tensor_32");
       Variable_Names.push_back("Resolution_Tensor_33");
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          // No extra variables
-          break;
-        case FULL_TRANSPORT:
-          // Add resolution adequacy.
-          Variable_Names.push_back("Resolution_Adequacy"); nVar_Par++;
-          Variable_Names.push_back("RANS_Weight"); nVar_Par++;
-          Variable_Names.push_back("Turb_Lengthscale"); nVar_Par++;
-          Variable_Names.push_back("Turb_Timescale"); nVar_Par++;
-          break;
-      }
     }
 
     /*--- Add the distance to the nearest sharp edge if requested. ---*/
@@ -12867,16 +12877,28 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetEddyViscosity(); iVar++;
         }
         
-        /*--- Load data for a dynamic_hybrid RANS/LES model. ---*/
-        if (dynamic_hybrid) {
-          // Add eddy viscosity anisotropy
-          su2double** eddy_visc_anisotropy = solver[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy();
-          for (iDim = 0; iDim < nDim; iDim++) {
-            for (jDim = 0; jDim < nDim; jDim++) {
-              Local_Data[jPoint][iVar] = eddy_visc_anisotropy[iDim][jDim];
+        /*--- Load data for the additional variables ---*/
+
+        for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
+             it != output_vars[val_iZone].end(); ++it) {
+          Local_Data[jPoint][iVar] = RetrieveVariable(solver, *it, iPoint);
+          iVar++;
+        }
+        
+        /*--- Load data for the additional tensors ---*/
+
+        for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
+             it != output_tensors[val_iZone].end(); ++it) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              Local_Data[jPoint][iVar] = RetrieveTensorComponent(solver, *it, iPoint, iDim, jDim);
               iVar++;
             }
           }
+        }
+
+        /*--- Load data for a hybrid RANS/LES model. ---*/
+        if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
           // Add the resolution tensor
           su2double** resolution_tensor = geometry->node[iPoint]->GetResolutionTensor();
           for (iDim = 0; iDim < nDim; iDim++) {
@@ -12884,23 +12906,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
               Local_Data[jPoint][iVar] = resolution_tensor[iDim][jDim];
               iVar++;
             }
-          }
-          switch (config->GetKind_Hybrid_Blending()) {
-            case RANS_ONLY:
-              // No extra variables
-              break;
-            case FULL_TRANSPORT:
-              // Add resolution adequacy and RANS weight
-              Local_Data[jPoint][iVar] = solver[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
-              iVar++;
-              Local_Data[jPoint][iVar] = solver[HYBRID_SOL]->node[iPoint]->GetRANSWeight();
-              iVar++;
-              // Add turbulent length/timescales
-              Local_Data[jPoint][iVar] = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-              iVar++;
-              Local_Data[jPoint][iVar] = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-              iVar++;
-              break;
           }
         }
 

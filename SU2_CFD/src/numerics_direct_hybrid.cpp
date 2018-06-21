@@ -113,8 +113,22 @@ void CSourcePieceWise_HybridConv::ComputeResidual(su2double *val_residual,
     SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
   if (TurbT <= 0) {
-    cout << "ERROR: Turbulent timescale <= 0!" << endl;
-    cout << "       Turbulent timescale: " << TurbT << endl;
+    ostringstream error_msg;
+    error_msg << "ERROR: Turbulent timescale <= 0!" << endl;
+    error_msg << "       Turbulent timescale: " << TurbT << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+  if (S_alpha > 1) {
+    ostringstream error_msg;
+    error_msg << "S_alpha term > 1" << endl;
+    error_msg << "  S_alpha: " << S_alpha;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+  if (S_alpha < -1) {
+    ostringstream error_msg;
+    error_msg << "S_alpha term < -1" << endl;
+    error_msg << "  S_alpha: " << S_alpha;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
   }
 #endif
   

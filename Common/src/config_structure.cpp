@@ -1535,6 +1535,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("WRT_SHARPEDGES", Wrt_SharpEdges, false);
   /* DESCRIPTION: Output the rind layers in the solution files  \ingroup Config*/
   addBoolOption("WRT_HALO", Wrt_Halo, false);
+  /* DESCRIPTION: Output the resolution tensors in the solution files  \ingroup Config*/
+  addBoolOption("WRT_RESOLUTION_TENSORS", Wrt_Resolution_Tensors, false);
   /*!\brief MARKER_ANALYZE_AVERAGE
    *  \n DESCRIPTION: Output averaged flow values on specified analyze marker.
    *  Options: AREA, MASSFLUX

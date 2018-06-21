@@ -63,8 +63,8 @@ CHybridVariable::CHybridVariable(unsigned short val_nDim,
     Resolution_Adequacy = 1;
     RANS_Weight = 1;
     Forcing_Ratio = 1.0;
-    S_terms[0] = 0.0;
-    S_terms[1] = 1.0;
+    S_terms[0] = 0.0;  // S_alpha = tanh(alpha-1) = 0
+    S_terms[1] = 1.0;  // S_cf    = alpha         = 1
 
 }
 

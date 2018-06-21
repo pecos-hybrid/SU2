@@ -1844,6 +1844,11 @@ public:
   virtual void SetSourceTerms(su2double* val_source_terms);
 
   virtual su2double* GetSourceTerms();
+
+  virtual su2double GetSAlpha();
+
+  virtual su2double GetScf();
+
   /*!
    * \brief Add a value to the maximum eigenvalue for the inviscid terms of the PDE.
    * \param[in] val_max_lambda - Value of the maximum eigenvalue for the inviscid terms of the PDE.
@@ -4614,6 +4619,10 @@ public:
   void SetSourceTerms(su2double* val_source_terms);
 
   su2double* GetSourceTerms();
+
+  su2double GetSAlpha();
+
+  su2double GetScf();
 };
 
 /*! swh
