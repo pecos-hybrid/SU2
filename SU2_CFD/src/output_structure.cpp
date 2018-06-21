@@ -464,6 +464,14 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                            &CVariable::GetResolutionAdequacy, iZone);
             break;
         }
+        RegisterScalar("Forcing_Production", "P<sub>F</sub>", TURB_SOL,
+                       &CVariable::GetForcingProduction, iZone);
+        RegisterScalar("Forcing_Ratio", "P<sub>F</sub>", HYBRID_SOL,
+                       &CVariable::GetForcingRatio, iZone);
+        RegisterScalar("S_alpha", "S<sub>a</sub>", HYBRID_SOL,
+                       &CVariable::GetSAlpha, iZone);
+        RegisterScalar("S_cf", "S<sub>cf</sub>", HYBRID_SOL,
+                       &CVariable::GetScf, iZone);
       }
     }
   }
