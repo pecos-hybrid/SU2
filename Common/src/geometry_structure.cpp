@@ -12065,6 +12065,9 @@ void CGeometry::SetResolutionTensor(void) {
 #endif
 
   SetResolutionGradient();
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    node[iPoint]->SetResolutionPowers();
+  }
 }
 
 void CGeometry::SetResolutionGradient(void) {

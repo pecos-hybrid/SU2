@@ -136,10 +136,12 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
 
   if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
     ResolutionTensor = new su2double*[nDim];
+    ResolutionTensor43 = new su2double*[nDim];
     ResolutionValues = new su2double[nDim];
     ResolutionVectors = new su2double*[nDim];
     for (iDim = 0; iDim < nDim; iDim++) {
       ResolutionTensor[iDim] = new su2double[nDim];
+      ResolutionTensor43[iDim] = new su2double[nDim];
       ResolutionVectors[iDim] = new su2double[nDim];
       ResolutionValues[iDim] = 0.0;
       for (jDim = 0; jDim < nDim; jDim++) {
@@ -159,6 +161,7 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
     }
   } else {
     ResolutionTensor = NULL;
+    ResolutionTensor43 = NULL;
     ResolutionValues = NULL;
     ResolutionVectors = NULL;
     ResolutionTensorGradient = NULL;
@@ -262,10 +265,12 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
 
   if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
     ResolutionTensor = new su2double*[nDim];
+    ResolutionTensor43 = new su2double*[nDim];
     ResolutionValues = new su2double[nDim];
     ResolutionVectors = new su2double*[nDim];
     for (iDim = 0; iDim < nDim; iDim++) {
       ResolutionTensor[iDim] = new su2double[nDim];
+      ResolutionTensor43[iDim] = new su2double[nDim];
       ResolutionVectors[iDim] = new su2double[nDim];
       ResolutionValues[iDim] = 0.0;
       for (jDim = 0; jDim < nDim; jDim++) {
@@ -285,6 +290,7 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
     }
   } else {
     ResolutionTensor = NULL;
+    ResolutionTensor43 = NULL;
     ResolutionValues = NULL;
     ResolutionVectors = NULL;
     ResolutionTensorGradient = NULL;
@@ -390,10 +396,12 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
 
   if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
     ResolutionTensor = new su2double*[nDim];
+    ResolutionTensor43 = new su2double*[nDim];
     ResolutionValues = new su2double[nDim];
     ResolutionVectors = new su2double*[nDim];
     for (iDim = 0; iDim < nDim; iDim++) {
       ResolutionTensor[iDim] = new su2double[nDim];
+      ResolutionTensor43[iDim] = new su2double[nDim];
       ResolutionVectors[iDim] = new su2double[nDim];
       ResolutionValues[iDim] = 0.0;
       for (jDim = 0; jDim < nDim; jDim++) {
@@ -413,11 +421,11 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
     }
   } else {
     ResolutionTensor = NULL;
+    ResolutionTensor43 = NULL;
     ResolutionValues = NULL;
     ResolutionVectors = NULL;
     ResolutionTensorGradient = NULL;
   }
-
 }
 
 CPoint::~CPoint() {
@@ -440,6 +448,10 @@ CPoint::~CPoint() {
   if (ResolutionTensor != NULL) {
     for (iDim = 0; iDim < nDim; iDim++) delete [] ResolutionTensor[iDim];
     delete [] ResolutionTensor;
+  }
+  if (ResolutionTensor43 != NULL) {
+    for (iDim = 0; iDim < nDim; iDim++) delete [] ResolutionTensor43[iDim];
+    delete [] ResolutionTensor43;
   }
   if (ResolutionValues != NULL) delete [] ResolutionValues;
   if (ResolutionVectors != NULL) {
@@ -542,6 +554,28 @@ void CPoint::AddResolutionVector(unsigned short iDim, unsigned short jDim,
   assert(iDim < nDim);
   assert(jDim < nDim);
   ResolutionVectors[iDim][jDim] += scalar_value;
+}
+
+void CPoint::SetResolutionPowers() {
+  /* Typically, this is done as A = Q D Q^T, or
+   *    Q[i][k] * D[k][m] Q[j][m]
+   * where Q is a square matrix whose columns are the eigenvectors and
+   * D is the diagonal matrix whose diagonal elements are the
+   * corresponding eigenvalues.  But here, Q[i] is the ith eigenvector,
+   * rather than Q[:][i].  So the notation is flipped to:
+   *    Q[k][i] * D[k][m] Q[m][j]
+   * Moreover, D[k][m] = 0 when k != m, allowing a more compact summation.
+   */
+  for (unsigned short iDim = 0; iDim < nDim; ++iDim) {
+    for (unsigned short jDim = 0; jDim < nDim; ++jDim) {
+      ResolutionTensor43[iDim][jDim] = 0;
+      for (unsigned short kDim = 0; kDim < nDim; ++kDim) {
+        ResolutionTensor43[iDim][jDim] += ResolutionVectors[kDim][iDim] *
+                                          pow(ResolutionValues[kDim], 4.0/3) *
+                                          ResolutionVectors[kDim][jDim];
+      }
+    }
+  }
 }
 
 CEdge::CEdge(unsigned long val_iPoint, unsigned long val_jPoint, unsigned short val_nDim) : CDualGrid(val_nDim) {

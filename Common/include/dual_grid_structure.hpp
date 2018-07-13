@@ -174,9 +174,13 @@ private:
   unsigned short nNeighbor;           /*!< \brief Number of neighbors. */
   bool Flip_Orientation;              /*!< \brief Flip the orientation of the normal. */
   su2double** ResolutionTensor;       /*!< \brief A rank-2 tensor representing separation distances across the CV */
+  su2double** ResolutionTensor43;     /*!< \brief The resolution tensor with eigenvalues raised to the 4/3 power */
+  su2double   ResolutionCoeff;        /*!< \brief Coefficient based on the resolution tensor to correct for non-isotropic resolution */
   su2double*** ResolutionTensorGradient; /*!< \brief A rank-3 tensor representing gradients in the resolution. */
   su2double* ResolutionValues;        /*! < \brief The approximate cell resolution in the three "principal directions" */
-  su2double** ResolutionVectors;      /*! < \brief An orthogonal set of "principal directions" for the cell-to-cell spacings */
+  su2double** ResolutionVectors;      /*! < \brief An orthogonal set of "principal directions" for the cell-to-cell spacings.
+                                            The first index refers to the vector,
+                                            while the second refers to the component of the vector. */
 
 public:
 	
@@ -781,6 +785,21 @@ public:
         su2double GetResolutionTensor(unsigned short iDim,
                                       unsigned short jDim) const;
 
+        const su2double** GetResolutionTensor43() const;
+
+        su2double GetResolutionCoeff() const;
+
+        /*---
+         * We're actually computing:
+         *
+         * M^(power) = V (D^power) V^T
+         *
+         * where V is a square matrix whose ith column is the eigenvector
+         * of the resolution tensor and D is the diagonal matrix whose
+         * elements are the corresponding eigenvalues.
+         */
+        void SetResolutionPowers();
+
         /*!
          * \brief Sets the gradient of the resolution tensor for the control volume.
          *
@@ -827,7 +846,8 @@ public:
          * \brief Adds to the existing set of vectors for the resolution tensor.
          *
          * These vectors can be thought of as "principal directions" for the
-         * cell-to-cell separations.
+         * cell-to-cell separations. They are stored as a matrix, e.g. V,
+         * where V[i][j] corresonds to the jth component of the ith vector.
          *
          * \param[in] iDim - The first array index of the entry to be added.
          * \param[in] jDim - The second array index of the entry to be added.
@@ -845,6 +865,10 @@ public:
 
         /**
          * \brief Gets the set of vectors for the resolution tensor.
+         *
+         * This is stored as a matrix, e.g. V, where V[i][j] corresponds
+         * to the jth component of the ith vector.
+         *
          * \return Vectors representing the "principal directions" for the
          * cell-to-cell separations.
          */

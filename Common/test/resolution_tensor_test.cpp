@@ -793,7 +793,7 @@ BOOST_FIXTURE_TEST_CASE(Gradients_Test, ResolutionFixture) {
   }
 }
 
-BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
+BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
@@ -810,27 +810,27 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
 
   for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
-    su2double** Mij = geometry->node[iPoint]->GetResolutionTensor();
+    const su2double** M43 = geometry->node[iPoint]->GetResolutionTensor43();
 
     // Build the test info
     std::stringstream msg;
     msg << "Computed array elements:" << std::endl;
     msg << "[[";
-    msg << Mij[0][0] << "," << Mij[0][1] << "," << Mij[0][2] << "],[";
-    msg << Mij[1][0] << "," << Mij[1][1] << "," << Mij[1][2] << "],[";
-    msg << Mij[2][0] << "," << Mij[2][1] << "," << Mij[2][2] << "]]";
+    msg << M43[0][0] << "," << M43[0][1] << "," << M43[0][2] << "],[";
+    msg << M43[1][0] << "," << M43[1][1] << "," << M43[1][2] << "],[";
+    msg << M43[2][0] << "," << M43[2][1] << "," << M43[2][2] << "]]";
     BOOST_TEST_CONTEXT(msg.str());
 
     // Check that the values of Mij are correct
-    BOOST_CHECK_SMALL(Mij[0][0] - 3.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[0][1] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[0][2] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[1][0] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[1][1] - 2.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[1][2] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[2][0] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[2][1] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[2][2] - 1.0, machine_eps);
+    BOOST_CHECK_SMALL(M43[0][0] - std::pow(3.0, 4.0/3), machine_eps);
+    BOOST_CHECK_SMALL(M43[0][1] - 0.0, machine_eps);
+    BOOST_CHECK_SMALL(M43[0][2] - 0.0, machine_eps);
+    BOOST_CHECK_SMALL(M43[1][0] - 0.0, machine_eps);
+    BOOST_CHECK_SMALL(M43[1][1] - std::pow(2.0, 4.0/3), machine_eps);
+    BOOST_CHECK_SMALL(M43[1][2] - 0.0, machine_eps);
+    BOOST_CHECK_SMALL(M43[2][0] - 0.0, machine_eps);
+    BOOST_CHECK_SMALL(M43[2][1] - 0.0, machine_eps);
+    BOOST_CHECK_SMALL(M43[2][2] - 1.0, machine_eps);
   }
 }
 
