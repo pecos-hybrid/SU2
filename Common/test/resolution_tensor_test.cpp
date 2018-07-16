@@ -419,14 +419,13 @@ void WriteTriangleMeshFile () {
     Mesh_File.close();
 }
 
-void WriteHexMeshFile () {
-  /*--- Local variables ---*/
+void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) {
+    /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim, kDim;
     int iNode, jNode, kNode;
     int iPoint;
     int num_Nodes;
-    double xSpacing, ySpacing, zSpacing;
 
     std::ofstream Mesh_File;
 
@@ -439,11 +438,6 @@ void WriteHexMeshFile () {
     iDim = 4;
     jDim = 4;
     kDim = 4;
-
-    /*--- The grid spacing in each direction ---*/
-    xSpacing = 3.0;
-    ySpacing = 2.0;
-    zSpacing = 1.0;
 
     /*--- Open .su2 grid file ---*/
     Mesh_File.open("test.su2", ios::out);
@@ -492,9 +486,9 @@ void WriteHexMeshFile () {
     for (kNode = 0; kNode < kDim; kNode++) {
       for (jNode = 0; jNode < jDim; jNode++) {
         for (iNode = 0; iNode < iDim; iNode++) {
-          Mesh_File << iNode*xSpacing << "\t";
-          Mesh_File << jNode*ySpacing << "\t";
-          Mesh_File << kNode*zSpacing << "\t";
+          Mesh_File << iNode*delta_x << "\t";
+          Mesh_File << jNode*delta_y << "\t";
+          Mesh_File << kNode*delta_z << "\t";
           Mesh_File << iPoint << std::endl;
           iPoint++;
         }
@@ -593,7 +587,7 @@ void WriteCfgFile(const unsigned short& nDim) {
 
   cfg_file.open("test.cfg", ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
-  cfg_file << "HYBRID_TURB_MODEL= YES" << std::endl;
+  cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
   if (nDim == 2)
     cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
   else
@@ -797,7 +791,7 @@ BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile();
+  WriteHexMeshFile(3, 2, 1);
   SetupConfig(nDim);
   SetupGeometry();
 
@@ -831,6 +825,59 @@ BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
     BOOST_CHECK_SMALL(M43[2][0] - 0.0, machine_eps);
     BOOST_CHECK_SMALL(M43[2][1] - 0.0, machine_eps);
     BOOST_CHECK_SMALL(M43[2][2] - 1.0, machine_eps);
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(ResolutionConstantEqualsOneForIsotropic, ResolutionFixture) {
+
+  // Write out the mesh and configuration files.
+  const unsigned short nDim = 3;
+  WriteHexMeshFile(1, 1, 1);
+  SetupConfig(nDim);
+  SetupGeometry();
+
+  unsigned short iDim;
+  unsigned short iPoint;
+
+  geometry->SetResolutionTensor();
+
+  bool entries_correct = true;
+
+  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
+
+    const su2double C_M = geometry->node[iPoint]->GetResolutionCoeff();
+
+    // Check that the values of Mij are correct
+    // The constants used for the fit have this precision
+    const su2double tolerance = 0.00000000001;
+    BOOST_CHECK_SMALL(C_M - 1*0.12, tolerance);
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
+
+  // Write out the mesh and configuration files.
+  const unsigned short nDim = 3;
+  WriteHexMeshFile(3, 2, 1);
+  SetupConfig(nDim);
+  SetupGeometry();
+
+  unsigned short iDim;
+  unsigned short iPoint;
+
+  geometry->SetResolutionTensor();
+
+  bool entries_correct = true;
+
+  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
+
+    const su2double C_M = geometry->node[iPoint]->GetResolutionCoeff();
+
+    // Check value against hand-calculated value
+    const su2double correct_value = 0.12*1.04805425805;
+    // The constants used for the fit have this precision
+    const su2double tolerance = 0.00000000001;
+    BOOST_CHECK_SMALL(C_M - 0.125766510966, tolerance);
   }
 }
 

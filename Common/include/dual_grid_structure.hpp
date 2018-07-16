@@ -800,6 +800,8 @@ public:
          */
         void SetResolutionPowers();
 
+        void SetResolutionCoeff();
+
         /*!
          * \brief Sets the gradient of the resolution tensor for the control volume.
          *

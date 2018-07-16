@@ -578,6 +578,86 @@ void CPoint::SetResolutionPowers() {
   }
 }
 
+void CPoint::SetResolutionCoeff() {
+
+  /*--- Constants for 2nd-order FV numerics ---*/
+
+  if (nDim == 2) {
+
+    // Leave this branch for testing and corner cases.
+    ResolutionCoeff = 1.0;
+
+  } else {
+
+    const su2double constants[] =
+        {1.033749474513071, -0.154122686264488, -0.007737595743644, 0.177611732560139,
+         0.060868024017604, 0.162200630336440, -0.041086757724764, -0.027380130027626,
+         0.005521188430182, 0.049139605169403, 0.002926283060215, 0.002672790587853,
+         0.000486437925728, 0.002136258066662, 0.005113058518679};
+
+    /*--- Find the minimum eigenvalue ---*/
+
+    su2double d_norm = ResolutionValues[0];
+    for (unsigned short iDim = 1; iDim < nDim; iDim++) {
+      if (ResolutionValues[iDim] < d_norm) d_norm = ResolutionValues[iDim];
+    }
+
+    /*--- Normalize eigenvalues ---*/
+
+    su2double a, b;
+    if (ResolutionValues[0] == d_norm) {
+      a = ResolutionValues[1]/d_norm;
+      b = ResolutionValues[2]/d_norm;
+    } else if (ResolutionValues[1] == d_norm) {
+      a = ResolutionValues[0]/d_norm;
+      b = ResolutionValues[2]/d_norm;
+    } else {
+      a = ResolutionValues[0]/d_norm;
+      b = ResolutionValues[1]/d_norm;
+    }
+#ifndef NDEBUG
+    if (a < 1 || b < 1) {
+      std::ostringstream error_msg;
+      error_msg << "Normalization in the resolution coefficient calculation failed!" << endl;
+      error_msg << "  a = " << a << "\tb = " << b << endl;
+      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+    }
+#endif
+
+    /*--- Convert to cylindrical coordinates ---*/
+
+    su2double r = sqrt(a*a + b*b);
+    su2double theta = acos(max(a,b)/r);
+
+    /*--- Convert to more convenient log coordinates ---*/
+
+    su2double y = log(sin(2*theta));
+    su2double x = log(r);
+
+    ResolutionCoeff = constants[0];
+    ResolutionCoeff += constants[1]*x;
+    ResolutionCoeff += constants[2]*y;
+    ResolutionCoeff += constants[3]*x*x;
+    ResolutionCoeff += constants[4]*x*y;
+    ResolutionCoeff += constants[5]*y*y;
+    ResolutionCoeff += constants[6]*x*x*x;
+    ResolutionCoeff += constants[7]*x*x*y;
+    ResolutionCoeff += constants[8]*x*y*y;
+    ResolutionCoeff += constants[9]*y*y*y;
+    ResolutionCoeff += constants[10]*x*x*x*x;
+    ResolutionCoeff += constants[11]*x*x*x*y;
+    ResolutionCoeff += constants[12]*x*x*y*y;
+    ResolutionCoeff += constants[13]*x*y*y*y;
+    ResolutionCoeff += constants[14]*y*y*y*y;
+
+    const su2double C_M0 = 0.12; // Overall coefficient calibrated for isotropic
+    ResolutionCoeff *= C_M0;
+
+    // TODO: Include some hard-coded limit for resolution aspect ratio 128+
+  }
+
+}
+
 CEdge::CEdge(unsigned long val_iPoint, unsigned long val_jPoint, unsigned short val_nDim) : CDualGrid(val_nDim) {
     
   unsigned short iDim;
