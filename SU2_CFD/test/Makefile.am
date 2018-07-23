@@ -44,6 +44,10 @@ libSU2Core_cxx_flags += @LAPACK_CXX@
 libSU2Core_libadd += @LAPACK_LD@
 # endif
 
+# Don't include Boost UTF-based tests here.  We want the tests to compile
+# and run even if Boost UTF isn't used.  Include Boost UTF-based tests
+# below, protected by the conditional branching.
+
 # Test Programs
 check_PROGRAMS  =
 check_PROGRAMS += aniso_viscous_flux_inc
@@ -51,6 +55,7 @@ check_PROGRAMS += aniso_viscous_flux
 check_PROGRAMS += aniso_viscous_jacobian
 check_PROGRAMS += aniso_viscous_jacobian_compare
 check_PROGRAMS += aniso_viscous_residual_test
+check_PROGRAMS += forcing_test
 check_PROGRAMS += hybrid_rdelta_test
 check_PROGRAMS += load_hybrid_constants_test
 check_PROGRAMS += eigensolver_test
@@ -68,8 +73,8 @@ AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ -DBUILD_TESTS @BOOST_CXX@
 #LIBS = 
 
 LDADD  =
-LDADD += $(top_builddir)/Common/lib/libSU2.a
 LDADD += $(top_builddir)/SU2_CFD/obj/libSU2Core.a
+LDADD += $(top_builddir)/Common/lib/libSU2.a
 LDADD += @su2_externals_LIBS@ @LAPACK_LD@
 
 LDFLAGS  = -mkl
@@ -102,20 +107,25 @@ TESTS += zeta_transform_test
 # Any of above we expect to fail?
 #XFAIL_TESTS =
 
+# ---------- Boost UTF based tests ------------
 if BUILD_TESTS
 
 AM_CPPFLAGS += -DBUILD_TESTS @BOOST_CXX@
 
 # Test Programs
 check_PROGRAMS += forcing_test
+check_PROGRAMS += fluctuating_stress_test
 
-# Test Sources
-forcing_test_SOURCES = forcing_test.cpp
+# Test sources
+fluctuating_stress_test_SOURCES        = fluctuating_stress_test.cpp
+forcing_test_SOURCES                   = forcing_test.cpp
 
 # Tests to be run
 TESTS += forcing_test
+TESTS += fluctuating_stress_test
 
 # Any of above we expect to fail?
 #XFAIL_TESTS =
 
 endif
+# ------- End of Boost UTF based tests ---------
