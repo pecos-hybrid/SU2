@@ -313,7 +313,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
     iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
     unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
 
-    const su2double C_r = 1.0;
+    const su2double C_r = config->GetHybrid_Resolution_Constant();
     r_k = C_r*eigvalues_iLM[max_index];
 
   }

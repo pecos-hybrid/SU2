@@ -1525,6 +1525,8 @@ inline unsigned short CConfig::GetKind_Hybrid_Anisotropy_Model(void) { return Ki
 
 inline bool CConfig::isHybrid_Forced(void) { return Hybrid_Forcing; }
 
+inline su2double CConfig::GetHybrid_Resolution_Constant(void) { return Hybrid_Resolution_Constant; }
+
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
 
 inline unsigned short CConfig::GetKind_Trans_Model(void) { return Kind_Trans_Model; }

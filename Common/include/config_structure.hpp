@@ -523,6 +523,7 @@ private:
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   unsigned short Kind_Hybrid_Aniso_Model; /*!< \brief Hybrid RANS/LES subgrid anisotropy model definition */
   bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
+  su2double Hybrid_Resolution_Constant; /*!< \brief The constant used in the resolution adequacy calculation for hybrid RANS/LES. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -3779,6 +3780,12 @@ public:
    * \return True if the hybrid RANS/LES model is to be forced.
    */
   bool isHybrid_Forced(void);
+
+  /*!
+   * \brief Get the constant for the resolution adequacy calculation.
+   * \return The value of the constant for the resolution adequacy.
+   */
+  su2double GetHybrid_Resolution_Constant(void);
 
   /*!
    * \brief Get the kind of the turbulence model.
