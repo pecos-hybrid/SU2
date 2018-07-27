@@ -65,6 +65,7 @@ protected:
   bool Non_Physical;      /*!< \brief Non-physical points in the solution (force first order). */
   su2double *Solution_time_n,  /*!< \brief Solution of the problem at time n for dual-time stepping technique. */
   *Solution_time_n1;      /*!< \brief Solution of the problem at time n-1 for dual-time stepping technique. */
+  su2double* Solution_Avg; /*!< \brief The runtime average of the solution */
   su2double **Gradient;    /*!< \brief Gradient of the solution of the problem. */
   su2double *Limiter;        /*!< \brief Limiter of the solution of the problem. */
   su2double *Solution_Max;    /*!< \brief Max solution for limiter computation. */
@@ -2452,6 +2453,12 @@ public:
   virtual su2double GetSolution_Old_Vel(unsigned short iVar);
 
   virtual su2double GetSolution_Old_Accel(unsigned short iVar);
+
+  void SetAverageSolution(const su2double* val_averages);
+
+  void AddAverageSolution(const su2double* val_delta_averages);
+
+  const su2double* GetAverageSolution() const;
 
 };
 

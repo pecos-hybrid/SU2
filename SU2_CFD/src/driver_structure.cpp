@@ -469,6 +469,8 @@ CDriver::CDriver(char* confFile,
                                 ZONE_FLOW, ZONE_STRUCT, true);
   }
 
+
+
   /*--- Set up a timer for performance benchmarking (preprocessing time is not included) ---*/
 
 #ifndef HAVE_MPI
@@ -1013,6 +1015,16 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
   if (config->GetFSI_Simulation()) update_geo = false;
 
   Solver_Restart(solver_container, geometry, config, update_geo);
+
+  /*--- Initialize the averages ---*/
+
+  for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
+    solver_container[iMGlevel][FLOW_SOL]->InitAverages();
+    if (turbulent) {
+      solver_container[iMGlevel][TURB_SOL]->InitAverages();
+    }
+  }
+
 
 }
 

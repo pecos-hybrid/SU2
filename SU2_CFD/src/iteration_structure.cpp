@@ -614,6 +614,16 @@ void CFluidIteration::Update(COutput *output,
     if (Physical_t >=  config_container[val_iZone]->GetTotal_UnstTime())
       integration_container[val_iZone][FLOW_SOL]->SetConvergence(true);
   }
+
+  /*--- Update averages ---*/
+
+  for (iMesh = 0; iMesh <= config_container[val_iZone]->GetnMGLevels(); iMesh++) {
+    solver_container[val_iZone][iMesh][FLOW_SOL]->SetAverages(geometry_container[val_iZone][iMesh],  solver_container[val_iZone][iMesh], config_container[val_iZone]);
+  }
+  if ((config_container[val_iZone]->GetKind_Solver() == RANS) ||
+      (config_container[val_iZone]->GetKind_Solver() == DISC_ADJ_RANS)) {
+    solver_container[val_iZone][MESH_0][TURB_SOL]->SetAverages(geometry_container[val_iZone][MESH_0],  solver_container[val_iZone][iMesh], config_container[val_iZone]);
+  }
 }
 
 void CFluidIteration::Monitor()     { }

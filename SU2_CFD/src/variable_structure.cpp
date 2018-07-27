@@ -46,6 +46,7 @@ CVariable::CVariable(void) {
   Solution_Old = NULL;
   Solution_time_n = NULL;
   Solution_time_n1 = NULL;
+  Solution_Avg = NULL;
   Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
@@ -67,6 +68,7 @@ CVariable::CVariable(unsigned short val_nvar, CConfig *config) {
   Solution_Old = NULL;
   Solution_time_n = NULL;
   Solution_time_n1 = NULL;
+  Solution_Avg = NULL;
   Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
@@ -91,6 +93,8 @@ CVariable::CVariable(unsigned short val_nvar, CConfig *config) {
   for (unsigned short iVar = 0; iVar < nVar; iVar++)
     Solution[iVar] = 0.0;
   
+  // TODO: Wrap this in a conditional branch based on config settings
+  Solution_Avg = new su2double[nVar];
 }
 
 CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *config) {
@@ -102,6 +106,7 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
   Solution_Old = NULL;
   Solution_time_n = NULL;
   Solution_time_n1 = NULL;
+  Solution_Avg = NULL;
   Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
@@ -145,6 +150,8 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
 	  Solution_Adj_Old = new su2double [nVar];
 	}
   
+  // TODO: Wrap this in a conditional branch based on config settings
+  Solution_Avg = new su2double[nVar];
 }
 
 CVariable::~CVariable(void) {
@@ -154,6 +161,7 @@ CVariable::~CVariable(void) {
   if (Solution_Old        != NULL) delete [] Solution_Old;
   if (Solution_time_n     != NULL) delete [] Solution_time_n;
   if (Solution_time_n1    != NULL) delete [] Solution_time_n1;
+  if (Solution_Avg        != NULL) delete [] Solution_Avg;
   if (Limiter             != NULL) delete [] Limiter;
   if (Solution_Max        != NULL) delete [] Solution_Max;
   if (Solution_Min        != NULL) delete [] Solution_Min;
@@ -441,6 +449,21 @@ su2double CVariable::GetRKSubstepResidual(unsigned short iRKStep,
                                           unsigned short iVar    ) {
   assert(rk_stage_vectors!=NULL);
   return rk_stage_vectors[iRKStep][iVar];
+}
+
+void CVariable::SetAverageSolution(const su2double* val_averages) {
+  // Copy values; We don't want to inadverently change the pointed-to-values
+  for (unsigned short iVar = 0; iVar < nVar; iVar++)
+    Solution_Avg[iVar] = val_averages[iVar];
+}
+
+void CVariable::AddAverageSolution(const su2double* val_delta_averages) {
+  for (unsigned short iVar = 0; iVar < nVar; iVar++)
+    Solution_Avg[iVar] += val_delta_averages[iVar];
+}
+
+const su2double* CVariable::GetAverageSolution() const {
+  return Solution_Avg;
 }
 
 CBaselineVariable::CBaselineVariable(void) : CVariable() { }

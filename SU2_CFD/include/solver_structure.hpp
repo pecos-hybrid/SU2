@@ -4210,6 +4210,18 @@ public:
    */
   virtual void SetDES_LengthScale(CSolver** solver, CGeometry *geometry, CConfig *config);
 
+  /*!
+   * \brief Compute the average value of the solution variables.
+   * \param[in] solver - Solver container
+   * \param[in] geometry - Geometrical definition.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetAverages(CGeometry* geometry, CSolver** solver, CConfig* config);
+
+  /*!
+   * \brief Initialize the average values of the solution.
+   */
+  void InitAverages(void);
 };
 
 /*!
