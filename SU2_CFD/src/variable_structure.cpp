@@ -466,6 +466,22 @@ const su2double* CVariable::GetAverageSolution() const {
   return Solution_Avg;
 }
 
+su2double CVariable::GetAverageSolution(unsigned short iVar) const {
+  return Solution_Avg[iVar];
+}
+
+su2double CVariable::GetAverageSolution0() {
+  return Solution_Avg[0];
+}
+
+su2double CVariable::GetAverageSolution1() {
+  return Solution_Avg[1];
+}
+
+su2double CVariable::GetAverageSolution2() {
+  return Solution_Avg[2];
+}
+
 CBaselineVariable::CBaselineVariable(void) : CVariable() { }
 
 CBaselineVariable::CBaselineVariable(su2double *val_solution, unsigned short val_nvar, CConfig *config) : CVariable(val_nvar, config) {

@@ -2454,12 +2454,36 @@ public:
 
   virtual su2double GetSolution_Old_Accel(unsigned short iVar);
 
+  /*!
+   * \brief Set the average solution manually.
+   * \param val_averages - An array containing the average solution
+   */
   void SetAverageSolution(const su2double* val_averages);
 
+  /*!
+   * \brief Add to the average solution.
+   * \param val_delta_averages - The amount to add to the average solution.
+   */
   void AddAverageSolution(const su2double* val_delta_averages);
 
+  /*!
+   * \brief Get an array of values representing the average solution.
+   * \return An array of values representing the average solution.
+   */
   const su2double* GetAverageSolution() const;
 
+  /*!
+   * \brief Get a component of the average solution.
+   * \param iVar - The component of the average solution to be used.
+   * \return A component of the average solution
+   */
+  su2double GetAverageSolution(const unsigned short iVar) const;
+
+  // TODO: These are hacks to be removed once the average solution is
+  // stored properly in the output.
+  su2double GetAverageSolution0();
+  su2double GetAverageSolution1();
+  su2double GetAverageSolution2();
 };
 
 /*!

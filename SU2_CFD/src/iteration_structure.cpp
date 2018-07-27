@@ -622,7 +622,7 @@ void CFluidIteration::Update(COutput *output,
   }
   if ((config_container[val_iZone]->GetKind_Solver() == RANS) ||
       (config_container[val_iZone]->GetKind_Solver() == DISC_ADJ_RANS)) {
-    solver_container[val_iZone][MESH_0][TURB_SOL]->SetAverages(geometry_container[val_iZone][MESH_0],  solver_container[val_iZone][iMesh], config_container[val_iZone]);
+    solver_container[val_iZone][MESH_0][TURB_SOL]->SetAverages(geometry_container[val_iZone][MESH_0],  solver_container[val_iZone][MESH_0], config_container[val_iZone]);
   }
 }
 

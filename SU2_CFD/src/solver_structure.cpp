@@ -2924,20 +2924,24 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
                           CConfig* config) {
 
+  // TODO: Nondimensional or dimensional?
+  const su2double dt = config->GetDelta_UnstTimeND();
+  const su2double N_T = 4; // Averaging periods, roughly speaking
+
   su2double* dU = new su2double[nVar];
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
-    const su2double TurbT = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-    // TODO: Check that this config setting updates correctly
-    // TODO: Nondimensional or dimensional?
-    const su2double dt = config->GetDelta_UnstTimeND();
+    // TODO: Add config option to switch for simulation-wide value
+    const su2double timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
     const su2double* average = node[iPoint]->GetAverageSolution();
     const su2double* current = node[iPoint]->GetSolution();
-    const su2double N_T = 4; // Averaging periods, roughly speaking
 
-    // TODO: Mass-weighted?
+    /*--- Cap the weight at 1, which represents replacing the current
+     * average with the current value. This will occur if
+     * dt > N_T*timescale at any point. ---*/
+    const su2double weight = min(dt/(N_T * timescale), 1.0);
     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-      dU[iVar] = (average[iVar] - current[iVar])/(N_T * TurbT);
+      dU[iVar] = (current[iVar] - average[iVar]) * weight;
     }
 
     node[iPoint]->AddAverageSolution(dU);

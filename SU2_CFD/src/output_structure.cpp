@@ -439,11 +439,20 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
 
   for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
     unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
+    // XXX: Hacked output. We need functors now!
+    RegisterScalar("Avg_X-Momentum", "Avg_X-Momentum", FLOW_SOL,
+                   &CVariable::GetAverageSolution1, iZone);
+    RegisterScalar("Avg_Y-Momentum", "Avg_Y-Momentum", FLOW_SOL,
+                   &CVariable::GetAverageSolution2, iZone);
+    if (Kind_Solver == RANS)
+      RegisterScalar("Avg_TKE", "Avg_TKE", TURB_SOL,
+                     &CVariable::GetAverageSolution0, iZone);
     if (Kind_Solver == RANS) {
       const bool dynamic_hybrid =
           (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
 
-      if (config[iZone]->GetKind_Turb_Model() == KE) {
+      if (config[iZone]->GetKind_Turb_Model() == KE ||
+          config[iZone]->GetKind_Turb_Model() == SST) {
         RegisterScalar("L_m", "L<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbLengthscale, iZone);
         RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
