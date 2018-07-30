@@ -937,6 +937,18 @@ public:
 
   /*!
    * \brief A virtual member.
+   * \return Value of turbulent timescale
+   */
+  virtual su2double GetAverageTurbTimescale(void);
+
+  /*!
+   * \brief A virtual member.
+   * \return Value of the turbulent lengthscale
+   */
+  virtual su2double GetAverageTurbLengthscale(void);
+
+  /*!
+   * \brief A virtual member.
    * \return The Reynolds stress component anisotropy ratio (max-to-min)
    */
   virtual su2double GetAnisoRatio(void);
@@ -1150,6 +1162,12 @@ public:
    */
   virtual void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
+  /*!
+   * \brief A virtual member.
+   * \param[in] val_T_avg - The average turbulent timescale
+   * \param[in] val_L_avg - The average turbulent lengthscale
+   */
+  virtual void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
   /*!
    * \brief A virtual member.
    * \param[in] val_r_k - The resolution adequacy parameter for hybrid RANS/LES
@@ -4481,7 +4499,10 @@ protected:
   F2,            /*!< \brief Menter blending function for stress limiter. */
   CDkw,           /*!< \brief Cross-diffusion. */
   T,              /*!< \brief Turbulent timescale */
-  L;              /*!< \brief Turbulent lengthscale */
+  L,              /*!< \brief Turbulent lengthscale */
+  T_avg,          /*!< \brief Average turbulent timescale */
+  L_avg;          /*!< \brief Average turbulent lengthscale */
+
   
 public:
   /*!
@@ -4543,11 +4564,30 @@ public:
   su2double GetTurbLengthscale(void);
 
   /**
+   * \brief Get the average large-eddy timescale of the turbulence
+   * \return The large-eddy timescale of the turbulence.
+   */
+  su2double GetAverageTurbTimescale(void);
+
+  /**
+   * \brief Get the average large-eddy lengthscale of the turbulence
+   * \return The large-eddy lengthscale of the turbulence
+   */
+  su2double GetAverageTurbLengthscale(void);
+
+  /**
    * \brief Sets the large-eddy lengthscale and the large-eddy timescale
    * \param[in] val_turb_T - Large eddy timescale of the turbulence
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
+
+  /**
+   * \brief Sets the average large-eddy lengthscale and the timescale
+   * \param[in] val_T_avg - Average large eddy timescale of the turbulence
+   * \param[in] val_L_avg - Average large eddy lengthscale of the turbulence
+   */
+  void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
 };
 
 /*!
@@ -4620,6 +4660,8 @@ protected:
   su2double sigma_e, sigma_k, sigma_z, C_e1o, C_e2, C1, C_2p, C_T, C_L, C_eta;
   su2double Tm,		/*!< \brief T_m k-eps. */
     Lm,		        /*!< \brief L_m k-eps */
+    Tm_avg,       /*!< \brief Average turbulent timescale */
+    Lm_avg,       /*!< \brief Average turbulent lengthscale */
     Re_T;
 
 public:
@@ -4661,6 +4703,18 @@ public:
    */
   su2double GetTurbLengthscale(void);
 
+  /**
+   * \brief Get the average large-eddy timescale of the turbulence
+   * \return The large-eddy timescale of the turbulence.
+   */
+  su2double GetAverageTurbTimescale(void);
+
+  /**
+   * \brief Get the average large-eddy lengthscale of the turbulence
+   * \return The large-eddy lengthscale of the turbulence
+   */
+  su2double GetAverageTurbLengthscale(void);
+
   /*!
    * \brief Get the component anisotropy ratio (max-to-min)
    * \return The Reynolds stress component anisotropy ratio (max-to-min)
@@ -4673,6 +4727,13 @@ public:
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
+
+  /**
+   * \brief Sets the average large-eddy lengthscale and the timescale
+   * \param[in] val_T_avg - Average large eddy timescale of the turbulence
+   * \param[in] val_L_avg - Average large eddy lengthscale of the turbulence
+   */
+  void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
 };
 
 

@@ -2940,34 +2940,47 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
   su2double timescale;
   const su2double dt = config->GetDelta_UnstTimeND();
   const su2double N_T = config->GetnAveragingPeriods();
+
+  assert(dt > 0);
+  assert(N_T > 0);
+
   if (config->GetKind_Averaging_Period() == FLOW_TIMESCALE) {
     timescale = config->GetRefLength()/config->GetModVel_FreeStream();
     timescale /= config->GetTime_Ref();
+    assert(timescale > 0);
   }
 
-  su2double* dU = new su2double[nVar];
+  su2double* buffer = new su2double[nVar];
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
     if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
-      // TODO: Averaging turb timescale would be better
-      timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+      timescale = solver[TURB_SOL]->node[iPoint]->GetAverageTurbTimescale();
+      assert(timescale > 0);
     }
-    const su2double* average = node[iPoint]->GetAverageSolution();
-    const su2double* current = node[iPoint]->GetSolution();
 
     /*--- Cap the weight at 1, which represents replacing the current
      * average with the current value. This will occur if
      * dt > N_T*timescale at any point. ---*/
     const su2double weight = min(dt/(N_T * timescale), 1.0);
-    for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-      const su2double diff = current[iVar] - average[iVar];
-        dU[iVar] = (current[iVar] - average[iVar])*weight;
-    }
 
-    node[iPoint]->AddAverageSolution(dU);
+    UpdateAverage(weight, iPoint, buffer);
   }
 
-  delete [] dU;
+  delete [] buffer;
+}
+
+
+void CSolver::UpdateAverage(su2double weight, unsigned short iPoint,
+                            su2double* buffer) {
+
+  const su2double* average = node[iPoint]->GetAverageSolution();
+  const su2double* current = node[iPoint]->GetSolution();
+
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    buffer[iVar] = (current[iVar] - average[iVar])*weight;
+  }
+
+  node[iPoint]->AddAverageSolution(buffer);
 }
 
 void CSolver::InitAverages() {

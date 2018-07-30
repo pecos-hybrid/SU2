@@ -4537,6 +4537,48 @@ void CTurbSSTSolver::SetInlet(CConfig* config) {
 
 }
 
+void CTurbSSTSolver::UpdateAverage(const su2double weight,
+                                   const unsigned short iPoint,
+                                   su2double* buffer) {
+
+  const su2double T_avg = node[iPoint]->GetAverageTurbTimescale();
+  const su2double L_avg = node[iPoint]->GetAverageTurbLengthscale();
+  const su2double T_new = T_avg + (node[iPoint]->GetTurbTimescale() - T_avg)*weight;
+  const su2double L_new = L_avg + (node[iPoint]->GetTurbLengthscale() - L_avg)*weight;
+
+#ifndef NDEBUG
+  if (T_avg > 1E16) {
+    std::stringstream error_msg;
+    error_msg << "Average turbulent timescale was unusually large.\n";
+    error_msg << "Average turbulent timescale: " << T_new << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+  if (T_avg < 0) {
+    std::stringstream error_msg;
+    error_msg << "Average turbulent timescale less than zero.\n";
+    error_msg << "Average turbulent timescale: " << T_new << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+  if (L_avg > 1E16) {
+    std::stringstream error_msg;
+    error_msg << "Average lengthscale was unusually large.\n";
+    error_msg << "Average turbulent lengthscale: " << L_new << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+  if (L_avg < 0) {
+    std::stringstream error_msg;
+    error_msg << "Average lengthscale was less than zero.\n";
+    error_msg << "Average turbulent lengthscale: " << L_new << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+#endif
+
+  node[iPoint]->SetAverageTurbScales(T_new, L_new);
+
+  /*--- Call the base class solver to compute solution average. ---*/
+  CSolver::UpdateAverage(weight, iPoint, buffer);
+}
+
 CTurbKESolver::CTurbKESolver(void) : CTurbSolver() {
 
   /*--- Array initialization ---*/
@@ -5547,4 +5589,47 @@ void CTurbKESolver::SetInlet(CConfig* config) {
     }
   }
 
+}
+
+
+void CTurbKESolver::UpdateAverage(const su2double weight,
+                                  const unsigned short iPoint,
+                                  su2double* buffer) {
+
+  const su2double T_avg = node[iPoint]->GetAverageTurbTimescale();
+  const su2double L_avg = node[iPoint]->GetAverageTurbLengthscale();
+  const su2double T_new = T_avg + (node[iPoint]->GetTurbTimescale() - T_avg)*weight;
+  const su2double L_new = L_avg + (node[iPoint]->GetTurbLengthscale() - L_avg)*weight;
+
+#ifndef NDEBUG
+  if (T_avg > 1E16) {
+    std::stringstream error_msg;
+    error_msg << "Average turbulent timescale was unusually large.\n";
+    error_msg << "Average turbulent timescale: " << T_new << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+  if (T_avg < 0) {
+    std::stringstream error_msg;
+    error_msg << "Average turbulent timescale less than zero.\n";
+    error_msg << "Average turbulent timescale: " << T_new << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+  if (L_avg > 1E16) {
+    std::stringstream error_msg;
+    error_msg << "Average lengthscale was unusually large.\n";
+    error_msg << "Average turbulent lengthscale: " << L_new << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+  if (L_avg < 0) {
+    std::stringstream error_msg;
+    error_msg << "Average lengthscale was less than zero.\n";
+    error_msg << "Average turbulent lengthscale: " << L_new << endl;
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
+#endif
+
+  node[iPoint]->SetAverageTurbScales(T_new, L_new);
+
+  /*--- Call the base class solver to compute solution average. ---*/
+  CSolver::UpdateAverage(weight, iPoint, buffer);
 }

@@ -265,6 +265,10 @@ inline su2double CVariable::GetTurbTimescale(void) { return 0; }
 
 inline su2double CVariable::GetTurbLengthscale(void) { return 0; }
 
+inline su2double CVariable::GetAverageTurbTimescale() { return 0; }
+
+inline su2double CVariable::GetAverageTurbLengthscale() { return 0; }
+
 inline su2double CVariable::GetAnisoRatio(void) {return 1; }
 
 inline su2double CVariable::GetResolutionAdequacy(void) {return 1; }
@@ -459,6 +463,8 @@ inline void CVariable::SetLaminarViscosity(CConfig *config) { }
 inline void CVariable::SetEddyViscosity(su2double eddy_visc) { }
 
 inline void CVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) { }
+
+inline void CVariable::SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg) { }
 
 inline void CVariable::SetResolutionAdequacy(su2double val_r_k) { }
 
@@ -1445,12 +1451,25 @@ inline su2double CTurbSSTVariable::GetTurbLengthscale() {
  return L;
 }
 
+inline su2double CTurbSSTVariable::GetAverageTurbTimescale() {
+  return T_avg;
+}
+
+inline su2double CTurbSSTVariable::GetAverageTurbLengthscale() {
+ return L_avg;
+}
+
 inline void CTurbSSTVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) {
   T = val_turb_T;
   L = val_turb_L;
 }
 
-inline su2double CTurbKEVariable::GetTurbTimescale() {
+inline void CTurbSSTVariable::SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg) {
+  T_avg = val_T_avg;
+  L_avg = val_L_avg;
+}
+
+inline su2double CTurbKEVariable::GetTurbTimescale(){
   return Tm;
 }
 
@@ -1458,9 +1477,22 @@ inline su2double CTurbKEVariable::GetTurbLengthscale() {
  return Lm;
 }
 
+inline su2double CTurbKEVariable::GetAverageTurbTimescale() {
+  return Tm_avg;
+}
+
+inline su2double CTurbKEVariable::GetAverageTurbLengthscale() {
+ return Lm_avg;
+}
+
 inline void CTurbKEVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) {
   Tm = val_turb_T;
   Lm = val_turb_L;
+}
+
+inline void CTurbKEVariable::SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg) {
+  Tm_avg = val_T_avg;
+  Lm_avg = val_L_avg;
 }
 
 inline su2double* CDiscAdjVariable::GetGeometry_Direct() { return Geometry_Direct; }

@@ -188,6 +188,8 @@ CTurbSSTVariable::CTurbSSTVariable(su2double val_kine, su2double val_omega, su2d
 
   L = sqrt(val_kine)/val_omega;
   T = 1.0/val_omega;
+  L_avg = L;
+  T_avg = T;
 
   /*--- Allocate and initialize solution for the dual time strategy ---*/
   
@@ -262,6 +264,8 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
   Solution[3] = val_f;	Solution_Old[3] = val_f;
   Tm  = val_Tm;
   Lm  = val_Lm;
+  Tm_avg = val_Tm;
+  Lm_avg = val_Lm;
 
   /*--- Initialization of eddy viscosity ---*/  
   muT = val_muT;

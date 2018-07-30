@@ -458,8 +458,29 @@ void CVariable::SetAverageSolution(const su2double* val_averages) {
 }
 
 void CVariable::AddAverageSolution(const su2double* val_delta_averages) {
-  for (unsigned short iVar = 0; iVar < nVar; iVar++)
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
     Solution_Avg[iVar] += val_delta_averages[iVar];
+#ifndef NDEBUG
+    if (Solution_Avg[iVar] > 1E16) {
+      std::stringstream error_msg;
+      error_msg << "Solution average was unusually large.\n";
+      error_msg << "Context:\n";
+      error_msg << "    iVar:         " << iVar << endl;
+      error_msg << "    Solution_Avg: " << Solution_Avg[iVar] << endl;
+      error_msg << "    delta:        " << val_delta_averages[iVar] << endl;
+      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+    }
+    if (Solution_Avg[iVar] < -1E16) {
+      std::stringstream error_msg;
+      error_msg << "Solution average was unusually small.\n";
+      error_msg << "Context:\n";
+      error_msg << "    iVar:         " << iVar << endl;
+      error_msg << "    Solution_Avg: " << Solution_Avg[iVar] << endl;
+      error_msg << "    delta:        " << val_delta_averages[iVar] << endl;
+      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+    }
+#endif
+  }
 }
 
 const su2double* CVariable::GetAverageSolution() const {

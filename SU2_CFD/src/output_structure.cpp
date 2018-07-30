@@ -444,20 +444,25 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                    &CVariable::GetAverageSolution1, iZone);
     RegisterScalar("Avg_Y-Momentum", "Avg_Y-Momentum", FLOW_SOL,
                    &CVariable::GetAverageSolution2, iZone);
-    if (Kind_Solver == RANS)
-      RegisterScalar("Avg_TKE", "Avg_TKE", TURB_SOL,
-                     &CVariable::GetAverageSolution0, iZone);
+
     if (Kind_Solver == RANS) {
-      const bool dynamic_hybrid =
-          (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
 
       if (config[iZone]->GetKind_Turb_Model() == KE ||
           config[iZone]->GetKind_Turb_Model() == SST) {
+        RegisterScalar("Avg_TKE", "Avg_TKE", TURB_SOL,
+                       &CVariable::GetAverageSolution0, iZone);
         RegisterScalar("L_m", "L<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbLengthscale, iZone);
         RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbTimescale, iZone);
+        RegisterScalar("Avg_L_m", "L<sub>m,avg</sub>", TURB_SOL,
+                       &CVariable::GetAverageTurbLengthscale, iZone);
+        RegisterScalar("Avg_T_m", "T<sub>m,avg</sub>", TURB_SOL,
+                       &CVariable::GetAverageTurbTimescale, iZone);
       }
+
+      const bool dynamic_hybrid =
+          (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   
       if (dynamic_hybrid) {
         if (config[iZone]->GetKind_Hybrid_Anisotropy_Model() != ISOTROPIC) {
