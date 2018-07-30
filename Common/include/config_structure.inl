@@ -1835,3 +1835,9 @@ inline bool CConfig::GetQCR(void) {return QCR;}
 inline ofstream* CConfig::GetHistFile(void) { return ConvHistFile; }
 
 inline void CConfig::SetHistFile(ofstream *HistFile) { ConvHistFile = HistFile; }
+
+inline unsigned short CConfig::GetKind_Averaging(void) const { return Kind_Averaging; }
+
+inline unsigned short CConfig::GetKind_Averaging_Period(void) const { return Kind_Averaging_Period; }
+
+inline su2double CConfig::GetnAveragingPeriods(void) const { return nAveragingPeriods; }

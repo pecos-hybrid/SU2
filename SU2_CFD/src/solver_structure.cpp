@@ -2924,15 +2924,34 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
                           CConfig* config) {
 
-  // TODO: Nondimensional or dimensional?
+  /*--- In the averaging process here, one bad value can contaminate the
+   * averages at a point.  We could try to correct for this here, but
+   * the generic averaging routine is not the best place to do so.  Instead,
+   * corrections should happen in the solver or variable classes, where more
+   * specific and physically relevant limitations can be applied for
+   * each variable individually. For example, density can be constrained
+   * to be positive but momentum can be positive or negative.
+   *
+   * Instead of trying to account for bad values here, we assume that the
+   * values stored in the "Solution" are good values. ---*/
+
+  // TODO: Do a check at runtime to make sure config settings won't give errors
+  // TODO: Add output at startup to indicate averaging status
+  su2double timescale;
   const su2double dt = config->GetDelta_UnstTimeND();
-  const su2double N_T = 4; // Averaging periods, roughly speaking
+  const su2double N_T = config->GetnAveragingPeriods();
+  if (config->GetKind_Averaging_Period() == FLOW_TIMESCALE) {
+    timescale = config->GetRefLength()/config->GetModVel_FreeStream();
+    timescale /= config->GetTime_Ref();
+  }
 
   su2double* dU = new su2double[nVar];
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
-    // TODO: Add config option to switch for simulation-wide value
-    const su2double timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+    if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
+      // TODO: Averaging turb timescale would be better
+      timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+    }
     const su2double* average = node[iPoint]->GetAverageSolution();
     const su2double* current = node[iPoint]->GetSolution();
 
@@ -2941,7 +2960,8 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
      * dt > N_T*timescale at any point. ---*/
     const su2double weight = min(dt/(N_T * timescale), 1.0);
     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-      dU[iVar] = (current[iVar] - average[iVar]) * weight;
+      const su2double diff = current[iVar] - average[iVar];
+        dU[iVar] = (current[iVar] - average[iVar])*weight;
     }
 
     node[iPoint]->AddAverageSolution(dU);
