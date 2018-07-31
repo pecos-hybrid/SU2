@@ -2935,8 +2935,6 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
    * Instead of trying to account for bad values here, we assume that the
    * values stored in the "Solution" are good values. ---*/
 
-  // TODO: Do a check at runtime to make sure config settings won't give errors
-  // TODO: Add output at startup to indicate averaging status
   su2double timescale;
   const su2double dt = config->GetDelta_UnstTimeND();
   const su2double N_T = config->GetnAveragingPeriods();
@@ -2958,10 +2956,14 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
       assert(timescale > 0);
     }
 
-    /*--- Cap the weight at 1, which represents replacing the current
-     * average with the current value. This will occur if
-     * dt > N_T*timescale at any point. ---*/
-    const su2double weight = min(dt/(N_T * timescale), 1.0);
+    /*--- Even if (dt > N_T*timescale) at any point (i.e., the timesteps
+     * are greater than the averaging period), we don't want the weight
+     * to be greater than 1. We also want to average over at least a few
+     * values, even if the timesteps are larger than the averaging period.
+     * So we change the weight to make the averaging act as if
+     * dt = (N_T*timescale)/min_number_samples ---*/
+    const unsigned short min_number_samples = 5;
+    const su2double weight = min(dt/(N_T * timescale), 1.0/min_number_samples);
 
     UpdateAverage(weight, iPoint, buffer);
   }

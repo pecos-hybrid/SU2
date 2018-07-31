@@ -3713,6 +3713,43 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
     Design_Variable[0] = NO_DEFORMATION;
   }
 
+  /*--- Check to make sure averaging options are appropriate ---*/
+
+  if (Kind_Averaging != NO_AVERAGING) {
+
+    /*--- Check that a flow solver is being used ---*/
+
+    const unsigned short supported_solvers[] =
+        {EULER, ADJ_EULER, DISC_ADJ_EULER,
+         NAVIER_STOKES, ADJ_NAVIER_STOKES, DISC_ADJ_NAVIER_STOKES,
+         RANS, ADJ_RANS, DISC_ADJ_RANS};
+    const unsigned short nSolvers =
+        sizeof(supported_solvers)/sizeof(supported_solvers[0]);
+    bool supported = false;
+    for (unsigned short iSolver=0; iSolver < nSolvers; iSolver++) {
+      if (Kind_Solver == supported_solvers[iSolver]) {
+        supported = true;
+        break;
+      }
+    }
+    if (not(supported)) {
+      SU2_MPI::Error("Your choice of solver does not support averaging!", CURRENT_FUNCTION);
+    }
+
+    if (Kind_Averaging_Period == TURB_TIMESCALE) {
+      if (Kind_Solver != RANS && Kind_Solver != ADJ_RANS &&
+          Kind_Solver != DISC_ADJ_RANS) {
+        SU2_MPI::Error("You must use a RANS model to average over turbulent timescales.", CURRENT_FUNCTION);
+      }
+      if (not((Kind_Turb_Model == KE) || (Kind_Turb_Model == SST))) {
+        SU2_MPI::Error("Only KE and SST models currently support the use of a turbulent timescale.", CURRENT_FUNCTION);
+      }
+    }
+
+    if (nAveragingPeriods <= 0) {
+      SU2_MPI::Error("The number of averaging periods must be greater than zero.", CURRENT_FUNCTION);
+    }
+  }
 }
 
 void CConfig::SetMarkers(unsigned short val_software) {
@@ -5939,6 +5976,32 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
       else cout <<"."<< endl;
     }
   }
+
+  if (val_software == SU2_CFD && Kind_Averaging != NO_AVERAGING) {
+    cout << endl <<"--------------------- Runtime Averaging Parameters ----------------------" << endl;
+
+    cout << "Type of averaging: ";
+    switch (Kind_Averaging) {
+      case POINTWISE_AVERAGE:
+        cout << "Pointwise";
+        break;
+    }
+    cout << endl;
+
+    cout << "Averaging period defined using: ";
+    switch (Kind_Averaging_Period) {
+      case TURB_TIMESCALE:
+        cout << "Turbulent timescale";
+        break;
+      case FLOW_TIMESCALE:
+        cout << "Flow timescale";
+        break;
+    }
+    cout << endl;
+
+    cout << "Number of averaging periods: " << nAveragingPeriods << endl;
+  }
+
 
 }
 
