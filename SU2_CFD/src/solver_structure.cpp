@@ -2946,6 +2946,15 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
     timescale = config->GetRefLength()/config->GetModVel_FreeStream();
     timescale /= config->GetTime_Ref();
     assert(timescale > 0);
+  } else if (config->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
+    su2double local_max_timescale = 0;
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+      timescale = solver[TURB_SOL]->node[iPoint]->GetAverageTurbTimescale();
+      local_max_timescale = max(timescale, local_max_timescale);
+    }
+    SU2_MPI::Allreduce(&local_max_timescale, &timescale, 1,
+                       MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    assert(timescale > 0);
   }
 
   su2double* buffer = new su2double[nVar];
