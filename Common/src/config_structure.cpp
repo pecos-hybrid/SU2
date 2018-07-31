@@ -3733,10 +3733,11 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
       }
     }
     if (not(supported)) {
-      SU2_MPI::Error("Your choice of solver does not support averaging!", CURRENT_FUNCTION);
+      SU2_MPI::Error("Your problem definition is not compatible with averaging!", CURRENT_FUNCTION);
     }
 
-    if (Kind_Averaging_Period == TURB_TIMESCALE) {
+    if (Kind_Averaging_Period == TURB_TIMESCALE ||
+        Kind_Averaging_Period == MAX_TURB_TIMESCALE) {
       if (Kind_Solver != RANS && Kind_Solver != ADJ_RANS &&
           Kind_Solver != DISC_ADJ_RANS) {
         SU2_MPI::Error("You must use a RANS model to average over turbulent timescales.", CURRENT_FUNCTION);
@@ -5982,20 +5983,15 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
 
     cout << "Type of averaging: ";
     switch (Kind_Averaging) {
-      case POINTWISE_AVERAGE:
-        cout << "Pointwise";
-        break;
+      case POINTWISE_AVERAGE: cout << "Pointwise"; break;
     }
     cout << endl;
 
     cout << "Averaging period defined using: ";
     switch (Kind_Averaging_Period) {
-      case TURB_TIMESCALE:
-        cout << "Turbulent timescale";
-        break;
-      case FLOW_TIMESCALE:
-        cout << "Flow timescale";
-        break;
+      case TURB_TIMESCALE: cout << "Turbulent timescale"; break;
+      case MAX_TURB_TIMESCALE: cout << "Maximum turbulent timescale"; break;
+      case FLOW_TIMESCALE: cout << "Freestream flow timescale"; break;
     }
     cout << endl;
 

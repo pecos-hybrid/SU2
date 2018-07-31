@@ -1818,11 +1818,13 @@ static const map<string, ENUM_RUNTIME_AVERAGING> RuntimeAverage_Map = CCreateMap
  * \brief Time period over which to average.
  */
 enum ENUM_AVERAGING_PERIOD {
-  TURB_TIMESCALE,   /*!< \brief The local turbulent timescale */
-  FLOW_TIMESCALE    /*!< \brief The freestream flow timescale (L_ref/U_inf) */
+  TURB_TIMESCALE,     /*!< \brief The local turbulent timescale */
+  MAX_TURB_TIMESCALE, /*!< \brief The maximum turbulent timescale for a flow. */
+  FLOW_TIMESCALE      /*!< \brief The freestream flow timescale (L_ref/U_inf) */
 };
 static const map<string, ENUM_AVERAGING_PERIOD> AveragingPeriod_Map = CCreateMap<string, ENUM_AVERAGING_PERIOD>
 ("TURB_TIMESCALE", TURB_TIMESCALE)
+("MAX_TURB_TIMESCALE", MAX_TURB_TIMESCALE)
 ("FLOW_TIMESCALE", FLOW_TIMESCALE);
 
 /* END_CONFIG_ENUMS */
