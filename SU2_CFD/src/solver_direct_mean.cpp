@@ -14176,6 +14176,24 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
       node[iPoint_Local]->SetSolution(Solution);
       iPoint_Global_Local++;
 
+      /*--- Read in the runtime averages ---*/
+
+      if (config->GetKind_Averaging() != NO_AVERAGING) {
+        unsigned short nVar_Solution = nVar;
+        if (turb_model != NO_TURB_MODEL) {
+          nVar_Solution += solver[MESH_0][TURB_SOL]->GetnVar();
+        }
+
+        unsigned short nVar_Total = nVar_Solution;
+        if (config->GetWrt_Limiters()) nVar_Total += nVar_Solution;
+        if (config->GetWrt_Residuals()) nVar_Total += nVar_Solution;
+
+        index = counter*Restart_Vars[1] + skipVars + nVar_Total;
+        for (iVar = 0; iVar < nVar; iVar++)
+          Solution[iVar] = Restart_Data[index+iVar];
+        node[iPoint_Local]->SetAverageSolution(Solution);
+      }
+
       /*--- For dynamic meshes, read in and store the
        grid coordinates and grid velocities for each node. ---*/
 
@@ -14188,6 +14206,8 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
           index++;
         } else if (turb_model == SST) {
           index+=2;
+        } else if (turb_model == KE) {
+          index+=4;
         }
 
         /*--- Read in the next 2 or 3 variables which are the grid velocities ---*/
