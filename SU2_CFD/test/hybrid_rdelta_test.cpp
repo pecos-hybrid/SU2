@@ -54,7 +54,8 @@ void WriteCfgFile(const unsigned short& nDim) {
   cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
   cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA_STRAIN_ONLY" << std::endl;
   cfg_file << "HYBRID_ANISOTROPY_MODEL= ISOTROPIC" << std::endl;
-  cfg_file << "HYBRID_MODEL_CONSTANT= 1.0" << std::endl;
+  // This option is deprecated
+  // cfg_file << "HYBRID_MODEL_CONSTANT= 1.0" << std::endl;
   cfg_file.close();
 
 }
