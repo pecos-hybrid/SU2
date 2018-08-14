@@ -35,144 +35,248 @@
 
 #define BOOST_TEST_MODULE Hybrid_Model
 #include "boost/test/included/unit_test.hpp"
+#include "MPI_global_fixture.hpp"
 
 #include "../include/hybrid_RANS_LES_forcing.hpp"
 
-BOOST_AUTO_TEST_CASE(Coordinate_Shifting) {
 
-  const unsigned short nDim = 3;
-  const unsigned short nVar = nDim + 2;
-  const su2double pi = std::atan(1.0)*4.0;
+void WriteQuadMeshFile () {
+  /*--- Local variables ---*/
+    int KindElem, KindBound, nDim;
+    int iElem, iDim, jDim;
+    int iNode, jNode, kNode;
+    int iPoint;
+    int num_Nodes;
+    double xSpacing, ySpacing;
 
-  CHybridForcing forcing(nDim);
+    std::ofstream Mesh_File;
 
-  su2double time = 1.0;
-  su2double L_m = 1.0;
-  su2double T_m = 2.0;
-  su2double alpha = 1.0;
-  su2double x_original[nDim], x_shifted[nDim], x_exact[nDim];
-  su2double prim_vars[nVar];
+    /*--- Set the VTK type for the interior elements and the boundary elements ---*/
+    nDim = 2;
+    KindElem  = 9; // Quadrilateral
+    KindBound = 3; // Line
 
-  x_original[0] = -1.0; x_original[1] = 0; x_original[2] = 1.0;
-  x_exact[0] = 0; x_exact[1] = 2*pi; x_exact[2] = 4*pi;
+    /*--- Store the number of nodes in each direction ---*/
+    iDim = 4;
+    jDim = 4;
 
-  prim_vars[1] = 1.0; prim_vars[2] = 1.0; prim_vars[3] = 1.0;
+    /*--- The grid spacing in each direction ---*/
+    xSpacing = 4.0;
+    ySpacing = 2.0;
 
-  forcing.SetTurbLengthscale(L_m);
-  forcing.SetTurbTimescale(T_m);
-  forcing.SetHybridParameter(&alpha);
-  forcing.SetPrimitive(prim_vars);
+    /*--- Open .su2 grid file ---*/
+    Mesh_File.open("test.su2", ios::out);
+    Mesh_File << fixed << setprecision(15);
 
-  su2double tol = 1e-8;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    x_shifted[iDim] = forcing.TransformCoords(x_original, iDim, time);
-    BOOST_CHECK_SMALL(x_shifted[iDim] - x_exact[iDim], tol);
-  }
+    /*--- Write the dimension of the problem and the number of interior elements ---*/
+    Mesh_File << "%" << std::endl;
+    Mesh_File << "% Problem dimension" << std::endl;
+    Mesh_File << "%" << std::endl;
+    Mesh_File << "NDIME= 2" << std::endl;
+    Mesh_File << "%" << std::endl;
+    Mesh_File << "% Inner element connectivity" << std::endl;
+    Mesh_File << "%" << std::endl;
+    Mesh_File << "NELEM= " <<  (iDim-1)*(jDim-1) << std::endl;
+
+    /*--- Write the element connectivity ---*/
+    iElem = 0;
+      for (jNode = 0; jNode < jDim-1; jNode++) {
+        for (iNode = 0; iNode < iDim-1; iNode++) {
+          Mesh_File << KindElem << "\t";
+          Mesh_File << iNode     + (jNode*jDim)     << "\t";
+          Mesh_File << (iNode+1) + (jNode*jDim)     << "\t";
+          // NOTE: Reverse ordering here is essential
+          Mesh_File << (iNode+1) + ((jNode+1)*jDim) << "\t";
+          Mesh_File << iNode     + ((jNode+1)*jDim) << "\t";
+          Mesh_File << iElem << std::endl;
+          iElem++;
+        }
+      }
+
+
+    /*--- Compute the number of nodes and write the node coordinates ---*/
+    num_Nodes = iDim*jDim;
+    Mesh_File << "%" << std::endl;
+    Mesh_File << "% Node coordinates" << std::endl;
+    Mesh_File << "%" << std::endl;
+    Mesh_File << "NPOIN= " << num_Nodes << std::endl;
+    iPoint = 0;
+      for (jNode = 0; jNode < jDim; jNode++) {
+        for (iNode = 0; iNode < iDim; iNode++) {
+          Mesh_File << iNode*xSpacing << "\t";
+          Mesh_File << jNode*ySpacing << "\t";
+          Mesh_File << iPoint << std::endl;
+          iPoint++;
+        }
+      }
+
+
+
+    /*--- Write the header information for the boundary markers ---*/
+    Mesh_File << "%" << std::endl;
+    Mesh_File << "% Boundary elements" << std::endl;
+    Mesh_File << "%" << std::endl;
+    Mesh_File << "NMARK= 4" << std::endl;
+
+    /*--- Write the boundary information for each marker ---*/
+    Mesh_File << "MARKER_TAG= lower" << std::endl;
+    Mesh_File << "MARKER_ELEMS= "<< (iDim-1) << std::endl;
+    for (iNode = 0; iNode < iDim-1; iNode++) {
+      Mesh_File << KindBound << "\t";
+      Mesh_File << iNode       << "\t";
+      Mesh_File << (iNode + 1) << std::endl;
+    }
+    Mesh_File << "MARKER_TAG= right" << std::endl;
+    Mesh_File << "MARKER_ELEMS= "<< (jDim-1) << std::endl;
+    for (jNode = 0; jNode < jDim-1; jNode++) {
+      Mesh_File << KindBound << "\t";
+      Mesh_File << (jNode+1)*iDim - 1 << "\t";
+      Mesh_File << (jNode+2)*iDim - 1 << std::endl;
+    }
+    Mesh_File << "MARKER_TAG= upper" << std::endl;
+    Mesh_File << "MARKER_ELEMS= "<< (iDim-1) << std::endl;
+    for (iNode = jDim*(iDim-1); iNode < iDim*jDim-1; ++iNode) {
+      Mesh_File << KindBound << "\t";
+      Mesh_File << iNode       << "\t";
+      Mesh_File << (iNode + 1) << std::endl;
+    }
+    Mesh_File << "MARKER_TAG= left" << std::endl;
+    Mesh_File << "MARKER_ELEMS= "<< (jDim-1) << std::endl;
+    for (jNode = 0; jNode < jDim-1; ++jNode) {
+      Mesh_File << KindBound << "\t";
+      Mesh_File << (jNode  )*iDim << "\t";
+      Mesh_File << (jNode+1)*iDim << std::endl;
+    }
+
+    /*--- Close the mesh file and exit ---*/
+    Mesh_File.close();
+}
+
+void WriteCfgFile(const unsigned short& nDim) {
+  std::ofstream cfg_file;
+
+  cfg_file.open("test.cfg", ios::out);
+  cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
+  if (nDim == 2)
+    cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
+  else
+    cfg_file << "MARKER_FAR= ( top bottom back front left right )"  << std::endl;
+  cfg_file << "MESH_FILENAME= test.su2" << std::endl;
+  cfg_file << "MESH_FORMAT= SU2" << std::endl;
+
+  cfg_file.close();
 
 }
 
-BOOST_AUTO_TEST_CASE(Forcing_Functions) {
+BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+
+BOOST_AUTO_TEST_CASE(Shifting_Returns_Original_Coordinates_When_Time_Is_Zero) {
 
   const unsigned short nDim = 3;
-  const unsigned short nVar = nDim + 2;
-  const su2double pi = std::atan(1.0)*4.0;
 
-  /*--- Setup ---*/
+  CHybridForcing forcing(nDim, 0, 0);
 
-  CHybridForcing forcing(nDim);
+  su2double time = 0.0;
+  su2double T_m = 1.0;
+  su2double x_original[nDim], x_shifted, x_exact[nDim];
+  su2double velocity[nDim];
 
-  su2double x[nDim];
-  su2double prim_vars[nVar];
-  x[0] = pi/6.0; x[1] = pi/3.0; x[2] = pi/2.0;
-  prim_vars[1] = 3.0; prim_vars[2] = 2.0; prim_vars[3] = 1.0;
+  x_original[0] = -1.0; x_original[1] = 1.0; x_original[2] = 2.0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) velocity[iDim] = 1.0;
 
-  su2double** tau_F = new su2double*[nDim];
-  su2double** tau_F_exact = new su2double*[nDim];
+  su2double tol = std::numeric_limits<su2double>::epsilon();
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    tau_F[iDim] = new su2double[nDim];
-    tau_F_exact[iDim] = new su2double[nDim];
+    x_shifted =
+        forcing.TransformCoords(x_original[iDim], velocity[iDim], time, T_m);
+    BOOST_CHECK_CLOSE(x_shifted, x_original[iDim], tol);
   }
+}
 
-  /*--- Hand-computed test results ---*/
-  tau_F_exact[0][0] = 5.0625;
-  tau_F_exact[0][1] = 2.4375;
-  tau_F_exact[0][2] = 0.75;
-  tau_F_exact[1][0] = 2.4375;
-  tau_F_exact[1][1] = 1.0625;
-  tau_F_exact[1][2] = 0.25;
-  tau_F_exact[2][0] = 0.75;
-  tau_F_exact[2][1] = 0.25;
-  tau_F_exact[2][2] = 0.0;
+BOOST_AUTO_TEST_CASE(Coordinate_Shifting_With_Nonzero_Velocity) {
 
-  /*--- Test ---*/
+  const unsigned short nDim = 3;
 
-  forcing.SetPrimitive(prim_vars);
-  forcing.BuildForcingStress(x, tau_F);
+  CHybridForcing forcing(nDim, 0, 0);
 
-  su2double tol = 1e-8;
+  const su2double time = 0.5;
+  const su2double timescale = 2.0;
+  const su2double x_original[nDim] = {-1.0, 1.0, 2.0};
+  const su2double x_exact[nDim] =    {-0.5, 1.5, 2.5};
+  const su2double velocity = 1;
+
+  su2double tol = std::numeric_limits<su2double>::epsilon();
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    const su2double x_shifted =
+        forcing.TransformCoords(x_original[iDim], velocity, time, timescale);
+    BOOST_CHECK_CLOSE(x_shifted, x_exact[iDim], tol);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(Initial_Taylor_Green_Is_Periodic_In_L) {
+
+  const unsigned short nDim = 3;
+  const su2double x1[3] = {0.0, 0.0, 0.0};
+  const su2double L[3] = {1.0, 2.0, 3.0};
+
+  su2double b_at_x1[3], b_at_x2[3];
+
+  CHybridForcing forcing(nDim, 0, 0);
+
+  forcing.SetTGField(x1, L, b_at_x1);
+
+  su2double tol = std::numeric_limits<su2double>::epsilon();
+  su2double x2[3];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      BOOST_CHECK_SMALL(tau_F[iDim][iDim] - tau_F_exact[iDim][iDim], tol);
+      x2[jDim] = x1[jDim];
+    }
+    x2[iDim] += L[iDim];
+    forcing.SetTGField(x2, L, b_at_x2);
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      BOOST_CHECK_SMALL(std::abs(b_at_x2[jDim] - b_at_x1[jDim]), tol);
     }
   }
-
-
-  /*--- Teardown ---*/
-
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    delete [] tau_F_exact[iDim];
-  }
-  delete [] tau_F_exact;
-
 }
+
 
 BOOST_AUTO_TEST_CASE(Smoke_Test_for_Forcing) {
 
-  /*--- Setup ---*/
+}
+
+BOOST_AUTO_TEST_CASE(Compute_Derivatives) {
+
+  /*--- Arrange ---*/
 
   const unsigned short nDim = 3;
-  const unsigned short nVar = nDim + 2;
+  WriteCfgFile(nDim);
+  CConfig* config = new CConfig("test.cfg", SU2_CFD, 0, 1, 2, VERB_NONE);
 
-  su2double alpha = 1.0;
+  // The use of "geometry_aux" is necessary to duplicate a multigrid
+  // configuration
+  CGeometry *geometry_aux = new CPhysicalGeometry(config, 0, 1);
+  CGeometry* geometry = new CPhysicalGeometry(geometry_aux, config);
+  delete geometry_aux;
 
-  su2double x[nDim];
-  su2double prim_vars[nVar];
-  su2double turb_vars[4];
-  su2double source_terms[2];
-  x[0] = 0.0; x[1] = 0.0; x[2] = 0.0;
-  prim_vars[1] = 1.0; prim_vars[2] = 1.0; prim_vars[3] = 1.0;
-  turb_vars[0] = 1.0; turb_vars[1] = 1.0;
-  source_terms[0] = 1.0; source_terms[1] = 0.0;
+  // Initialize the geometry
+  geometry->SetBoundaries(config);
+  geometry->SetPoint_Connectivity();
+  geometry->SetElement_Connectivity();
+  geometry->SetBoundVolume();
+  geometry->Check_IntElem_Orientation(config);
+  geometry->Check_BoundElem_Orientation(config);
+  geometry->SetEdges();
+  geometry->SetVertex(config);
+  geometry->SetCoord_CG();
+  geometry->SetControlVolume(config, ALLOCATE);
+  geometry->SetBoundControlVolume(config, ALLOCATE);
 
-  su2double** prim_var_grad = new su2double*[nVar];
-  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    prim_var_grad[iVar] = new su2double[nDim];
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      prim_var_grad[iVar][iDim] = 0.0;
-  }
+  CHybridForcing forcing(geometry, config);
 
-  /*--- Calculate forcing ---*/
+  /*--- Act ---*/
 
-  CHybridForcing forcing(nDim);
+  forcing.SetForcing_Gradient_LS(geometry, config);
 
-  forcing.SetCoord(x);
-  forcing.SetTurbLengthscale(1.0);
-  forcing.SetTurbTimescale(1.0);
-  forcing.SetHybridParameter(&alpha);
-  forcing.SetPrimitive(prim_vars);
-  forcing.SetPrimVarGradient(prim_var_grad);
-  forcing.SetTurbVar(turb_vars);
-  forcing.SetHybridSourceTerms(source_terms);
-
-  su2double** tau_F = forcing.GetStress();
-  su2double P_F = forcing.GetProduction();
-  su2double P_F_over_P_lim = forcing.GetForcingRatio();
-
-  /*--- Teardown ---*/
-
-  for (unsigned short iVar = 0; iVar < nVar; iVar++)
-    delete [] prim_var_grad[iVar];
-  delete [] prim_var_grad;
+  /*--- Assert ---*/
 
 }
 

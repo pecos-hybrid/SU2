@@ -31,49 +31,35 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-inline void CHybridForcing::SetCoord(su2double* val_coord) {
-  Original_Coord = val_coord;
+inline su2double CHybridForcing::TransformCoords(const su2double x,
+                                                 const su2double mean_velocity,
+                                                 const su2double time,
+                                                 const su2double timescale) {
+  const su2double N_T = 4.0;
+  return x + mean_velocity*fmod(time, N_T*timescale);
+
 }
 
-inline void CHybridForcing::SetUnstTime(su2double val_time) {
-  time = val_time;
+inline void CHybridForcing::SetTGField(const su2double* x,
+                                       const su2double* L,
+                                       su2double* b) {
+  const su2double pi = atan(1.0)*4.0;
+  const unsigned short A = 3, B = -1, C = -2;
+  const su2double a[3] = {2*pi/L[0], 2*pi/L[1], 2*pi/L[2]};
+
+  b[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
+  b[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
+  b[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
 }
 
-inline void CHybridForcing::SetTurbLengthscale(su2double val_L_m) {
-  TurbL = val_L_m;
+inline void CHybridForcing::SetStreamFunc(const su2double* x,
+                                          const su2double* L,
+                                          su2double* h) {
+  const su2double pi = atan(1.0)*4.0;
+  const unsigned short D = -1, E = 1, F = -2;
+  const su2double a[3] = {2*pi/L[0], 2*pi/L[1], 2*pi/L[2]};
+
+  h[0] = D * sin(a[0]*x[0]) * cos(a[1]*x[1]) * cos(a[2]*x[2]);
+  h[1] = E * cos(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
+  h[2] = F * cos(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
 }
-
-inline void CHybridForcing::SetTurbTimescale(su2double val_T_m) {
-  TurbT = val_T_m;
-}
-
-inline void CHybridForcing::SetHybridParameter(su2double* val_hybrid_param) {
-  HybridParam = val_hybrid_param[0];
-}
-
-inline void CHybridForcing::SetPrimitive(su2double* val_prim_vars) {
-    PrimVars = val_prim_vars;
-}
-
-inline void CHybridForcing::SetPrimVarGradient(su2double **val_primvar_grad) {
-  PrimVar_Grad = val_primvar_grad;
-}
-
-inline void CHybridForcing::SetTurbVar(su2double *val_turbvar) {
-  TurbVar = val_turbvar;
-}
-
-inline void CHybridForcing::SetHybridSourceTerms(su2double* val_S_terms) {
-  S_alpha = val_S_terms[0];
-  S_cf = val_S_terms[1];
-}
-
-inline su2double** CHybridForcing::GetStress() {
-  return tau_F;
-}
-
-inline su2double CHybridForcing::GetProduction() { return P_F; };
-
-inline su2double CHybridForcing::GetForcingRatio() {
-  return P_F_unscaled / P_lim;
-};

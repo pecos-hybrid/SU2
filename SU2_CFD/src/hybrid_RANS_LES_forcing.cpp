@@ -33,98 +33,499 @@
 
 #include "../include/hybrid_RANS_LES_forcing.hpp"
 
-CHybridForcing::CHybridForcing(unsigned short nDim) : nDim(nDim) {
+CHybridForcing::CHybridForcing(const unsigned short nDim,
+                               const unsigned long nPoint,
+                               const unsigned long nPointDomain)
+    : nDim(nDim), nVar(nDim), nVarGrad(nDim),
+      nPoint(nPoint), nPointDomain(nPointDomain) {
 
-  Shifted_Coord = new su2double[nDim];
+  node = NULL;
+  Gradient = NULL;
 
-  tau_F = new su2double*[nDim];
-  tau_F_unscaled = new su2double*[nDim];
+  Smatrix = new su2double* [nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    Smatrix[iDim] = new su2double [nDim];
+
+  Cvector = new su2double* [nVarGrad];
+  for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
+    Cvector[iVar] = new su2double [nDim];
+
+  LeviCivita = new int**[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    tau_F[iDim] = new su2double[nDim];
-    tau_F_unscaled[iDim] = new su2double[nDim];
+    LeviCivita[iDim] = new int*[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      LeviCivita[iDim][jDim] = new int[nDim];
+      for (unsigned short kDim = 0; kDim < nDim; kDim++) {
+        LeviCivita[iDim][jDim][kDim] = 0;
+      }
+    }
   }
+  /*--- These could be assigned programmatically, but the straightforward
+   * way is less error-prone. ---*/
+  LeviCivita[0][1][2] = 1;
+  LeviCivita[1][2][0] = 1;
+  LeviCivita[2][0][1] = 1;
+  LeviCivita[0][2][1] = -1;
+  LeviCivita[2][1][0] = -1;
+  LeviCivita[1][0][2] = -1;
+}
+
+CHybridForcing::CHybridForcing(CGeometry* geometry, CConfig* config)
+    : nDim(geometry->GetnDim()), nVar(nDim), nVarGrad(nDim),
+      nPoint(geometry->GetnPoint()),
+      nPointDomain(geometry->GetnPointDomain()) {
+
+  node = new su2double*[nPoint];
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    node[iPoint] = new su2double[nVar];
+  }
+
+  Gradient = new su2double**[nPoint];
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+     Gradient[iPoint] = new su2double*[nVar];
+     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+       Gradient[iPoint][iVar] = new su2double[nDim];
+     }
+  }
+
+  Smatrix = new su2double* [nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    Smatrix[iDim] = new su2double [nDim];
+
+  Cvector = new su2double* [nVarGrad];
+  for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
+    Cvector[iVar] = new su2double [nDim];
+
+  LeviCivita = new int**[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    LeviCivita[iDim] = new int*[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      LeviCivita[iDim][jDim] = new int[nDim];
+      for (unsigned short kDim = 0; kDim < nDim; kDim++) {
+        LeviCivita[iDim][jDim][kDim] = 0;
+      }
+    }
+  }
+  /*--- These could be assigned programmatically, but the straightforward
+   * way is less error-prone. ---*/
+  LeviCivita[0][1][2] = 1;
+  LeviCivita[1][2][0] = 1;
+  LeviCivita[2][0][1] = 1;
+  LeviCivita[0][2][1] = -1;
+  LeviCivita[2][1][0] = -1;
+  LeviCivita[1][0][2] = -1;
 
 }
 
 CHybridForcing::~CHybridForcing() {
 
-  delete [] Shifted_Coord;
-
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    delete [] tau_F[iDim];
-    delete [] tau_F_unscaled[iDim];
+  if (node != NULL) {
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+      delete [] node[iPoint];
+    }
+    delete [] node;
   }
-  delete [] tau_F;
-  delete [] tau_F_unscaled;
 
-}
+  if (Gradient != NULL) {
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+       for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+         delete [] Gradient[iPoint][iVar];
+       }
+       delete [] Gradient[iPoint];
+    }
+    delete [] Gradient;
+  }
 
+  if (Smatrix != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      delete [] Smatrix[iDim];
+    delete [] Smatrix;
+  }
 
-su2double CHybridForcing::TransformCoords(su2double* x,
-                                          unsigned short iDim,
-                                          su2double val_time) {
-  const su2double pi = std::atan(1.0)*4.0;
-  return 2.0*pi/(pow(HybridParam, su2double(1.5))*TurbL) *
-      (x[iDim] + PrimVars[iDim+1] * fmod(val_time, (HybridParam*TurbT)));
-}
-
-void CHybridForcing::BuildForcingStress(su2double* x, su2double** val_tau_F) {
-
-  unsigned short nDim = 3;
-  su2double g[3];
-
-  g[0] =  1.0*cos(x[0])*sin(x[1])*sin(x[2]);
-  g[1] =  1.0*sin(x[0])*cos(x[1])*sin(x[2]);
-  g[2] = -2.0*sin(x[0])*sin(x[1])*cos(x[2]);
+  if (Cvector != NULL) {
+    for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
+      delete [] Cvector[iVar];
+    delete [] Cvector;
+  }
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      val_tau_F[iDim][jDim] = g[iDim]*g[jDim] +
-          g[iDim]*PrimVars[jDim+1] + g[jDim]*PrimVars[iDim+1];
+      delete [] LeviCivita[iDim][jDim];
     }
+    delete [] LeviCivita[iDim];
   }
-}
-
-void CHybridForcing::CalculateForcing() {
-
-  const su2double C_F = 1.0e-2;
-
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    Shifted_Coord[iDim] = TransformCoords(Original_Coord, iDim, time);
-
-  BuildForcingStress(Shifted_Coord, tau_F_unscaled);
-
-  P_F_unscaled = 0.0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      P_F_unscaled += tau_F_unscaled[iDim][jDim] *
-          0.5*(PrimVar_Grad[iDim][jDim] + PrimVar_Grad[jDim][iDim]);
-    }
-  }
-
-  int sign_P_F_unscaled = (P_F_unscaled < 0) ? -1 : 1;
-  P_lim = sign_P_F_unscaled * max(abs(P_F_unscaled), C_F*TurbVar[1]);
-  su2double coefficient = CalculateCoefficient();
-
-  /*--- Calculate forcing stress tensor ---*/
-
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      tau_F[iDim][jDim] = coefficient * tau_F_unscaled[iDim][jDim];
-    }
-  }
-
-  /*--- Calculate production due to forcing ---*/
-
-  P_F = coefficient * P_F_unscaled;
+  delete [] LeviCivita;
 
 }
 
-su2double CHybridForcing::CalculateCoefficient() {
+su2double CHybridForcing::GetTargetForcing() {
+  return 1.0;
+}
 
-  // TODO: Pull C_alpha from the config file
-  // XXX: This assumes that k is the first turbulent variable
-  const su2double C_alpha = 0.1;
-  return C_alpha * TurbVar[0] / (HybridParam*TurbT) * (S_alpha-S_cf) / P_lim;
+su2double CHybridForcing::ComputeScalingFactor(const su2double L,
+                                               const su2double P_F,
+                                               const su2double dt,
+                                               const su2double* b) {
+  const su2double A = 3;
+
+  su2double k_b = 0.0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    k_b += b[iDim]*b[iDim];
+  }
+  k_b /= A*A;
+
+  const su2double C_alpha = -1*min(P_F, 0.0)*k_b; // FIXME: If statements?
+
+  const su2double pi = atan(1.0)*4.0;
+  const su2double ax = 2*pi/L; // TODO: Check differences in ax, ay, az.
+  const su2double ay = 2*pi/L;
+  const su2double az = 2*pi/L;
+
+  const su2double C_P = 1.0; // FIXME: Not defined in model doc.
+  return C_P * sqrt(2*abs(C_alpha)*dt)/max(max(ax, ay), az);
+}
+
+void CHybridForcing::ComputeForcingField(CSolver** solver, CGeometry *geometry,
+                                         CConfig *config) {
+
+  const unsigned short kind_time_marching = config->GetUnsteady_Simulation();
+
+  if (kind_time_marching == TIME_STEPPING ||
+      kind_time_marching == DT_STEPPING_1ST ||
+      kind_time_marching == DT_STEPPING_2ND) {
+
+    // FIXME: Current UnstTime or Total UnstTime???
+    const su2double time = config->GetTotal_UnstTimeND();
+    const su2double dt = config->GetDelta_UnstTimeND();
+
+    /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
+
+    su2double b[nDim]; // Initial TG vortex field.
+    su2double h[nDim]; // Stream function from initial TG vortex field
+    su2double L[nDim]; // Length scales
+    su2double x[nDim]; // Position
+
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+
+      const su2double timescale =
+          solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+      /*--- This velocity retrieval works only for compressible ---*/
+      assert(config->GetKind_Regime() == COMPRESSIBLE);
+      const su2double* prim_vars =
+          solver[FLOW_SOL]->node[iPoint]->GetPrimitive();
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        /*--- Copy the values (and not the pointer), since we're changing them. ---*/
+        x[iDim] = geometry->node[iPoint]->GetCoord(iDim);
+        x[iDim] = TransformCoords(x[iDim], prim_vars[iDim+1], time, timescale);
+      }
+
+      /*--- Setup the TG vortex and its stream function ---*/
+
+      // TODO: The length scales are defined in three different places.
+      // Eliminate the repitition.
+      const su2double N_L = 4.0;
+      const su2double L_iso =
+          N_L*solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
+      L[0] = L_iso; L[1] = L_iso; L[2] = L_iso;
+      SetTGField(x, L, b);
+      SetStreamFunc(x, L, h);
+
+      /*--- Store eta*h so we can compute the derivatives ---*/
+
+      const su2double P_F = GetTargetForcing();
+      const su2double eta = ComputeScalingFactor(L_iso, P_F, dt, b);
+      for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+        node[iPoint][iVar] = eta*h[iVar];
+      }
+    }
+
+    SetForcing_Gradient_LS(geometry, config);
+
+    // TODO: Decide if this should be passed in or stored in forcing class
+    su2double** g;
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        g[iPoint][iDim] = 0.0;
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          for (unsigned short kDim = 0; kDim < nDim; kDim++) {
+            g[iPoint][iDim] +=
+              LeviCivita[iDim][jDim][kDim]*Gradient[iPoint][kDim][jDim];
+          }
+        }
+      }
+    }
+  } else {
+    SU2_MPI::Error("Hybrid forcing has not been set up for steady flows.",
+                   CURRENT_FUNCTION);
+  }
+
+}
+
+void CHybridForcing::SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config) {
+
+  unsigned short iVar, iDim, jDim, iNeigh;
+  unsigned long iPoint, jPoint;
+  su2double *Coord_i, *Coord_j, r11, r12, r13, r22, r23, r23_a,
+  r23_b, r33, weight, product, z11, z12, z13, z22, z23, z33, detR2;
+  bool singular;
+
+  assert(node != NULL);
+  assert(Gradient != NULL);
+
+  /*--- Loop over points of the grid ---*/
+
+  for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+    /*--- Set the value of the singular ---*/
+    singular = false;
+
+    /*--- Get coordinates ---*/
+
+    Coord_i = geometry->node[iPoint]->GetCoord();
+
+    /*--- Get variables from array ---*/
+
+    su2double* StreamFunc_i = node[iPoint];
+
+    /*--- Inizialization of variables ---*/
+
+    for (iVar = 0; iVar < nVarGrad; iVar++)
+      for (iDim = 0; iDim < nDim; iDim++)
+        Cvector[iVar][iDim] = 0.0;
+
+    r11 = 0.0; r12 = 0.0;   r13 = 0.0;    r22 = 0.0;
+    r23 = 0.0; r23_a = 0.0; r23_b = 0.0;  r33 = 0.0;
+
+//    AD::StartPreacc();
+//    AD::SetPreaccIn(PrimVar_i, nPrimVarGrad);
+//    AD::SetPreaccIn(Coord_i, nDim);
+
+    for (iNeigh = 0; iNeigh < geometry->node[iPoint]->GetnPoint(); iNeigh++) {
+      jPoint = geometry->node[iPoint]->GetPoint(iNeigh);
+      Coord_j = geometry->node[jPoint]->GetCoord();
+
+      su2double* StreamFunc_j = node[jPoint];
+
+//      AD::SetPreaccIn(Coord_j, nDim);
+//      AD::SetPreaccIn(PrimVar_j, nPrimVarGrad);
+
+      weight = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++)
+        weight += (Coord_j[iDim]-Coord_i[iDim])*(Coord_j[iDim]-Coord_i[iDim]);
+
+      /*--- Sumations for entries of upper triangular matrix R ---*/
+
+      if (weight != 0.0) {
+
+        r11 += (Coord_j[0]-Coord_i[0])*(Coord_j[0]-Coord_i[0])/weight;
+        r12 += (Coord_j[0]-Coord_i[0])*(Coord_j[1]-Coord_i[1])/weight;
+        r22 += (Coord_j[1]-Coord_i[1])*(Coord_j[1]-Coord_i[1])/weight;
+
+        if (nDim == 3) {
+          r13 += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+          r23_a += (Coord_j[1]-Coord_i[1])*(Coord_j[2]-Coord_i[2])/weight;
+          r23_b += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+          r33 += (Coord_j[2]-Coord_i[2])*(Coord_j[2]-Coord_i[2])/weight;
+        }
+
+        /*--- Entries of c:= transpose(A)*b ---*/
+
+        for (iVar = 0; iVar < nVarGrad; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Cvector[iVar][iDim] += (Coord_j[iDim]-Coord_i[iDim])*(StreamFunc_j[iVar]-StreamFunc_i[iVar])/weight;
+
+      }
+
+    }
+
+    /*--- Entries of upper triangular matrix R ---*/
+
+    if (r11 >= 0.0) r11 = sqrt(r11); else r11 = 0.0;
+    if (r11 != 0.0) r12 = r12/r11; else r12 = 0.0;
+    if (r22-r12*r12 >= 0.0) r22 = sqrt(r22-r12*r12); else r22 = 0.0;
+
+    if (nDim == 3) {
+      if (r11 != 0.0) r13 = r13/r11; else r13 = 0.0;
+      if ((r22 != 0.0) && (r11*r22 != 0.0)) r23 = r23_a/r22 - r23_b*r12/(r11*r22); else r23 = 0.0;
+      if (r33-r23*r23-r13*r13 >= 0.0) r33 = sqrt(r33-r23*r23-r13*r13); else r33 = 0.0;
+    }
+
+    /*--- Compute determinant ---*/
+
+    if (nDim == 2) detR2 = (r11*r22)*(r11*r22);
+    else detR2 = (r11*r22*r33)*(r11*r22*r33);
+
+    /*--- Detect singular matrices ---*/
+
+    if (abs(detR2) <= EPS) { detR2 = 1.0; singular = true; }
+
+    /*--- S matrix := inv(R)*traspose(inv(R)) ---*/
+
+    if (singular) {
+      for (iDim = 0; iDim < nDim; iDim++)
+        for (jDim = 0; jDim < nDim; jDim++)
+          Smatrix[iDim][jDim] = 0.0;
+    }
+    else {
+      if (nDim == 2) {
+        Smatrix[0][0] = (r12*r12+r22*r22)/detR2;
+        Smatrix[0][1] = -r11*r12/detR2;
+        Smatrix[1][0] = Smatrix[0][1];
+        Smatrix[1][1] = r11*r11/detR2;
+      }
+      else {
+        z11 = r22*r33; z12 = -r12*r33; z13 = r12*r23-r13*r22;
+        z22 = r11*r33; z23 = -r11*r23; z33 = r11*r22;
+        Smatrix[0][0] = (z11*z11+z12*z12+z13*z13)/detR2;
+        Smatrix[0][1] = (z12*z22+z13*z23)/detR2;
+        Smatrix[0][2] = (z13*z33)/detR2;
+        Smatrix[1][0] = Smatrix[0][1];
+        Smatrix[1][1] = (z22*z22+z23*z23)/detR2;
+        Smatrix[1][2] = (z23*z33)/detR2;
+        Smatrix[2][0] = Smatrix[0][2];
+        Smatrix[2][1] = Smatrix[1][2];
+        Smatrix[2][2] = (z33*z33)/detR2;
+      }
+    }
+
+    /*--- Computation of the gradient: S*c ---*/
+    for (iVar = 0; iVar < nVarGrad; iVar++) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        product = 0.0;
+        for (jDim = 0; jDim < nDim; jDim++) {
+          product += Smatrix[iDim][jDim]*Cvector[iVar][jDim];
+        }
+        Gradient[iPoint][iVar][iDim] = product;
+      }
+    }
+
+//    AD::SetPreaccOut(node[iPoint]->GetGradient_Primitive(), nPrimVarGrad, nDim);
+//    AD::EndPreacc();
+  }
+
+  Set_MPI_Forcing_Gradient(geometry, config);
+
+}
+
+void CHybridForcing::Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *config) {
+//  unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+//  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
+//  su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
+//  *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
+//
+//  su2double **Gradient = new su2double* [nPrimVarGrad];
+//  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+//    Gradient[iVar] = new su2double[nDim];
+//
+//#ifdef HAVE_MPI
+//  int send_to, receive_from;
+//  SU2_MPI::Status status;
+//#endif
+//
+//  for (iMarker = 0; iMarker < nMarker; iMarker++) {
+//
+//    if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
+//        (config->GetMarker_All_SendRecv(iMarker) > 0)) {
+//
+//      MarkerS = iMarker;  MarkerR = iMarker+1;
+//
+//#ifdef HAVE_MPI
+//      send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
+//      receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
+//#endif
+//
+//      nVertexS = geometry->nVertex[MarkerS];  nVertexR = geometry->nVertex[MarkerR];
+//      nBufferS_Vector = nVertexS*nPrimVarGrad*nDim;        nBufferR_Vector = nVertexR*nPrimVarGrad*nDim;
+//
+//      /*--- Allocate Receive and send buffers  ---*/
+//      Buffer_Receive_Gradient = new su2double [nBufferR_Vector];
+//      Buffer_Send_Gradient = new su2double[nBufferS_Vector];
+//
+//      /*--- Copy the solution old that should be sended ---*/
+//      for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+//        iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
+//        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+//          for (iDim = 0; iDim < nDim; iDim++)
+//            Buffer_Send_Gradient[iDim*nPrimVarGrad*nVertexS+iVar*nVertexS+iVertex] = node[iPoint]->GetGradient_Primitive(iVar, iDim);
+//      }
+//
+//#ifdef HAVE_MPI
+//
+//      /*--- Send/Receive information using Sendrecv ---*/
+//      SU2_MPI::Sendrecv(Buffer_Send_Gradient, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
+//                        Buffer_Receive_Gradient, nBufferR_Vector, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+//
+//#else
+//
+//      /*--- Receive information without MPI ---*/
+//      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+//        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+//          for (iDim = 0; iDim < nDim; iDim++)
+//            Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] = Buffer_Send_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+//      }
+//
+//#endif
+//
+//      /*--- Deallocate send buffer ---*/
+//      delete [] Buffer_Send_Gradient;
+//
+//      /*--- Do the coordinate transformation ---*/
+//      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+//
+//        /*--- Find point and its type of transformation ---*/
+//        iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
+//        iPeriodic_Index = geometry->vertex[MarkerR][iVertex]->GetRotation_Type();
+//
+//        /*--- Retrieve the supplied periodic information. ---*/
+//        angles = config->GetPeriodicRotation(iPeriodic_Index);
+//
+//        /*--- Store angles separately for clarity. ---*/
+//        theta    = angles[0];   phi    = angles[1];     psi    = angles[2];
+//        cosTheta = cos(theta);  cosPhi = cos(phi);      cosPsi = cos(psi);
+//        sinTheta = sin(theta);  sinPhi = sin(phi);      sinPsi = sin(psi);
+//
+//        /*--- Compute the rotation matrix. Note that the implicit
+//         ordering is rotation about the x-axis, y-axis,
+//         then z-axis. Note that this is the transpose of the matrix
+//         used during the preprocessing stage. ---*/
+//        rotMatrix[0][0] = cosPhi*cosPsi;    rotMatrix[1][0] = sinTheta*sinPhi*cosPsi - cosTheta*sinPsi;     rotMatrix[2][0] = cosTheta*sinPhi*cosPsi + sinTheta*sinPsi;
+//        rotMatrix[0][1] = cosPhi*sinPsi;    rotMatrix[1][1] = sinTheta*sinPhi*sinPsi + cosTheta*cosPsi;     rotMatrix[2][1] = cosTheta*sinPhi*sinPsi - sinTheta*cosPsi;
+//        rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
+//
+//        /*--- Copy conserved variables before performing transformation. ---*/
+//        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+//          for (iDim = 0; iDim < nDim; iDim++)
+//            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+//
+//        /*--- Need to rotate the gradients for all conserved variables. ---*/
+//        for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+//          if (nDim == 2) {
+//            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+//            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+//          }
+//          else {
+//            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+//            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+//            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+//          }
+//        }
+//
+//        /*--- Store the received information ---*/
+//        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+//          for (iDim = 0; iDim < nDim; iDim++)
+//            node[iPoint]->SetGradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
+//
+//      }
+//
+//      /*--- Deallocate receive buffer ---*/
+//      delete [] Buffer_Receive_Gradient;
+//
+//    }
+//
+//  }
+//
+//  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+//    delete [] Gradient[iVar];
+//  delete [] Gradient;
 
 }

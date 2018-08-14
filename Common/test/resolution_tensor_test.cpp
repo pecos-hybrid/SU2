@@ -624,10 +624,9 @@ struct ResolutionFixture {
   }
 
   void SetupGeometry() {
-    // The use of "geometry_aux" is necessary to mock a multigrid configuration
-    CGeometry *geometry_aux = NULL;
-    geometry_aux = new CPhysicalGeometry(config, 0, 1);
-    geometry = new CGeometry();
+    // The use of "geometry_aux" is necessary to duplicate a multigrid
+    // configuration
+    CGeometry *geometry_aux = new CPhysicalGeometry(config, 0, 1);
     geometry = new CPhysicalGeometry(geometry_aux, config);
     delete geometry_aux;
 

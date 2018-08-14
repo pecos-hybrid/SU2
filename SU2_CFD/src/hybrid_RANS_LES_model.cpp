@@ -125,10 +125,10 @@ CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
 
   const int rank = SU2_MPI::GetRank();
 
-  if (config->isHybrid_Forced())
-    hybrid_forcing = new CHybridForcing(nDim);
-  else
-    hybrid_forcing = NULL;
+//  if (config->isHybrid_Forced())
+//    hybrid_forcing = new CHybridForcing(nDim, 0, 0);
+//  else
+//    hybrid_forcing = NULL;
 
   /*--- Setup hybridization ---*/
 
@@ -241,7 +241,7 @@ CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
 
 CHybrid_Mediator::~CHybrid_Mediator() {
 
-  if (hybrid_forcing != NULL) delete hybrid_forcing;
+//  if (hybrid_forcing != NULL) delete hybrid_forcing;
   delete hybrid_anisotropy;
 
   if (Q != NULL) {
@@ -277,9 +277,9 @@ void CHybrid_Mediator::SetupRANSNumerics(CGeometry* geometry,
   /*--- Since this is a source term, we don't need a second point ---*/
   rans_numerics->SetHybridParameter(alpha, NULL);
 
-  su2double ForcingProduction =
-      solver_container[TURB_SOL]->node[iPoint]->GetForcingProduction();
-  rans_numerics->SetForcingProduction(ForcingProduction);
+//  su2double ForcingProduction =
+//      solver_container[TURB_SOL]->node[iPoint]->GetForcingProduction();
+//  rans_numerics->SetForcingProduction(ForcingProduction);
 
 }
 
@@ -313,8 +313,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
     iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
     unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
 
-    const su2double C_r = 1.0;
-    r_k = C_r*eigvalues_iLM[max_index];
+    r_k = C_sf*eigvalues_iLM[max_index];
 
   }
   else if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
@@ -429,9 +428,9 @@ void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
   hybrid_param_numerics->SetResolutionAdequacy(r_k);
 
   /*--- Pass ratio of P_F_tilde to P_lim into numerics object ---*/
-  su2double production_ratio =
-      solver_container[HYBRID_SOL]->node[iPoint]->GetForcingRatio();
-  hybrid_param_numerics->SetForcingRatio(production_ratio);
+//  su2double production_ratio =
+//      solver_container[HYBRID_SOL]->node[iPoint]->GetForcingRatio();
+//  hybrid_param_numerics->SetForcingRatio(production_ratio);
   su2double* S_terms =
       solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
   hybrid_param_numerics->SetSourceTerms(S_terms);
@@ -529,7 +528,7 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
   solver_container[FLOW_SOL]->node[iPoint]->SetEddyViscAnisotropy(hybrid_anisotropy->GetViscAnisotropy());
 
   /*--- Set up forcing ---*/
-  SetupForcing(geometry, solver_container, config, iPoint);
+  // SetupForcing(geometry, solver_container, config, iPoint);
 }
 
 void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
@@ -537,49 +536,49 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
                                     CConfig* config,
                                     unsigned short iPoint) {
 
-  if (hybrid_forcing != NULL) {
-
-    /*--- Pull in all the relevant parameters ---*/
-    su2double* prim_vars =
-        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
-    su2double** prim_var_grad =
-        solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
-    su2double* turb_vars =
-        solver_container[TURB_SOL]->node[iPoint]->GetSolution();
-    su2double turb_L =
-        solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-    su2double turb_T =
-        solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-    su2double* alpha =
-        solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-    su2double* S_terms =
-        solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
-    hybrid_forcing->SetUnstTime(config->GetCurrent_UnstTime());
-    hybrid_forcing->SetCoord(geometry->node[iPoint]->GetCoord());
-    hybrid_forcing->SetPrimitive(prim_vars);
-    hybrid_forcing->SetPrimVarGradient(prim_var_grad);
-    hybrid_forcing->SetTurbVar(turb_vars);
-    hybrid_forcing->SetTurbLengthscale(turb_L);
-    hybrid_forcing->SetTurbTimescale(turb_L);
-    hybrid_forcing->SetHybridParameter(alpha);
-    hybrid_forcing->SetHybridSourceTerms(S_terms);
-
-    /*--- Run calculation now that we've initialized everything ---*/
-    hybrid_forcing->CalculateForcing();
-
-    /*--- Pass results on to respective solvers
-     * We take over some of the work that would normally be in
-     * `SetupRANSSolver` or `SetupHybridSolver` so that the same forcing
-     * values are used for all equations.  This has the advantage of only
-     * requiring one forcing calculation per iteration. ---*/
-    su2double** tau_F = hybrid_forcing->GetStress();
-    solver_container[FLOW_SOL]->node[iPoint]->SetForcingStress(tau_F);
-    su2double P_F = hybrid_forcing->GetProduction();
-    solver_container[TURB_SOL]->node[iPoint]->SetForcingProduction(P_F);
-    su2double P_F_ratio = hybrid_forcing->GetForcingRatio();
-    solver_container[HYBRID_SOL]->node[iPoint]->SetForcingRatio(P_F_ratio);
-
-  }
+//  if (hybrid_forcing != NULL) {
+//
+//    /*--- Pull in all the relevant parameters ---*/
+//    su2double* prim_vars =
+//        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+//    su2double** prim_var_grad =
+//        solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
+//    su2double* turb_vars =
+//        solver_container[TURB_SOL]->node[iPoint]->GetSolution();
+//    su2double turb_L =
+//        solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
+//    su2double turb_T =
+//        solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+//    su2double* alpha =
+//        solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
+//    su2double* S_terms =
+//        solver_container[HYBRID_SOL]->node[iPoint]->GetSourceTerms();
+//    hybrid_forcing->SetUnstTime(config->GetCurrent_UnstTime());
+//    hybrid_forcing->SetCoord(geometry->node[iPoint]->GetCoord());
+//    hybrid_forcing->SetPrimitive(prim_vars);
+//    hybrid_forcing->SetPrimVarGradient(prim_var_grad);
+//    hybrid_forcing->SetTurbVar(turb_vars);
+//    hybrid_forcing->SetTurbLengthscale(turb_L);
+//    hybrid_forcing->SetTurbTimescale(turb_L);
+//    hybrid_forcing->SetHybridParameter(alpha);
+//    hybrid_forcing->SetHybridSourceTerms(S_terms);
+//
+//    /*--- Run calculation now that we've initialized everything ---*/
+//    hybrid_forcing->CalculateForcing();
+//
+//    /*--- Pass results on to respective solvers
+//     * We take over some of the work that would normally be in
+//     * `SetupRANSSolver` or `SetupHybridSolver` so that the same forcing
+//     * values are used for all equations.  This has the advantage of only
+//     * requiring one forcing calculation per iteration. ---*/
+//    su2double** tau_F = hybrid_forcing->GetStress();
+//    solver_container[FLOW_SOL]->node[iPoint]->SetForcingStress(tau_F);
+//    su2double P_F = hybrid_forcing->GetProduction();
+//    solver_container[TURB_SOL]->node[iPoint]->SetForcingProduction(P_F);
+//    su2double P_F_ratio = hybrid_forcing->GetForcingRatio();
+//    solver_container[HYBRID_SOL]->node[iPoint]->SetForcingRatio(P_F_ratio);
+//
+//  }
 }
 
 
@@ -603,9 +602,9 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
 
   /*--- Pass the forcing stress tensor to the resolved flow ---*/
 
-  su2double** tau_F_i = solver_container[FLOW_SOL]->node[iPoint]->GetForcingStress();
-  su2double** tau_F_j = solver_container[FLOW_SOL]->node[iPoint]->GetForcingStress();
-  visc_numerics->SetForcingStress(tau_F_i, tau_F_j);
+//  su2double** tau_F_i = solver_container[FLOW_SOL]->node[iPoint]->GetForcingStress();
+//  su2double** tau_F_j = solver_container[FLOW_SOL]->node[iPoint]->GetForcingStress();
+//  visc_numerics->SetForcingStress(tau_F_i, tau_F_j);
 
 }
 
@@ -680,6 +679,9 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   // NB: Assumes isotropic eddy viscosity
   // TODO: If/when we go back to anisotropic eddy viscosity, make sure
   // change propagates to here
+
+  // FIXME: We're no longer incorporating alpha here, so the unit test
+  // is currently broken.
 
   // Strain only part
   for (iDim = 0; iDim < nDim; iDim++) {

@@ -36,7 +36,7 @@
 #include "../../SU2_CFD/include/numerics_structure.hpp"
 #include "../../Common/include/geometry_structure.hpp"
 #include "../../Common/include/mpi_structure.hpp"
-#include "../include/hybrid_RANS_LES_forcing.hpp"
+// #include "../include/hybrid_RANS_LES_forcing.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -329,7 +329,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   std::vector<std::vector<su2double> > constants;
   CConfig* config;
   CHybrid_Visc_Anisotropy* hybrid_anisotropy;
-  CHybridForcing* hybrid_forcing;
+  // CHybridForcing* hybrid_forcing;
 
   /*--- Data structures for LAPACK ---*/
 #ifdef HAVE_LAPACK
