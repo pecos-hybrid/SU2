@@ -78,7 +78,11 @@ class CHybridForcing {
   void SetStreamFunc(const su2double* x, const su2double* L, su2double* h);
   void SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config);
   void Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *config);
-  su2double GetTargetForcing();
+  su2double GetTargetProduction(const su2double k_sgs,
+                                const su2double dissipation,
+                                const su2double resolution_adequacy,
+                                const su2double alpha,
+                                const su2double laminar_viscosity);
   su2double ComputeScalingFactor(const su2double L, const su2double P_F,
                                  const su2double dt, const su2double* b);
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,

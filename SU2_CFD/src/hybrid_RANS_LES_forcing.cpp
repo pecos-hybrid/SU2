@@ -158,10 +158,6 @@ CHybridForcing::~CHybridForcing() {
 
 }
 
-su2double CHybridForcing::GetTargetForcing() {
-  return 1.0;
-}
-
 su2double CHybridForcing::ComputeScalingFactor(const su2double L,
                                                const su2double P_F,
                                                const su2double dt,
@@ -230,10 +226,25 @@ void CHybridForcing::ComputeForcingField(CSolver** solver, CGeometry *geometry,
       SetTGField(x, L, b);
       SetStreamFunc(x, L, h);
 
+      /*--- Compute the scaling factor for the TG vortex field ---*/
+
+      const su2double k_sgs = solver[TURB_SOL]->node[iPoint]->GetSolution(0);
+      // FIXME: Where is k_total stored?
+      const su2double k_total = k_sgs;
+      const su2double dissipation = solver[TURB_SOL]->node[iPoint]->GetSolution(1);
+      // FIXME: Where is average r_M stored?
+      const su2double resolution_adequacy = 1.0;
+      const su2double alpha = k_sgs / k_total;
+      const su2double density = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
+      const su2double laminar_viscosity =
+          solver[FLOW_SOL]->node[iPoint]->GetLaminarViscosity() / density;
+      const su2double P_F = GetTargetProduction(k_sgs, dissipation,
+                                                resolution_adequacy, alpha,
+                                                laminar_viscosity);
+      const su2double eta = ComputeScalingFactor(L_iso, P_F, dt, b);
+
       /*--- Store eta*h so we can compute the derivatives ---*/
 
-      const su2double P_F = GetTargetForcing();
-      const su2double eta = ComputeScalingFactor(L_iso, P_F, dt, b);
       for (unsigned short iVar = 0; iVar < nVar; iVar++) {
         node[iPoint][iVar] = eta*h[iVar];
       }

@@ -44,7 +44,7 @@ inline void CHybridForcing::SetTGField(const su2double* x,
                                        const su2double* L,
                                        su2double* b) {
   const su2double pi = atan(1.0)*4.0;
-  const unsigned short A = 3, B = -1, C = -2;
+  const int A = 3, B = -1, C = -2;
   const su2double a[3] = {2*pi/L[0], 2*pi/L[1], 2*pi/L[2]};
 
   b[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
@@ -56,10 +56,25 @@ inline void CHybridForcing::SetStreamFunc(const su2double* x,
                                           const su2double* L,
                                           su2double* h) {
   const su2double pi = atan(1.0)*4.0;
-  const unsigned short D = -1, E = 1, F = -2;
+  const int D = -1, E = 1, F = -2;
   const su2double a[3] = {2*pi/L[0], 2*pi/L[1], 2*pi/L[2]};
 
   h[0] = D * sin(a[0]*x[0]) * cos(a[1]*x[1]) * cos(a[2]*x[2]);
   h[1] = E * cos(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
   h[2] = F * cos(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
+}
+
+
+inline su2double CHybridForcing::GetTargetProduction(const su2double k_sgs,
+                                                     const su2double dissipation,
+                                                     const su2double resolution_adequacy,
+                                                     const su2double alpha,
+                                                     const su2double laminar_viscosity) {
+  const su2double C_kol = 10.0;
+  const su2double alpha_kol =
+      C_kol*alpha*sqrt(laminar_viscosity * dissipation)/k_sgs;
+  const su2double S_r = tanh(log(resolution_adequacy));
+  const su2double D_r = (1.0 + alpha_kol - alpha) * min(S_r, 0.0);
+  const su2double F_r = alpha * max(S_r, 0.0);
+  return -dissipation*(S_r - D_r - F_r);
 }
