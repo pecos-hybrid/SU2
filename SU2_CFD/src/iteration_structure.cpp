@@ -616,13 +616,16 @@ void CFluidIteration::Update(COutput *output,
   }
 
   /*--- Update averages ---*/
-
-  for (iMesh = 0; iMesh <= config_container[val_iZone]->GetnMGLevels(); iMesh++) {
-    solver_container[val_iZone][iMesh][FLOW_SOL]->SetAverages(geometry_container[val_iZone][iMesh],  solver_container[val_iZone][iMesh], config_container[val_iZone]);
-  }
-  if ((config_container[val_iZone]->GetKind_Solver() == RANS) ||
-      (config_container[val_iZone]->GetKind_Solver() == DISC_ADJ_RANS)) {
-    solver_container[val_iZone][MESH_0][TURB_SOL]->SetAverages(geometry_container[val_iZone][MESH_0],  solver_container[val_iZone][MESH_0], config_container[val_iZone]);
+  if (config_container[val_iZone]->GetKind_Averaging() != NO_AVERAGING) {
+    /*--- We check this when setting up, so this assert should never be false ---*/
+    assert(config_container[val_iZone]->GetUnsteady_Simulation() != STEADY);
+    for (iMesh = 0; iMesh <= config_container[val_iZone]->GetnMGLevels(); iMesh++) {
+      solver_container[val_iZone][iMesh][FLOW_SOL]->SetAverages(geometry_container[val_iZone][iMesh],  solver_container[val_iZone][iMesh], config_container[val_iZone]);
+    }
+    if ((config_container[val_iZone]->GetKind_Solver() == RANS) ||
+        (config_container[val_iZone]->GetKind_Solver() == DISC_ADJ_RANS)) {
+      solver_container[val_iZone][MESH_0][TURB_SOL]->SetAverages(geometry_container[val_iZone][MESH_0],  solver_container[val_iZone][MESH_0], config_container[val_iZone]);
+    }
   }
 }
 

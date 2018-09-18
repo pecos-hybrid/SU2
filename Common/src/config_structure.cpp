@@ -3717,6 +3717,10 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 
   if (Kind_Averaging != NO_AVERAGING) {
 
+    if (Unsteady_Simulation == STEADY) {
+      SU2_MPI::Error("Runtime averaging cannot be used with a steady-state problem.", CURRENT_FUNCTION);
+    }
+
     /*--- Check that a flow solver is being used ---*/
 
     const unsigned short supported_solvers[] =
