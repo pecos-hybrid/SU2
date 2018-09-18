@@ -8141,10 +8141,22 @@ public:
    */
   void SetHistFile(ofstream *HistFile);
 
+  /*!
+   * \brief Get the type of runtime averaging to be performed (or no averaging)
+   * \return The type of averaging to be performed
+   */
   unsigned short GetKind_Averaging(void) const;
 
+  /*!
+   * \brief Get the type of time interval used as an averaging period.
+   * \return The type of time interval to be performed.
+   */
   unsigned short GetKind_Averaging_Period(void) const;
 
+  /*!
+   * \brief The number of time periods over which to average.
+   * \return The number of time periods over which to average.
+   */
   su2double GetnAveragingPeriods(void) const;
 };
 
