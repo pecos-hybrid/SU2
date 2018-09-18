@@ -44,7 +44,6 @@
 #include <cmath>
 #include <iostream>
 #include <cstdlib>
-#include <cassert>
 
 #include "../../Common/include/config_structure.hpp"
 #include "fluid_model.hpp"
@@ -1833,7 +1832,7 @@ public:
    * \brief Get the value of the cross diffusion of tke and omega.
    */
   virtual su2double GetCrossDiff(void) { return 0.0; };
-
+  
   /*!
    * \brief Get the value of the eddy viscosity.
    * \return the value of the eddy viscosity.

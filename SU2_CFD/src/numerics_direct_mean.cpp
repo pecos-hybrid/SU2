@@ -4420,23 +4420,23 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
   su2double** Mean_Aniso_Eddy_Viscosity = NULL;
 
   /*--- Normalized normal vector ---*/
-
+  
   Area = 0.0;
   for (iDim = 0; iDim < nDim; iDim++)
     Area += Normal[iDim]*Normal[iDim];
   Area = sqrt(Area);
-
+  
   for (iDim = 0; iDim < nDim; iDim++)
     UnitNormal[iDim] = Normal[iDim]/Area;
-
+  
   for (iVar = 0; iVar < nDim+3; iVar++) {
     PrimVar_i[iVar] = V_i[iVar];
     PrimVar_j[iVar] = V_j[iVar];
     Mean_PrimVar[iVar] = 0.5*(PrimVar_i[iVar]+PrimVar_j[iVar]);
   }
-
+  
   /*--- Laminar and Eddy viscosity ---*/
-
+  
   Laminar_Viscosity_i = V_i[nDim+5]; Laminar_Viscosity_j = V_j[nDim+5];
   Eddy_Viscosity_i = V_i[nDim+6]; Eddy_Viscosity_j = V_j[nDim+6];
 
@@ -4461,10 +4461,10 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
   }
 
   /*--- Mean Viscosities and turbulent kinetic energy---*/
-
+  
   Mean_Laminar_Viscosity = 0.5*(Laminar_Viscosity_i + Laminar_Viscosity_j);
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
-
+  
   /*--- Mean gradient approximation ---*/
 
   for (iVar = 0; iVar < nDim+1; iVar++) {
@@ -4472,7 +4472,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
       Mean_GradPrimVar[iVar][iDim] = 0.5*(PrimVar_Grad_i[iVar][iDim] + PrimVar_Grad_j[iVar][iDim]);
     }
   }
-
+  
   /*--- Get projected flux tensor ---*/
   bool QCR = config->GetQCR();
 
@@ -4485,19 +4485,19 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
   }
 
   /*--- Update viscous residual ---*/
-
+  
   for (iVar = 0; iVar < nVar; iVar++)
     val_residual[iVar] = Proj_Flux_Tensor[iVar];
-
+  
   /*--- Compute the implicit part ---*/
-
+  
   if (implicit) {
-
+    
     dist_ij = 0.0;
     for (iDim = 0; iDim < nDim; iDim++)
       dist_ij += (Coord_j[iDim]-Coord_i[iDim])*(Coord_j[iDim]-Coord_i[iDim]);
     dist_ij = sqrt(dist_ij);
-
+    
     if (dist_ij == 0.0) {
       for (iVar = 0; iVar < nVar; iVar++) {
         for (jVar = 0; jVar < nVar; jVar++) {
@@ -4518,8 +4518,9 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual,
                            Proj_Flux_Tensor, val_Jacobian_i, val_Jacobian_j);
       }
     }
+    
   }
-
+  
   if (Mean_Aniso_Eddy_Viscosity != NULL) {
     for (iDim = 0; iDim < nDim; iDim++) {
       delete[] Mean_Aniso_Eddy_Viscosity[iDim];

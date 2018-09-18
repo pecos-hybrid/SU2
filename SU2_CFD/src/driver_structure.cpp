@@ -2555,19 +2555,19 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
       }
     }
     
-  /*--- Solver garbage collection for the hybrid model ---*/
+    /*--- Solver garbage collection for the hybrid model ---*/
 
-  if (dynamic_hybrid) {
-    for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      delete numerics_container[iMGlevel][HYBRID_SOL][CONV_TERM];
-      delete numerics_container[iMGlevel][HYBRID_SOL][VISC_TERM];
-      delete numerics_container[iMGlevel][HYBRID_SOL][SOURCE_FIRST_TERM];
-      delete numerics_container[iMGlevel][HYBRID_SOL][SOURCE_SECOND_TERM];
-      /*--- Definition of the boundary condition method ---*/
-      delete numerics_container[iMGlevel][HYBRID_SOL][CONV_BOUND_TERM];
-      delete numerics_container[iMGlevel][HYBRID_SOL][VISC_BOUND_TERM];
+    if (dynamic_hybrid) {
+      for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
+        delete numerics_container[iMGlevel][HYBRID_SOL][CONV_TERM];
+        delete numerics_container[iMGlevel][HYBRID_SOL][VISC_TERM];
+        delete numerics_container[iMGlevel][HYBRID_SOL][SOURCE_FIRST_TERM];
+        delete numerics_container[iMGlevel][HYBRID_SOL][SOURCE_SECOND_TERM];
+        /*--- Definition of the boundary condition method ---*/
+        delete numerics_container[iMGlevel][HYBRID_SOL][CONV_BOUND_TERM];
+        delete numerics_container[iMGlevel][HYBRID_SOL][VISC_BOUND_TERM];
+      }
     }
-  }
   }
   
   /*--- Solver definition for the transition model problem ---*/
