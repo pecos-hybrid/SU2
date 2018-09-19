@@ -2495,12 +2495,6 @@ public:
    * \return A component of the average solution
    */
   su2double GetAverageSolution(const unsigned short iVar) const;
-
-  // TODO: These are hacks to be removed once the average solution is
-  // stored properly in the output.
-  su2double GetAverageSolution0();
-  su2double GetAverageSolution1();
-  su2double GetAverageSolution2();
 };
 
 /*!
