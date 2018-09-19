@@ -149,6 +149,12 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
       Tecplot_File << ",\"Conservative_" << iVar+1 << "\"";
     }
     
+    if (config->GetKind_Averaging() != NO_AVERAGING) {
+      for (iVar = 0; iVar < nVar_Consv; iVar++) {
+        Tecplot_File << ",\"Average_" << iVar+1 << "\"";
+      }
+    }
+
     if (!config->GetLow_MemoryOutput()) {
       
       if (config->GetWrt_Limiters()) {
@@ -3026,6 +3032,11 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
     
     for (iVar = 0; iVar < nVar_Consv; iVar++) {
       variables << "Conservative_" << iVar+1<<" "; *NVar += 1;
+    }
+    if (config->GetKind_Averaging()) {
+      for (iVar = 0; iVar < nVar_Consv; iVar++) {
+        variables << "Average_" << iVar+1<<" "; *NVar += 1;
+      }
     }
     if (config->GetWrt_Limiters()) {
       for (iVar = 0; iVar < nVar_Consv; iVar++) {

@@ -65,6 +65,7 @@ protected:
   bool Non_Physical;      /*!< \brief Non-physical points in the solution (force first order). */
   su2double *Solution_time_n,  /*!< \brief Solution of the problem at time n for dual-time stepping technique. */
   *Solution_time_n1;      /*!< \brief Solution of the problem at time n-1 for dual-time stepping technique. */
+  su2double* Solution_Avg; /*!< \brief The runtime average of the solution */
   su2double **Gradient;    /*!< \brief Gradient of the solution of the problem. */
   su2double *Limiter;        /*!< \brief Limiter of the solution of the problem. */
   su2double *Solution_Max;    /*!< \brief Max solution for limiter computation. */
@@ -936,6 +937,18 @@ public:
 
   /*!
    * \brief A virtual member.
+   * \return Value of turbulent timescale
+   */
+  virtual su2double GetAverageTurbTimescale(void);
+
+  /*!
+   * \brief A virtual member.
+   * \return Value of the turbulent lengthscale
+   */
+  virtual su2double GetAverageTurbLengthscale(void);
+
+  /*!
+   * \brief A virtual member.
    * \return The Reynolds stress component anisotropy ratio (max-to-min)
    */
   virtual su2double GetAnisoRatio(void);
@@ -1149,6 +1162,12 @@ public:
    */
   virtual void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
+  /*!
+   * \brief A virtual member.
+   * \param[in] val_T_avg - The average turbulent timescale
+   * \param[in] val_L_avg - The average turbulent lengthscale
+   */
+  virtual void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
   /*!
    * \brief A virtual member.
    * \param[in] val_r_k - The resolution adequacy parameter for hybrid RANS/LES
@@ -2453,6 +2472,30 @@ public:
 
   virtual su2double GetSolution_Old_Accel(unsigned short iVar);
 
+  /*!
+   * \brief Set the average solution manually.
+   * \param val_averages - An array containing the average solution
+   */
+  void SetAverageSolution(const su2double* val_averages);
+
+  /*!
+   * \brief Add to the average solution.
+   * \param val_delta_averages - The amount to add to the average solution.
+   */
+  void AddAverageSolution(const su2double* val_delta_averages);
+
+  /*!
+   * \brief Get an array of values representing the average solution.
+   * \return An array of values representing the average solution.
+   */
+  const su2double* GetAverageSolution() const;
+
+  /*!
+   * \brief Get a component of the average solution.
+   * \param iVar - The component of the average solution to be used.
+   * \return A component of the average solution
+   */
+  su2double GetAverageSolution(const unsigned short iVar) const;
 };
 
 /*!
@@ -4450,7 +4493,10 @@ protected:
   F2,            /*!< \brief Menter blending function for stress limiter. */
   CDkw,           /*!< \brief Cross-diffusion. */
   T,              /*!< \brief Turbulent timescale */
-  L;              /*!< \brief Turbulent lengthscale */
+  L,              /*!< \brief Turbulent lengthscale */
+  T_avg,          /*!< \brief Average turbulent timescale */
+  L_avg;          /*!< \brief Average turbulent lengthscale */
+
   
 public:
   /*!
@@ -4512,11 +4558,30 @@ public:
   su2double GetTurbLengthscale(void);
 
   /**
+   * \brief Get the average large-eddy timescale of the turbulence
+   * \return The large-eddy timescale of the turbulence.
+   */
+  su2double GetAverageTurbTimescale(void);
+
+  /**
+   * \brief Get the average large-eddy lengthscale of the turbulence
+   * \return The large-eddy lengthscale of the turbulence
+   */
+  su2double GetAverageTurbLengthscale(void);
+
+  /**
    * \brief Sets the large-eddy lengthscale and the large-eddy timescale
    * \param[in] val_turb_T - Large eddy timescale of the turbulence
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
+
+  /**
+   * \brief Sets the average large-eddy lengthscale and the timescale
+   * \param[in] val_T_avg - Average large eddy timescale of the turbulence
+   * \param[in] val_L_avg - Average large eddy lengthscale of the turbulence
+   */
+  void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
 };
 
 /*!
@@ -4589,6 +4654,8 @@ protected:
   su2double sigma_e, sigma_k, sigma_z, C_e1o, C_e2, C1, C_2p, C_T, C_L, C_eta;
   su2double Tm,		/*!< \brief T_m k-eps. */
     Lm,		        /*!< \brief L_m k-eps */
+    Tm_avg,       /*!< \brief Average turbulent timescale */
+    Lm_avg,       /*!< \brief Average turbulent lengthscale */
     Re_T;
 
 public:
@@ -4630,6 +4697,18 @@ public:
    */
   su2double GetTurbLengthscale(void);
 
+  /**
+   * \brief Get the average large-eddy timescale of the turbulence
+   * \return The large-eddy timescale of the turbulence.
+   */
+  su2double GetAverageTurbTimescale(void);
+
+  /**
+   * \brief Get the average large-eddy lengthscale of the turbulence
+   * \return The large-eddy lengthscale of the turbulence
+   */
+  su2double GetAverageTurbLengthscale(void);
+
   /*!
    * \brief Get the component anisotropy ratio (max-to-min)
    * \return The Reynolds stress component anisotropy ratio (max-to-min)
@@ -4642,6 +4721,13 @@ public:
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
+
+  /**
+   * \brief Sets the average large-eddy lengthscale and the timescale
+   * \param[in] val_T_avg - Average large eddy timescale of the turbulence
+   * \param[in] val_L_avg - Average large eddy lengthscale of the turbulence
+   */
+  void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
 };
 
 

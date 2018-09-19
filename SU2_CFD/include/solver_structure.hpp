@@ -129,6 +129,31 @@ protected:
   passivedouble *Restart_Data; /*!< \brief Auxiliary structure for holding the data values from a restart. */
   unsigned short nOutputVariables;  /*!< \brief Number of variables to write. */
 
+
+  /*!
+   * \brief Finish the averaging calculation.
+   *
+   * This is a templated step in the averaging calculation.  The averaging
+   * routine loops over all the nodes and calls this routine for each node.
+   *
+   * This step roughly corresponds to:
+   *   // Retrieve U_current
+   *   // Retrieve U_average
+   *   dU = (U_current - U_average)*weight;
+   *   // Store dU
+   *
+   * Note that the base class (CSolver) updates the average of the solution.
+   * This method should only be implemented in derived classes when other
+   * variables are to be averaged.
+   *
+   * \param weight - The amount to weight the update on the average
+   * \param iPoint - The point at which the average will be calculated
+   * \param buffer - An allocated array of size nVar for working calculations
+   */
+  virtual void UpdateAverage(const su2double weight,
+                             const unsigned short iPoint,
+                             su2double* buffer);
+
 public:
   
   CSysVector LinSysSol;    /*!< \brief vector to store iterative solution of implicit linear system. */
@@ -4210,6 +4235,18 @@ public:
    */
   virtual void SetDES_LengthScale(CSolver** solver, CGeometry *geometry, CConfig *config);
 
+  /*!
+   * \brief Compute the average value of the solution variables.
+   * \param[in] solver - Solver container
+   * \param[in] geometry - Geometrical definition.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetAverages(CGeometry* geometry, CSolver** solver, CConfig* config);
+
+  /*!
+   * \brief Initialize the average values of the solution.
+   */
+  void InitAverages(void);
 };
 
 /*!
@@ -9401,7 +9438,22 @@ private:
   su2double *constants,  /*!< \brief Constants for the model. */
   kine_Inf,           /*!< \brief Free-stream turbulent kinetic energy. */
   omega_Inf;          /*!< \brief Free-stream specific dissipation. */
-  
+
+  /*!
+   * \brief Finish the averaging calculation.
+   *
+   * This is a templated step in the averaging calculation.  The averaging
+   * routine loops over all the nodes and calls this routine for each node.
+   *
+   * Note that the base class (CSolver) updates the average of the solution.
+   * This method is only be implemented to allow other variables to be averaged.
+   *
+   * \param weight - The amount to weight the update on the average
+   * \param iPoint - The point at which the average will be calculated
+   * \param buffer - An allocated array of size nVar for working calculations
+   */
+  void UpdateAverage(su2double weight, unsigned short iPoint, su2double* buffer);
+
 public:
   /*!
    * \brief Constructor of the class.
@@ -9586,7 +9638,6 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetInlet(CConfig *config);
-  
 };
 
 
@@ -9605,6 +9656,21 @@ private:
     epsi_Inf,              /*!< \brief Free-stream specific dissipation. */
     zeta_Inf,              /*!< \brief Free-stream v2/tke ratio. */
     f_Inf;                 /*!< \brief Free-stream redistribution. */
+
+  /*!
+   * \brief Finish the averaging calculation.
+   *
+   * This is a templated step in the averaging calculation.  The averaging
+   * routine loops over all the nodes and calls this routine for each node.
+   *
+   * Note that the base class (CSolver) updates the average of the solution.
+   * This method is only be implemented to allow other variables to be averaged.
+   *
+   * \param weight - The amount to weight the update on the average
+   * \param iPoint - The point at which the average will be calculated
+   * \param buffer - An allocated array of size nVar for working calculations
+   */
+  void UpdateAverage(su2double weight, unsigned short iPoint, su2double* buffer);
 
 public:
   /*!
@@ -9775,7 +9841,6 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetInlet(CConfig *config);
-
 };
 
 /*!

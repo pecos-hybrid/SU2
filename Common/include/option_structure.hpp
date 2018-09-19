@@ -1803,6 +1803,30 @@ static const map<string, ENUM_INPUT_REF> Input_Ref_Map = CCreateMap<string, ENUM
 ("SU2", SU2_REF)
 ("CUSTOM", CUSTOM_REF);
 
+/*!
+ * \brief Type of runtime averaging to be used.
+ */
+enum ENUM_RUNTIME_AVERAGING {
+  NO_AVERAGING,      /*!< \brief No averaging will be performed (default). */
+  POINTWISE_AVERAGE  /*!< \brief The average will be computed at each point. */
+};
+static const map<string, ENUM_RUNTIME_AVERAGING> RuntimeAverage_Map = CCreateMap<string, ENUM_RUNTIME_AVERAGING>
+("NONE", NO_AVERAGING)
+("POINTWISE", POINTWISE_AVERAGE);
+
+/*!
+ * \brief Time period over which to average.
+ */
+enum ENUM_AVERAGING_PERIOD {
+  TURB_TIMESCALE,     /*!< \brief The local turbulent timescale */
+  MAX_TURB_TIMESCALE, /*!< \brief The maximum turbulent timescale for a flow. */
+  FLOW_TIMESCALE      /*!< \brief The freestream flow timescale (L_ref/U_inf) */
+};
+static const map<string, ENUM_AVERAGING_PERIOD> AveragingPeriod_Map = CCreateMap<string, ENUM_AVERAGING_PERIOD>
+("TURB_TIMESCALE", TURB_TIMESCALE)
+("MAX_TURB_TIMESCALE", MAX_TURB_TIMESCALE)
+("FLOW_TIMESCALE", FLOW_TIMESCALE);
+
 /* END_CONFIG_ENUMS */
 
 class COptionBase {

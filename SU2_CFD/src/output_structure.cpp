@@ -439,16 +439,23 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
 
   for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
     unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
-    if (Kind_Solver == RANS) {
-      const bool dynamic_hybrid =
-          (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
 
-      if (config[iZone]->GetKind_Turb_Model() == KE) {
+    if (Kind_Solver == RANS) {
+
+      if (config[iZone]->GetKind_Turb_Model() == KE ||
+          config[iZone]->GetKind_Turb_Model() == SST) {
         RegisterScalar("L_m", "L<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbLengthscale, iZone);
         RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbTimescale, iZone);
+        RegisterScalar("Avg_L_m", "L<sub>m,avg</sub>", TURB_SOL,
+                       &CVariable::GetAverageTurbLengthscale, iZone);
+        RegisterScalar("Avg_T_m", "T<sub>m,avg</sub>", TURB_SOL,
+                       &CVariable::GetAverageTurbTimescale, iZone);
       }
+
+      const bool dynamic_hybrid =
+          (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   
       if (dynamic_hybrid) {
         if (config[iZone]->GetKind_Hybrid_Anisotropy_Model() != ISOTROPIC) {
@@ -2368,6 +2375,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
                          ( config->GetKind_Solver() == ADJ_RANS          )   );
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
   const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool runtime_average = (config->GetKind_Averaging() != NO_AVERAGING);
   
   unsigned short iDim, jDim;
   unsigned short nDim = geometry->GetnDim();
@@ -2434,6 +2442,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     
     if (config->GetWrt_Residuals()) nVar_Total += nVar_Consv;
     
+    /*--- Add the average values ---*/
+
+    if (runtime_average) nVar_Total += nVar_Consv;
+
     /*--- Add the grid velocity to the restart file for the unsteady adjoint ---*/
     
     if (grid_movement && !fem) {
@@ -2594,12 +2606,15 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   su2double *Buffer_Send_Var = new su2double[MaxLocalPoint];
   su2double *Buffer_Recv_Var = NULL;
   
+  su2double *Buffer_Send_Avg = new su2double[MaxLocalPoint];
+  su2double *Buffer_Recv_Avg = NULL;
+
   su2double *Buffer_Send_Res = new su2double[MaxLocalPoint];
   su2double *Buffer_Recv_Res = NULL;
   
   su2double *Buffer_Send_Vol = new su2double[MaxLocalPoint];
   su2double *Buffer_Recv_Vol = NULL;
-  
+
   unsigned long *Buffer_Send_GlobalIndex = new unsigned long[MaxLocalPoint];
   unsigned long *Buffer_Recv_GlobalIndex = NULL;
   
@@ -2627,6 +2642,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   if (rank == MASTER_NODE) {
     
     Buffer_Recv_Var = new su2double[size*MaxLocalPoint];
+    Buffer_Recv_Avg = new su2double[size*MaxLocalPoint];
     Buffer_Recv_Res = new su2double[size*MaxLocalPoint];
     Buffer_Recv_Vol = new su2double[size*MaxLocalPoint];
     Buffer_Recv_GlobalIndex = new unsigned long[size*MaxLocalPoint];
@@ -2675,6 +2691,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         /*--- Get this variable into the temporary send buffer. ---*/
         
         Buffer_Send_Var[jPoint] = solver[CurrentIndex]->node[iPoint]->GetSolution(jVar);
+
+        if (runtime_average) {
+          Buffer_Send_Avg[jPoint] = solver[CurrentIndex]->node[iPoint]->GetAverageSolution(jVar);
+        }
         
         if (!config->GetLow_MemoryOutput()) {
           
@@ -2711,6 +2731,15 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 #else
     for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
 #endif
+
+    if (runtime_average) {
+#ifdef HAVE_MPI
+      SU2_MPI::Gather(Buffer_Send_Avg, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Avg, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+#else
+      for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Avg[iPoint] = Buffer_Send_Avg[iPoint];
+#endif
+    }
+
     if (!config->GetLow_MemoryOutput()) {
       
       if (config->GetWrt_Limiters()) {
@@ -2730,6 +2759,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       }
       
     }
+
     
     if (iVar == 0) {
 #ifdef HAVE_MPI
@@ -2752,21 +2782,25 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
           
           Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
           
+          unsigned short ExtraIndex = nVar_Consv;
+          if (runtime_average) {
+            Data[iVar+ExtraIndex][iGlobal_Index] = Buffer_Recv_Avg[jPoint];
+            ExtraIndex += nVar_Consv;
+          }
+
           if (!config->GetLow_MemoryOutput()) {
             
             if (config->GetWrt_Limiters()) {
-              Data[iVar+nVar_Consv][iGlobal_Index] = Buffer_Recv_Vol[jPoint];
+              Data[iVar+ExtraIndex][iGlobal_Index] = Buffer_Recv_Vol[jPoint];
+              ExtraIndex += nVar_Consv;
             }
             
             if (config->GetWrt_Residuals()) {
-              unsigned short ExtraIndex;
-              ExtraIndex = nVar_Consv;
-              if (config->GetWrt_Limiters()) ExtraIndex = 2*nVar_Consv;
               Data[iVar+ExtraIndex][iGlobal_Index] = Buffer_Recv_Res[jPoint];
             }
             
           }
-          
+
           jPoint++;
         }
         /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
@@ -4327,6 +4361,12 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       restart_file << "\t\"Conservative_" << iVar+1<<"\"";
   }
   
+  if (config->GetKind_Averaging() != NO_AVERAGING) {
+    for (iVar = 0; iVar < nVar_Consv; iVar++) {
+      restart_file << "\t\"Average_" << iVar+1 <<"\"";
+    }
+  }
+
   if (!config->GetLow_MemoryOutput()) {
     
     if (config->GetWrt_Limiters()) {
@@ -12424,6 +12464,41 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   }
   if (incompressible && weakly_coupled_heat) Variable_Names.push_back("Temperature");
 
+  /*--- Add the average solution ---*/
+
+  if (config->GetKind_Averaging() != NO_AVERAGING) {
+    nVar_Par += nVar_Consv_Par;
+    if (incompressible) {
+      Variable_Names.push_back("Average_Pressure");
+      Variable_Names.push_back("Average_X-Momentum");
+      Variable_Names.push_back("Average_Y-Momentum");
+      if (geometry->GetnDim() == 3) Variable_Names.push_back("Average_Z-Momentum");
+    } else {
+      Variable_Names.push_back("Average_Density");
+      Variable_Names.push_back("Average_X-Momentum");
+      Variable_Names.push_back("Average_Y-Momentum");
+      if (geometry->GetnDim() == 3) Variable_Names.push_back("Average_Z-Momentum");
+      Variable_Names.push_back("Average_Energy");
+    }
+    if (SecondIndex != NONE) {
+      if (config->GetKind_Turb_Model() == SST) {
+        Variable_Names.push_back("Average_TKE");
+        Variable_Names.push_back("Average_Omega");
+      } else if (config->GetKind_Turb_Model() == KE) {
+        Variable_Names.push_back("Average_TKE");
+        Variable_Names.push_back("Average_Dissipation");
+        Variable_Names.push_back("Average_v2");
+        Variable_Names.push_back("Average_f");
+      } else {
+        /*--- S-A variants ---*/
+        Variable_Names.push_back("Average_Nu_Tilde");
+      }
+    }
+    if (dynamic_hybrid) {
+      Variable_Names.push_back("Average_Alpha");
+    }
+  }
+
   /*--- If requested, register the limiter and residuals for all of the
    equations in the current flow problem. ---*/
   
@@ -12766,6 +12841,29 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       if (incompressible && weakly_coupled_heat) {
         Local_Data[jPoint][iVar] = solver[HEAT_SOL]->node[iPoint]->GetSolution(0);
         iVar++;
+      }
+
+      /*--- Averages ---*/
+      if (config->GetKind_Averaging() != NO_AVERAGING) {
+        /*--- Mean Flow Averages ---*/
+        for (jVar = 0; jVar < nVar_First; jVar++) {
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetAverageSolution(jVar);
+          iVar++;
+        }
+        /*--- RANS Averages ---*/
+        if (SecondIndex != NONE) {
+          for (jVar = 0; jVar < nVar_Second; jVar++) {
+            Local_Data[jPoint][iVar] = solver[SecondIndex]->node[iPoint]->GetAverageSolution(jVar);
+            iVar++;
+          }
+        }
+        /*--- Dynamic hybrid RANS/LES Averages ---*/
+        if (ThirdIndex != NONE && dynamic_hybrid) {
+          for (jVar = 0; jVar < nVar_Third; jVar++) {
+            Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetAverageSolution(jVar);
+            iVar++;
+          }
+        }
       }
 
       /*--- If limiters and/or residuals are requested. ---*/

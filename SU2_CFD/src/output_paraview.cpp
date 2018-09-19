@@ -418,6 +418,27 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       VarCounter++;
     }
     
+    if (config->GetKind_Averaging() != NO_AVERAGING) {
+      for (iVar = 0; iVar < nVar_Consv; iVar++) {
+
+        Paraview_File << "\nSCALARS Average_" << iVar+1 << " float 1\n";
+        Paraview_File << "LOOKUP_TABLE default\n";
+
+        for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+          if (surf_sol) {
+            if (LocalIndex[iPoint+1] != 0) {
+              /*--- Loop over the vars/residuals and write the values to file ---*/
+              Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+            }
+          } else {
+            /*--- Loop over the vars/residuals and write the values to file ---*/
+            Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+          }
+        }
+        VarCounter++;
+      }
+    }
+
     if (config->GetWrt_Limiters()) {
       for (iVar = 0; iVar < nVar_Consv; iVar++) {
         
@@ -1407,6 +1428,27 @@ void COutput::SetParaview_MeshASCII(CConfig *config, CGeometry *geometry, unsign
         }
       }
       VarCounter++;
+    }
+
+    if (config->GetKind_Averaging() != NO_AVERAGING) {
+      for (iVar = 0; iVar < nVar_Consv; iVar++) {
+
+        Paraview_File << "\nSCALARS Average_" << iVar+1 << " float 1\n";
+        Paraview_File << "LOOKUP_TABLE default\n";
+
+        for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+          if (surf_sol) {
+            if (LocalIndex[iPoint+1] != 0) {
+              /*--- Loop over the vars/residuals and write the values to file ---*/
+              Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+            }
+          } else {
+            /*--- Loop over the vars/residuals and write the values to file ---*/
+            Paraview_File << scientific << Data[VarCounter][iPoint] << "\t";
+          }
+        }
+        VarCounter++;
+      }
     }
     
     if (config->GetWrt_Limiters()) {

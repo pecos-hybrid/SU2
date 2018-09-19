@@ -2921,6 +2921,85 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 
 }
 
+void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
+                          CConfig* config) {
+
+  /*--- In the averaging process here, one bad value can contaminate the
+   * averages at a point.  We could try to correct for this here, but
+   * the generic averaging routine is not the best place to do so.  Instead,
+   * corrections should happen in the solver or variable classes, where more
+   * specific and physically relevant limitations can be applied for
+   * each variable individually. For example, density can be constrained
+   * to be positive but momentum can be positive or negative.
+   *
+   * Instead of trying to account for bad values here, we assume that the
+   * values stored in the "Solution" are good values. ---*/
+
+  su2double timescale;
+  const su2double dt = config->GetDelta_UnstTimeND();
+  const su2double N_T = config->GetnAveragingPeriods();
+
+  assert(dt > 0);
+  assert(N_T > 0);
+
+  if (config->GetKind_Averaging_Period() == FLOW_TIMESCALE) {
+    timescale = config->GetRefLength()/config->GetModVel_FreeStream();
+    timescale /= config->GetTime_Ref();
+    assert(timescale > 0);
+  } else if (config->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
+    su2double local_max_timescale = 0;
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+      timescale = solver[TURB_SOL]->node[iPoint]->GetAverageTurbTimescale();
+      local_max_timescale = max(timescale, local_max_timescale);
+    }
+    SU2_MPI::Allreduce(&local_max_timescale, &timescale, 1,
+                       MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    assert(timescale > 0);
+  }
+
+  su2double* buffer = new su2double[nVar];
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+
+    if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
+      timescale = solver[TURB_SOL]->node[iPoint]->GetAverageTurbTimescale();
+      assert(timescale > 0);
+    }
+
+    /*--- Even if (dt > N_T*timescale) at any point (i.e., the timesteps
+     * are greater than the averaging period), we don't want the weight
+     * to be greater than 1. We also want to average over at least a few
+     * values, even if the timesteps are larger than the averaging period.
+     * So we change the weight to make the averaging act as if
+     * dt = (N_T*timescale)/min_number_samples ---*/
+    const unsigned short min_number_samples = 5;
+    const su2double weight = min(dt/(N_T * timescale), 1.0/min_number_samples);
+
+    UpdateAverage(weight, iPoint, buffer);
+  }
+
+  delete [] buffer;
+}
+
+
+void CSolver::UpdateAverage(su2double weight, unsigned short iPoint,
+                            su2double* buffer) {
+
+  const su2double* average = node[iPoint]->GetAverageSolution();
+  const su2double* current = node[iPoint]->GetSolution();
+
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    buffer[iVar] = (current[iVar] - average[iVar])*weight;
+  }
+
+  node[iPoint]->AddAverageSolution(buffer);
+}
+
+void CSolver::InitAverages() {
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    node[iPoint]->SetAverageSolution(node[iPoint]->GetSolution());
+  }
+}
+
 CBaselineSolver::CBaselineSolver(void) : CSolver() { }
 
 CBaselineSolver::CBaselineSolver(CGeometry *geometry, CConfig *config) {

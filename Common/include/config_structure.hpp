@@ -997,6 +997,9 @@ private:
   su2double *Body_Force_Vector;  /*!< \brief Values of the prescribed body force vector. */
   su2double *FreeStreamTurboNormal; /*!< \brief Direction to initialize the flow in turbomachinery computation */
   ofstream *ConvHistFile;       /*!< \brief Store the pointer to each history file */
+  unsigned short Kind_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
+  unsigned short Kind_Averaging_Period;  /*!< \brief Type of period over which runtime averages are to be computed. */
+  su2double nAveragingPeriods;  /*!< \brief Number of periods over which to average. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -8137,6 +8140,24 @@ public:
    * \brief Set the ofstream of the history file for the current zone.
    */
   void SetHistFile(ofstream *HistFile);
+
+  /*!
+   * \brief Get the type of runtime averaging to be performed (or no averaging)
+   * \return The type of averaging to be performed
+   */
+  unsigned short GetKind_Averaging(void) const;
+
+  /*!
+   * \brief Get the type of time interval used as an averaging period.
+   * \return The type of time interval to be performed.
+   */
+  unsigned short GetKind_Averaging_Period(void) const;
+
+  /*!
+   * \brief The number of time periods over which to average.
+   * \return The number of time periods over which to average.
+   */
+  su2double GetnAveragingPeriods(void) const;
 };
 
 #include "config_structure.inl"
