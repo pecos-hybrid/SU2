@@ -2208,15 +2208,6 @@ inline void CTurbSSTSolver::SetFreeStream_Solution(CConfig *config){
   }
 }
 
-inline void CTurbKESolver::SetFreeStream_Solution(CConfig *config){
-  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++){
-    node[iPoint]->SetSolution(0, kine_Inf);
-    node[iPoint]->SetSolution(1, epsi_Inf);
-    node[iPoint]->SetSolution(2, zeta_Inf);
-    node[iPoint]->SetSolution(3, f_Inf);
-  }
-}
-
 inline su2double CDiscAdjFEASolver::GetTotal_Sens_E(unsigned short iVal) { return Total_Sens_E[iVal]; }
 
 inline su2double CDiscAdjFEASolver::GetTotal_Sens_Nu(unsigned short iVal) { return Total_Sens_Nu[iVal]; }

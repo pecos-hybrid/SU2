@@ -70,16 +70,21 @@ libSU2Core_sources = \
   ../include/iteration_structure.hpp \
   ../include/numerics_structure.hpp \
   ../include/numerics_structure.inl \
+  ../include/numerics_structure_v2f.hpp \
   ../include/output_structure.hpp \
   ../include/output_structure.inl \
   ../include/solver_structure.hpp \
   ../include/solver_structure.inl \
+  ../include/solver_structure_v2f.hpp \
+  ../include/solver_structure_v2f.inl \
   ../include/hybrid_RANS_LES_model.hpp \
   ../include/SU2_CFD.hpp \
   ../include/transport_model.hpp \
   ../include/transport_model.inl \
   ../include/variable_structure.hpp \
   ../include/variable_structure.inl \
+  ../include/variable_structure_v2f.hpp \
+  ../include/variable_structure_v2f.inl \
   ../include/transfer_structure.hpp \
   ../include/transfer_structure.inl \
   ../src/definition_structure.cpp \
@@ -100,6 +105,7 @@ libSU2Core_sources = \
   ../src/numerics_direct_mean_inc.cpp \
   ../src/numerics_direct_transition.cpp \
   ../src/numerics_direct_turbulent.cpp \
+  ../src/numerics_direct_turbulent_v2f.cpp \
   ../src/numerics_direct_hybrid.cpp \
   ../src/numerics_direct_wave.cpp \
   ../src/numerics_direct_elasticity_nonlinear.cpp \
@@ -126,6 +132,7 @@ libSU2Core_sources = \
   ../src/solver_direct_mean_inc.cpp \
   ../src/solver_direct_transition.cpp \
   ../src/solver_direct_turbulent.cpp \
+  ../src/solver_direct_turbulent_v2f.cpp \
   ../src/solver_direct_hybrid.cpp \
   ../src/solver_direct_wave.cpp \
   ../src/solver_direct_elasticity.cpp \
@@ -146,6 +153,7 @@ libSU2Core_sources = \
   ../src/variable_direct_mean_inc.cpp \
   ../src/variable_direct_transition.cpp \
   ../src/variable_direct_turbulent.cpp \
+  ../src/variable_direct_turbulent_v2f.cpp \
   ../src/variable_direct_hybrid.cpp \
   ../src/variable_direct_wave.cpp \
   ../src/variable_direct_elasticity.cpp \

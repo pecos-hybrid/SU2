@@ -2614,7 +2614,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   
   su2double *Buffer_Send_Vol = new su2double[MaxLocalPoint];
   su2double *Buffer_Recv_Vol = NULL;
-
+  
   unsigned long *Buffer_Send_GlobalIndex = new unsigned long[MaxLocalPoint];
   unsigned long *Buffer_Recv_GlobalIndex = NULL;
   
@@ -2800,7 +2800,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
             }
             
           }
-
+          
           jPoint++;
         }
         /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
@@ -5321,7 +5321,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         for (iVar = 0; iVar < nVar_Flow; iVar++)
           residual_flow[iVar] = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetRes_RMS(iVar);
         
-        /*--- Turbulent residual ---*/        
+        /*--- Turbulent residual ---*/
         
         if (turbulent) {
           for (iVar = 0; iVar < nVar_Turb; iVar++)
@@ -6341,7 +6341,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             ConvHist_file[0] << end;
             ConvHist_file[0].flush();
           }
-
+          
           /*--- Write screen output ---*/
 
           if (val_iZone == 0 || fluid_structure){
@@ -8241,6 +8241,7 @@ void COutput::SetResult_Files(CSolver ****solver_container, CGeometry ***geometr
       
       if (rank == MASTER_NODE) cout << "Writing SU2 native restart file." << endl;
       SetRestart(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0] , iZone);
+      
       if (Wrt_Vol) {
         
         switch (FileFormat) {

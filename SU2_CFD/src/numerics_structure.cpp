@@ -184,6 +184,7 @@ CNumerics::~CNumerics(void) {
 
   if (l != NULL) delete [] l;
   if (m != NULL) delete [] m;
+
 }
 
 void CNumerics::GetInviscidFlux(su2double val_density, su2double *val_velocity,

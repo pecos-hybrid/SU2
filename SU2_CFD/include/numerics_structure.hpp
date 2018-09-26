@@ -2605,49 +2605,6 @@ public:
 
 
 
-/*!
- * \class CUpwSca_TurbKE
- * \brief Upwind convective flux for the zeta-f KE turbulence model equations.
- * \ingroup ConvDiscr
- * \author S. Haering.
- * \version 5.0.0 "Raven"
- */
-class CUpwSca_TurbKE : public CUpwScalar {
-private:
-
-  /*!
-   * \brief Adds any extra variables to AD
-   */
-  void ExtraADPreaccIn();
-
-  /*!
-   * \brief KE specific steps in the ComputeResidual method
-   * \param[out] val_residual - Pointer to the total residual.
-   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
-   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
-   * \param[in] config - Definition of the particular problem.
-   */
-  void FinishResidualCalc(su2double *val_residual, su2double **Jacobian_i,
-                          su2double **Jacobian_j, CConfig *config);
-
-public:
-
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CUpwSca_TurbKE(unsigned short val_nDim,
-                 unsigned short val_nVar,
-                 CConfig *config);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CUpwSca_TurbKE(void);
-
-};
 
 
 
@@ -3961,59 +3918,6 @@ public:
 };
 
 /*!
- * \class CAvgGrad_TurbKE
- * \brief Computes viscous term using average of gradient (zeta-f KE model).
- * \ingroup ViscDiscr
- * \author S. Haering
- */
-class CAvgGrad_TurbKE : public CAvgGrad_Scalar {
-private:
-  su2double sigma_k,                     /*!< \brief Constants for the viscous terms, k-w (1), k-eps (2)*/
-  sigma_e,
-  sigma_z;
-
-  su2double diff_kine,                     /*!< \brief Diffusivity for viscous terms of tke eq */
-    diff_epsi,                           /*!< \brief Diffusivity for viscous terms of epsi eq */
-    diff_zeta,                           /*!< \brief Diffusivity for viscous terms of zeta eq */
-    diff_f;                           /*!< \brief Diffusivity for viscous terms of f eq */
-
-  /*!
-   * \brief Adds any extra variables to AD
-   */
-  void ExtraADPreaccIn(void);
-
-  /*!
-   * \brief KE specific steps in the ComputeResidual method
-   * \param[out] val_residual - Pointer to the total residual.
-   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
-   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
-   * \param[in] config - Definition of the particular problem.
-   */
-  void FinishResidualCalc(su2double *val_residual, su2double **Jacobian_i,
-                          su2double **Jacobian_j, CConfig *config);
-
-
-public:
-
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] constants - KE model parameters
-   * \param[in] correct_grad - Use corrected grad variant
-   * \param[in] config - Definition of the particular problem.
-   */
-  CAvgGrad_TurbKE(unsigned short val_nDim, unsigned short val_nVar,
-                  su2double* constants, bool correct_grad, CConfig *config);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CAvgGrad_TurbKE(void);
-
-};
-
-/*
  * \class CAvgGradCorrected_AdjFlow
  * \brief Class for computing the adjoint viscous terms, including correction.
  * \ingroup ViscDiscr
@@ -5418,60 +5322,6 @@ public:
   
 };
 
-/*! swh
- * \class CSourcePieceWise_TurbKE
- * \brief Compute source terms of the zeta-f KE turbulence model equations.
- * \ingroup SourceDiscr
- * \author S. Haering.
- */
-class CSourcePieceWise_TurbKE : public CNumerics {
-private:
-  su2double Lm, ///< The turbulent lengthscale
-            Tm; ///< The turbulent timescale
-
-  su2double sigma_k,
-  sigma_e,
-  sigma_z,
-  C_L,
-  C_T,
-  C_1,
-  C_2,
-  C_mu,
-  C_2p,
-  C_eta,
-  C_e1o,
-  C_e2;
-
-  bool incompressible;
-
-public:
-
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CSourcePieceWise_TurbKE(unsigned short val_nDim, unsigned short val_nVar,
-                          su2double* constants, CConfig *config);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CSourcePieceWise_TurbKE(void);
-
-  /*!
-   * \brief Residual for source term integration.
-   * \param[out] val_residual - Pointer to the total residual.
-   * \param[out] val_Jacobian_i - Jacobian wrt node i soln (for implicit).
-   * \param[out] val_Jacobian_j - Jacobian wrt node j soln (for implicit).
-   * \param[in] config - Definition of the particular problem.
-   */
-  void ComputeResidual(su2double *val_residual,
-                       su2double **val_Jacobian_i, su2double **val_Jacobian_j,
-                       CConfig *config);
-
-};
 
 /*!
  * \class CSourcePieceWise_HybridConv
