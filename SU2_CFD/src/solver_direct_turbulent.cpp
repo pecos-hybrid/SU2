@@ -1319,7 +1319,7 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
         index = counter*Restart_Vars[1] + nDim + nVar_Total + nVar_Flow;
         for (iVar = 0; iVar < nVar; iVar++)
           Solution[iVar] = Restart_Data[index+iVar];
-        node[iPoint_Local]->SetAverageSolution(Solution);
+        node[iPoint_Local]->SetAverage_Solution(Solution);
 
         /*--- Average turbulent timescale and/or lengthscale ---*/
 

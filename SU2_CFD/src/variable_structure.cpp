@@ -48,6 +48,7 @@ CVariable::CVariable(void) {
   Solution_time_n1 = NULL;
   Solution_Avg = NULL;
   Gradient = NULL;
+  Average_Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
   Solution_Min = NULL;
@@ -70,6 +71,7 @@ CVariable::CVariable(unsigned short val_nvar, CConfig *config) {
   Solution_time_n1 = NULL;
   Solution_Avg = NULL;
   Gradient = NULL;
+  Average_Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
   Solution_Min = NULL;
@@ -108,6 +110,7 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
   Solution_time_n1 = NULL;
   Solution_Avg = NULL;
   Gradient = NULL;
+  Average_Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
   Solution_Min = NULL;
@@ -152,6 +155,13 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
   
   // TODO: Wrap this in a conditional branch based on config settings
   Solution_Avg = new su2double[nVar];
+
+  Average_Gradient = new su2double* [nVar];
+  for (iVar = 0; iVar < nVar; iVar++) {
+    Average_Gradient[iVar] = new su2double [nDim];
+    for (iDim = 0; iDim < nDim; iDim ++)
+      Average_Gradient[iVar][iDim] = 0.0;
+  }
 }
 
 CVariable::~CVariable(void) {
@@ -176,6 +186,12 @@ CVariable::~CVariable(void) {
     for (iVar = 0; iVar < nVar; iVar++)
       delete [] Gradient[iVar];
     delete [] Gradient;
+  }
+
+  if (Average_Gradient != NULL) {
+    for (iVar = 0; iVar < nVar; iVar++)
+      delete [] Average_Gradient[iVar];
+    delete [] Average_Gradient;
   }
 
 }
@@ -403,12 +419,28 @@ void CVariable::SetAuxVarGradientZero(void) {
   
 }
 
+void CVariable::SetAverage_GradientZero(void) {
+
+  for (unsigned short iVar = 0; iVar < nVar; iVar++)
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      Average_Gradient[iVar][iDim] = 0.0;
+
+}
+
 void CVariable::SetGradient(su2double **val_gradient) {
   
   for (unsigned short iVar = 0; iVar < nVar; iVar++)
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
     Gradient[iVar][iDim] = val_gradient[iVar][iDim];
   
+}
+
+void CVariable::SetAverage_Gradient(su2double **val_gradient) {
+
+  for (unsigned short iVar = 0; iVar < nVar; iVar++)
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      Average_Gradient[iVar][iDim] = val_gradient[iVar][iDim];
+
 }
 
 void CVariable::SetRes_TruncErrorZero(void) {
@@ -451,13 +483,7 @@ su2double CVariable::GetRKSubstepResidual(unsigned short iRKStep,
   return rk_stage_vectors[iRKStep][iVar];
 }
 
-void CVariable::SetAverageSolution(const su2double* val_averages) {
-  // Copy values; We don't want to inadverently change the pointed-to-values
-  for (unsigned short iVar = 0; iVar < nVar; iVar++)
-    Solution_Avg[iVar] = val_averages[iVar];
-}
-
-void CVariable::AddAverageSolution(const su2double* val_delta_averages) {
+void CVariable::AddAverage_Solution(const su2double* val_delta_averages) {
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
     Solution_Avg[iVar] += val_delta_averages[iVar];
 #ifndef NDEBUG
@@ -482,15 +508,6 @@ void CVariable::AddAverageSolution(const su2double* val_delta_averages) {
 #endif
   }
 }
-
-const su2double* CVariable::GetAverageSolution() const {
-  return Solution_Avg;
-}
-
-su2double CVariable::GetAverageSolution(unsigned short iVar) const {
-  return Solution_Avg[iVar];
-}
-
 
 CBaselineVariable::CBaselineVariable(void) : CVariable() { }
 

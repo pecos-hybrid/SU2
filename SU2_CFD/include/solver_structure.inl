@@ -45,6 +45,10 @@ inline void CSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) { }
 
 inline void CSolver::Set_MPI_Primitive(CGeometry *geometry, CConfig *config) { }
 
+inline void CSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config) { }
+
+inline void CSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config) { }
+
 //inline void CSolver::Set_MPI_Secondary(CGeometry *geometry, CConfig *config) { }
 
 inline void CSolver::Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config) { }
@@ -137,6 +141,12 @@ inline void CSolver::SetPrimitive_Gradient_GG(CGeometry *geometry, CConfig *conf
 inline void CSolver::SetPrimitive_Gradient_LS(CGeometry *geometry, CConfig *config) { }
 
 inline void CSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config) { }
+
+inline void CSolver::SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig *config) { }
+
+inline void CSolver::SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig *config) { }
+
+inline void CSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config) { }
 
 inline void CSolver::SetPrimitive_Limiter_MPI(CGeometry *geometry, CConfig *config) { }
 

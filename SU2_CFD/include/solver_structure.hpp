@@ -201,6 +201,12 @@ public:
    * \brief Set number of linear solver iterations.
    * \param[in] val_iterlinsolver - Number of linear iterations.
    */
+  virtual void Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief Set number of linear solver iterations.
+   * \param[in] val_iterlinsolver - Number of linear iterations.
+   */
   virtual void Set_MPI_Primitive(CGeometry *geometry, CConfig *config);
   
   //  /*!
@@ -566,6 +572,13 @@ public:
    */
   virtual void Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief MPI gradients.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Compute the Least Squares gradient of the grid velocity.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -1493,6 +1506,27 @@ public:
    */
   virtual void Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief A virtual member.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -4639,8 +4673,22 @@ public:
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] config - Definition of the particular problem.
    */
+  void Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief Impose the send-receive boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
   void Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief Impose the send-receive boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Impose the send-receive boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -4852,7 +4900,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPrimitive_Gradient_GG(CGeometry *geometry, CConfig *config);
-  
+
   /*!
    * \brief Compute the gradient of the primitive variables using a Least-Squares method,
    *        and stores the result in the <i>Gradient_Primitive</i> variable.
@@ -4860,7 +4908,25 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPrimitive_Gradient_LS(CGeometry *geometry, CConfig *config);
-  
+
+  /*!
+   * \brief Compute the gradient of the average primitive variables using
+   *        Green-Gauss method, and stores the result in the
+   *        <i>Gradient_Primitive</i> variable.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief Compute the gradient of the average primitive variables using
+   *        a Least-Squares method, and stores the result in the
+   *        <i>Gradient_Primitive</i> variable.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Compute the gradient of the primitive variables using a Least-Squares method,
    *        and stores the result in the <i>Gradient_Primitive</i> variable.
@@ -4869,6 +4935,14 @@ public:
    */
   void Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief Commuicate gradients of the average of the primitive variables
+   *        using MPI.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Compute the limiter of the primitive variables.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -7188,7 +7262,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPrimitive_Gradient_GG(CGeometry *geometry, CConfig *config);
-  
+
   /*!
    * \brief Compute the gradient of the primitive variables using a Least-Squares method,
    *        and stores the result in the <i>Gradient_Primitive</i> variable.
@@ -7196,7 +7270,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPrimitive_Gradient_LS(CGeometry *geometry, CConfig *config);
-  
+
   /*!
    * \brief Compute the gradient of the primitive variables using a Least-Squares method,
    *        and stores the result in the <i>Gradient_Primitive</i> variable.
@@ -7204,7 +7278,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config);
-  
+
   /*!
    * \brief Compute the limiter of the primitive variables.
    * \param[in] geometry - Geometrical definition of the problem.

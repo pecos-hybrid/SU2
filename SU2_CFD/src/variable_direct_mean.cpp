@@ -43,9 +43,11 @@ CEulerVariable::CEulerVariable(void) : CVariable() {
   
   HB_Source = NULL;
   Primitive = NULL;
+  Average_Primitive = NULL;
   Secondary = NULL;
   
   Gradient_Primitive = NULL;
+  Average_Gradient_Primitive = NULL;
   Gradient_Secondary = NULL;
   
   Limiter_Primitive = NULL;
@@ -83,9 +85,11 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
   
   HB_Source = NULL;
   Primitive = NULL;
+  Average_Primitive = NULL;
   Secondary = NULL;
   
   Gradient_Primitive = NULL;
+  Average_Gradient_Primitive = NULL;
   Gradient_Secondary = NULL;
   
   Limiter_Primitive = NULL;
@@ -221,6 +225,9 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
   
   Primitive = new su2double [nPrimVar];
   for (iVar = 0; iVar < nPrimVar; iVar++) Primitive[iVar] = 0.0;
+
+  Average_Primitive = new su2double [nPrimVar];
+  for (iVar = 0; iVar < nPrimVar; iVar++) Average_Primitive[iVar] = 0.0;
   
   Secondary = new su2double [nSecondaryVar];
   for (iVar = 0; iVar < nSecondaryVar; iVar++) Secondary[iVar] = 0.0;
@@ -233,6 +240,13 @@ CEulerVariable::CEulerVariable(su2double val_density, su2double *val_velocity, s
     Gradient_Primitive[iVar] = new su2double [nDim];
     for (iDim = 0; iDim < nDim; iDim++)
       Gradient_Primitive[iVar][iDim] = 0.0;
+  }
+
+  Average_Gradient_Primitive = new su2double* [nPrimVarGrad];
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+    Average_Gradient_Primitive[iVar] = new su2double [nDim];
+    for (iDim = 0; iDim < nDim; iDim++)
+      Average_Gradient_Primitive[iVar][iDim] = 0.0;
   }
 
   Gradient_Secondary = new su2double* [nSecondaryVarGrad];
@@ -269,9 +283,11 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
   
   HB_Source = NULL;
   Primitive = NULL;
+  Average_Primitive = NULL;
   Secondary = NULL;
   
   Gradient_Primitive = NULL;
+  Average_Gradient_Primitive = NULL;
   Gradient_Secondary = NULL;
   
   Limiter_Primitive = NULL;
@@ -400,6 +416,9 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
   Primitive = new su2double [nPrimVar];
   for (iVar = 0; iVar < nPrimVar; iVar++) Primitive[iVar] = 0.0;
   
+  Average_Primitive = new su2double [nPrimVar];
+  for (iVar = 0; iVar < nPrimVar; iVar++) Average_Primitive[iVar] = 0.0;
+
   Secondary = new su2double [nSecondaryVar];
   for (iVar = 0; iVar < nSecondaryVar; iVar++) Secondary[iVar] = 0.0;
 
@@ -412,6 +431,13 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
     Gradient_Primitive[iVar] = new su2double [nDim];
     for (iDim = 0; iDim < nDim; iDim++)
       Gradient_Primitive[iVar][iDim] = 0.0;
+  }
+
+  Average_Gradient_Primitive = new su2double* [nPrimVarGrad];
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+    Average_Gradient_Primitive[iVar] = new su2double [nDim];
+    for (iDim = 0; iDim < nDim; iDim++)
+      Average_Gradient_Primitive[iVar][iDim] = 0.0;
   }
 
   Gradient_Secondary = new su2double* [nSecondaryVarGrad];
@@ -436,6 +462,7 @@ CEulerVariable::~CEulerVariable(void) {
 
   if (HB_Source         != NULL) delete [] HB_Source;
   if (Primitive         != NULL) delete [] Primitive;
+  if (Average_Primitive != NULL) delete [] Average_Primitive;
   if (Secondary         != NULL) delete [] Secondary;
   if (Limiter_Primitive != NULL) delete [] Limiter_Primitive;
   if (Limiter_Secondary != NULL) delete [] Limiter_Secondary;
@@ -446,6 +473,11 @@ CEulerVariable::~CEulerVariable(void) {
     for (iVar = 0; iVar < nPrimVarGrad; iVar++)
       if (Gradient_Primitive[iVar] != NULL) delete [] Gradient_Primitive[iVar];
     delete [] Gradient_Primitive;
+  }
+  if (Average_Gradient_Primitive != NULL) {
+    for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+      if (Average_Gradient_Primitive[iVar] != NULL) delete [] Average_Gradient_Primitive[iVar];
+    delete [] Average_Gradient_Primitive;
   }
   if (Gradient_Secondary != NULL) {
     for (iVar = 0; iVar < nSecondaryVarGrad; iVar++)
@@ -473,6 +505,14 @@ void CEulerVariable::SetGradient_PrimitiveZero(unsigned short val_primvar) {
     for (iVar = 0; iVar < val_primvar; iVar++)
         for (iDim = 0; iDim < nDim; iDim++)
             Gradient_Primitive[iVar][iDim] = 0.0;
+}
+
+void CEulerVariable::SetAverage_Gradient_PrimitiveZero(unsigned short val_primvar) {
+    unsigned short iVar, iDim;
+
+    for (iVar = 0; iVar < val_primvar; iVar++)
+        for (iDim = 0; iDim < nDim; iDim++)
+            Average_Gradient_Primitive[iVar][iDim] = 0.0;
 }
 
 void CEulerVariable::SetGradient_SecondaryZero(unsigned short val_secondaryvar) {

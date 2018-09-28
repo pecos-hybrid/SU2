@@ -2693,7 +2693,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         Buffer_Send_Var[jPoint] = solver[CurrentIndex]->node[iPoint]->GetSolution(jVar);
 
         if (runtime_average) {
-          Buffer_Send_Avg[jPoint] = solver[CurrentIndex]->node[iPoint]->GetAverageSolution(jVar);
+          Buffer_Send_Avg[jPoint] = solver[CurrentIndex]->node[iPoint]->GetAverage_Solution(jVar);
         }
         
         if (!config->GetLow_MemoryOutput()) {
@@ -12848,20 +12848,20 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       if (config->GetKind_Averaging() != NO_AVERAGING) {
         /*--- Mean Flow Averages ---*/
         for (jVar = 0; jVar < nVar_First; jVar++) {
-          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetAverageSolution(jVar);
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetAverage_Solution(jVar);
           iVar++;
         }
         /*--- RANS Averages ---*/
         if (SecondIndex != NONE) {
           for (jVar = 0; jVar < nVar_Second; jVar++) {
-            Local_Data[jPoint][iVar] = solver[SecondIndex]->node[iPoint]->GetAverageSolution(jVar);
+            Local_Data[jPoint][iVar] = solver[SecondIndex]->node[iPoint]->GetAverage_Solution(jVar);
             iVar++;
           }
         }
         /*--- Dynamic hybrid RANS/LES Averages ---*/
         if (ThirdIndex != NONE && dynamic_hybrid) {
           for (jVar = 0; jVar < nVar_Third; jVar++) {
-            Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetAverageSolution(jVar);
+            Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetAverage_Solution(jVar);
             iVar++;
           }
         }

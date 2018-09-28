@@ -2984,19 +2984,19 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
 void CSolver::UpdateAverage(su2double weight, unsigned short iPoint,
                             su2double* buffer) {
 
-  const su2double* average = node[iPoint]->GetAverageSolution();
+  const su2double* average = node[iPoint]->GetAverage_Solution();
   const su2double* current = node[iPoint]->GetSolution();
 
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
     buffer[iVar] = (current[iVar] - average[iVar])*weight;
   }
 
-  node[iPoint]->AddAverageSolution(buffer);
+  node[iPoint]->AddAverage_Solution(buffer);
 }
 
 void CSolver::InitAverages() {
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-    node[iPoint]->SetAverageSolution(node[iPoint]->GetSolution());
+    node[iPoint]->SetAverage_Solution(node[iPoint]->GetSolution());
   }
 }
 

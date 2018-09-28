@@ -107,6 +107,18 @@ inline su2double CVariable::GetNon_Physical(void) { return su2double(Non_Physica
 
 inline void CVariable::SetSolution(unsigned short val_var, su2double val_solution) { Solution[val_var] = val_solution; }
 
+inline void CVariable::SetAverage_Solution(const su2double* val_averages) {
+  // Copy values; We don't want to inadverently change the pointed-to-values
+  for (unsigned short iVar = 0; iVar < nVar; iVar++)
+    Solution_Avg[iVar] = val_averages[iVar];
+}
+
+inline void CVariable::SetAverage_Solution(unsigned short val_var, su2double val_average) {
+  assert(val_var < nVar);
+  assert(Solution_Avg != NULL);
+  Solution_Avg[val_var] = val_average;
+}
+
 inline void CVariable::Add_DeltaSolution(unsigned short val_var, su2double val_solution) { Solution[val_var] += val_solution; }
 
 inline void CVariable::SetUndivided_Laplacian(unsigned short val_var, su2double val_undivided_laplacian) { Undivided_Laplacian[val_var] = val_undivided_laplacian; }
@@ -129,6 +141,8 @@ inline void CVariable::SetAuxVarGradient(unsigned short iDim, su2double val_grad
 
 inline su2double *CVariable::GetSolution(void) { return Solution; }
 
+inline const su2double* CVariable::GetAverage_Solution(void) const { return Solution_Avg; }
+
 inline su2double *CVariable::GetSolution_Old(void) { return Solution_Old; }
 
 inline su2double *CVariable::GetSolution_time_n(void) { return Solution_time_n; }
@@ -145,6 +159,8 @@ inline su2double CVariable::GetUndivided_Laplacian(unsigned short val_var) { ret
 
 inline su2double CVariable::GetSolution(unsigned short val_var) { return Solution[val_var]; }
 
+inline su2double CVariable::GetAverage_Solution(unsigned short val_var) const { return Solution_Avg[val_var]; }
+
 inline su2double CVariable::GetSolution_Old(unsigned short val_var) { return Solution_Old[val_var]; }
 
 inline su2double CVariable::GetSolution_Old_Adj(unsigned short val_var) { return Solution_Adj_Old[val_var]; }
@@ -159,11 +175,19 @@ inline void CVariable::AddGradient(unsigned short val_var, unsigned short val_di
 
 inline void CVariable::SubtractGradient(unsigned short val_var, unsigned short val_dim, su2double val_value) { Gradient[val_var][val_dim] -= val_value; }
 
+inline void CVariable::SetAverage_Gradient(unsigned short val_var, unsigned short val_dim, su2double val_value) { Average_Gradient[val_var][val_dim] = val_value; }
+
+inline void CVariable::AddAverage_Gradient(unsigned short val_var, unsigned short val_dim, su2double val_value) { Average_Gradient[val_var][val_dim] += val_value; }
+
+inline void CVariable::SubtractAverage_Gradient(unsigned short val_var, unsigned short val_dim, su2double val_value) { Average_Gradient[val_var][val_dim] -= val_value; }
+
 inline void CVariable::AddAuxVarGradient(unsigned short val_dim, su2double val_value) { Grad_AuxVar[val_dim] += val_value; }
 
 inline void CVariable::SubtractAuxVarGradient(unsigned short val_dim, su2double val_value) { Grad_AuxVar[val_dim] -= val_value; }
 
 inline su2double CVariable::GetGradient(unsigned short val_var, unsigned short val_dim) { return Gradient[val_var][val_dim]; }
+
+inline su2double CVariable::GetAverage_Gradient(unsigned short val_var, unsigned short val_dim) const { return Average_Gradient[val_var][val_dim]; }
 
 inline su2double CVariable::GetLimiter(unsigned short val_var) { return Limiter[val_var]; }
 
@@ -364,6 +388,14 @@ inline void CVariable::SetPrimitive(unsigned short val_var, su2double val_prim) 
 
 inline void CVariable::SetPrimitive(su2double *val_prim) { }
 
+inline su2double CVariable::GetAverage_Primitive(unsigned short val_var) const { return 0; }
+
+inline const su2double *CVariable::GetAverage_Primitive(void) const { return NULL; }
+
+inline void CVariable::SetAverage_Primitive(unsigned short val_var, su2double val_prim) { }
+
+inline void CVariable::SetAverage_Primitive(su2double *val_prim) { }
+
 inline su2double CVariable::GetSecondary(unsigned short val_var) { return 0; }
 
 inline su2double *CVariable::GetSecondary(void) { return NULL; }
@@ -499,6 +531,18 @@ inline void CVariable::SetLimiter_Primitive(unsigned short val_var, su2double va
 inline su2double **CVariable::GetGradient_Primitive(void) { return NULL; }
 
 inline su2double *CVariable::GetLimiter_Primitive(void) { return NULL; }
+
+inline void CVariable::SetAverage_Gradient_PrimitiveZero(unsigned short val_primvar) { }
+
+inline void CVariable::AddAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value) { }
+
+inline void CVariable::SubtractAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value) { }
+
+inline su2double CVariable::GetAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim) const { return 0; }
+
+inline void CVariable::SetAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value) { }
+
+inline const su2double **CVariable::GetAverage_Gradient_Primitive(void) const { return NULL; }
 
 inline void CVariable::SetGradient_SecondaryZero(unsigned short val_secondaryvar) { }
 
@@ -808,6 +852,17 @@ inline void CEulerVariable::SetPrimitive(su2double *val_prim) {
 
 inline su2double *CEulerVariable::GetPrimitive(void) { return Primitive; }
 
+inline su2double CEulerVariable::GetAverage_Primitive(unsigned short val_var) const { return Average_Primitive[val_var]; }
+
+inline void CEulerVariable::SetAverage_Primitive(unsigned short val_var, su2double val_prim) { Average_Primitive[val_var] = val_prim; }
+
+inline void CEulerVariable::SetAverage_Primitive(su2double *val_prim) {
+  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++)
+    Average_Primitive[iVar] = val_prim[iVar];
+}
+
+inline const su2double *CEulerVariable::GetAverage_Primitive(void) const { return Average_Primitive; }
+
 inline su2double CEulerVariable::GetSecondary(unsigned short val_var) { return Secondary[val_var]; }
 
 inline void CEulerVariable::SetSecondary(unsigned short val_var, su2double val_secondary) { Secondary[val_var] = val_secondary; }
@@ -839,6 +894,19 @@ inline void CEulerVariable::SetLimiter_Primitive(unsigned short val_var, su2doub
 inline su2double **CEulerVariable::GetGradient_Primitive(void) { return Gradient_Primitive; }
 
 inline su2double *CEulerVariable::GetLimiter_Primitive(void) { return Limiter_Primitive; }
+
+inline void CEulerVariable::AddAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value) { Average_Gradient_Primitive[val_var][val_dim] += val_value; }
+
+inline void CEulerVariable::SubtractAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value) { Average_Gradient_Primitive[val_var][val_dim] -= val_value; }
+
+inline su2double CEulerVariable::GetAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim) const { return Average_Gradient_Primitive[val_var][val_dim]; }
+
+inline void CEulerVariable::SetAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value) { Average_Gradient_Primitive[val_var][val_dim] = val_value; }
+
+/*--- This cast to (const su2double**) is redundant per C++ official
+ * standards, but some compilers (i.e., Intel) flag the code with a warning
+ * unless it explicitly has the cast ---*/
+inline const su2double **CEulerVariable::GetAverage_Gradient_Primitive(void) const { return (const su2double**)Average_Gradient_Primitive; }
 
 inline void CEulerVariable::AddGradient_Secondary(unsigned short val_var, unsigned short val_dim, su2double val_value) { Gradient_Secondary[val_var][val_dim] += val_value; }
 
