@@ -46,9 +46,7 @@ CVariable::CVariable(void) {
   Solution_Old = NULL;
   Solution_time_n = NULL;
   Solution_time_n1 = NULL;
-  Solution_Avg = NULL;
   Gradient = NULL;
-  Average_Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
   Solution_Min = NULL;
@@ -69,9 +67,7 @@ CVariable::CVariable(unsigned short val_nvar, CConfig *config) {
   Solution_Old = NULL;
   Solution_time_n = NULL;
   Solution_time_n1 = NULL;
-  Solution_Avg = NULL;
   Gradient = NULL;
-  Average_Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
   Solution_Min = NULL;
@@ -94,9 +90,6 @@ CVariable::CVariable(unsigned short val_nvar, CConfig *config) {
   Solution = new su2double [nVar];
   for (unsigned short iVar = 0; iVar < nVar; iVar++)
     Solution[iVar] = 0.0;
-  
-  // TODO: Wrap this in a conditional branch based on config settings
-  Solution_Avg = new su2double[nVar];
 }
 
 CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *config) {
@@ -108,9 +101,7 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
   Solution_Old = NULL;
   Solution_time_n = NULL;
   Solution_time_n1 = NULL;
-  Solution_Avg = NULL;
   Gradient = NULL;
-  Average_Gradient = NULL;
   Limiter = NULL;
   Solution_Max = NULL;
   Solution_Min = NULL;
@@ -152,16 +143,6 @@ CVariable::CVariable(unsigned short val_nDim, unsigned short val_nvar, CConfig *
 	if (config->GetFSI_Simulation() && config->GetDiscrete_Adjoint()){
 	  Solution_Adj_Old = new su2double [nVar];
 	}
-  
-  // TODO: Wrap this in a conditional branch based on config settings
-  Solution_Avg = new su2double[nVar];
-
-  Average_Gradient = new su2double* [nVar];
-  for (iVar = 0; iVar < nVar; iVar++) {
-    Average_Gradient[iVar] = new su2double [nDim];
-    for (iDim = 0; iDim < nDim; iDim ++)
-      Average_Gradient[iVar][iDim] = 0.0;
-  }
 }
 
 CVariable::~CVariable(void) {
@@ -171,7 +152,6 @@ CVariable::~CVariable(void) {
   if (Solution_Old        != NULL) delete [] Solution_Old;
   if (Solution_time_n     != NULL) delete [] Solution_time_n;
   if (Solution_time_n1    != NULL) delete [] Solution_time_n1;
-  if (Solution_Avg        != NULL) delete [] Solution_Avg;
   if (Limiter             != NULL) delete [] Limiter;
   if (Solution_Max        != NULL) delete [] Solution_Max;
   if (Solution_Min        != NULL) delete [] Solution_Min;
@@ -187,13 +167,6 @@ CVariable::~CVariable(void) {
       delete [] Gradient[iVar];
     delete [] Gradient;
   }
-
-  if (Average_Gradient != NULL) {
-    for (iVar = 0; iVar < nVar; iVar++)
-      delete [] Average_Gradient[iVar];
-    delete [] Average_Gradient;
-  }
-
 }
 
 void CVariable::AddUnd_Lapl(su2double *val_und_lapl) {
@@ -419,28 +392,12 @@ void CVariable::SetAuxVarGradientZero(void) {
   
 }
 
-void CVariable::SetAverage_GradientZero(void) {
-
-  for (unsigned short iVar = 0; iVar < nVar; iVar++)
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      Average_Gradient[iVar][iDim] = 0.0;
-
-}
-
 void CVariable::SetGradient(su2double **val_gradient) {
   
   for (unsigned short iVar = 0; iVar < nVar; iVar++)
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
     Gradient[iVar][iDim] = val_gradient[iVar][iDim];
   
-}
-
-void CVariable::SetAverage_Gradient(su2double **val_gradient) {
-
-  for (unsigned short iVar = 0; iVar < nVar; iVar++)
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      Average_Gradient[iVar][iDim] = val_gradient[iVar][iDim];
-
 }
 
 void CVariable::SetRes_TruncErrorZero(void) {
@@ -481,32 +438,6 @@ su2double CVariable::GetRKSubstepResidual(unsigned short iRKStep,
                                           unsigned short iVar    ) {
   assert(rk_stage_vectors!=NULL);
   return rk_stage_vectors[iRKStep][iVar];
-}
-
-void CVariable::AddAverage_Solution(const su2double* val_delta_averages) {
-  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    Solution_Avg[iVar] += val_delta_averages[iVar];
-#ifndef NDEBUG
-    if (Solution_Avg[iVar] > 1E16) {
-      std::stringstream error_msg;
-      error_msg << "Solution average was unusually large.\n";
-      error_msg << "Context:\n";
-      error_msg << "    iVar:         " << iVar << endl;
-      error_msg << "    Solution_Avg: " << Solution_Avg[iVar] << endl;
-      error_msg << "    delta:        " << val_delta_averages[iVar] << endl;
-      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-    }
-    if (Solution_Avg[iVar] < -1E16) {
-      std::stringstream error_msg;
-      error_msg << "Solution average was unusually small.\n";
-      error_msg << "Context:\n";
-      error_msg << "    iVar:         " << iVar << endl;
-      error_msg << "    Solution_Avg: " << Solution_Avg[iVar] << endl;
-      error_msg << "    delta:        " << val_delta_averages[iVar] << endl;
-      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-    }
-#endif
-  }
 }
 
 CBaselineVariable::CBaselineVariable(void) : CVariable() { }

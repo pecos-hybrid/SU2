@@ -54,6 +54,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   unsigned long iPoint;
   ifstream restart_file;
   string text_line;
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -79,6 +80,9 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   /*--- Define geometry constants in the solver structure ---*/
   nDim = geometry->GetnDim();
   node = new CVariable*[nPoint];
+  if (runtime_averaging) {
+    average_node = new CVariable*[nPoint];
+  }
 
   /*--- Single grid simulation ---*/
   if (iMesh == MESH_0) {
@@ -266,11 +270,23 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
                                        muT_Inf, Tm_Inf, Lm_Inf,
                                        nDim, nVar, constants, config);
 
+  if (runtime_averaging) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++) {
+      average_node[iPoint] =
+          new CTurbKEVariable(kine_Inf, epsi_Inf, zeta_Inf, f_Inf, muT_Inf,
+                              Tm_Inf, Lm_Inf, nDim, nVar, constants, config);
+    }
+  }
+
   /*--- MPI solution ---*/
 
   //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
   Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
+  if (runtime_averaging) {
+    Set_MPI_Average_Solution(geometry, config);
+    Set_MPI_Average_Solution(geometry, config);
+  }
 
   /*--- Initializate quantities for SlidingMesh Interface ---*/
 
@@ -1049,47 +1065,4 @@ void CTurbKESolver::SetInlet(CConfig* config) {
     }
   }
 
-}
-
-
-void CTurbKESolver::UpdateAverage(const su2double weight,
-                                  const unsigned short iPoint,
-                                  su2double* buffer) {
-
-  const su2double T_avg = node[iPoint]->GetAverageTurbTimescale();
-  const su2double L_avg = node[iPoint]->GetAverageTurbLengthscale();
-  const su2double T_new = T_avg + (node[iPoint]->GetTurbTimescale() - T_avg)*weight;
-  const su2double L_new = L_avg + (node[iPoint]->GetTurbLengthscale() - L_avg)*weight;
-
-#ifndef NDEBUG
-  if (T_new > 1E16) {
-    std::stringstream error_msg;
-    error_msg << "Average turbulent timescale was unusually large.\n";
-    error_msg << "Average turbulent timescale: " << T_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (T_new < 0) {
-    std::stringstream error_msg;
-    error_msg << "Average turbulent timescale less than zero.\n";
-    error_msg << "Average turbulent timescale: " << T_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (L_new > 1E16) {
-    std::stringstream error_msg;
-    error_msg << "Average lengthscale was unusually large.\n";
-    error_msg << "Average turbulent lengthscale: " << L_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (L_new < 0) {
-    std::stringstream error_msg;
-    error_msg << "Average lengthscale was less than zero.\n";
-    error_msg << "Average turbulent lengthscale: " << L_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-#endif
-
-  node[iPoint]->SetAverageTurbScales(T_new, L_new);
-
-  /*--- Call the base class solver to compute solution average. ---*/
-  CSolver::UpdateAverage(weight, iPoint, buffer);
 }

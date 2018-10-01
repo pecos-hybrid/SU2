@@ -80,6 +80,7 @@ CSolver::CSolver(void) {
   Restart_Vars       = NULL;
   Restart_Data       = NULL;
   node               = NULL;
+  average_node       = NULL;
   nOutputVariables   = 0;
   
 }
@@ -100,6 +101,13 @@ CSolver::~CSolver(void) {
       delete node[iPoint];
     }
     delete [] node;
+  }
+
+  if (average_node != NULL) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++) {
+      delete average_node[iPoint];
+    }
+    delete [] average_node;
   }
 
   /*--- Private ---*/
@@ -2949,7 +2957,7 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
   } else if (config->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
     su2double local_max_timescale = 0;
     for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-      timescale = solver[TURB_SOL]->node[iPoint]->GetAverageTurbTimescale();
+      timescale = solver[TURB_SOL]->average_node[iPoint]->GetTurbTimescale();
       local_max_timescale = max(timescale, local_max_timescale);
     }
     SU2_MPI::Allreduce(&local_max_timescale, &timescale, 1,
@@ -2961,7 +2969,7 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
     if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
-      timescale = solver[TURB_SOL]->node[iPoint]->GetAverageTurbTimescale();
+      timescale = solver[TURB_SOL]->average_node[iPoint]->GetTurbTimescale();
       assert(timescale > 0);
     }
 
@@ -2984,19 +2992,20 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
 void CSolver::UpdateAverage(su2double weight, unsigned short iPoint,
                             su2double* buffer) {
 
-  const su2double* average = node[iPoint]->GetAverage_Solution();
+  assert(average_node != NULL);
+  const su2double* average = average_node[iPoint]->GetSolution();
   const su2double* current = node[iPoint]->GetSolution();
 
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    buffer[iVar] = (current[iVar] - average[iVar])*weight;
+    const su2double new_average = (current[iVar] - average[iVar])*weight;
+    average_node[iPoint]->AddSolution(iVar, new_average);
   }
-
-  node[iPoint]->AddAverage_Solution(buffer);
 }
 
 void CSolver::InitAverages() {
+  assert(average_node != NULL); // Check that the average nodes are set up
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-    node[iPoint]->SetAverage_Solution(node[iPoint]->GetSolution());
+    average_node[iPoint]->SetSolution(node[iPoint]->GetSolution());
   }
 }
 

@@ -188,8 +188,6 @@ CTurbSSTVariable::CTurbSSTVariable(su2double val_kine, su2double val_omega, su2d
 
   L = sqrt(val_kine)/val_omega;
   T = 1.0/val_omega;
-  L_avg = L;
-  T_avg = T;
 
   /*--- Allocate and initialize solution for the dual time strategy ---*/
   

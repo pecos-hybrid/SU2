@@ -177,6 +177,93 @@ void CTurbSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
   
 }
 
+void CTurbSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config) {
+  unsigned short iVar, iMarker, MarkerS, MarkerR;
+  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector, nBufferS_Scalar, nBufferR_Scalar;
+  su2double *Buffer_Receive_U = NULL, *Buffer_Send_U = NULL, *Buffer_Receive_muT = NULL, *Buffer_Send_muT = NULL;
+
+#ifdef HAVE_MPI
+  int send_to, receive_from;
+  SU2_MPI::Status status;
+#endif
+
+  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+
+    if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
+        (config->GetMarker_All_SendRecv(iMarker) > 0)) {
+
+      MarkerS = iMarker;  MarkerR = iMarker+1;
+
+#ifdef HAVE_MPI
+      send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
+      receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
+#endif
+
+      nVertexS = geometry->nVertex[MarkerS];  nVertexR = geometry->nVertex[MarkerR];
+      nBufferS_Vector = nVertexS*nVar;        nBufferR_Vector = nVertexR*nVar;
+      nBufferS_Scalar = nVertexS;             nBufferR_Scalar = nVertexR;
+
+      /*--- Allocate Receive and send buffers  ---*/
+      Buffer_Receive_U = new su2double [nBufferR_Vector];
+      Buffer_Send_U = new su2double[nBufferS_Vector];
+
+      Buffer_Receive_muT = new su2double [nBufferR_Scalar];
+      Buffer_Send_muT = new su2double[nBufferS_Scalar];
+
+      /*--- Copy the solution that should be sended ---*/
+      for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+        iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
+        Buffer_Send_muT[iVertex] = average_node[iPoint]->GetmuT();
+        for (iVar = 0; iVar < nVar; iVar++)
+          Buffer_Send_U[iVar*nVertexS+iVertex] = average_node[iPoint]->GetSolution(iVar);
+      }
+
+#ifdef HAVE_MPI
+
+      /*--- Send/Receive information using Sendrecv ---*/
+      SU2_MPI::Sendrecv(Buffer_Send_U, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
+                   Buffer_Receive_U, nBufferR_Vector, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+      SU2_MPI::Sendrecv(Buffer_Send_muT, nBufferS_Scalar, MPI_DOUBLE, send_to, 1,
+                   Buffer_Receive_muT, nBufferR_Scalar, MPI_DOUBLE, receive_from, 1, MPI_COMM_WORLD, &status);
+#else
+
+      /*--- Receive information without MPI ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+        iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
+        Buffer_Receive_muT[iVertex] = average_node[iPoint]->GetmuT();
+        for (iVar = 0; iVar < nVar; iVar++)
+          Buffer_Receive_U[iVar*nVertexR+iVertex] = Buffer_Send_U[iVar*nVertexR+iVertex];
+      }
+
+#endif
+
+      /*--- Deallocate send buffer ---*/
+      delete [] Buffer_Send_U;
+      delete [] Buffer_Send_muT;
+
+      /*--- Do the coordinate transformation ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+
+        /*--- Find point and its type of transformation ---*/
+        iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
+
+        /*--- Copy conservative variables. ---*/
+        average_node[iPoint]->SetmuT(Buffer_Receive_muT[iVertex]);
+        for (iVar = 0; iVar < nVar; iVar++)
+          average_node[iPoint]->SetSolution(iVar, Buffer_Receive_U[iVar*nVertexR+iVertex]);
+
+      }
+
+      /*--- Deallocate receive buffer ---*/
+      delete [] Buffer_Receive_muT;
+      delete [] Buffer_Receive_U;
+
+    }
+
+  }
+
+}
+
 void CTurbSolver::Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iMarker, MarkerS, MarkerR;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
@@ -1247,6 +1334,8 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
   ifstream restart_file;
   string restart_filename = config->GetSolution_FlowFileName();
 
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+
   /*--- Modify file name for multizone problems ---*/
   if (nZone >1)
     restart_filename = config->GetMultizone_FileName(restart_filename, iZone);
@@ -1305,7 +1394,7 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
 
       /*--- Read in the runtime averages ---*/
 
-      if (config->GetKind_Averaging() != NO_AVERAGING) {
+      if (runtime_averaging) {
 
         /*--- Average solution ---*/
 
@@ -1319,18 +1408,7 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
         index = counter*Restart_Vars[1] + nDim + nVar_Total + nVar_Flow;
         for (iVar = 0; iVar < nVar; iVar++)
           Solution[iVar] = Restart_Data[index+iVar];
-        node[iPoint_Local]->SetAverage_Solution(Solution);
-
-        /*--- Average turbulent timescale and/or lengthscale ---*/
-
-        if (config->GetKind_Turb_Model() == SST ||
-            config->GetKind_Turb_Model() == KE) {
-          // XXX: This indexing is hacky, and error-prone as the code evolves.
-          index = (counter+1)*Restart_Vars[1]-2;
-          const su2double L_avg = Restart_Data[index];
-          const su2double T_avg = Restart_Data[index + 1];
-          node[iPoint_Local]->SetAverageTurbScales(T_avg, L_avg);
-        }
+        average_node[iPoint_Local]->SetSolution(Solution);
       }
 
       /*--- Increment the overall counter for how many points have been loaded. ---*/
@@ -1358,7 +1436,6 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
 //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart.
   solver[MESH_0][TURB_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
   solver[MESH_0][TURB_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
-
   solver[MESH_0][FLOW_SOL]->Preprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
   solver[MESH_0][TURB_SOL]->Postprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0);
 
@@ -1402,6 +1479,7 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   unsigned short iVar, iDim, nLineLets;
   unsigned long iPoint;
   su2double Density_Inf, Viscosity_Inf, Factor_nu_Inf, Factor_nu_Engine, Factor_nu_ActDisk;
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   Gamma = config->GetGamma();
   Gamma_Minus_One = Gamma - 1.0;
@@ -1421,6 +1499,9 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   
   nDim = geometry->GetnDim();
   node = new CVariable*[nPoint];
+  if (runtime_averaging) {
+    average_node = new CVariable*[nPoint];
+  }
   
   /*--- Single grid simulation ---*/
   
@@ -1550,11 +1631,21 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CTurbSAVariable(nu_tilde_Inf, muT_Inf, nDim, nVar, config);
 
+  if (runtime_averaging) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++)
+      average_node[iPoint] = new CTurbSAVariable(nu_tilde_Inf, muT_Inf, nDim, nVar, config);
+  }
+
+
   /*--- MPI solution ---*/
 
 //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
   Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
+  if (runtime_averaging) {
+    Set_MPI_Average_Solution(geometry, config);
+    Set_MPI_Average_Solution(geometry, config);
+  }
 
   /*--- Initializate quantities for SlidingMesh Interface ---*/
 
@@ -3425,6 +3516,7 @@ CTurbSSTSolver::CTurbSSTSolver(CGeometry *geometry, CConfig *config, unsigned sh
   unsigned long iPoint;
   ifstream restart_file;
   string text_line;
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
   
   /*--- Array initialization ---*/
   
@@ -3448,6 +3540,9 @@ CTurbSSTSolver::CTurbSSTSolver(CGeometry *geometry, CConfig *config, unsigned sh
   
   nDim = geometry->GetnDim();
   node = new CVariable*[nPoint];
+  if (runtime_averaging) {
+    average_node = new CVariable*[nPoint];
+  }
   
   /*--- Single grid simulation ---*/
   
@@ -3569,11 +3664,20 @@ CTurbSSTSolver::CTurbSSTSolver(CGeometry *geometry, CConfig *config, unsigned sh
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CTurbSSTVariable(kine_Inf, omega_Inf, muT_Inf, nDim, nVar, constants, config);
 
+  if (runtime_averaging) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++)
+      average_node[iPoint] = new CTurbSSTVariable(kine_Inf, omega_Inf, muT_Inf, nDim, nVar, constants, config);
+  }
+
   /*--- MPI solution ---*/
 
 //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
   Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
+  if (runtime_averaging) {
+    Set_MPI_Average_Solution(geometry, config);
+    Set_MPI_Average_Solution(geometry, config);
+  }
 
   /*--- Initializate quantities for SlidingMesh Interface ---*/
 
@@ -4566,46 +4670,4 @@ void CTurbSSTSolver::SetInlet(CConfig* config) {
     }
   }
 
-}
-
-void CTurbSSTSolver::UpdateAverage(const su2double weight,
-                                   const unsigned short iPoint,
-                                   su2double* buffer) {
-
-  const su2double T_avg = node[iPoint]->GetAverageTurbTimescale();
-  const su2double L_avg = node[iPoint]->GetAverageTurbLengthscale();
-  const su2double T_new = T_avg + (node[iPoint]->GetTurbTimescale() - T_avg)*weight;
-  const su2double L_new = L_avg + (node[iPoint]->GetTurbLengthscale() - L_avg)*weight;
-
-#ifndef NDEBUG
-  if (T_avg > 1E16) {
-    std::stringstream error_msg;
-    error_msg << "Average turbulent timescale was unusually large.\n";
-    error_msg << "Average turbulent timescale: " << T_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (T_avg < 0) {
-    std::stringstream error_msg;
-    error_msg << "Average turbulent timescale less than zero.\n";
-    error_msg << "Average turbulent timescale: " << T_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (L_avg > 1E16) {
-    std::stringstream error_msg;
-    error_msg << "Average lengthscale was unusually large.\n";
-    error_msg << "Average turbulent lengthscale: " << L_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (L_avg < 0) {
-    std::stringstream error_msg;
-    error_msg << "Average lengthscale was less than zero.\n";
-    error_msg << "Average turbulent lengthscale: " << L_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-#endif
-
-  node[iPoint]->SetAverageTurbScales(T_new, L_new);
-
-  /*--- Call the base class solver to compute solution average. ---*/
-  CSolver::UpdateAverage(weight, iPoint, buffer);
 }

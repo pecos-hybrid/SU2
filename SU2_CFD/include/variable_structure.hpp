@@ -64,9 +64,7 @@ protected:
   bool Non_Physical;      /*!< \brief Non-physical points in the solution (force first order). */
   su2double *Solution_time_n,  /*!< \brief Solution of the problem at time n for dual-time stepping technique. */
   *Solution_time_n1;      /*!< \brief Solution of the problem at time n-1 for dual-time stepping technique. */
-  su2double* Solution_Avg; /*!< \brief The runtime average of the solution */
   su2double **Gradient;    /*!< \brief Gradient of the solution of the problem. */
-  su2double **Average_Gradient;    /*!< \brief Gradient of the average of the solution of the problem. */
   su2double *Limiter;        /*!< \brief Limiter of the solution of the problem. */
   su2double *Solution_Max;    /*!< \brief Max solution for limiter computation. */
   su2double *Solution_Min;    /*!< \brief Min solution for limiter computation. */
@@ -937,18 +935,6 @@ public:
 
   /*!
    * \brief A virtual member.
-   * \return Value of turbulent timescale
-   */
-  virtual su2double GetAverageTurbTimescale(void);
-
-  /*!
-   * \brief A virtual member.
-   * \return Value of the turbulent lengthscale
-   */
-  virtual su2double GetAverageTurbLengthscale(void);
-
-  /*!
-   * \brief A virtual member.
    * \return The Reynolds stress component anisotropy ratio (max-to-min)
    */
   virtual su2double GetAnisoRatio(void);
@@ -1164,12 +1150,6 @@ public:
 
   /*!
    * \brief A virtual member.
-   * \param[in] val_T_avg - The average turbulent timescale
-   * \param[in] val_L_avg - The average turbulent lengthscale
-   */
-  virtual void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
-  /*!
-   * \brief A virtual member.
    * \param[in] val_r_k - The resolution adequacy parameter for hybrid RANS/LES
    */
   virtual void SetResolutionAdequacy(su2double val_r_k);
@@ -1255,26 +1235,6 @@ public:
    * \brief A virtual member.
    */
   virtual su2double *GetPrimitive(void);
-  
-  /*!
-   * \brief A virtual member.
-   */
-  virtual su2double GetAverage_Primitive(unsigned short val_var) const;
-
-  /*!
-   * \brief A virtual member.
-   */
-  virtual void SetAverage_Primitive(unsigned short val_var, su2double val_prim);
-
-  /*!
-   * \brief A virtual member.
-   */
-  virtual void SetAverage_Primitive(su2double *val_prim);
-
-  /*!
-   * \brief A virtual member.
-   */
-  virtual const su2double *GetAverage_Primitive(void) const;
 
   /*!
    * \brief A virtual member.
@@ -1768,49 +1728,6 @@ public:
    */
   virtual su2double *GetLimiter_Primitive(void);
   
-  /*!
-   * \brief A virtual member.
-   */
-  virtual void SetAverage_Gradient_PrimitiveZero(unsigned short val_primvar);
-
-  /*!
-   * \brief A virtual member.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value to add to the gradient of the primitive variables.
-   */
-  virtual void AddAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value);
-
-  /*!
-   * \brief A virtual member.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value to subtract to the gradient of the primitive variables.
-   */
-  virtual void SubtractAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value);
-
-  /*!
-   * \brief A virtual member.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \return Value of the primitive variables gradient.
-   */
-  virtual su2double GetAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim) const;
-
-  /*!
-   * \brief A virtual member.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value of the gradient.
-   */
-  virtual void SetAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value);
-
-  /*!
-   * \brief A virtual member.
-   * \return Value of the primitive variables gradient.
-   */
-  virtual const su2double **GetAverage_Gradient_Primitive(void) const;
-
   /*!
    * \brief A virtual member.
    */
@@ -2535,87 +2452,6 @@ public:
 
   virtual su2double GetSolution_Old_Accel(unsigned short iVar);
 
-  /*!
-   * \brief Set the average solution manually.
-   * \param val_averages - An array containing the average solution
-   */
-  void SetAverage_Solution(const su2double* val_averages);
-
-  /*!
-   * \overload
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_average - Value of the average solution for the index
-   *            <i>val_var</i>.
-   */
-  void SetAverage_Solution(unsigned short val_var, su2double val_average);
-
-  /*!
-   * \brief Add to the average solution.
-   * \param val_delta_averages - The amount to add to the average solution.
-   */
-  void AddAverage_Solution(const su2double* val_delta_averages);
-
-  /*!
-   * \brief Get an array of values representing the average solution.
-   * \return An array of values representing the average solution.
-   */
-  const su2double* GetAverage_Solution() const;
-
-  /*!
-   * \brief Get a component of the average solution.
-   * \param iVar - The component of the average solution to be used.
-   * \return A component of the average solution
-   */
-  su2double GetAverage_Solution(const unsigned short iVar) const;
-
-  /*!
-   * \brief Set the gradient of the average solution.
-   * \param[in] val_gradient - Gradient of the solution.
-   */
-  void SetAverage_Gradient(su2double **val_gradient);
-
-  /*!
-   * \overload
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value of the gradient.
-   */
-  void SetAverage_Gradient(unsigned short val_var, unsigned short val_dim, su2double val_value);
-
-  /*!
-   * \brief Set to zero the gradient of the average solution.
-   */
-  void SetAverage_GradientZero(void);
-
-  /*!
-   * \brief Add <i>val_value</i> to the average solution gradient.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value to add to the solution gradient.
-   */
-  void AddAverage_Gradient(unsigned short val_var, unsigned short val_dim, su2double val_value);
-
-  /*!
-   * \brief Subtract <i>val_value</i> to the average solution gradient.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value to subtract to the solution gradient.
-   */
-  void SubtractAverage_Gradient(unsigned short val_var, unsigned short val_dim, su2double val_value);
-
-  /*!
-   * \brief Get the value of the solution gradient.
-   * \return Value of the gradient solution.
-   */
-  const su2double **GetAverage_Gradient(void) const;
-
-  /*!
-   * \brief Get the value of the average solution gradient.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \return Value of the solution gradient.
-   */
-  su2double GetAverage_Gradient(unsigned short val_var, unsigned short val_dim) const;
 };
 
 /*!
@@ -3407,8 +3243,6 @@ protected:
   su2double *Primitive;  /*!< \brief Primitive variables (T, vx, vy, vz, P, rho, h, c) in compressible flows. */
   su2double **Gradient_Primitive;  /*!< \brief Gradient of the primitive variables (T, vx, vy, vz, P, rho). */
   su2double *Limiter_Primitive;    /*!< \brief Limiter of the primitive variables (T, vx, vy, vz, P, rho). */
-  su2double *Average_Primitive;  /*!< \brief Average of primitive variables (T, vx, vy, vz, P, rho, h, c) in compressible flows. */
-  su2double **Average_Gradient_Primitive;  /*!< \brief Gradient of the average of primitive variables (T, vx, vy, vz, P, rho). */
 
   /*--- Secondary variable definition ---*/
   
@@ -3527,53 +3361,10 @@ public:
   void SetLimiter_Primitive(unsigned short val_var, su2double val_value);
   
   /*!
-   * \brief Get the value of the average primitive variables gradient.
+   * \brief Get the value of the primitive variables gradient.
    * \return Value of the primitive variables gradient.
    */
   su2double **GetGradient_Primitive(void);
-
-  /*!
-   * \brief Set to zero the gradient of the average primitive variables.
-   */
-  void SetAverage_Gradient_PrimitiveZero(unsigned short val_primvar);
-
-  /*!
-   * \brief Add <i>val_value</i> to the gradient of the average primitive variables.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value to add to the gradient of the primitive variables.
-   */
-  void AddAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value);
-
-  /*!
-   * \brief Subtract <i>val_value</i> from the gradient of the average primitive variables.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value to subtract to the gradient of the primitive variables.
-   */
-  void SubtractAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value);
-
-  /*!
-   * \brief Get the average value of the primitive variables gradient.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \return Value of the primitive variables gradient.
-   */
-  su2double GetAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim) const;
-
-  /*!
-   * \brief Set the gradient of the average of the primitive variables.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_dim - Index of the dimension.
-   * \param[in] val_value - Value of the gradient.
-   */
-  void SetAverage_Gradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value);
-  
-  /*!
-   * \brief Get the average value of the primitive variables gradient.
-   * \return Value of the primitive variables gradient.
-   */
-  const su2double **GetAverage_Gradient_Primitive(void) const;
 
   /*!
    * \brief Get the value of the primitive variables gradient.
@@ -3710,32 +3501,6 @@ public:
    */
   su2double *GetPrimitive(void);
   
-  /*!
-   * \brief Get the average of the primitive variables.
-   * \param[in] val_var - Index of the variable.
-   * \return Average value of the primitive variable for the index <i>val_var</i>.
-   */
-  su2double GetAverage_Primitive(unsigned short val_var) const;
-
-  /*!
-   * \brief Set the average value of the primitive variables.
-   * \param[in] val_var - Index of the variable.
-   * \param[in] val_prim - Value to be set as the average value
-   */
-  void SetAverage_Primitive(unsigned short val_var, su2double val_prim);
-
-  /*!
-   * \brief Set the average value of the primitive variables.
-   * \param[in] val_prim - Primitive variables.
-   */
-  void SetAverage_Primitive(su2double *val_prim);
-
-  /*!
-   * \brief Get the primitive variables of the problem.
-   * \return Pointer to the primitive variable vector.
-   */
-  const su2double *GetAverage_Primitive(void) const;
-
   /*!
    * \brief Get the primitive variables.
    * \param[in] val_var - Index of the variable.
@@ -4684,9 +4449,7 @@ protected:
   F2,            /*!< \brief Menter blending function for stress limiter. */
   CDkw,           /*!< \brief Cross-diffusion. */
   T,              /*!< \brief Turbulent timescale */
-  L,              /*!< \brief Turbulent lengthscale */
-  T_avg,          /*!< \brief Average turbulent timescale */
-  L_avg;          /*!< \brief Average turbulent lengthscale */
+  L;              /*!< \brief Turbulent lengthscale */
 
   
 public:
@@ -4749,30 +4512,11 @@ public:
   su2double GetTurbLengthscale(void);
 
   /**
-   * \brief Get the average large-eddy timescale of the turbulence
-   * \return The large-eddy timescale of the turbulence.
-   */
-  su2double GetAverageTurbTimescale(void);
-
-  /**
-   * \brief Get the average large-eddy lengthscale of the turbulence
-   * \return The large-eddy lengthscale of the turbulence
-   */
-  su2double GetAverageTurbLengthscale(void);
-
-  /**
    * \brief Sets the large-eddy lengthscale and the large-eddy timescale
    * \param[in] val_turb_T - Large eddy timescale of the turbulence
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
-
-  /**
-   * \brief Sets the average large-eddy lengthscale and the timescale
-   * \param[in] val_T_avg - Average large eddy timescale of the turbulence
-   * \param[in] val_L_avg - Average large eddy lengthscale of the turbulence
-   */
-  void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
 };
 
 /*!

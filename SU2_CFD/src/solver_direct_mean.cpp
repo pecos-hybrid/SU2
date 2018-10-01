@@ -193,6 +193,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
                       (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   bool fsi     = config->GetFSI_Simulation();
   string filename_ = config->GetSolution_FlowFileName();
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -391,6 +392,9 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   /*--- Allocate the node variables ---*/
   
   node = new CVariable*[nPoint];
+  if (runtime_averaging) {
+    average_node = new CVariable*[nPoint];
+  }
   
   /*--- Define some auxiliary vectors related to the residual ---*/
   
@@ -829,6 +833,11 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CEulerVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
 
+  if (runtime_averaging) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++)
+      average_node[iPoint] = new CEulerVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
+  }
+
   /*--- Check that the initial solution is physical, report any non-physical nodes ---*/
 
   counter_local = 0;
@@ -905,6 +914,8 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
+  if (config->GetKind_Averaging() != NO_AVERAGING)
+    Set_MPI_Average_Solution(geometry, config);
   
 }
 
@@ -1703,7 +1714,7 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
       for (iVertex = 0; iVertex < nVertexS; iVertex++) {
         iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
         for (iVar = 0; iVar < nVar; iVar++)
-          Buffer_Send_U[iVar*nVertexS+iVertex] = node[iPoint]->GetAverage_Solution(iVar);
+          Buffer_Send_U[iVar*nVertexS+iVertex] = average_node[iPoint]->GetSolution(iVar);
       }
 
 #ifdef HAVE_MPI
@@ -1773,7 +1784,7 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
 
         /*--- Copy transformed conserved variables back into buffer. ---*/
         for (iVar = 0; iVar < nVar; iVar++)
-          node[iPoint]->SetAverage_Solution(iVar, Solution[iVar]);
+          average_node[iPoint]->SetSolution(iVar, Solution[iVar]);
 
       }
 
@@ -2330,7 +2341,7 @@ void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfi
         iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
         for (iVar = 0; iVar < nVar; iVar++)
           for (iDim = 0; iDim < nDim; iDim++)
-            Buffer_Send_Gradient[iDim*nVar*nVertexS+iVar*nVertexS+iVertex] = node[iPoint]->GetAverage_Gradient(iVar, iDim);
+            Buffer_Send_Gradient[iDim*nVar*nVertexS+iVar*nVertexS+iVertex] = average_node[iPoint]->GetGradient(iVar, iDim);
       }
 
 #ifdef HAVE_MPI
@@ -2397,7 +2408,7 @@ void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfi
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nVar; iVar++)
           for (iDim = 0; iDim < nDim; iDim++)
-            node[iPoint]->SetAverage_Gradient(iVar, iDim, Gradient[iVar][iDim]);
+            average_node[iPoint]->SetGradient(iVar, iDim, Gradient[iVar][iDim]);
 
       }
 
@@ -2641,7 +2652,7 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
           for (iDim = 0; iDim < nDim; iDim++)
-            node[iPoint]->SetGradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
+            average_node[iPoint]->SetGradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
         
       }
       
@@ -2697,7 +2708,7 @@ void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConf
         iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
           for (iDim = 0; iDim < nDim; iDim++)
-            Buffer_Send_Gradient[iDim*nPrimVarGrad*nVertexS+iVar*nVertexS+iVertex] = node[iPoint]->GetAverage_Gradient_Primitive(iVar, iDim);
+            Buffer_Send_Gradient[iDim*nPrimVarGrad*nVertexS+iVar*nVertexS+iVertex] = average_node[iPoint]->GetGradient_Primitive(iVar, iDim);
       }
 
 #ifdef HAVE_MPI
@@ -2764,7 +2775,7 @@ void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConf
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
           for (iDim = 0; iDim < nDim; iDim++)
-            node[iPoint]->SetAverage_Gradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
+            average_node[iPoint]->SetGradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
 
       }
 
@@ -4631,6 +4642,8 @@ void CEulerSolver::SetInitialCondition(CGeometry **geometry, CSolver ***solver_c
         
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution_Old(geometry[iMesh], config);
+        if (config->GetKind_Averaging() != NO_AVERAGING)
+          solver_container[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
         
       }
       
@@ -4748,11 +4761,14 @@ void CEulerSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container
     if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
       SetPrimitive_Gradient_LS(geometry, config);
     }
-    if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
-      SetPrimitive_Gradient_GG(geometry, config);
-    }
-    if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
-      SetPrimitive_Gradient_LS(geometry, config);
+
+    if (config->GetKind_Averaging() != NO_AVERAGING) {
+      if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
+        SetAverage_Primitive_Gradient_GG(geometry, config);
+      }
+      if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
+        SetAverage_Primitive_Gradient_LS(geometry, config);
+      }
     }
     
     /*--- Limiter computation ---*/
@@ -4804,6 +4820,7 @@ unsigned long CEulerSolver::SetPrimitive_Variables(CSolver **solver_container, C
   
   unsigned long iPoint, ErrorCounter = 0;
   bool RightSol = true;
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
   
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -4814,8 +4831,12 @@ unsigned long CEulerSolver::SetPrimitive_Variables(CSolver **solver_container, C
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
     
     RightSol = node[iPoint]->SetPrimVar(FluidModel);
-    // TODO: Set average of primitive variables here?
     node[iPoint]->SetSecondaryVar(FluidModel);
+
+    if (runtime_averaging) {
+      node[iPoint]->SetPrimVar(FluidModel);
+      // We don't need the secondary variables
+    }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
     
@@ -7418,7 +7439,7 @@ void CEulerSolver::SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig
   /*--- Set Gradient_Primitive to zero ---*/
 
   for (iPoint = 0; iPoint < nPointDomain; iPoint++)
-    node[iPoint]->SetAverage_Gradient_PrimitiveZero(nPrimVarGrad);
+    average_node[iPoint]->SetGradient_PrimitiveZero(nPrimVarGrad);
 
   /*--- Loop interior edges ---*/
 
@@ -7427,8 +7448,8 @@ void CEulerSolver::SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig
     jPoint = geometry->edge[iEdge]->GetNode(1);
 
     for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-      PrimVar_i[iVar] = node[iPoint]->GetAverage_Primitive(iVar);
-      PrimVar_j[iVar] = node[jPoint]->GetAverage_Primitive(iVar);
+      PrimVar_i[iVar] = average_node[iPoint]->GetPrimitive(iVar);
+      PrimVar_j[iVar] = average_node[jPoint]->GetPrimitive(iVar);
     }
 
     Normal = geometry->edge[iEdge]->GetNormal();
@@ -7437,9 +7458,9 @@ void CEulerSolver::SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig
       for (iDim = 0; iDim < nDim; iDim++) {
         Partial_Res = PrimVar_Average*Normal[iDim];
         if (geometry->node[iPoint]->GetDomain())
-          node[iPoint]->AddAverage_Gradient_Primitive(iVar, iDim, Partial_Res);
+          average_node[iPoint]->AddGradient_Primitive(iVar, iDim, Partial_Res);
         if (geometry->node[jPoint]->GetDomain())
-          node[jPoint]->SubtractAverage_Gradient_Primitive(iVar, iDim, Partial_Res);
+          average_node[jPoint]->SubtractGradient_Primitive(iVar, iDim, Partial_Res);
       }
     }
   }
@@ -7454,13 +7475,13 @@ void CEulerSolver::SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig
       if (geometry->node[iPoint]->GetDomain()) {
 
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-          PrimVar_Vertex[iVar] = node[iPoint]->GetAverage_Primitive(iVar);
+          PrimVar_Vertex[iVar] = average_node[iPoint]->GetPrimitive(iVar);
 
         Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
           for (iDim = 0; iDim < nDim; iDim++) {
             Partial_Res = PrimVar_Vertex[iVar]*Normal[iDim];
-            node[iPoint]->SubtractAverage_Gradient_Primitive(iVar, iDim, Partial_Res);
+            average_node[iPoint]->SubtractGradient_Primitive(iVar, iDim, Partial_Res);
           }
       }
     }
@@ -7471,8 +7492,8 @@ void CEulerSolver::SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
     for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
       for (iDim = 0; iDim < nDim; iDim++) {
-        Partial_Gradient = node[iPoint]->GetAverage_Gradient_Primitive(iVar, iDim) / (geometry->node[iPoint]->GetVolume());
-        node[iPoint]->SetAverage_Gradient_Primitive(iVar, iDim, Partial_Gradient);
+        Partial_Gradient = average_node[iPoint]->GetGradient_Primitive(iVar, iDim) / (geometry->node[iPoint]->GetVolume());
+        average_node[iPoint]->SetGradient_Primitive(iVar, iDim, Partial_Gradient);
       }
     }
   }
@@ -7506,7 +7527,7 @@ void CEulerSolver::SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig
 
     /*--- Get primitives from CVariable ---*/
 
-    const su2double* PrimVar_i = node[iPoint]->GetAverage_Primitive();
+    const su2double* PrimVar_i = average_node[iPoint]->GetPrimitive();
 
     /*--- Inizialization of variables ---*/
 
@@ -7525,7 +7546,7 @@ void CEulerSolver::SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig
       jPoint = geometry->node[iPoint]->GetPoint(iNeigh);
       Coord_j = geometry->node[jPoint]->GetCoord();
 
-      const su2double* PrimVar_j = node[jPoint]->GetAverage_Primitive();
+      const su2double* PrimVar_j = average_node[jPoint]->GetPrimitive();
 
       AD::SetPreaccIn(Coord_j, nDim);
       AD::SetPreaccIn(PrimVar_j, nPrimVarGrad);
@@ -7617,11 +7638,11 @@ void CEulerSolver::SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig
           product += Smatrix[iDim][jDim]*Cvector[iVar][jDim];
         }
 
-        node[iPoint]->SetAverage_Gradient_Primitive(iVar, iDim, product);
+        average_node[iPoint]->SetGradient_Primitive(iVar, iDim, product);
       }
     }
 
-    AD::SetPreaccOut(const_cast<su2double**>(node[iPoint]->GetAverage_Gradient_Primitive()),
+    AD::SetPreaccOut(average_node[iPoint]->GetGradient_Primitive(),
                      nPrimVarGrad, nDim);
     AD::EndPreacc();
   }
@@ -14786,9 +14807,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
         if (config->GetWrt_Residuals()) nVar_Total += nVar_Solution;
 
         index = counter*Restart_Vars[1] + skipVars + nVar_Total;
-        for (iVar = 0; iVar < nVar; iVar++)
+        for (iVar = 0; iVar < nVar; iVar++) {
           Solution[iVar] = Restart_Data[index+iVar];
-        node[iPoint_Local]->SetAverage_Solution(Solution);
+        }
+        average_node[iPoint_Local]->SetSolution(Solution);
       }
 
       /*--- For dynamic meshes, read in and store the
@@ -14866,6 +14888,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
 
   solver[MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
   solver[MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
+  if (config->GetKind_Averaging() != NO_AVERAGING) {
+    solver[MESH_0][FLOW_SOL]->Set_MPI_Average_Solution(geometry[MESH_0], config);
+    solver[MESH_0][FLOW_SOL]->Set_MPI_Average_Solution(geometry[MESH_0], config);
+  }
   solver[MESH_0][FLOW_SOL]->Preprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
 
   /*--- Interpolate the solution down to the coarse multigrid levels ---*/
@@ -14886,6 +14912,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
     }
     solver[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
     solver[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
+    if (config->GetKind_Averaging() != NO_AVERAGING) {
+      solver[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
+      solver[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
+    }
     solver[iMesh][FLOW_SOL]->Preprocessing(geometry[iMesh], solver[iMesh], config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
   }
 
@@ -16140,6 +16170,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   unsigned short direct_diff = config->GetDirectDiff();
   bool rans = ((config->GetKind_Solver() == RANS )|| (config->GetKind_Solver() == DISC_ADJ_RANS));
   bool fsi     = config->GetFSI_Simulation();
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -16270,6 +16301,9 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   
   /*--- Allocate the node variables ---*/
   node = new CVariable*[nPoint];
+  if (runtime_averaging) {
+    average_node = new CVariable*[nPoint];
+  }
   
   /*--- Define some auxiliar vector related with the residual ---*/
   
@@ -16823,6 +16857,11 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CNSVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
 
+  if (runtime_averaging) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++)
+      average_node[iPoint] = new CNSVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
+  }
+
   /*--- Check that the initial solution is physical, report any non-physical nodes ---*/
 
   counter_local = 0;
@@ -16896,6 +16935,8 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
+  if (config->GetKind_Averaging() != NO_AVERAGING)
+    Set_MPI_Average_Solution(geometry, config);
   
 }
 
@@ -16987,6 +17028,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   bool van_albada           = config->GetKind_SlopeLimit_Flow() == VAN_ALBADA_EDGE;
   unsigned short kind_row_dissipation = config->GetKind_RoeLowDiss();
   bool roe_low_dissipation  = (kind_row_dissipation != NO_ROELOWDISS) && (config->GetKind_Upwind_Flow() == ROE);
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   /*--- Update the angle of attack at the far-field for fixed CL calculations. ---*/
   
@@ -17043,6 +17085,15 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     SetPrimitive_Gradient_LS(geometry, config);
   }
 
+  if (config->GetKind_Averaging() != NO_AVERAGING) {
+    if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
+      SetAverage_Primitive_Gradient_GG(geometry, config);
+    }
+    if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
+      SetAverage_Primitive_Gradient_LS(geometry, config);
+    }
+  }
+
   /*--- Compute the limiter in case we need it in the turbulence model
    or to limit the viscous terms (check this logic with JST and 2nd order turbulence model) ---*/
 
@@ -17064,6 +17115,11 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     StrainMag_Max = max(StrainMag_Max, StrainMag);
     Omega_Max = max(Omega_Max, Omega);
     
+    if (runtime_averaging) {
+      solver_container[FLOW_SOL]->average_node[iPoint]->SetVorticity();
+      solver_container[FLOW_SOL]->average_node[iPoint]->SetStrainMag();
+    }
+
     /*--- Solve for the stress anisotropy ---*/
 
     if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
@@ -17114,6 +17170,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                      (config->GetKind_Solver() == DISC_ADJ_RANS)) &&
                     ((config->GetKind_Turb_Model() == SST) ||
                      (config->GetKind_Turb_Model() == KE)));
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -17136,6 +17193,11 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     RightSol = node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
     node[iPoint]->SetSecondaryVar(FluidModel);
+    // FIXME: Right now this uses the instantaneous eddy_visc and turb_ke
+    if (runtime_averaging) {
+      average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      // We don't need the secondary variables
+    }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
         
