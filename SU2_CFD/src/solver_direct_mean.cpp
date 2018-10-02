@@ -2652,7 +2652,7 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
           for (iDim = 0; iDim < nDim; iDim++)
-            average_node[iPoint]->SetGradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
+            node[iPoint]->SetGradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
         
       }
       
