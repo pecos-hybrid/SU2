@@ -54,9 +54,8 @@ protected:
   su2double sigma_e, sigma_k, sigma_z, C_e1o, C_e2, C1, C_2p, C_T, C_L, C_eta;
   su2double Tm,		/*!< \brief T_m k-eps. */
     Lm,		        /*!< \brief L_m k-eps */
-    Tm_avg,       /*!< \brief Average turbulent timescale */
-    Lm_avg,       /*!< \brief Average turbulent lengthscale */
     Re_T;
+  su2double* Production; /*!< Production of each turbulent variable. */
 
 public:
   /*!
@@ -97,18 +96,6 @@ public:
    */
   su2double GetTurbLengthscale(void);
 
-  /**
-   * \brief Get the average large-eddy timescale of the turbulence
-   * \return The large-eddy timescale of the turbulence.
-   */
-  su2double GetAverageTurbTimescale(void);
-
-  /**
-   * \brief Get the average large-eddy lengthscale of the turbulence
-   * \return The large-eddy lengthscale of the turbulence
-   */
-  su2double GetAverageTurbLengthscale(void);
-
   /*!
    * \brief Get the component anisotropy ratio (max-to-min)
    * \return The Reynolds stress component anisotropy ratio (max-to-min)
@@ -122,12 +109,17 @@ public:
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
-  /**
-   * \brief Sets the average large-eddy lengthscale and the timescale
-   * \param[in] val_T_avg - Average large eddy timescale of the turbulence
-   * \param[in] val_L_avg - Average large eddy lengthscale of the turbulence
+
+  /*!
+   * \brief Get the value(s) of the turbulent production.
+   * \return the value of the eddy viscosity.
    */
-  void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
+  const su2double* GetProdcution(void) const;
+
+  /*!
+   * \brief Calculate and store the value of the production.
+   */
+  void SetProduction(void);
 };
 
 #include "variable_structure_v2f.inl"

@@ -522,6 +522,10 @@ inline su2double CVariable::GetmuT() { return 0;}
 
 inline void CVariable::SetmuT(su2double val_muT) { }
 
+inline const su2double* CVariable::GetProduction() const { return NULL;}
+
+inline void CVariable::SetProduction() { }
+
 inline su2double* CVariable::GetSolution_Direct() { return NULL; }
 
 inline void CVariable::SetSolution_Direct(su2double *val_solution_direct) { }
