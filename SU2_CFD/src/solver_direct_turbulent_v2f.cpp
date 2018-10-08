@@ -515,9 +515,6 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
    * solvers ---*/
 
   CalculateTurbScales(solver_container, config);
-  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-    node[iPoint]->SetProduction();
-  }
 
   unsigned long iPoint;
 
@@ -556,6 +553,9 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
 
     /*--- Compute the source term ---*/
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
+
+    /*--- Retrieve necessary variables ---*/
+    node[iPoint]->SetProductionArray(numerics->GetProductionArray());
 
     /*--- Subtract residual and the Jacobian ---*/
     LinSysRes.SubtractBlock(iPoint, Residual);

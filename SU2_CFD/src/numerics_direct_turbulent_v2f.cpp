@@ -35,6 +35,7 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/numerics_structure.hpp"
 #include "../include/numerics_structure_v2f.hpp"
 #include <limits>
 
@@ -263,9 +264,13 @@ CSourcePieceWise_TurbKE::CSourcePieceWise_TurbKE(unsigned short val_nDim,
   C_L     = constants[9];
   C_eta   = constants[10];
 
+  Production = new su2double[val_nVar];
+
 }
 
-CSourcePieceWise_TurbKE::~CSourcePieceWise_TurbKE(void) { }
+CSourcePieceWise_TurbKE::~CSourcePieceWise_TurbKE(void) {
+  if (Production != NULL) delete [] Production;
+}
 
 void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
                                               su2double **val_Jacobian_i,
@@ -300,9 +305,9 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   // clip values to avoid non-physical quantities...
 
-  su2double scale = 1.0e-14;
-  su2double L_inf = config->GetLength_Reynolds();
-  su2double* VelInf = config->GetVelocity_FreeStreamND();
+  const su2double scale = 1.0e-14;
+  const su2double L_inf = config->GetLength_Reynolds();
+  const su2double* VelInf = config->GetVelocity_FreeStreamND();
   su2double VelMag = 0;
   for (unsigned short iDim = 0; iDim < nDim; iDim++)
     VelMag += VelInf[iDim]*VelInf[iDim];
@@ -312,7 +317,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   const su2double tdr_lim = max(tdr, scale*VelMag*VelMag*VelMag/L_inf);
 
   // make sure v2 is well-behaved
-  su2double zeta = max(v20/tke_lim, scale);
+  const su2double zeta = max(v20/tke_lim, scale);
   // Extra max(..., 0) necessary in case v20 and tke are negative
   const su2double v2 = max(max(v20, zeta*tke), 0.0);
 
@@ -339,94 +344,86 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
 
   // TKE equation...
-  su2double Pk, Pk_rk, Pk_re, Pk_rv2;
-  su2double Dk, Dk_rk, Dk_re, Dk_rv2;
 
   //... production
   // NB: we ignore the jacobian of production here
 
-  Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
+  Production[0] = muT*S*S - 2.0/3.0*rho*tke*diverg;
 
-  Pk_rk  = 0.0;
-  Pk_re  = 0.0;
-  Pk_rv2 = 0.0;
+  const su2double Pk_rk  = 0.0;
+  const su2double Pk_re  = 0.0;
+  const su2double Pk_rv2 = 0.0;
 
   //... dissipation
-  Dk     = rho*tke/T1;
+  const su2double Dk     = rho*tke/T1;
 
-  Dk_rk  = 1.0/T1;
-  Dk_re  = 0.0;
-  Dk_rv2 = 0.0;
+  const su2double Dk_rk  = 1.0/T1;
+  const su2double Dk_re  = 0.0;
+  const su2double Dk_rv2 = 0.0;
 
 
   // Dissipation equation...
-  su2double Pe, Pe_rk, Pe_re, Pe_rv2;
-  su2double De, De_rk, De_re, De_rv2;
 
   // NB: C_e1 depends on tke and v2 in v2-f
   const su2double C_e1 = C_e1o*(1.0+0.045*sqrt(1.0/zeta));
 
   // ... production
-  Pe = C_e1*Pk/TurbT;
+  Production[1] = C_e1*Production[0]/TurbT;
 
-  Pe_rk  = 0.0;
-  Pe_re  = 0.0;
-  Pe_rv2 = 0.0;
+  const su2double Pe_rk  = 0.0;
+  const su2double Pe_re  = 0.0;
+  const su2double Pe_rv2 = 0.0;
 
   // ... dissipation
-  De = C_e2*rho*tdr/TurbT;
+  const su2double De = C_e2*rho*tdr/TurbT;
 
-  De_rk  = 0.0;
-  De_re  = C_e2/TurbT;
-  De_rv2 = 0.0;
+  const su2double De_rk  = 0.0;
+  const su2double De_re  = C_e2/TurbT;
+  const su2double De_rv2 = 0.0;
 
 
   // v2 equation...
-  su2double Pv2, Pv2_rk, Pv2_re, Pv2_rv2, Pv2_f;
-  su2double Dv2, Dv2_rk, Dv2_re, Dv2_rv2, Dv2_f;
 
   // ... production
   // Limit production of v2 based on max zeta = 2/3
-  Pv2 = rho * min( tke*f, 2.0*Pk/3.0 + 5.0*v2/T1 );
+  Production[2] = rho * min( tke*f, 2.0*Production[0]/3.0 + 5.0*v2/T1 );
 
-  Pv2_rk  = 0.0;
-  Pv2_re  = 0.0;
-  Pv2_rv2 = 0.0;
-  Pv2_f   = 0.0;
+  const su2double Pv2_rk  = 0.0;
+  const su2double Pv2_re  = 0.0;
+  const su2double Pv2_rv2 = 0.0;
+  const su2double Pv2_f   = 0.0;
 
   // ... dissipation
-  Dv2     =  6.0*rho*v2/T1;
+  const su2double Dv2     =  6.0*rho*v2/T1;
 
-  Dv2_rk  = 0.0;
-  Dv2_re  = 0.0;
-  Dv2_rv2 = 6.0/T1;
-  Dv2_f   = 0.0;
+  const su2double Dv2_rk  = 0.0;
+  const su2double Dv2_re  = 0.0;
+  const su2double Dv2_rv2 = 6.0/T1;
+  const su2double Dv2_f   = 0.0;
 
 
   // f equation...
-  su2double Pf;
-  su2double Df, Df_f;
 
   //... production
   const su2double C1m6 = C_1 - 6.0;
   const su2double ttC1m1 = (2.0/3.0)*(C_1 - 1.0);
   const su2double C_2f = C_2p;
 
-  Pf = (C_2f*Pk/tke_lim - (C1m6*zeta - ttC1m1)/TurbT) / Lsq;
+  Production[3] = (C_2f*Production[0]/tke_lim - (C1m6*zeta - ttC1m1)/TurbT) / Lsq;
 
   // not keeping any derivatives of Pf
 
   //... dissipation
-  Df = f/Lsq;
+  const su2double Df = f/Lsq;
 
-  Df_f = 1.0/Lsq;
+  const su2double Df_f = 1.0/Lsq;
 
   // check for nans
 #ifndef NDEBUG
-  bool found_nan = ((Pk!=Pk)         || (Dk!=Dk)         ||
-                    (Pe!=Pe)         || (De!=De)         ||
-                    (Pv2!=Pv2)       || (Dv2!=Dv2)       ||
-                    (Pf!=Pf)         || (Df!=Df)         ||
+  bool found_nan = ((Production[0] != Production[0]) || (Dk!=Dk)   ||
+                    (Production[1] != Production[1]) || (De!=De)   ||
+                    (Production[2] != Production[2]) || (Dv2!=Dv2) ||
+                    (Production[3] != Production[3]) || (Df!=Df)   ||
                     (Pk_rk!=Pk_rk)   || (Pk_re!=Pk_re)   || (Pk_rv2!=Pk_rv2)   ||
                     (Pe_rk!=Pe_rk)   || (Pe_re!=Pe_re)   || (Pe_rv2!=Pe_rv2)   ||
                     (Pv2_rk!=Pv2_rk) || (Pv2_re!=Pv2_re) || (Pv2_rv2!=Pv2_rv2) ||
@@ -439,9 +436,9 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
     std::cout << "WTF!?! Found a nan at x = " << Coord_i[0] << ", " << Coord_i[1] << std::endl;
     std::cout << "turb state = " << tke << ", " << tdr << ", " << v2 << ", " << f << std::endl;
     std::cout << "T          = " << TurbT  << ", C_e1 = " << C_e1 << std::endl;
-    std::cout << "TKE eqn    = " << Pk << " - " << Dk << std::endl;
-    std::cout << "TDR eqn    = " << Pe << " - " << De << std::endl;
-    std::cout << "v2  eqn    = " << Pv2 << " - " << Dv2 << std::endl;
+    std::cout << "TKE eqn    = " << Production[0] << " - " << Dk << std::endl;
+    std::cout << "TDR eqn    = " << Production[1] << " - " << De << std::endl;
+    std::cout << "v2  eqn    = " << Production[2] << " - " << Dv2 << std::endl;
   }
 #endif
 
@@ -449,7 +446,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   // form source term and Jacobian...
 
   // TKE
-  val_residual[0]      = (Pk      - Dk     ) * Vol;
+  val_residual[0]      = (Production[0] - Dk     ) * Vol;
 
   val_Jacobian_i[0][0] = (Pk_rk   - Dk_rk  ) * Vol;
   val_Jacobian_i[0][1] = (Pk_re   - Dk_re  ) * Vol;
@@ -457,7 +454,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   val_Jacobian_i[0][3] = 0.0;
 
   // Dissipation
-  val_residual[1]      = (Pe      - De     ) * Vol;
+  val_residual[1]      = (Production[1] - De     ) * Vol;
 
   val_Jacobian_i[1][0] = (Pe_rk   - De_rk  ) * Vol;
   val_Jacobian_i[1][1] = (Pe_re   - De_re  ) * Vol;
@@ -465,7 +462,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   val_Jacobian_i[1][3] = 0.0;
 
   // v2
-  val_residual[2]      = (Pv2     - Dv2    ) * Vol;
+  val_residual[2]      = (Production[2] - Dv2    ) * Vol;
 
   val_Jacobian_i[2][0] = (Pv2_rk  - Dv2_rk ) * Vol;
   val_Jacobian_i[2][1] = (Pv2_re  - Dv2_re ) * Vol;
@@ -473,7 +470,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   val_Jacobian_i[2][3] = (Pv2_f   - Dv2_f  ) * Vol;
 
   // f
-  val_residual[3]      = (Pf      - Df     ) * Vol;
+  val_residual[3]      = (Production[3] - Df     ) * Vol;
 
   val_Jacobian_i[3][0] = 0.0;
   val_Jacobian_i[3][1] = 0.0;
@@ -483,4 +480,8 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   AD::SetPreaccOut(val_residual, nVar);
   AD::EndPreacc();
+}
+
+const su2double* CSourcePieceWise_TurbKE::GetProductionArray(void) const {
+  return Production;
 }

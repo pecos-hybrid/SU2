@@ -35,9 +35,14 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/variable_structure.hpp"
 #include "../include/variable_structure_v2f.hpp"
 
-CTurbKEVariable::CTurbKEVariable(void) : CTurbVariable() { }
+CTurbKEVariable::CTurbKEVariable(void) : CTurbVariable() {
+
+  Production = NULL;
+
+}
 
 CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
                                  su2double val_zeta, su2double val_f,
@@ -70,9 +75,11 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
     Solution_time_n1[2] = val_zeta; Solution_time_n1[3] = val_f;
   }
 
+  Production = new su2double[nVar];
 }
 
 CTurbKEVariable::~CTurbKEVariable(void) {
+  if (Production != NULL) delete [] Production;
 }
 
 su2double CTurbKEVariable::GetAnisoRatio(void) {
@@ -81,6 +88,13 @@ su2double CTurbKEVariable::GetAnisoRatio(void) {
   return TWO3*Solution[0]/max(TKE_MIN, Solution[2]);
 }
 
-void CTurbKEVariable::SetProduction(void) {
+void CTurbKEVariable::SetProductionArray(const su2double* val_production) {
+  /*--- Copy values, in case the pointed-to-values change ---*/
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    Production[iVar] = val_production[iVar];
+  }
+}
 
+const su2double* CTurbKEVariable::GetProductionArray(void) const {
+  return Production;
 }

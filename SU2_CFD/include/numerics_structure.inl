@@ -338,6 +338,8 @@ inline void CNumerics::SetCrossProduction(su2double val_crossproduction) { }
 
 inline su2double CNumerics::GetProduction(void) { return 0; }
 
+inline const su2double* CNumerics::GetProductionArray(void) const { return NULL; }
+
 inline su2double CNumerics::GetDestruction(void) { return 0; }
 
 inline su2double CNumerics::GetCrossProduction(void) { return 0; }

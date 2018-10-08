@@ -164,6 +164,7 @@ private:
   C_e2;
 
   bool incompressible;
+  su2double* Production;
 
 public:
 
@@ -192,4 +193,14 @@ public:
                        su2double **val_Jacobian_i, su2double **val_Jacobian_j,
                        CConfig *config);
 
+  /*!
+   * \brief Get the production for each turbulence variable.
+   *
+   * Note that the `SourceResidual` function must be called
+   * to compute the production before this method. Otherwise
+   * this variable will not be properly initialized.
+   *
+   * \retruns The production of each turbulence variable.
+   */
+  const su2double* GetProductionArray(void) const;
 };
