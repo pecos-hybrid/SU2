@@ -782,7 +782,8 @@ enum ENUM_HYBRIDRANSLES {
   SA_DDES  = 2,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Delta_max SGS ). */
   SA_ZDES  = 3,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Vorticity based SGS like Zonal DES). */
   SA_EDDES  = 4,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Shear Layer Adapted SGS: Enhanced DDES). */
-  DYNAMIC_HYBRID = 5 /*!< \brief Dynamic hybrid RANS/LES model. */
+  DYNAMIC_HYBRID = 5, /*!< \brief Dynamic hybrid RANS/LES model. */
+  MODEL_SPLIT = 6 /*!< \brief Model split RANS/LES hybridization. */
 };
 static const map<string, ENUM_HYBRIDRANSLES> HybridRANSLES_Map = CCreateMap<string, ENUM_HYBRIDRANSLES>
 ("NONE", NO_HYBRIDRANSLES)
@@ -790,7 +791,8 @@ static const map<string, ENUM_HYBRIDRANSLES> HybridRANSLES_Map = CCreateMap<stri
 ("SA_DDES", SA_DDES)
 ("SA_ZDES", SA_ZDES)
 ("SA_EDDES", SA_EDDES)
-("DYNAMIC_HYBRID", DYNAMIC_HYBRID);
+("DYNAMIC_HYBRID", DYNAMIC_HYBRID)
+("MODEL_SPLIT", MODEL_SPLIT);
 
 /*!
  * \brief types of Roe Low Dissipation Schemes

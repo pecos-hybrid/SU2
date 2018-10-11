@@ -4426,14 +4426,18 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case KE:     cout << "Zeta-f KE"                 << endl; break;
         }
         if (QCR) cout << "Using Quadratic Constitutive Relation, 2000 version (QCR2000)" << endl;
-        cout << "Hybrid RANS/LES: ";
-        switch (Kind_HybridRANSLES){
-          case NO_HYBRIDRANSLES: cout <<  "No Hybrid RANS/LES" << endl; break;
-          case SA_DES:  cout << "Detached Eddy Simulation (DES97) " << endl; break;
-          case SA_DDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Standard SGS" << endl; break;
-          case SA_ZDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Vorticity-based SGS" << endl; break;
-          case SA_EDDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Shear-layer Adapted SGS" << endl; break;
-          case DYNAMIC_HYBRID: cout << "Dynamic Hybrid Model" << endl; break;
+        if (Kind_HybridRANSLES != NO_HYBRIDRANSLES) {
+          cout << "Hybrid RANS/LES: ";
+          switch (Kind_HybridRANSLES) {
+            case SA_DES:  cout << "Detached Eddy Simulation (DES97) " << endl; break;
+            case SA_DDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Standard SGS" << endl; break;
+            case SA_ZDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Vorticity-based SGS" << endl; break;
+            case SA_EDDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Shear-layer Adapted SGS" << endl; break;
+            case DYNAMIC_HYBRID: cout << "Dynamic Hybrid Model" << endl; break;
+            case MODEL_SPLIT: cout << "Model-split hybridization" << endl; break;
+            default:
+              SU2_MPI::Error("Unrecognized hybrid model.", CURRENT_FUNCTION);
+          }
         }
         break;
       case POISSON_EQUATION: cout << "Poisson equation." << endl; break;
