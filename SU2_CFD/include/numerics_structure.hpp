@@ -1476,17 +1476,6 @@ public:
   virtual su2double GetProduction(void);
   
   /*!
-   * \brief Get the production for each turbulence variable.
-   *
-   * Note that the `SourceResidual` function must be called
-   * to compute the production before this method. Otherwise
-   * this variable will not be properly initialized.
-   *
-   * \retruns The production of each turbulence variable.
-   */
-  virtual const su2double* GetProductionArray(void) const;
-
-  /*!
    * \brief Residual for source term integration.
    * \param[in] val_destruction - Value of the Destruction.
    */

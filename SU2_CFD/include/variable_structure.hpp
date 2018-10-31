@@ -1830,13 +1830,12 @@ public:
    * \brief Get the value(s) of the turbulent production.
    * \return The value(s) of the turbulent production.
    */
-  virtual const su2double* GetProductionArray(void) const;
+  virtual const su2double* GetProduction(void) const;
 
   /*!
    * \brief Calculate and store the value of the turbulent production.
-   * \param[in] val_production - The production of each turbulent variable.
    */
-  virtual void SetProductionArray(const su2double* val_production);
+  virtual void SetProduction(void);
 
   /*!
    * \brief Add a value to the maximum eigenvalue for the inviscid terms of the PDE.

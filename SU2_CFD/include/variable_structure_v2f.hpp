@@ -114,13 +114,12 @@ public:
    * \brief Get the value(s) of the turbulent production.
    * \return the value of the eddy viscosity.
    */
-  const su2double* GetProductionArray(void) const;
+  const su2double* GetProdcution(void) const;
 
   /*!
-   * \brief Calculate and store the value of production.
-   * \param[in] val_production - The values of production.
+   * \brief Calculate and store the value of the production.
    */
-  void SetProductionArray(const su2double* val_production);
+  void SetProduction(void);
 };
 
 #include "variable_structure_v2f.inl"
