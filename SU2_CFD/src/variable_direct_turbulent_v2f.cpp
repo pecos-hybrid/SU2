@@ -80,7 +80,3 @@ su2double CTurbKEVariable::GetAnisoRatio(void) {
   const su2double TKE_MIN = EPS;
   return TWO3*Solution[0]/max(TKE_MIN, Solution[2]);
 }
-
-void CTurbKEVariable::SetProduction(void) {
-
-}

@@ -510,14 +510,11 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
    * This calculation is best left here.  In the end, we want to set
    * T and L for each node.  The Numerics class doesn't have access to the
    * nodes, so we calculate the turbulence scales here, and pass them into
-   * the numerics class. If this was moved to post/pre-processing, it would
+   * the numerics class. If this was moved post/pre-processing, it would
    * only be executed once per timestep, despite inner iterations of implicit
    * solvers ---*/
 
   CalculateTurbScales(solver_container, config);
-  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-    node[iPoint]->SetProduction();
-  }
 
   unsigned long iPoint;
 

@@ -45,8 +45,21 @@ inline su2double CTurbKEVariable::GetTurbLengthscale() {
  return Lm;
 }
 
+inline su2double CTurbKEVariable::GetAverageTurbTimescale() {
+  return Tm_avg;
+}
+
+inline su2double CTurbKEVariable::GetAverageTurbLengthscale() {
+ return Lm_avg;
+}
+
 inline void CTurbKEVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) {
   Tm = val_turb_T;
   Lm = val_turb_L;
+}
+
+inline void CTurbKEVariable::SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg) {
+  Tm_avg = val_T_avg;
+  Lm_avg = val_L_avg;
 }
 

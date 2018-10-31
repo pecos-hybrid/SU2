@@ -1827,17 +1827,6 @@ public:
   virtual void SetmuT(su2double val_muT);
   
   /*!
-   * \brief Get the value(s) of the turbulent production.
-   * \return The value(s) of the turbulent production.
-   */
-  virtual const su2double* GetProduction(void) const;
-
-  /*!
-   * \brief Calculate and store the value of the turbulent production.
-   */
-  virtual void SetProduction(void);
-
-  /*!
    * \brief Add a value to the maximum eigenvalue for the inviscid terms of the PDE.
    * \param[in] val_max_lambda - Value of the maximum eigenvalue for the inviscid terms of the PDE.
    * \param[in] iSpecies - Value of iSpecies to which the eigenvalue belongs
