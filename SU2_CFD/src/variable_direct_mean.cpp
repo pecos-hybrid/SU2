@@ -571,13 +571,6 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     Roe_Dissipation = 0.0;
     Vortex_Tilting  = 0.0;
 
-    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
-      Eddy_Visc_Anisotropy = new su2double*[nDim];
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Eddy_Visc_Anisotropy[iDim] = new su2double[nDim];
-    } else {
-      Eddy_Visc_Anisotropy = NULL;
-    }
 }
 
 CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
@@ -593,21 +586,9 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     Roe_Dissipation = 0.0;
     Vortex_Tilting  = 0.0;
 
-    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
-      Eddy_Visc_Anisotropy = new su2double*[nDim];
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Eddy_Visc_Anisotropy[iDim] = new su2double[nDim];
-    } else {
-      Eddy_Visc_Anisotropy = NULL;
-    }
 }
 
 CNSVariable::~CNSVariable(void) {
-  if (Eddy_Visc_Anisotropy != NULL) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      delete [] Eddy_Visc_Anisotropy[iDim];
-    delete [] Eddy_Visc_Anisotropy;
-  }
 }
 
 bool CNSVariable::SetVorticity(void) {

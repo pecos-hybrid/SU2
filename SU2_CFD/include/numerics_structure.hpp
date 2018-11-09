@@ -99,12 +99,9 @@ public:
   Eddy_Viscosity_j;      /*!< \brief Eddy viscosity at point j. */
   /*--- Although some of these pertain to the turbulence, the hybridization
    * in a RANS/LES framework requires variables to be used in various solvers
-   * (i.e. the eddy viscosity anisotropy is created by the turbulence, but
-   * affects the resolved flow). Rather than repeat the same code multiple
+   * Rather than repeat the same code multiple
    * times, the respective variables, getters and setters are stored in the
    * base class. ---*/
-  su2double** Eddy_Viscosity_Anisotropy_i;  /*!< \brief Normalized anisotropy tensor for the eddy viscosity at point i. */
-  su2double** Eddy_Viscosity_Anisotropy_j;  /*!< \brief Normalized anisotropy tensor for the eddy viscosity at point j. */
   su2double** Resolution_Tensor_i;  /*!< \brief Resolution tensor at point i. */
   su2double** Resolution_Tensor_j;  /*!< \brief Resolution tensor at point j. */
   su2double*** Resolution_Tensor_Gradient; /*!< \brief Gradient of the resolution tensor at point i. */
@@ -576,14 +573,6 @@ public:
   void SetRANSWeight(su2double val_w_rans);
 
   /*!
-     * \brief Set the normalized eddy viscosity anisotropy tensor.
-     * \param[in] val_anisotropy_i - Normalized anisotropy tensor for the eddy viscosity
-     * \param[in] val_anisotropy_j - Normalized anisotropy tensor for the eddy viscosity
-     */
-  void SetEddyViscAnisotropy(su2double** val_anisotropy_i,
-                             su2double** val_anisotropy_j);
-
-  /*!
    * \brief Set the turbulent kinetic energy.
    * \param[in] val_turb_ke_i - Value of the turbulent kinetic energy at point i.
    * \param[in] val_turb_ke_j - Value of the turbulent kinetic energy at point j.
@@ -880,24 +869,6 @@ public:
                           su2double val_eddy_viscosity,
                           bool val_qcr);
   /*!
-   * \brief Compute the projection of the viscous fluxes into a direction.
-   * \param[in] val_primvar - Primitive variables.
-   * \param[in] val_gradprimvar - Gradient of the primitive variables.
-   * \param[in] val_turb_ke - Turbulent kinetic energy
-   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
-   * \param[in] val_laminar_viscosity - Laminar viscosity.
-   * \param[in] val_eddy_viscosity - Anisotropic eddy viscosity.
-   * \param[in] val_thermal_conductivity - Thermal Conductivity.
-   * \param[in] val_eddy_conductivity - Eddy Conductivity.
-   */
-  void GetViscousProjFlux(su2double *val_primvar,
-                 su2double **val_gradprimvar, su2double val_turb_ke,
-                 su2double *val_normal,
-                 su2double val_laminar_viscosity,
-                 su2double **val_eddy_viscosity,
-                 bool val_qcr);
-
-  /*!
    * \brief Compute the projection of the viscous fluxes into a direction for general fluid model.
    * \param[in] val_primvar - Primitive variables.
    * \param[in] val_gradprimvar - Gradient of the primitive variables.
@@ -930,18 +901,6 @@ public:
                                  su2double val_laminar_viscosity,
                                  su2double val_eddy_viscosity);
   
-  /*
-   * \brief Compute the projection of the viscous fluxes into a direction (artificial compresibility method).
-   * \param[in] val_primvar - Primitive variables.
-   * \param[in] val_gradprimvar - Gradient of the primitive variables.
-   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
-   * \param[in] val_laminar_viscosity - Laminar viscosity.
-   * \param[in] val_eddy_viscosity - A rank-2 tensor for anisotropic eddy viscosity
-   */
-
-  void GetViscousArtCompProjFlux(su2double **val_gradprimvar, su2double *val_normal, su2double val_laminar_viscosity,
-      su2double** val_eddy_viscosity);
-
   /*!
    * \brief Compute the projection of the inviscid Jacobian matrices.
    * \param[in] val_velocity Pointer to the velocity.
@@ -996,27 +955,6 @@ public:
   void GetViscousProjJacs(su2double *val_Mean_PrimVar,
                           su2double val_laminar_viscosity,
                           su2double val_eddy_viscosity,
-                          su2double val_dist_ij,
-                          su2double *val_normal, su2double val_dS,
-                          su2double *val_Proj_Visc_Flux,
-                          su2double **val_Proj_Jac_Tensor_i,
-                          su2double **val_Proj_Jac_Tensor_j);
-  
-  /*!
-   * \brief TSL-Approximation of Viscous NS Jacobians for anisotropic eddy viscosity.
-   * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
-   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
-   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
-   * \param[in] val_dist_ij - Distance between the points.
-   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
-   * \param[in] val_dS - Area of the face between two nodes.
-   * \param[in] val_Proj_Visc_Flux - Pointer to the projected viscous flux.
-   * \param[out] val_Proj_Jac_Tensor_i - Pointer to the projected viscous Jacobian at point i.
-   * \param[out] val_Proj_Jac_Tensor_j - Pointer to the projected viscous Jacobian at point j.
-   */
-  void GetViscousProjJacs(su2double *val_Mean_PrimVar,
-                          su2double val_laminar_viscosity,
-                          su2double** val_eddy_viscosity,
                           su2double val_dist_ij,
                           su2double *val_normal, su2double val_dS,
                           su2double *val_Proj_Visc_Flux,
@@ -3287,7 +3225,6 @@ protected:
   Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
   dist_ij;            /*!< \brief Length of the edge and face. */
   bool implicit; /*!< \brief Implicit calculus. */
-  bool hasAnisoEddyViscosity;
   
 public:
   
@@ -3297,8 +3234,7 @@ public:
    * \param[in] val_nVar - Number of variables of the problem.
    * \param[in] config - Definition of the particular problem.
    */
-  CAvgGrad_Flow(unsigned short val_nDim, unsigned short val_nVar,
-                CConfig *config, bool aniso_viscosity = false);
+  CAvgGrad_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
   
   /*!
    * \brief Destructor of the class.
@@ -3376,7 +3312,6 @@ protected:
   Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, /*!< \brief Mean value of the viscosity. */
   dist_ij;              /*!< \brief Length of the edge and face. */
   bool implicit;        /*!< \brief Implicit calculus. */
-  su2double** Mean_Aniso_Eddy_Viscosity;
   
 public:
   

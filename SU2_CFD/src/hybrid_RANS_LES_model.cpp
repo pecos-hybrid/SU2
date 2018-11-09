@@ -39,86 +39,6 @@
 #include "mkl_lapacke.h"
 #endif
 
-
-CHybrid_Visc_Anisotropy::CHybrid_Visc_Anisotropy(unsigned short nDim)
-    : nDim(nDim) {
-  eddy_visc_anisotropy = new su2double*[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    eddy_visc_anisotropy[iDim] = new su2double[nDim];
-    for (unsigned short jDim = 0; jDim < nDim; jDim++)
-      eddy_visc_anisotropy[iDim][jDim] = 0.0;
-  }
-}
-
-CHybrid_Visc_Anisotropy::~CHybrid_Visc_Anisotropy() {
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    delete [] eddy_visc_anisotropy[iDim];
-  delete [] eddy_visc_anisotropy;
-}
-
-su2double** CHybrid_Visc_Anisotropy::GetViscAnisotropy() {
-  return eddy_visc_anisotropy;
-}
-
-CHybrid_Isotropic_Visc::CHybrid_Isotropic_Visc(unsigned short nDim)
-: CHybrid_Visc_Anisotropy(nDim) {
-  for (unsigned short iDim=0; iDim < nDim; iDim++) {
-    for (unsigned short jDim=0; jDim < nDim; jDim++) {
-      eddy_visc_anisotropy[iDim][jDim] = (su2double)(iDim == jDim);
-    }
-  }
-}
-
-void CHybrid_Isotropic_Visc::CalculateViscAnisotropy() {
-}
-
-CHybrid_Aniso_Q::CHybrid_Aniso_Q(unsigned short nDim)
-  : CHybrid_Visc_Anisotropy(nDim), rans_weight(1.0) {
-}
-
-void CHybrid_Aniso_Q::CalculateViscAnisotropy() {
-#ifndef NDEBUG
-  if (rans_weight < 0 || rans_weight > 1) {
-    ostringstream error_msg;
-    error_msg << "Isotropic weighting in hybrid RANS/LES was not in range [0,1]" << endl;
-    error_msg << "    weight = " << rans_weight << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-#endif
-  su2double LES_weight = (1.0 - rans_weight);
-
-  unsigned short iDim, jDim;
-
-  // Qstar is already normalized.
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      eddy_visc_anisotropy[iDim][jDim] = rans_weight*double(iDim == jDim);
-      eddy_visc_anisotropy[iDim][jDim] += LES_weight*sqrt(nDim) *
-                                          Qstar[iDim][jDim];
-    }
-  }
-}
-
-
-inline void CHybrid_Aniso_Q::SetTensor(su2double** val_approx_struct_func) {
-  Qstar = val_approx_struct_func;
-}
-
-inline void CHybrid_Aniso_Q::SetScalars(vector<su2double> val_scalars) {
-#ifndef NDEBUG
-  if (val_scalars.size() != 1) {
-    ostringstream error_msg;
-    error_msg << "Improper number of scalars passed to anisotropy model!" << endl;
-    error_msg << "    Expected: 1" << endl;
-    error_msg << "    Found:    " << val_scalars.size() << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-#endif
-  rans_weight = val_scalars[0];
-}
-
-
-
 CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename)
    : nDim(nDim), C_sf(0.367), config(config) {
 
@@ -407,72 +327,6 @@ void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
   hybrid_param_numerics->SetRANSWeight(w_rans);
 }
 
-void CHybrid_Mediator::SetupStressAnisotropy(CGeometry* geometry,
-                                             CSolver **solver_container,
-                                             CHybrid_Visc_Anisotropy* hybrid_anisotropy,
-                                             unsigned short iPoint) {
-  unsigned int iDim, jDim;
-  /*--- Use the grid-based resolution tensor, not the anisotropy-correcting
-   * resolution tensor ---*/
-  su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-  su2double** PrimVar_Grad =
-        solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
-  CalculateApproxStructFunc(ResolutionTensor, PrimVar_Grad, Q);
-
-  su2double total= 0.0;
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      total += abs(Q[iDim][jDim]);
-    }
-  }
-  if (total < 9*EPS) {
-    /*--- If there are negligible velocity differences at the resolution scale,
-     * set the tensor to the Kroneckor delta ---*/
-    for (iDim = 0; iDim < nDim; iDim++) {
-      for (jDim = 0; jDim < nDim; jDim++) {
-        Q[iDim][jDim] = (iDim == jDim);
-      }
-    }
-  } else {
-    /*--- Normalize the approximate structure function tensor ---*/
-    su2double norm = 0.0;
-    for (iDim = 0; iDim < nDim; iDim++) {
-      for (jDim = 0; jDim < nDim; jDim++) {
-        norm += Q[iDim][jDim]*Q[jDim][iDim];
-      }
-    }
-    norm = sqrt(norm);
-    for (iDim=0; iDim < nDim; iDim++) {
-      for (jDim = 0; jDim < nDim; jDim++) {
-        Q[iDim][jDim] /= norm;
-      }
-    }
-  }
-
-#ifndef NDEBUG
-  su2double trace = Q[0][0] + Q[1][1] + Q[2][2];
-  if (trace > 1e7) {
-    ostringstream error_msg;
-    error_msg << "Trace of the stress anisotropy was unusually large." << endl;
-    error_msg << "       Trace: " << trace << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  } else if (trace < 1e-7) {
-    ostringstream error_msg;
-    error_msg << "Trace of the stress anisotropy was unusually small." << endl;
-    error_msg << "       Trace: " << trace << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-#endif
-
-  hybrid_anisotropy->SetTensor(Q);
-
-  /*--- Retrieve and pass along the resolution adequacy parameter ---*/
-
-  vector<su2double> scalars;
-  scalars.push_back(solver_container[HYBRID_SOL]->node[iPoint]->GetRANSWeight());
-  hybrid_anisotropy->SetScalars(scalars);
-}
-
 void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
                                              CSolver **solver_container,
                                              CNumerics* visc_numerics,
@@ -484,12 +338,6 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   su2double* alpha_i = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
   su2double* alpha_j = solver_container[HYBRID_SOL]->node[jPoint]->GetSolution();
   visc_numerics->SetHybridParameter(alpha_i, alpha_j);
-
-  /*--- Pass the stress anisotropy tensor to the resolved flow ---*/
-
-  su2double** aniso_i = solver_container[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy();
-  su2double** aniso_j = solver_container[FLOW_SOL]->node[jPoint]->GetEddyViscAnisotropy();
-  visc_numerics->SetEddyViscAnisotropy(aniso_i, aniso_j);
 }
 
 
@@ -1023,12 +871,6 @@ void CHybrid_Dummy_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
                                              unsigned short jPoint) {
 }
 
-void CHybrid_Dummy_Mediator::SetupStressAnisotropy(CGeometry* geometry,
-                                             CSolver **solver_container,
-                                             CHybrid_Visc_Anisotropy* hybrid_anisotropy,
-                                             unsigned short iPoint) {
-}
-
 void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
                                              CSolver **solver_container,
                                              CNumerics* visc_numerics,
@@ -1043,10 +885,4 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   assert(alpha_i != NULL);
   assert(alpha_j != NULL);
   visc_numerics->SetHybridParameter(dummy_alpha, dummy_alpha);
-
-  /*--- Pass the stress anisotropy tensor to the resolved flow ---*/
-
-  su2double** aniso_i = solver_container[FLOW_SOL]->node[iPoint]->GetEddyViscAnisotropy();
-  su2double** aniso_j = solver_container[FLOW_SOL]->node[jPoint]->GetEddyViscAnisotropy();
-  visc_numerics->SetEddyViscAnisotropy(aniso_i, aniso_j);
 }

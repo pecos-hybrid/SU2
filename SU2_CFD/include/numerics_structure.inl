@@ -288,11 +288,6 @@ inline void CNumerics::SetEddyViscosity(su2double val_eddy_viscosity_i, su2doubl
   Eddy_Viscosity_j = val_eddy_viscosity_j;
 }
 
-inline void CNumerics::SetEddyViscAnisotropy(su2double** val_anisotropy_i,
-                                             su2double** val_anisotropy_j) {
-    Eddy_Viscosity_Anisotropy_i = val_anisotropy_i;
-    Eddy_Viscosity_Anisotropy_j = val_anisotropy_j;
-}
 
 inline void CNumerics::SetTurbTimescale(su2double val_turb_T) {
   TurbT = val_turb_T;
