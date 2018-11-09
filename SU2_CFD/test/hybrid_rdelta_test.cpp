@@ -41,8 +41,8 @@
 #include <limits> // used to find machine epsilon
 #include <cmath>  // std::abs
 
-#include "../include/solver_structure.hpp"
-#include "../include/variable_structure.hpp"
+#include "../include/solver_structure_v2f.hpp"
+#include "../include/variable_structure_v2f.hpp"
 #include "../include/hybrid_RANS_LES_model.hpp"
 
 void WriteCfgFile(const unsigned short& nDim) {

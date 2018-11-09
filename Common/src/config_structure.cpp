@@ -126,6 +126,11 @@ CConfig::CConfig(char case_filename[MAX_STRING_SIZE], CConfig *config) {
 
 CConfig::CConfig() {
 
+  /*--- Store MPI rank and size ---*/
+
+  rank = SU2_MPI::GetRank();
+  size = SU2_MPI::GetSize();
+
   /*--- Initialize pointers to Null---*/
   SetPointersNull();
 
