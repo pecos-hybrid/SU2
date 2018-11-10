@@ -891,56 +891,6 @@ public:
                           su2double **val_Proj_Jac_tensor);
   
   /*!
-   * \brief TSL-Approximation of Viscous NS Jacobians.
-   * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
-   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
-   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
-   * \param[in] val_dist_ij - Distance between the points.
-   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
-   * \param[in] val_dS - Area of the face between two nodes.
-   * \param[in] val_Proj_Visc_Flux - Pointer to the projected viscous flux.
-   * \param[out] val_Proj_Jac_Tensor_i - Pointer to the projected viscous Jacobian at point i.
-   * \param[out] val_Proj_Jac_Tensor_j - Pointer to the projected viscous Jacobian at point j.
-   */
-  void GetViscousProjJacs(su2double *val_Mean_PrimVar,
-                          su2double val_laminar_viscosity,
-                          su2double val_eddy_viscosity,
-                          su2double val_dist_ij,
-                          su2double *val_normal, su2double val_dS,
-                          su2double *val_Proj_Visc_Flux,
-                          su2double **val_Proj_Jac_Tensor_i,
-                          su2double **val_Proj_Jac_Tensor_j);
-
-  /*!
-   * \brief TSL-Approximation of Viscous NS Jacobians for arbitrary equations of state.
-   * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
-   * \param[in] val_gradprimvar - Mean value of the gradient of the primitive variables.
-   * \param[in] val_Mean_SecVar - Mean value of the secondary variables.
-   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
-   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
-   * \param[in] val_thermal_conductivity - Value of the thermal conductivity.
-   * \param[in] val_heat_capacity_cp - Value of the specific heat at constant pressure.
-   * \param[in] val_dist_ij - Distance between the points.
-   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
-   * \param[in] val_dS - Area of the face between two nodes.
-   * \param[in] val_Proj_Visc_Flux - Pointer to the projected viscous flux.
-   * \param[out] val_Proj_Jac_Tensor_i - Pointer to the projected viscous Jacobian at point i.
-   * \param[out] val_Proj_Jac_Tensor_j - Pointer to the projected viscous Jacobian at point j.
-   */
-  void GetViscousProjJacs(su2double *val_Mean_PrimVar,
-                          su2double **val_gradprimvar,
-                          su2double *val_Mean_SecVar,
-                          su2double val_laminar_viscosity,
-                          su2double val_eddy_viscosity,
-                          su2double val_thermal_conductivity,
-                          su2double val_heat_capacity_cp,
-                          su2double val_dist_ij,
-                          su2double *val_normal, su2double val_dS,
-                          su2double *val_Proj_Visc_Flux,
-                          su2double **val_Proj_Jac_Tensor_i,
-                          su2double **val_Proj_Jac_Tensor_j);
-  
-  /*!
    * \brief Mapping between primitives variables P and conservatives variables C.
    * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
    * \param[in] val_Mean_PrimVar - Mean Value of the secondary variables.
@@ -3167,8 +3117,10 @@ public:
 class CAvgGrad_Base : public CNumerics {
 protected:
   su2double
-  **tau,    /*!< \brief Viscous stress tensor. */
-  *viscous_heat_flux; /*!< \brief Flux of total energy due to temperature gradients */
+  **tau, /*!< \brief Viscous + turbulent stress tensor. */
+  *viscous_heat_flux,  /*!< \brief Flux of total energy due to temperature gradients */
+  *tau_jacobian, /*!< \brief Jacobian of the Viscous +turbulent stress tensor. */
+  **viscous_heat_flux_jac;
   
 public:
   
@@ -3198,15 +3150,10 @@ public:
   void GetTau(su2double *val_primvar, su2double **val_gradprimvar,
               su2double val_turb_ke, su2double val_laminar_viscosity,
               su2double val_eddy_viscosity, bool val_qcr);
-  /*!
-   * \brief
-   * \param[in] val_gradprimvar - Gradient of the primitive variables.
-   * \param[in] val_laminar_viscosity - Laminar viscosity.
-   * \param[in] val_eddy_viscosity - Eddy viscosity.
-   */
-  void GetViscousHeatFlux(su2double **val_gradprimvar,
-                          su2double val_laminar_viscosity,
-                          su2double val_eddy_viscosity);
+
+  void GetTauJacobian(su2double *val_primvar, su2double **val_gradprimvar,
+                      su2double val_turb_ke, su2double val_laminar_viscosity,
+                      su2double val_eddy_viscosity, bool val_qcr);
 
   /*!
    * \brief Compute the projection of the viscous fluxes into a direction.
@@ -3216,6 +3163,57 @@ public:
    */
   void GetViscousProjFlux(su2double *val_primvar, su2double **val_gradprimvar,
                           su2double *val_normal);
+
+
+  /*!
+   * \brief TSL-Approximation of Viscous NS Jacobians.
+   * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   * \param[in] val_dist_ij - Distance between the points.
+   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
+   * \param[in] val_dS - Area of the face between two nodes.
+   * \param[in] val_Proj_Visc_Flux - Pointer to the projected viscous flux.
+   * \param[out] val_Proj_Jac_Tensor_i - Pointer to the projected viscous Jacobian at point i.
+   * \param[out] val_Proj_Jac_Tensor_j - Pointer to the projected viscous Jacobian at point j.
+   */
+  void GetViscousProjJacs(su2double *val_Mean_PrimVar,
+                          su2double val_laminar_viscosity,
+                          su2double val_eddy_viscosity,
+                          su2double val_dist_ij,
+                          su2double *val_normal, su2double val_dS,
+                          su2double *val_Proj_Visc_Flux,
+                          su2double **val_Proj_Jac_Tensor_i,
+                          su2double **val_Proj_Jac_Tensor_j);
+
+  /*!
+   * \brief TSL-Approximation of Viscous NS Jacobians for arbitrary equations of state.
+   * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
+   * \param[in] val_gradprimvar - Mean value of the gradient of the primitive variables.
+   * \param[in] val_Mean_SecVar - Mean value of the secondary variables.
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   * \param[in] val_thermal_conductivity - Value of the thermal conductivity.
+   * \param[in] val_heat_capacity_cp - Value of the specific heat at constant pressure.
+   * \param[in] val_dist_ij - Distance between the points.
+   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
+   * \param[in] val_dS - Area of the face between two nodes.
+   * \param[in] val_Proj_Visc_Flux - Pointer to the projected viscous flux.
+   * \param[out] val_Proj_Jac_Tensor_i - Pointer to the projected viscous Jacobian at point i.
+   * \param[out] val_Proj_Jac_Tensor_j - Pointer to the projected viscous Jacobian at point j.
+   */
+  void GetViscousProjJacs(su2double *val_Mean_PrimVar,
+                          su2double **val_gradprimvar,
+                          su2double *val_Mean_SecVar,
+                          su2double val_laminar_viscosity,
+                          su2double val_eddy_viscosity,
+                          su2double val_thermal_conductivity,
+                          su2double val_heat_capacity_cp,
+                          su2double val_dist_ij,
+                          su2double *val_normal, su2double val_dS,
+                          su2double *val_Proj_Visc_Flux,
+                          su2double **val_Proj_Jac_Tensor_i,
+                          su2double **val_Proj_Jac_Tensor_j);
 };
 
 /*!
@@ -3273,6 +3271,16 @@ public:
   void GetViscousHeatFlux(su2double **val_gradprimvar,
                           su2double val_laminar_viscosity,
                           su2double val_eddy_viscosity);
+
+//  /*!
+//   * \brief
+//   * \param[in] val_gradprimvar - Gradient of the primitive variables.
+//   * \param[in] val_laminar_viscosity - Laminar viscosity.
+//   * \param[in] val_eddy_viscosity - Eddy viscosity.
+//   */
+//  void GetViscousHeatFluxJacobian(su2double **val_gradprimvar,
+//                                  su2double val_laminar_viscosity,
+//                                  su2double val_eddy_viscosity);
 };
 
 /*!
@@ -3339,6 +3347,18 @@ public:
                           su2double val_eddy_viscosity,
                           su2double val_thermal_conductivity,
                           su2double val_heat_capacity_cp);
+
+//  /*!
+//   * \brief
+//   * \param[in] val_gradprimvar - Gradient of the primitive variables.
+//   * \param[in] val_laminar_viscosity - Laminar viscosity.
+//   * \param[in] val_eddy_viscosity - Eddy viscosity.
+//   */
+//  void GetViscousHeatFluxJacobian(su2double **val_gradprimvar,
+//                                  su2double val_laminar_viscosity,
+//                                  su2double val_eddy_viscosity,
+//                                  su2double val_thermal_conductivity,
+//                                  su2double val_heat_capacity_cp);
 };
 
 /*!
