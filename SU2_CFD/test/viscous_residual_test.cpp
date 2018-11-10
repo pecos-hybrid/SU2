@@ -82,7 +82,7 @@ struct ViscousResidualFixture{
       : distance(1), area(3) {
 
     config = new TestConfig();
-    numerics = new CAvgGrad_Flow(3, 5, config);
+    numerics = new CAvgGrad_Flow(3, 5, false, config);
 
     /*--- Inputs ---*/
 

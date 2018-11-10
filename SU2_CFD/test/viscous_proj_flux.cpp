@@ -57,9 +57,13 @@ BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 BOOST_AUTO_TEST_CASE(IsotropicRANSFlux) {
 
+  /*---
+   * SETUP
+   * ---*/
+
   CConfig* test_config = new CConfig();
 
-  CNumerics numerics(nDim, nVar, test_config);
+  CAvgGrad_Flow numerics(nDim, nVar, false, test_config);
 
   su2double** gradprimvar = new su2double*[nVar];
   for (int iVar = 0; iVar < nVar; iVar++) {
@@ -76,26 +80,19 @@ BOOST_AUTO_TEST_CASE(IsotropicRANSFlux) {
   const su2double laminar_viscosity = 0.0;
   const su2double eddy_viscosity = 1.0;
 
-  /**---------------------------------------------------------------------------
-   * Test
-   *
-   * We set up:
-   * k = 3.0
-   * \rho = 1.0
-   * \pderiv{u_i}{x_j} = [[-1,0,0],[0,1,0],[0,0,0]]
-   *
-   * \tau_{ij} = [[-4, 0, 0], [0, 0, 0], [0, 0, 0]
-   *
-   * So the correct projected flux on a normal of [1,0,0] is:
-   * output = [-4, 0, 0]
-   *---------------------------------------------------------------------------
-   */
-  const su2double machine_eps = std::numeric_limits<su2double>::epsilon();
-  numerics.GetViscousProjFlux(prim_var, gradprimvar, turb_ke, normal,
-                              laminar_viscosity, eddy_viscosity, false);
+  /*---
+   * TEST
+   * ---*/
+
+  numerics.GetTau(prim_var, gradprimvar, turb_ke,
+                  laminar_viscosity, eddy_viscosity, false);
+  numerics.GetViscousHeatFlux(gradprimvar, laminar_viscosity, eddy_viscosity);
+  numerics.GetViscousProjFlux(prim_var, gradprimvar, normal);
+
   const su2double* output = numerics.Proj_Flux_Tensor;
   const su2double correct_output[nVar] = {0.0, -4.0, 0.0, 0.0, -4.0};
-  // Only check the Momentum
+
+  const su2double machine_eps = std::numeric_limits<su2double>::epsilon();
   for (int iVar = 0; iVar < nVar; iVar++) {
     // Build the test info
     std::stringstream msg;
@@ -104,9 +101,10 @@ BOOST_AUTO_TEST_CASE(IsotropicRANSFlux) {
     BOOST_CHECK_SMALL(output[iVar] - correct_output[iVar], machine_eps);
   }
 
-  //---------------------------------------------------------------------------
-  // Teardown
-  //---------------------------------------------------------------------------
+  /*---
+   * TEARDOWN
+   * ---*/
+
   delete test_config;
   for (int iVar = 0; iVar < nVar; iVar++) {
     delete [] gradprimvar[iVar];
