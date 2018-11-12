@@ -4551,7 +4551,7 @@ void CAvgGrad_Base::GetViscousProjJacs(su2double *val_Mean_PrimVar,
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     q_jacobian_i[iDim+1] = -xi*(rhoovisc*phi_p*(Gamma-1)*val_Mean_PrimVar[iDim+1]);
   }
-  q_jacobian_i[4] = xi*((Gamma-1)*rhoovisc*phi_p);
+  q_jacobian_i[nDim+1] = xi*((Gamma-1)*rhoovisc*phi_p);
 
   /*--- Jacobian of density flux ---*/
 
@@ -4627,7 +4627,7 @@ void CAvgGrad_Base::GetViscousProjJacs(su2double *val_Mean_PrimVar,
   su2double dTdrho_e= val_Mean_SecVar[0];
   su2double dTde_rho= val_Mean_SecVar[1];
 
-  su2double dTdu[nDim+1];
+  su2double dTdu[nVar];
   dTdu[0] = dTdrho_e + dTde_rho*(-(h-P/rho) + sqvel)*(1/rho);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     dTdu[iDim+1] = dTde_rho*(-val_Mean_PrimVar[iDim+1])/rho;
@@ -4665,7 +4665,7 @@ void CAvgGrad_Base::GetViscousProjJacs(su2double *val_Mean_PrimVar,
   su2double factor2 = total_conductivity/val_dist_ij;
   su2double* q_jacobian_i = new su2double[nVar];
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    q_jacobian_i[iVar+1] = factor2*dTdu[iVar];
+    q_jacobian_i[iVar] = factor2*dTdu[iVar];
   }
 
   /*--- Jacobian of density flux ---*/
