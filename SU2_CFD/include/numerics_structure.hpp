@@ -3116,11 +3116,21 @@ public:
  */
 class CAvgGrad_Base : public CNumerics {
 protected:
+  su2double *Mean_PrimVar,          /*!< \brief Mean primitive variables. */
+  *PrimVar_i, *PrimVar_j,        /*!< \brief Primitives variables at point i and 1. */
+  *Edge_Vector,                  /*!< \brief Vector form point i to point j. */
+  **Mean_GradPrimVar, *Proj_Mean_GradPrimVar_Edge,  /*!< \brief Mean value of the gradient. */
+  Mean_Laminar_Viscosity,                /*!< \brief Mean value of the viscosity. */
+  Mean_Eddy_Viscosity,                   /*!< \brief Mean value of the eddy viscosity. */
+  Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
+  dist_ij;            /*!< \brief Length of the edge and face. */
+  bool implicit; /*!< \brief Implicit calculus. */
+  const bool correct_gradient;
   su2double
   **tau, /*!< \brief Viscous + turbulent stress tensor. */
-  *viscous_heat_flux,  /*!< \brief Flux of total energy due to temperature gradients */
-  *tau_jacobian, /*!< \brief Jacobian of the Viscous +turbulent stress tensor. */
-  **viscous_heat_flux_jac;
+  *viscous_heat_flux,  /*!< \brief Flux of total energy due to molecular and turbulent diffusion */
+  **tau_jacobian_i, /*!< \brief Jacobian of the viscous + turbulent stress tensor, projected onto the normal vector. */
+  *heat_flux_jac_i; /*!< \brief Jacobian of the molecular + turbulent heat flux vector, projected onto the normal vector. */
   
 public:
   
@@ -3131,7 +3141,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   CAvgGrad_Base(unsigned short val_nDim, unsigned short val_nVar,
-                CConfig *config);
+                bool correct_grad, CConfig *config);
   
   /*!
    * \brief Destructor of the class.
@@ -3139,7 +3149,7 @@ public:
   ~CAvgGrad_Base(void);
   
   /*!
-   * \brief
+   * \brief Calculate the viscous and turbulent stress tensor
    * \param[in] val_primvar - Primitive variables.
    * \param[in] val_gradprimvar - Gradient of the primitive variables.
    * \param[in] val_turb_ke - Turbulent kinetic energy
@@ -3151,9 +3161,23 @@ public:
               su2double val_turb_ke, su2double val_laminar_viscosity,
               su2double val_eddy_viscosity, bool val_qcr);
 
-  void GetTauJacobian(su2double *val_primvar, su2double **val_gradprimvar,
-                      su2double val_turb_ke, su2double val_laminar_viscosity,
-                      su2double val_eddy_viscosity, bool val_qcr);
+  /**
+   * \brief Calculate the jacobian of the viscous and turbulent stress tensor
+   *
+   * This Jacobian is projected onto the normal vector, so it is of dimension
+   * [nDim][nVar]
+   *
+   * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   * \param[in] val_dist_ij - Distance between the points.
+   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
+   */
+  void GetTauJacobian(su2double *val_Mean_PrimVar,
+                      su2double val_laminar_viscosity,
+                      su2double val_eddy_viscosity,
+                      su2double val_dist_ij,
+                      su2double *val_normal);
 
   /*!
    * \brief Compute the projection of the viscous fluxes into a direction.
@@ -3186,6 +3210,11 @@ public:
                           su2double **val_Proj_Jac_Tensor_i,
                           su2double **val_Proj_Jac_Tensor_j);
 
+  /* TODO: This function can be combined with the above function once
+   * all the discrepancies are resolved.  Until they are made identical,
+   * the extra (unused) arguments are necessary in order to have the two
+   * signatures do different things.
+   */
   /*!
    * \brief TSL-Approximation of Viscous NS Jacobians for arbitrary equations of state.
    * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
@@ -3223,19 +3252,6 @@ public:
  * \author A. Bueno, and F. Palacios
  */
 class CAvgGrad_Flow : public CAvgGrad_Base {
-protected:
-  unsigned short iDim, iVar, jVar;     /*!< \brief Iterators in dimension an variable. */
-  su2double *Mean_PrimVar,          /*!< \brief Mean primitive variables. */
-  *PrimVar_i, *PrimVar_j,        /*!< \brief Primitives variables at point i and 1. */
-  *Edge_Vector,                  /*!< \brief Vector form point i to point j. */
-  **Mean_GradPrimVar, *Proj_Mean_GradPrimVar_Edge,  /*!< \brief Mean value of the gradient. */
-  Mean_Laminar_Viscosity,                /*!< \brief Mean value of the viscosity. */
-  Mean_Eddy_Viscosity,                   /*!< \brief Mean value of the eddy viscosity. */
-  Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
-  dist_ij;            /*!< \brief Length of the edge and face. */
-  bool implicit; /*!< \brief Implicit calculus. */
-  const bool correct_gradient;
-
 public:
 
   /*!
@@ -3263,7 +3279,7 @@ public:
   void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
 
   /*!
-   * \brief
+   * \brief Compute the heat flux due to molecular and turbulent diffusivity
    * \param[in] val_gradprimvar - Gradient of the primitive variables.
    * \param[in] val_laminar_viscosity - Laminar viscosity.
    * \param[in] val_eddy_viscosity - Eddy viscosity.
@@ -3272,15 +3288,24 @@ public:
                           su2double val_laminar_viscosity,
                           su2double val_eddy_viscosity);
 
-//  /*!
-//   * \brief
-//   * \param[in] val_gradprimvar - Gradient of the primitive variables.
-//   * \param[in] val_laminar_viscosity - Laminar viscosity.
-//   * \param[in] val_eddy_viscosity - Eddy viscosity.
-//   */
-//  void GetViscousHeatFluxJacobian(su2double **val_gradprimvar,
-//                                  su2double val_laminar_viscosity,
-//                                  su2double val_eddy_viscosity);
+  /*!
+   * \brief Compute the Jacobian of the heat flux vector
+   *
+   * This Jacobian is projected onto the normal vector, so it is of
+   * dimension nVar.
+   *
+   * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
+   * \param[in] val_gradprimvar - Mean value of the gradient of the primitive variables.
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   * \param[in] val_dist_ij - Distance between the points.
+   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
+   */
+  void GetHeatFluxJacobian(su2double *val_Mean_PrimVar,
+                           su2double val_laminar_viscosity,
+                           su2double val_eddy_viscosity,
+                           su2double val_dist_ij,
+                           su2double *val_normal);
 };
 
 /*!
@@ -3293,20 +3318,9 @@ public:
 
 class CGeneralAvgGrad_Flow : public CAvgGrad_Base {
 private:
-  unsigned short iDim, iVar, jVar;     /*!< \brief Iterators in dimension an variable. */
-  su2double *Mean_PrimVar,          /*!< \brief Mean primitive variables. */
-  *Mean_SecVar,                  /*!< \brief Mean primitive variables. */
-  *PrimVar_i, *PrimVar_j,            /*!< \brief Primitives variables at point i and 1. */
-  *Edge_Vector,                  /*!< \brief Vector form point i to point j. */
-  **Mean_GradPrimVar, *Proj_Mean_GradPrimVar_Edge,  /*!< \brief Mean value of the gradient. */
-  Mean_Laminar_Viscosity,                /*!< \brief Mean value of the viscosity. */
-  Mean_Eddy_Viscosity,                   /*!< \brief Mean value of the eddy viscosity. */
+  su2double *Mean_SecVar,                  /*!< \brief Mean primitive variables. */
   Mean_Thermal_Conductivity,             /*!< \brief Mean value of the thermal conductivity. */
-  Mean_Cp,                               /*!< \brief Mean value of the Cp. */
-  Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
-  dist_ij;            /*!< \brief Length of the edge and face. */
-  bool implicit; /*!< \brief Implicit calculus. */
-  const bool correct_gradient;
+  Mean_Cp;                               /*!< \brief Mean value of the Cp. */
   
 public:
   
@@ -3335,7 +3349,7 @@ public:
   void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
 
   /*!
-   * \brief Compute the projection of the viscous fluxes into a direction for general fluid model.
+   * \brief Compute the heat flux due to molecular and turbulent diffusivity
    * \param[in] val_gradprimvar - Gradient of the primitive variables.
    * \param[in] val_laminar_viscosity - Laminar viscosity.
    * \param[in] val_eddy_viscosity - Eddy viscosity.
@@ -3348,17 +3362,31 @@ public:
                           su2double val_thermal_conductivity,
                           su2double val_heat_capacity_cp);
 
-//  /*!
-//   * \brief
-//   * \param[in] val_gradprimvar - Gradient of the primitive variables.
-//   * \param[in] val_laminar_viscosity - Laminar viscosity.
-//   * \param[in] val_eddy_viscosity - Eddy viscosity.
-//   */
-//  void GetViscousHeatFluxJacobian(su2double **val_gradprimvar,
-//                                  su2double val_laminar_viscosity,
-//                                  su2double val_eddy_viscosity,
-//                                  su2double val_thermal_conductivity,
-//                                  su2double val_heat_capacity_cp);
+  /*!
+   * \brief Compute the Jacobian of the heat flux vector
+   *
+   * This Jacobian is projected onto the normal vector, so it is of
+   * dimension nVar.
+   *
+   * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
+   * \param[in] val_gradprimvar - Mean value of the gradient of the primitive variables.
+   * \param[in] val_Mean_SecVar - Mean value of the secondary variables.
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   * \param[in] val_thermal_conductivity - Value of the thermal conductivity.
+   * \param[in] val_heat_capacity_cp - Value of the specific heat at constant pressure.
+   * \param[in] val_dist_ij - Distance between the points.
+   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
+   */
+  void GetHeatFluxJacobian(su2double *val_Mean_PrimVar,
+                           su2double **val_gradprimvar,
+                           su2double *val_Mean_SecVar,
+                           su2double val_laminar_viscosity,
+                           su2double val_eddy_viscosity,
+                           su2double val_thermal_conductivity,
+                           su2double val_heat_capacity_cp,
+                           su2double val_dist_ij,
+                           su2double *val_normal);
 };
 
 /*!
