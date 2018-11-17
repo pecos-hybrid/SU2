@@ -530,4 +530,56 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualNonIdeal, ViscousResidualFixture) {
   delete numerics;
 }
 
+BOOST_FIXTURE_TEST_CASE(ViscousTiming, ViscousResidualFixture) {
+
+  /*---
+   * SETUP
+   * ---*/
+
+  CNumerics* numerics = new CAvgGrad_Flow(3, 5, false, config);
+
+  primvar_i[nDim+1] = 1.0; // pressure
+  primvar_i[nDim+2] = 1.0; // density
+  primvar_i[nDim+5] = 1.0; // laminar viscosity
+  primvar_i[nDim+6] = 1.0; // turbulent viscosity
+  for (unsigned short iVar = 1; iVar < nDim+1; iVar++) {
+    primvar_i[iVar] = iVar; // Velocities
+  }
+  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
+    primvar_j[iVar] = primvar_i[iVar];
+  }
+
+  primvar_grad_i[1][0] =  1.0; // du/dx
+  primvar_grad_i[2][1] =  2.0; // dv/dy
+  primvar_grad_i[3][2] =  3.0; // dw/dz
+  primvar_grad_i[1][1] =  1.0; // du/dy
+  primvar_grad_i[2][0] =  1.0; // dv/dx
+  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      primvar_grad_j[iVar][iDim] = primvar_grad_i[iVar][iDim];
+    }
+  }
+
+  const su2double tke = 3; // 3 cancels out 3 in denominator
+
+  /*---
+   * TEST
+   * ---*/
+
+  numerics->SetCoord(coord_i, coord_j);
+  numerics->SetNormal(normal);
+  numerics->SetSecondary(NULL, NULL);
+  numerics->SetPrimitive(primvar_i, primvar_j);
+  numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
+  numerics->SetTurbKineticEnergy(tke, tke);
+  // start timer
+  for (unsigned short counter = 0; counter < 1E4; counter++) {
+    numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
+  }
+  // end timer
+  // print timing information
+
+  delete numerics;
+}
+
 #endif
