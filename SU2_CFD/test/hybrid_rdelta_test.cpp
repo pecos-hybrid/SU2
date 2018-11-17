@@ -43,6 +43,7 @@
 
 #include "../include/solver_structure.hpp"
 #include "../include/variable_structure.hpp"
+#include "../include/variable_structure_v2f.hpp"
 #include "../include/hybrid_RANS_LES_model.hpp"
 
 void WriteCfgFile(const unsigned short& nDim) {
@@ -70,7 +71,8 @@ struct HybridRdeltaFixture {
     : machine_eps(std::numeric_limits<su2double>::epsilon())
   {
     WriteCfgFile(3);
-    mock_config = new CConfig("hybrid_rdelta_test.cfg", SU2_CFD, 0, 1, 3, VERB_NONE);
+    char cfg_filename[100] = "hybrid_rdelta_test.cfg";
+    mock_config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 3, VERB_NONE);
 
     su2double flow_soln[5], hybrid_soln;
 
