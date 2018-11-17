@@ -68,7 +68,6 @@ int main() {
   int return_flag=0;
 
   int nDim = 3;
-  int nConstants = 15;
 
   CConfig* test_config = new CConfig();
 
