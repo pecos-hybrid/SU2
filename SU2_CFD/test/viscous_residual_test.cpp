@@ -226,13 +226,13 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithRotationOnly, ViscousResidualFixture)
   // cout << "Calculated:\n";
   // PrintInformation(residual_i, Jacobian_i, Jacobian_j);
 
-  const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
+  const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      // cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] + Jacobian_j[iVar][jVar], tolerance);
+      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(-expected_jacobian_i[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
     }
   }
 
@@ -285,11 +285,11 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithNoViscosity, ViscousResidualFixture) 
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   // Ignore Jacobian of energy flux (zero viscosity can create NaNs)
   for (unsigned short iVar = 0; iVar < nVar-1; iVar++) {
-    BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      // cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] + Jacobian_j[iVar][jVar], tolerance);
+      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(-expected_jacobian_i[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
     }
   }
 
@@ -343,11 +343,13 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithTKEOnly, ViscousResidualFixture) {
 //  cout << "Calculated:\n";
 //  PrintInformation(residual_i, Jacobian_i, Jacobian_j);
 
+  // Use BOOST_CHECK_SMALL instead of BOOST_CHECK_CLOSE to avoid problems
+  // with trying to compute relative errors on 0
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
     BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      // cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
+      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
       BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
       BOOST_CHECK_SMALL(expected_jacobian_j[iVar][jVar] - Jacobian_j[iVar][jVar], tolerance);
     }
@@ -413,12 +415,12 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
       expected_jacobian_j[iVar][jVar] = -expected_jacobian_i[iVar][jVar];
     }
   }
-  expected_jacobian_i[4][0] = 41.75;
+  expected_jacobian_i[4][0] = 35.75;
   expected_jacobian_i[4][1] = -6.5;
   expected_jacobian_i[4][2] = 15;
   expected_jacobian_i[4][3] = 13.5;
 
-  expected_jacobian_j[4][0] = -35.75;
+  expected_jacobian_j[4][0] = -41.75;
   expected_jacobian_j[4][1] = -11.5;
   expected_jacobian_j[4][2] = -3;
   expected_jacobian_j[4][3] = -13.5;
@@ -428,11 +430,11 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
 
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
       cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_SMALL(expected_jacobian_j[iVar][jVar] - Jacobian_j[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
     }
   }
 

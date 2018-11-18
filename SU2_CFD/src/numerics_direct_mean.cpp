@@ -4615,8 +4615,8 @@ void CAvgGrad_Base::GetViscousProjJacs(su2double *val_Mean_PrimVar,
 
   const su2double factor = 0.5/Density;
   // TODO: Check the following two lines
-  val_Proj_Jac_Tensor_i[nDim+1][0] += factor*proj_viscousflux_vel;
-  val_Proj_Jac_Tensor_j[nDim+1][0] += factor*proj_viscousflux_vel;
+  val_Proj_Jac_Tensor_i[nDim+1][0] -= factor*proj_viscousflux_vel;
+  val_Proj_Jac_Tensor_j[nDim+1][0] -= factor*proj_viscousflux_vel;
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     val_Proj_Jac_Tensor_i[nDim+1][iDim+1] += factor*val_Proj_Visc_Flux[iDim+1];
     val_Proj_Jac_Tensor_j[nDim+1][iDim+1] += factor*val_Proj_Visc_Flux[iDim+1];
@@ -4689,7 +4689,7 @@ void CAvgGrad_Base::GetViscousProjJacs(su2double *val_Mean_PrimVar,
     val_Proj_Jac_Tensor_i[nDim+1][iDim+1] += factor*val_Proj_Visc_Flux[iDim+1];
     val_Proj_Jac_Tensor_j[nDim+1][iDim+1] += factor*val_Proj_Visc_Flux[iDim+1];
   }
-  
+
   AD_END_PASSIVE
 }
 
