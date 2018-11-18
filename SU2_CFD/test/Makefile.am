@@ -33,25 +33,20 @@
 #
 ################################################################################
 
-libSU2Core_cxx_flags = -fPIC
-libSU2Core_libadd = 
-
-# always link to built dependencies from ./externals
-libSU2Core_cxx_flags += @su2_externals_INCLUDES@
-
-# if BUILD_LAPACK
-libSU2Core_cxx_flags += @LAPACK_CXX@
-libSU2Core_libadd += @LAPACK_LD@
-# endif
-
 check_PROGRAMS  =
+TESTS  =
+
+if BUILD_TESTS
+
 check_PROGRAMS += viscous_proj_flux
 check_PROGRAMS += viscous_residual_test
 check_PROGRAMS += hybrid_rdelta_test
 check_PROGRAMS += load_hybrid_constants_test
+if BUILD_LAPACK
 check_PROGRAMS += eigensolver_test
 check_PROGRAMS += zeta_unit_cell_test
 check_PROGRAMS += zeta_transform_test
+endif
 
 # Eventually these will likely be required
 AM_CPPFLAGS =
@@ -64,29 +59,35 @@ AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ -DBUILD_TESTS @BOOST_CXX@
 #LIBS = 
 
 LDADD  =
-LDADD += $(top_builddir)/Common/lib/libSU2.a
 LDADD += $(top_builddir)/SU2_CFD/obj/libSU2Core.a
+LDADD += $(top_builddir)/Common/lib/libSU2.a
 LDADD += @su2_externals_LIBS@ @LAPACK_LD@
+if BUILD_LAPACK
+LDFLAGS  += -mkl
+endif
 
-LDFLAGS  = -mkl
 # Test sources
 viscous_proj_flux_SOURCES              = viscous_proj_flux.cpp
 viscous_residual_test_SOURCES          = viscous_residual_test.cpp
 hybrid_rdelta_test_SOURCES             = hybrid_rdelta_test.cpp
 load_hybrid_constants_test_SOURCES     = load_hybrid_constants_test.cpp
+if BUILD_LAPACK
 eigensolver_test_SOURCES               = eigensolver_test.cpp
 zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
 zeta_transform_test_SOURCES            = zeta_transform_test.cpp
+endif
 
 # Tests to be run
-TESTS  =
 TESTS += viscous_proj_flux
 TESTS += viscous_residual_test
 TESTS += hybrid_rdelta_test
 TESTS += load_hybrid_constants_test
+if BUILD_LAPACK
 TESTS += eigensolver_test
 TESTS += zeta_unit_cell_test
 TESTS += zeta_transform_test
+endif
 
 # Any of above we expect to fail?
 #XFAIL_TESTS =
+endif
