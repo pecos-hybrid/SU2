@@ -572,12 +572,12 @@ BOOST_FIXTURE_TEST_CASE(ViscousTiming, ViscousResidualFixture) {
   numerics->SetPrimitive(primvar_i, primvar_j);
   numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
   numerics->SetTurbKineticEnergy(tke, tke);
-  // start timer
-  for (unsigned short counter = 0; counter < 1E4; counter++) {
+  clock_t begin = clock();
+  for (unsigned long i = 0; i < 1E6; i++)
     numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
-  }
-  // end timer
-  // print timing information
+  clock_t end = clock();
+  double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+  std::cout << "Elapsed time: " << elapsed_secs << std::endl;
 
   delete numerics;
 }
