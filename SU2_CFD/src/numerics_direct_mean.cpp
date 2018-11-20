@@ -36,6 +36,7 @@
  */
 
 #include "../include/numerics_structure.hpp"
+#include "../include/numerics_direct_mean.hpp"
 #include <limits>
 
 CCentJST_Flow::CCentJST_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
@@ -4381,8 +4382,9 @@ void CUpwTurkel_Flow::ComputeResidual(su2double *val_residual, su2double **val_J
   
 }
 
-CAvgGrad_Base::CAvgGrad_Base(unsigned short val_nDim, unsigned short val_nVar,
-                             bool correct_grad, CConfig *config)
+CAvgGrad_Base::CAvgGrad_Base(const unsigned short val_nDim,
+                             const unsigned short val_nVar,
+                             const bool correct_grad, CConfig *config)
     : CNumerics(val_nDim, val_nVar, config),
       Prandtl_Lam(config->GetPrandtl_Lam()),
       Prandtl_Turb(config->GetPrandtl_Turb()),
@@ -4457,11 +4459,12 @@ CAvgGrad_Base::~CAvgGrad_Base(void) {
   }
 }
 
-void CAvgGrad_Base::GetTau(su2double *val_primvar,
-                           su2double **val_gradprimvar, su2double val_turb_ke,
-                           su2double val_laminar_viscosity,
-                           su2double val_eddy_viscosity,
-                           bool val_qcr) {
+void CAvgGrad_Base::GetTau(const su2double *val_primvar,
+                           su2double **val_gradprimvar,
+                           const su2double val_turb_ke,
+                           const su2double val_laminar_viscosity,
+                           const su2double val_eddy_viscosity,
+                           const bool val_qcr) {
 
   const su2double Density = val_primvar[nDim+2];
   const su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
@@ -4501,11 +4504,11 @@ void CAvgGrad_Base::GetTau(su2double *val_primvar,
   }
 }
 
-void CAvgGrad_Base::GetTauJacobian(su2double *val_Mean_PrimVar,
-                                   su2double val_laminar_viscosity,
-                                   su2double val_eddy_viscosity,
-                                   su2double val_dist_ij,
-                                   su2double *val_normal) {
+void CAvgGrad_Base::GetTauJacobian(const su2double *val_Mean_PrimVar,
+                                   const su2double val_laminar_viscosity,
+                                   const su2double val_eddy_viscosity,
+                                   const su2double val_dist_ij,
+                                   const su2double *val_normal) {
 
   const su2double Density = val_Mean_PrimVar[nDim+2];
   const su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
@@ -4525,9 +4528,9 @@ void CAvgGrad_Base::GetTauJacobian(su2double *val_Mean_PrimVar,
   }
 }
 
-void CAvgGrad_Base::GetViscousProjFlux(su2double *val_primvar,
+void CAvgGrad_Base::GetViscousProjFlux(const su2double *val_primvar,
                                        su2double **val_gradprimvar,
-                                       su2double *val_normal) {
+                                       const su2double *val_normal) {
 
   /*--- Gradient of primitive variables -> [Temp vel_x vel_y vel_z Pressure] ---*/
   if (nDim == 2) {
@@ -4568,9 +4571,9 @@ void CAvgGrad_Base::GetViscousProjFlux(su2double *val_primvar,
   }
 }
 
-void CAvgGrad_Base::GetViscousProjJacs(su2double *val_Mean_PrimVar,
-                                       su2double val_dS,
-                                       su2double *val_Proj_Visc_Flux,
+void CAvgGrad_Base::GetViscousProjJacs(const su2double *val_Mean_PrimVar,
+                                       const su2double val_dS,
+                                       const su2double *val_Proj_Visc_Flux,
                                        su2double **val_Proj_Jac_Tensor_i,
                                        su2double **val_Proj_Jac_Tensor_j) {
 
@@ -4622,8 +4625,9 @@ void CAvgGrad_Base::GetViscousProjJacs(su2double *val_Mean_PrimVar,
   AD_END_PASSIVE
 }
 
-CAvgGrad_Flow::CAvgGrad_Flow(unsigned short val_nDim, unsigned short val_nVar,
-                             bool correct_grad, CConfig *config)
+CAvgGrad_Flow::CAvgGrad_Flow(const unsigned short val_nDim,
+                             const unsigned short val_nVar,
+                             const bool correct_grad, CConfig *config)
     : CAvgGrad_Base(val_nDim, val_nVar, correct_grad, config) {
 }
 
@@ -4734,8 +4738,8 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
 }
 
 void CAvgGrad_Flow::GetViscousHeatFlux(su2double **val_gradprimvar,
-                                       su2double val_laminar_viscosity,
-                                       su2double val_eddy_viscosity) {
+                                       const su2double val_laminar_viscosity,
+                                       const su2double val_eddy_viscosity) {
 
   const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
   const su2double heat_flux_factor = Cp * (val_laminar_viscosity/Prandtl_Lam + val_eddy_viscosity/Prandtl_Turb);
@@ -4746,11 +4750,11 @@ void CAvgGrad_Flow::GetViscousHeatFlux(su2double **val_gradprimvar,
   }
 }
 
-void CAvgGrad_Flow::GetHeatFluxJacobian(su2double *val_Mean_PrimVar,
-                                        su2double val_laminar_viscosity,
-                                        su2double val_eddy_viscosity,
-                                        su2double val_dist_ij,
-                                        su2double *val_normal) {
+void CAvgGrad_Flow::GetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
+                                        const su2double val_laminar_viscosity,
+                                        const su2double val_eddy_viscosity,
+                                        const su2double val_dist_ij,
+                                        const su2double *val_normal) {
   su2double sqvel = 0.0;
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
@@ -4776,9 +4780,9 @@ void CAvgGrad_Flow::GetHeatFluxJacobian(su2double *val_Mean_PrimVar,
   heat_flux_jac_i[nDim+1] = xi*((Gamma-1)*rhoovisc*phi_p);
 }
 
-CGeneralAvgGrad_Flow::CGeneralAvgGrad_Flow(unsigned short val_nDim,
-                                           unsigned short val_nVar,
-                                           bool correct_grad, CConfig *config)
+CGeneralAvgGrad_Flow::CGeneralAvgGrad_Flow(const unsigned short val_nDim,
+                                           const unsigned short val_nVar,
+                                           const bool correct_grad, CConfig *config)
     : CAvgGrad_Base(val_nDim, val_nVar, correct_grad, config) {
   
   /*--- Compressible flow, primitive variables nDim+3, (vx, vy, vz, P, rho, h) ---*/
@@ -4905,10 +4909,10 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
 }
 
 void CGeneralAvgGrad_Flow::GetViscousHeatFlux(su2double **val_gradprimvar,
-                                              su2double val_laminar_viscosity,
-                                              su2double val_eddy_viscosity,
-                                              su2double val_thermal_conductivity,
-                                              su2double val_heat_capacity_cp) {
+                                              const su2double val_laminar_viscosity,
+                                              const su2double val_eddy_viscosity,
+                                              const su2double val_thermal_conductivity,
+                                              const su2double val_heat_capacity_cp) {
 
   const su2double heat_flux_factor = val_thermal_conductivity + val_heat_capacity_cp*val_eddy_viscosity/Prandtl_Turb;
 
@@ -4918,15 +4922,15 @@ void CGeneralAvgGrad_Flow::GetViscousHeatFlux(su2double **val_gradprimvar,
   }
 }
 
-void CGeneralAvgGrad_Flow::GetHeatFluxJacobian(su2double *val_Mean_PrimVar,
+void CGeneralAvgGrad_Flow::GetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
                                                su2double **val_gradprimvar,
-                                               su2double *val_Mean_SecVar,
-                                               su2double val_laminar_viscosity,
-                                               su2double val_eddy_viscosity,
-                                               su2double val_thermal_conductivity,
-                                               su2double val_heat_capacity_cp,
-                                               su2double val_dist_ij,
-                                               su2double *val_normal) {
+                                               const su2double *val_Mean_SecVar,
+                                               const su2double val_laminar_viscosity,
+                                               const su2double val_eddy_viscosity,
+                                               const su2double val_thermal_conductivity,
+                                               const su2double val_heat_capacity_cp,
+                                               const su2double val_dist_ij,
+                                               const su2double *val_normal) {
   /* Viscous flux Jacobians for arbitrary equations of state */
 
   //order of val_mean_primitives: T, vx, vy, vz, P, rho, ht

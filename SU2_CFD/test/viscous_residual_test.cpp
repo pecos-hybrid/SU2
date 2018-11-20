@@ -42,7 +42,7 @@
 #include <limits> // used to find machine epsilon
 #include <cmath>  // std::abs
 
-#include "../include/numerics_structure.hpp"
+#include "../include/numerics_direct_mean.hpp"
 
 #ifdef BUILD_TESTS
 

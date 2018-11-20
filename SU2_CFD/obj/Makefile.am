@@ -71,6 +71,7 @@ libSU2Core_sources = \
   ../include/numerics_structure.hpp \
   ../include/numerics_structure.inl \
   ../include/numerics_structure_v2f.hpp \
+  ../include/numerics_direct_mean.hpp \
   ../include/output_structure.hpp \
   ../include/output_structure.inl \
   ../include/solver_structure.hpp \
