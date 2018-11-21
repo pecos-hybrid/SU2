@@ -51,11 +51,7 @@ protected:
   su2double *Mean_PrimVar,          /*!< \brief Mean primitive variables. */
   *PrimVar_i, *PrimVar_j,        /*!< \brief Primitives variables at point i and 1. */
   *Edge_Vector,                  /*!< \brief Vector form point i to point j. */
-  **Mean_GradPrimVar, *Proj_Mean_GradPrimVar_Edge,  /*!< \brief Mean value of the gradient. */
-  Mean_Laminar_Viscosity,                /*!< \brief Mean value of the viscosity. */
-  Mean_Eddy_Viscosity,                   /*!< \brief Mean value of the eddy viscosity. */
-  Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
-  dist_ij;            /*!< \brief Length of the edge and face. */
+  **Mean_GradPrimVar, *Proj_Mean_GradPrimVar_Edge; /*!< \brief Mean value of the gradient. */
   bool implicit; /*!< \brief Implicit calculus. */
   const bool correct_gradient;
   su2double
@@ -97,7 +93,6 @@ public:
               const su2double val_eddy_viscosity, const bool val_qcr);
 
   void GetTau(su2double **val_gradprimvar,
-              su2double **val_average_gradprimvar,
               const su2double val_laminar_viscosity);
 
   void AddTauSGS(const su2double *val_primvar,
@@ -226,9 +221,7 @@ public:
 
 class CGeneralAvgGrad_Flow : public CAvgGrad_Base {
 private:
-  su2double *Mean_SecVar,                  /*!< \brief Mean primitive variables. */
-  Mean_Thermal_Conductivity,             /*!< \brief Mean value of the thermal conductivity. */
-  Mean_Cp;                               /*!< \brief Mean value of the Cp. */
+  su2double *Mean_SecVar;                 /*!< \brief Mean primitive variables. */
   
 public:
   

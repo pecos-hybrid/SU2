@@ -4517,7 +4517,6 @@ void CAvgGrad_Base::GetTau(const su2double *val_primvar,
 }
 
 void CAvgGrad_Base::GetTau(su2double **val_gradprimvar,
-                           su2double **val_average_gradprimvar,
                            const su2double val_laminar_viscosity) {
 
   /*--- Resolved velocity ---*/
@@ -4752,7 +4751,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   
   /*--- Compute vector going from iPoint to jPoint ---*/
 
-  dist_ij = 0.0;
+  su2double dist_ij = 0.0;
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     Edge_Vector[iDim] = Coord_j[iDim]-Coord_i[iDim];
     dist_ij += Edge_Vector[iDim]*Edge_Vector[iDim];
@@ -4766,9 +4765,9 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
 
   /*--- Mean Viscosities and turbulent kinetic energy---*/
   
-  Mean_Laminar_Viscosity = 0.5*(Laminar_Viscosity_i + Laminar_Viscosity_j);
-  Mean_Eddy_Viscosity = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
-  Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
+  const su2double Mean_Laminar_Viscosity = 0.5*(Laminar_Viscosity_i + Laminar_Viscosity_j);
+  const su2double Mean_Eddy_Viscosity = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
+  const su2double Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
   
   /*--- Mean gradient approximation ---*/
 
@@ -4790,13 +4789,30 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   }
   
   /*--- Get projected flux tensor ---*/
-  bool QCR = config->GetQCR();
 
-  GetTau(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity,
-         Mean_Eddy_Viscosity, QCR);
-  GetViscousHeatFlux(Mean_GradPrimVar, Mean_Laminar_Viscosity,
-                     Mean_Eddy_Viscosity);
-  GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Normal);
+  // TODO: Fill this in with a config->model split check
+  bool model_split = false;
+  if (model_split) {
+    // FIXME: Properly obtain these variables
+    su2double *Average_PrimVar, **Average_GradPrimVar;
+    su2double *Fluct_PrimVar, **Fluct_GradPrimVar, Fluct_turb_ke;
+    su2double **aniso_eddy_viscosity;
+    GetTau(Mean_GradPrimVar, Mean_Laminar_Viscosity);
+    AddTauSGS(Average_PrimVar, Average_GradPrimVar, Mean_turb_ke, Mean_Eddy_Viscosity);
+    AddTauSGET(Fluct_PrimVar, Fluct_GradPrimVar, Fluct_turb_ke, aniso_eddy_viscosity);
+    // TODO: Change the viscous heat flux
+    GetViscousHeatFlux(Mean_GradPrimVar, Mean_Laminar_Viscosity,
+                       Mean_Eddy_Viscosity);
+    GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Normal);
+  } else {
+    const bool QCR = config->GetQCR();
+
+    GetTau(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Mean_Laminar_Viscosity,
+           Mean_Eddy_Viscosity, QCR);
+    GetViscousHeatFlux(Mean_GradPrimVar, Mean_Laminar_Viscosity,
+                       Mean_Eddy_Viscosity);
+    GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Normal);
+  }
 
   /*--- Update viscous residual ---*/
   
@@ -4816,6 +4832,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
     } else {
       GetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
                      dist_ij, UnitNormal);
+      // TODO: Fill in tau Jacobian terms  for model-spit
       GetHeatFluxJacobian(Mean_PrimVar, Mean_Laminar_Viscosity,
                           Mean_Eddy_Viscosity, dist_ij, UnitNormal);
       GetViscousProjJacs(Mean_PrimVar, Area, Proj_Flux_Tensor,
@@ -4916,7 +4933,7 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
   
   /*--- Compute vector going from iPoint to jPoint ---*/
 
-  dist_ij = 0.0;
+  su2double dist_ij = 0.0;
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     Edge_Vector[iDim] = Coord_j[iDim]-Coord_i[iDim];
     dist_ij += Edge_Vector[iDim]*Edge_Vector[iDim];
@@ -4935,11 +4952,11 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
   }
   
   /*--- Mean Viscosities and turbulent kinetic energy---*/
-  Mean_Laminar_Viscosity    = 0.5*(Laminar_Viscosity_i + Laminar_Viscosity_j);
-  Mean_Eddy_Viscosity       = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
-  Mean_turb_ke              = 0.5*(turb_ke_i + turb_ke_j);
-  Mean_Thermal_Conductivity = 0.5*(Thermal_Conductivity_i + Thermal_Conductivity_j);
-  Mean_Cp                   = 0.5*(Cp_i + Cp_j);
+  const su2double Mean_Laminar_Viscosity    = 0.5*(Laminar_Viscosity_i + Laminar_Viscosity_j);
+  const su2double Mean_Eddy_Viscosity       = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
+  const su2double Mean_turb_ke              = 0.5*(turb_ke_i + turb_ke_j);
+  const su2double Mean_Thermal_Conductivity = 0.5*(Thermal_Conductivity_i + Thermal_Conductivity_j);
+  const su2double Mean_Cp                   = 0.5*(Cp_i + Cp_j);
 
   /*--- Mean gradient approximation ---*/
 
