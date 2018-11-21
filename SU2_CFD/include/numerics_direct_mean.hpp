@@ -63,6 +63,7 @@ protected:
   *viscous_heat_flux,  /*!< \brief Flux of total energy due to molecular and turbulent diffusion */
   **tau_jacobian_i, /*!< \brief Jacobian of the viscous + turbulent stress tensor, projected onto the normal vector. */
   *heat_flux_jac_i; /*!< \brief Jacobian of the molecular + turbulent heat flux vector, projected onto the normal vector. */
+  su2double** deviatoric; /*!< \brief Deviatoric portion of the velocity gradient tensor. */
   
 public:
   
@@ -94,6 +95,20 @@ public:
               const su2double val_turb_ke,
               const su2double val_laminar_viscosity,
               const su2double val_eddy_viscosity, const bool val_qcr);
+
+  void GetTau(su2double **val_gradprimvar,
+              su2double **val_average_gradprimvar,
+              const su2double val_laminar_viscosity);
+
+  void AddTauSGS(const su2double *val_primvar,
+                 su2double **val_gradprimvar,
+                 const su2double val_turb_ke,
+                 const su2double val_eddy_viscosity);
+
+  void AddTauSGET(const su2double *val_primvar,
+                  su2double **val_gradprimvar,
+                  const su2double val_turb_ke,
+                  su2double** val_eddy_viscosity);
 
   /**
    * \brief Calculate the jacobian of the viscous and turbulent stress tensor
