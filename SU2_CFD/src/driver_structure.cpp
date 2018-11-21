@@ -39,6 +39,7 @@
 #include "../include/definition_structure.hpp"
 #include "../include/variable_structure_v2f.hpp"
 #include "../include/numerics_structure_v2f.hpp"
+#include "../include/numerics_direct_mean.hpp"
 #include "../include/solver_structure_v2f.hpp"
 
 CDriver::CDriver(char* confFile,

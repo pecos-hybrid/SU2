@@ -41,7 +41,7 @@
 #include <limits> // used to find machine epsilon
 #include <cmath>  // std::abs
 
-#include "../include/numerics_structure.hpp"
+#include "../include/numerics_direct_mean.hpp"
 
 #ifdef BUILD_TESTS
 
@@ -232,24 +232,24 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
       expected_jacobian_j[iVar][jVar] = -expected_jacobian_i[iVar][jVar];
     }
   }
-  expected_jacobian_i[3][0] = 41;
+  expected_jacobian_i[3][0] = 23;
   expected_jacobian_i[3][1] = -0.5;
   expected_jacobian_i[3][2] = 15;
 
-  expected_jacobian_j[3][0] = -23;
+  expected_jacobian_j[3][0] = -41;
   expected_jacobian_j[3][1] = -5.5;
   expected_jacobian_j[3][2] = -3;
 
   cout << "Calculated:\n";
   PrintInformation(residual_i, Jacobian_i, Jacobian_j);
 
-  const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
+  const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
       cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_SMALL(expected_jacobian_j[iVar][jVar] - Jacobian_j[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
     }
   }
 }

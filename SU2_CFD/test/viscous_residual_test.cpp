@@ -42,7 +42,7 @@
 #include <limits> // used to find machine epsilon
 #include <cmath>  // std::abs
 
-#include "../include/numerics_structure.hpp"
+#include "../include/numerics_direct_mean.hpp"
 
 #ifdef BUILD_TESTS
 
@@ -226,13 +226,13 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithRotationOnly, ViscousResidualFixture)
   // cout << "Calculated:\n";
   // PrintInformation(residual_i, Jacobian_i, Jacobian_j);
 
-  const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
+  const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      // cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] + Jacobian_j[iVar][jVar], tolerance);
+      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(-expected_jacobian_i[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
     }
   }
 
@@ -285,11 +285,11 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithNoViscosity, ViscousResidualFixture) 
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   // Ignore Jacobian of energy flux (zero viscosity can create NaNs)
   for (unsigned short iVar = 0; iVar < nVar-1; iVar++) {
-    BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      // cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] + Jacobian_j[iVar][jVar], tolerance);
+      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(-expected_jacobian_i[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
     }
   }
 
@@ -343,11 +343,13 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithTKEOnly, ViscousResidualFixture) {
 //  cout << "Calculated:\n";
 //  PrintInformation(residual_i, Jacobian_i, Jacobian_j);
 
+  // Use BOOST_CHECK_SMALL instead of BOOST_CHECK_CLOSE to avoid problems
+  // with trying to compute relative errors on 0
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
     BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      // cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
+      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
       BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
       BOOST_CHECK_SMALL(expected_jacobian_j[iVar][jVar] - Jacobian_j[iVar][jVar], tolerance);
     }
@@ -413,12 +415,12 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
       expected_jacobian_j[iVar][jVar] = -expected_jacobian_i[iVar][jVar];
     }
   }
-  expected_jacobian_i[4][0] = 41.75;
+  expected_jacobian_i[4][0] = 35.75;
   expected_jacobian_i[4][1] = -6.5;
   expected_jacobian_i[4][2] = 15;
   expected_jacobian_i[4][3] = 13.5;
 
-  expected_jacobian_j[4][0] = -35.75;
+  expected_jacobian_j[4][0] = -41.75;
   expected_jacobian_j[4][1] = -11.5;
   expected_jacobian_j[4][2] = -3;
   expected_jacobian_j[4][3] = -13.5;
@@ -428,11 +430,11 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
 
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
     for (unsigned short jVar = 0; jVar < nVar; jVar++) {
       cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_SMALL(expected_jacobian_j[iVar][jVar] - Jacobian_j[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
     }
   }
 
@@ -526,6 +528,58 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualNonIdeal, ViscousResidualFixture) {
       BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
     }
   }
+
+  delete numerics;
+}
+
+BOOST_FIXTURE_TEST_CASE(ViscousTiming, ViscousResidualFixture) {
+
+  /*---
+   * SETUP
+   * ---*/
+
+  CNumerics* numerics = new CAvgGrad_Flow(3, 5, false, config);
+
+  primvar_i[nDim+1] = 1.0; // pressure
+  primvar_i[nDim+2] = 1.0; // density
+  primvar_i[nDim+5] = 1.0; // laminar viscosity
+  primvar_i[nDim+6] = 1.0; // turbulent viscosity
+  for (unsigned short iVar = 1; iVar < nDim+1; iVar++) {
+    primvar_i[iVar] = iVar; // Velocities
+  }
+  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
+    primvar_j[iVar] = primvar_i[iVar];
+  }
+
+  primvar_grad_i[1][0] =  1.0; // du/dx
+  primvar_grad_i[2][1] =  2.0; // dv/dy
+  primvar_grad_i[3][2] =  3.0; // dw/dz
+  primvar_grad_i[1][1] =  1.0; // du/dy
+  primvar_grad_i[2][0] =  1.0; // dv/dx
+  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      primvar_grad_j[iVar][iDim] = primvar_grad_i[iVar][iDim];
+    }
+  }
+
+  const su2double tke = 3; // 3 cancels out 3 in denominator
+
+  /*---
+   * TEST
+   * ---*/
+
+  numerics->SetCoord(coord_i, coord_j);
+  numerics->SetNormal(normal);
+  numerics->SetSecondary(NULL, NULL);
+  numerics->SetPrimitive(primvar_i, primvar_j);
+  numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
+  numerics->SetTurbKineticEnergy(tke, tke);
+  clock_t begin = clock();
+  for (unsigned long i = 0; i < 1E6; i++)
+    numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
+  clock_t end = clock();
+  double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+  std::cout << "Elapsed time: " << elapsed_secs << std::endl;
 
   delete numerics;
 }
