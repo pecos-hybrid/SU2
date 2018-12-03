@@ -47,7 +47,7 @@
 #include <iostream>
 #include <limits> // used to find machine epsilon
 
-#include "../include/numerics_direct_mean.hpp"
+#include "../include/numerics_structure.hpp"
 #include "../include/fluid_model.hpp"
 
 const unsigned short nDim = 3;

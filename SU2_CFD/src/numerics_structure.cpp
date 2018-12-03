@@ -50,6 +50,7 @@ CNumerics::CNumerics(void) {
   Proj_Flux_Tensor  = NULL;
   Flux_Tensor       = NULL;
  
+  tau    = NULL;
   delta  = NULL;
 
   Diffusion_Coeff_i = NULL;
@@ -79,6 +80,7 @@ CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
   Proj_Flux_Tensor  = NULL;
   Flux_Tensor       = NULL;
   
+  tau    = NULL;
   delta  = NULL;
 
   Diffusion_Coeff_i = NULL;
@@ -94,6 +96,8 @@ CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
   nVar = val_nVar;
   Gamma = config->GetGamma();
   Gamma_Minus_One = Gamma - 1.0;
+  Prandtl_Lam = config->GetPrandtl_Lam();
+  Prandtl_Turb = config->GetPrandtl_Turb();
   Gas_Constant = config->GetGas_ConstantND();
 
   UnitNormal = new su2double [nDim];
@@ -102,6 +106,11 @@ CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
   Flux_Tensor = new su2double* [nVar];
   for (iVar = 0; iVar < (nVar); iVar++)
     Flux_Tensor[iVar] = new su2double [nDim];
+
+  tau = new su2double* [nDim];
+  for (iDim = 0; iDim < nDim; iDim++) {
+    tau[iDim] = new su2double [nDim];
+  }
 
   delta = new su2double* [nDim];
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -150,6 +159,13 @@ CNumerics::~CNumerics(void) {
       delete [] Flux_Tensor[iVar];
     }
     delete [] Flux_Tensor;
+  }
+
+  if (tau != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      delete [] tau[iDim];
+    }
+    delete [] tau;
   }
 
   if (delta != NULL) {
