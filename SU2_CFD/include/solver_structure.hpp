@@ -146,6 +146,13 @@ protected:
    * This method should only be implemented in derived classes when other
    * variables are to be averaged.
    *
+   * Remember to call the base class function in your derived class
+   * function if you intend to keep the solution variables. Include
+   * this line:
+   * \code
+   *   CSolver::UpdateAverage(weight, iPoint, buffer);
+   * \endcode
+   *
    * \param weight - The amount to weight the update on the average
    * \param iPoint - The point at which the average will be calculated
    * \param buffer - An allocated array of size nVar for working calculations
@@ -174,6 +181,7 @@ public:
   
   CVariable** node;  /*!< \brief Vector which the define the variables for each problem. */
   CVariable* node_infty; /*!< \brief CVariable storing the free stream conditions. */
+  CVariable** average_node;  /*!< \brief Vector which the define averaged variables for each problem. */
   
   /*!
    * \brief Constructor of the class.
@@ -197,6 +205,13 @@ public:
    */
   virtual void Set_MPI_Solution(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief Impose the send-receive boundary condition for the average solution
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Set number of linear solver iterations.
    * \param[in] val_iterlinsolver - Number of linear iterations.
@@ -566,6 +581,13 @@ public:
    */
   virtual void Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief MPI gradients.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Compute the Least Squares gradient of the grid velocity.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -1493,6 +1515,27 @@ public:
    */
   virtual void Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief A virtual member.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -4639,8 +4682,22 @@ public:
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] config - Definition of the particular problem.
    */
+  void Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief Impose the send-receive boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
   void Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief Impose the send-receive boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Impose the send-receive boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -4852,7 +4909,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPrimitive_Gradient_GG(CGeometry *geometry, CConfig *config);
-  
+
   /*!
    * \brief Compute the gradient of the primitive variables using a Least-Squares method,
    *        and stores the result in the <i>Gradient_Primitive</i> variable.
@@ -4860,7 +4917,25 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPrimitive_Gradient_LS(CGeometry *geometry, CConfig *config);
-  
+
+  /*!
+   * \brief Compute the gradient of the average primitive variables using
+   *        Green-Gauss method, and stores the result in the
+   *        <i>Gradient_Primitive</i> variable.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief Compute the gradient of the average primitive variables using
+   *        a Least-Squares method, and stores the result in the
+   *        <i>Gradient_Primitive</i> variable.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Compute the gradient of the primitive variables using a Least-Squares method,
    *        and stores the result in the <i>Gradient_Primitive</i> variable.
@@ -4869,6 +4944,14 @@ public:
    */
   void Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief Commuicate gradients of the average of the primitive variables
+   *        using MPI.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config);
+
   /*!
    * \brief Compute the limiter of the primitive variables.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -7188,7 +7271,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPrimitive_Gradient_GG(CGeometry *geometry, CConfig *config);
-  
+
   /*!
    * \brief Compute the gradient of the primitive variables using a Least-Squares method,
    *        and stores the result in the <i>Gradient_Primitive</i> variable.
@@ -7196,7 +7279,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPrimitive_Gradient_LS(CGeometry *geometry, CConfig *config);
-  
+
   /*!
    * \brief Compute the gradient of the primitive variables using a Least-Squares method,
    *        and stores the result in the <i>Gradient_Primitive</i> variable.
@@ -7204,7 +7287,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config);
-  
+
   /*!
    * \brief Compute the limiter of the primitive variables.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -8942,6 +9025,13 @@ public:
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] config - Definition of the particular problem.
    */
+  void Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config);
+
+  /*!
+   * \brief Impose the send-receive boundary condition.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
   void Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config);
   
   /*!
@@ -9436,21 +9526,6 @@ private:
   su2double *constants,  /*!< \brief Constants for the model. */
   kine_Inf,           /*!< \brief Free-stream turbulent kinetic energy. */
   omega_Inf;          /*!< \brief Free-stream specific dissipation. */
-
-  /*!
-   * \brief Finish the averaging calculation.
-   *
-   * This is a templated step in the averaging calculation.  The averaging
-   * routine loops over all the nodes and calls this routine for each node.
-   *
-   * Note that the base class (CSolver) updates the average of the solution.
-   * This method is only be implemented to allow other variables to be averaged.
-   *
-   * \param weight - The amount to weight the update on the average
-   * \param iPoint - The point at which the average will be calculated
-   * \param buffer - An allocated array of size nVar for working calculations
-   */
-  void UpdateAverage(su2double weight, unsigned short iPoint, su2double* buffer);
 
 public:
   /*!

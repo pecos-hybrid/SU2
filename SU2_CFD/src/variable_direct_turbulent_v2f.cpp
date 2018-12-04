@@ -58,8 +58,6 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
   Solution[3] = val_f;	Solution_Old[3] = val_f;
   Tm  = val_Tm;
   Lm  = val_Lm;
-  Tm_avg = val_Tm;
-  Lm_avg = val_Lm;
 
   /*--- Initialization of eddy viscosity ---*/  
   muT = val_muT;

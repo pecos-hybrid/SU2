@@ -399,7 +399,7 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
   
   Primitive = new su2double [nPrimVar];
   for (iVar = 0; iVar < nPrimVar; iVar++) Primitive[iVar] = 0.0;
-  
+
   Secondary = new su2double [nSecondaryVar];
   for (iVar = 0; iVar < nSecondaryVar; iVar++) Secondary[iVar] = 0.0;
 
@@ -447,6 +447,7 @@ CEulerVariable::~CEulerVariable(void) {
       if (Gradient_Primitive[iVar] != NULL) delete [] Gradient_Primitive[iVar];
     delete [] Gradient_Primitive;
   }
+
   if (Gradient_Secondary != NULL) {
     for (iVar = 0; iVar < nSecondaryVarGrad; iVar++)
       if (Gradient_Secondary[iVar] != NULL) delete [] Gradient_Secondary[iVar];

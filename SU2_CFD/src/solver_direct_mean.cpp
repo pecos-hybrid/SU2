@@ -193,6 +193,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
                       (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   bool fsi     = config->GetFSI_Simulation();
   string filename_ = config->GetSolution_FlowFileName();
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -391,6 +392,9 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   /*--- Allocate the node variables ---*/
   
   node = new CVariable*[nPoint];
+  if (runtime_averaging) {
+    average_node = new CVariable*[nPoint];
+  }
   
   /*--- Define some auxiliary vectors related to the residual ---*/
   
@@ -829,6 +833,11 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CEulerVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
 
+  if (runtime_averaging) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++)
+      average_node[iPoint] = new CEulerVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
+  }
+
   /*--- Check that the initial solution is physical, report any non-physical nodes ---*/
 
   counter_local = 0;
@@ -905,6 +914,8 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
+  if (config->GetKind_Averaging() != NO_AVERAGING)
+    Set_MPI_Average_Solution(geometry, config);
   
 }
 
@@ -1670,6 +1681,122 @@ void CEulerSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
   
 }
 
+void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config) {
+  unsigned short iVar, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
+  su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi, *Buffer_Receive_U = NULL, *Buffer_Send_U = NULL;
+
+#ifdef HAVE_MPI
+  int send_to, receive_from;
+  SU2_MPI::Status status;
+#endif
+
+  for (iMarker = 0; iMarker < nMarker; iMarker++) {
+
+    if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
+        (config->GetMarker_All_SendRecv(iMarker) > 0)) {
+
+      MarkerS = iMarker;  MarkerR = iMarker+1;
+
+#ifdef HAVE_MPI
+      send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
+      receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
+#endif
+
+      nVertexS = geometry->nVertex[MarkerS];  nVertexR = geometry->nVertex[MarkerR];
+      nBufferS_Vector = nVertexS*nVar;        nBufferR_Vector = nVertexR*nVar;
+
+      /*--- Allocate Receive and send buffers  ---*/
+      Buffer_Receive_U = new su2double [nBufferR_Vector];
+      Buffer_Send_U = new su2double[nBufferS_Vector];
+
+      /*--- Copy the solution that should be sended ---*/
+      for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+        iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
+        for (iVar = 0; iVar < nVar; iVar++)
+          Buffer_Send_U[iVar*nVertexS+iVertex] = average_node[iPoint]->GetSolution(iVar);
+      }
+
+#ifdef HAVE_MPI
+
+      /*--- Send/Receive information using Sendrecv ---*/
+      SU2_MPI::Sendrecv(Buffer_Send_U, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
+                        Buffer_Receive_U, nBufferR_Vector, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+
+#else
+
+      /*--- Receive information without MPI ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+        for (iVar = 0; iVar < nVar; iVar++)
+          Buffer_Receive_U[iVar*nVertexR+iVertex] = Buffer_Send_U[iVar*nVertexR+iVertex];
+      }
+
+#endif
+
+      /*--- Deallocate send buffer ---*/
+      delete [] Buffer_Send_U;
+
+      /*--- Do the coordinate transformation ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+
+        /*--- Find point and its type of transformation ---*/
+        iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
+        iPeriodic_Index = geometry->vertex[MarkerR][iVertex]->GetRotation_Type();
+
+        /*--- Retrieve the supplied periodic information. ---*/
+        angles = config->GetPeriodicRotation(iPeriodic_Index);
+
+        /*--- Store angles separately for clarity. ---*/
+        theta    = angles[0];   phi    = angles[1];     psi    = angles[2];
+        cosTheta = cos(theta);  cosPhi = cos(phi);      cosPsi = cos(psi);
+        sinTheta = sin(theta);  sinPhi = sin(phi);      sinPsi = sin(psi);
+
+        /*--- Compute the rotation matrix. Note that the implicit
+         ordering is rotation about the x-axis, y-axis,
+         then z-axis. Note that this is the transpose of the matrix
+         used during the preprocessing stage. ---*/
+        rotMatrix[0][0] = cosPhi*cosPsi;    rotMatrix[1][0] = sinTheta*sinPhi*cosPsi - cosTheta*sinPsi;     rotMatrix[2][0] = cosTheta*sinPhi*cosPsi + sinTheta*sinPsi;
+        rotMatrix[0][1] = cosPhi*sinPsi;    rotMatrix[1][1] = sinTheta*sinPhi*sinPsi + cosTheta*cosPsi;     rotMatrix[2][1] = cosTheta*sinPhi*sinPsi - sinTheta*cosPsi;
+        rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
+
+        /*--- Copy conserved variables before performing transformation. ---*/
+        for (iVar = 0; iVar < nVar; iVar++)
+          Solution[iVar] = Buffer_Receive_U[iVar*nVertexR+iVertex];
+
+        /*--- Rotate the momentum components. ---*/
+        if (nDim == 2) {
+          Solution[1] = rotMatrix[0][0]*Buffer_Receive_U[1*nVertexR+iVertex] +
+          rotMatrix[0][1]*Buffer_Receive_U[2*nVertexR+iVertex];
+          Solution[2] = rotMatrix[1][0]*Buffer_Receive_U[1*nVertexR+iVertex] +
+          rotMatrix[1][1]*Buffer_Receive_U[2*nVertexR+iVertex];
+        }
+        else {
+          Solution[1] = rotMatrix[0][0]*Buffer_Receive_U[1*nVertexR+iVertex] +
+          rotMatrix[0][1]*Buffer_Receive_U[2*nVertexR+iVertex] +
+          rotMatrix[0][2]*Buffer_Receive_U[3*nVertexR+iVertex];
+          Solution[2] = rotMatrix[1][0]*Buffer_Receive_U[1*nVertexR+iVertex] +
+          rotMatrix[1][1]*Buffer_Receive_U[2*nVertexR+iVertex] +
+          rotMatrix[1][2]*Buffer_Receive_U[3*nVertexR+iVertex];
+          Solution[3] = rotMatrix[2][0]*Buffer_Receive_U[1*nVertexR+iVertex] +
+          rotMatrix[2][1]*Buffer_Receive_U[2*nVertexR+iVertex] +
+          rotMatrix[2][2]*Buffer_Receive_U[3*nVertexR+iVertex];
+        }
+
+        /*--- Copy transformed conserved variables back into buffer. ---*/
+        for (iVar = 0; iVar < nVar; iVar++)
+          average_node[iPoint]->SetSolution(iVar, Solution[iVar]);
+
+      }
+
+      /*--- Deallocate receive buffer ---*/
+      delete [] Buffer_Receive_U;
+
+    }
+
+  }
+
+}
+
 void CEulerSolver::Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iMarker, iPeriodic_Index, MarkerS, MarkerR;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
@@ -2175,6 +2302,129 @@ void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *confi
   
 }
 
+void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config) {
+  unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
+  su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
+  *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
+
+  su2double **Gradient = new su2double* [nVar];
+  for (iVar = 0; iVar < nVar; iVar++)
+    Gradient[iVar] = new su2double[nDim];
+
+#ifdef HAVE_MPI
+  int send_to, receive_from;
+  SU2_MPI::Status status;
+#endif
+
+  for (iMarker = 0; iMarker < nMarker; iMarker++) {
+
+    if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
+        (config->GetMarker_All_SendRecv(iMarker) > 0)) {
+
+      MarkerS = iMarker;  MarkerR = iMarker+1;
+
+#ifdef HAVE_MPI
+      send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
+      receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
+#endif
+
+      nVertexS = geometry->nVertex[MarkerS];  nVertexR = geometry->nVertex[MarkerR];
+      nBufferS_Vector = nVertexS*nVar*nDim;        nBufferR_Vector = nVertexR*nVar*nDim;
+
+      /*--- Allocate Receive and send buffers  ---*/
+      Buffer_Receive_Gradient = new su2double [nBufferR_Vector];
+      Buffer_Send_Gradient = new su2double[nBufferS_Vector];
+
+      /*--- Copy the solution old that should be sended ---*/
+      for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+        iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
+        for (iVar = 0; iVar < nVar; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Buffer_Send_Gradient[iDim*nVar*nVertexS+iVar*nVertexS+iVertex] = average_node[iPoint]->GetGradient(iVar, iDim);
+      }
+
+#ifdef HAVE_MPI
+
+      /*--- Send/Receive information using Sendrecv ---*/
+      SU2_MPI::Sendrecv(Buffer_Send_Gradient, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
+                        Buffer_Receive_Gradient, nBufferR_Vector, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+
+#else
+
+      /*--- Receive information without MPI ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+        for (iVar = 0; iVar < nVar; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex] = Buffer_Send_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
+      }
+
+#endif
+
+      /*--- Deallocate send buffer ---*/
+      delete [] Buffer_Send_Gradient;
+
+      /*--- Do the coordinate transformation ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+
+        /*--- Find point and its type of transformation ---*/
+        iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
+        iPeriodic_Index = geometry->vertex[MarkerR][iVertex]->GetRotation_Type();
+
+        /*--- Retrieve the supplied periodic information. ---*/
+        angles = config->GetPeriodicRotation(iPeriodic_Index);
+
+        /*--- Store angles separately for clarity. ---*/
+        theta    = angles[0];   phi    = angles[1];     psi    = angles[2];
+        cosTheta = cos(theta);  cosPhi = cos(phi);      cosPsi = cos(psi);
+        sinTheta = sin(theta);  sinPhi = sin(phi);      sinPsi = sin(psi);
+
+        /*--- Compute the rotation matrix. Note that the implicit
+         ordering is rotation about the x-axis, y-axis,
+         then z-axis. Note that this is the transpose of the matrix
+         used during the preprocessing stage. ---*/
+        rotMatrix[0][0] = cosPhi*cosPsi;    rotMatrix[1][0] = sinTheta*sinPhi*cosPsi - cosTheta*sinPsi;     rotMatrix[2][0] = cosTheta*sinPhi*cosPsi + sinTheta*sinPsi;
+        rotMatrix[0][1] = cosPhi*sinPsi;    rotMatrix[1][1] = sinTheta*sinPhi*sinPsi + cosTheta*cosPsi;     rotMatrix[2][1] = cosTheta*sinPhi*sinPsi - sinTheta*cosPsi;
+        rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
+
+        /*--- Copy conserved variables before performing transformation. ---*/
+        for (iVar = 0; iVar < nVar; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
+
+        /*--- Need to rotate the gradients for all conserved variables. ---*/
+        for (iVar = 0; iVar < nVar; iVar++) {
+          if (nDim == 2) {
+            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+          }
+          else {
+            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+          }
+        }
+
+        /*--- Store the received information ---*/
+        for (iVar = 0; iVar < nVar; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            average_node[iPoint]->SetGradient(iVar, iDim, Gradient[iVar][iDim]);
+
+      }
+
+      /*--- Deallocate receive buffer ---*/
+      delete [] Buffer_Receive_Gradient;
+
+    }
+
+  }
+
+  for (iVar = 0; iVar < nVar; iVar++)
+    delete [] Gradient[iVar];
+  delete [] Gradient;
+
+}
+
 void CEulerSolver::Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iMarker, iPeriodic_Index, MarkerS, MarkerR;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
@@ -2417,6 +2667,129 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
     delete [] Gradient[iVar];
   delete [] Gradient;
   
+}
+
+void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config) {
+  unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
+  su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
+  *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
+
+  su2double **Gradient = new su2double* [nPrimVarGrad];
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+    Gradient[iVar] = new su2double[nDim];
+
+#ifdef HAVE_MPI
+  int send_to, receive_from;
+  SU2_MPI::Status status;
+#endif
+
+  for (iMarker = 0; iMarker < nMarker; iMarker++) {
+
+    if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
+        (config->GetMarker_All_SendRecv(iMarker) > 0)) {
+
+      MarkerS = iMarker;  MarkerR = iMarker+1;
+
+#ifdef HAVE_MPI
+      send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
+      receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
+#endif
+
+      nVertexS = geometry->nVertex[MarkerS];  nVertexR = geometry->nVertex[MarkerR];
+      nBufferS_Vector = nVertexS*nPrimVarGrad*nDim;        nBufferR_Vector = nVertexR*nPrimVarGrad*nDim;
+
+      /*--- Allocate Receive and send buffers  ---*/
+      Buffer_Receive_Gradient = new su2double [nBufferR_Vector];
+      Buffer_Send_Gradient = new su2double[nBufferS_Vector];
+
+      /*--- Copy the solution old that should be sended ---*/
+      for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+        iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Buffer_Send_Gradient[iDim*nPrimVarGrad*nVertexS+iVar*nVertexS+iVertex] = average_node[iPoint]->GetGradient_Primitive(iVar, iDim);
+      }
+
+#ifdef HAVE_MPI
+
+      /*--- Send/Receive information using Sendrecv ---*/
+      SU2_MPI::Sendrecv(Buffer_Send_Gradient, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
+                        Buffer_Receive_Gradient, nBufferR_Vector, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+
+#else
+
+      /*--- Receive information without MPI ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] = Buffer_Send_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+      }
+
+#endif
+
+      /*--- Deallocate send buffer ---*/
+      delete [] Buffer_Send_Gradient;
+
+      /*--- Do the coordinate transformation ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+
+        /*--- Find point and its type of transformation ---*/
+        iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
+        iPeriodic_Index = geometry->vertex[MarkerR][iVertex]->GetRotation_Type();
+
+        /*--- Retrieve the supplied periodic information. ---*/
+        angles = config->GetPeriodicRotation(iPeriodic_Index);
+
+        /*--- Store angles separately for clarity. ---*/
+        theta    = angles[0];   phi    = angles[1];     psi    = angles[2];
+        cosTheta = cos(theta);  cosPhi = cos(phi);      cosPsi = cos(psi);
+        sinTheta = sin(theta);  sinPhi = sin(phi);      sinPsi = sin(psi);
+
+        /*--- Compute the rotation matrix. Note that the implicit
+         ordering is rotation about the x-axis, y-axis,
+         then z-axis. Note that this is the transpose of the matrix
+         used during the preprocessing stage. ---*/
+        rotMatrix[0][0] = cosPhi*cosPsi;    rotMatrix[1][0] = sinTheta*sinPhi*cosPsi - cosTheta*sinPsi;     rotMatrix[2][0] = cosTheta*sinPhi*cosPsi + sinTheta*sinPsi;
+        rotMatrix[0][1] = cosPhi*sinPsi;    rotMatrix[1][1] = sinTheta*sinPhi*sinPsi + cosTheta*cosPsi;     rotMatrix[2][1] = cosTheta*sinPhi*sinPsi - sinTheta*cosPsi;
+        rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
+
+        /*--- Copy conserved variables before performing transformation. ---*/
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+
+        /*--- Need to rotate the gradients for all conserved variables. ---*/
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+          if (nDim == 2) {
+            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+          }
+          else {
+            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+          }
+        }
+
+        /*--- Store the received information ---*/
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            average_node[iPoint]->SetGradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
+
+      }
+
+      /*--- Deallocate receive buffer ---*/
+      delete [] Buffer_Receive_Gradient;
+
+    }
+
+  }
+
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+    delete [] Gradient[iVar];
+  delete [] Gradient;
+
 }
 
 void CEulerSolver::Set_MPI_Primitive_Limiter(CGeometry *geometry, CConfig *config) {
@@ -4269,6 +4642,8 @@ void CEulerSolver::SetInitialCondition(CGeometry **geometry, CSolver ***solver_c
         
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution_Old(geometry[iMesh], config);
+        if (config->GetKind_Averaging() != NO_AVERAGING)
+          solver_container[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
         
       }
       
@@ -4386,6 +4761,15 @@ void CEulerSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container
     if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
       SetPrimitive_Gradient_LS(geometry, config);
     }
+
+    if (config->GetKind_Averaging() != NO_AVERAGING) {
+      if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
+        SetAverage_Primitive_Gradient_GG(geometry, config);
+      }
+      if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
+        SetAverage_Primitive_Gradient_LS(geometry, config);
+      }
+    }
     
     /*--- Limiter computation ---*/
     
@@ -4436,6 +4820,7 @@ unsigned long CEulerSolver::SetPrimitive_Variables(CSolver **solver_container, C
   
   unsigned long iPoint, ErrorCounter = 0;
   bool RightSol = true;
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
   
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -4447,6 +4832,11 @@ unsigned long CEulerSolver::SetPrimitive_Variables(CSolver **solver_container, C
     
     RightSol = node[iPoint]->SetPrimVar(FluidModel);
     node[iPoint]->SetSecondaryVar(FluidModel);
+
+    if (runtime_averaging) {
+      node[iPoint]->SetPrimVar(FluidModel);
+      // We don't need the secondary variables
+    }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
     
@@ -7031,6 +7421,234 @@ void CEulerSolver::SetPrimitive_Gradient_LS(CGeometry *geometry, CConfig *config
   
   Set_MPI_Primitive_Gradient(geometry, config);
   
+}
+
+
+void CEulerSolver::SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig *config) {
+  unsigned long iPoint, jPoint, iEdge, iVertex;
+  unsigned short iDim, iVar, iMarker;
+  su2double *PrimVar_Vertex, *PrimVar_i, *PrimVar_j, PrimVar_Average,
+  Partial_Gradient, Partial_Res, *Normal;
+
+  /*--- Gradient primitive variables compressible (temp, vx, vy, vz, P, rho) ---*/
+
+  PrimVar_Vertex = new su2double [nPrimVarGrad];
+  PrimVar_i = new su2double [nPrimVarGrad];
+  PrimVar_j = new su2double [nPrimVarGrad];
+
+  /*--- Set Gradient_Primitive to zero ---*/
+
+  for (iPoint = 0; iPoint < nPointDomain; iPoint++)
+    average_node[iPoint]->SetGradient_PrimitiveZero(nPrimVarGrad);
+
+  /*--- Loop interior edges ---*/
+
+  for (iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {
+    iPoint = geometry->edge[iEdge]->GetNode(0);
+    jPoint = geometry->edge[iEdge]->GetNode(1);
+
+    for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+      PrimVar_i[iVar] = average_node[iPoint]->GetPrimitive(iVar);
+      PrimVar_j[iVar] = average_node[jPoint]->GetPrimitive(iVar);
+    }
+
+    Normal = geometry->edge[iEdge]->GetNormal();
+    for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+      PrimVar_Average =  0.5 * ( PrimVar_i[iVar] + PrimVar_j[iVar] );
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Partial_Res = PrimVar_Average*Normal[iDim];
+        if (geometry->node[iPoint]->GetDomain())
+          average_node[iPoint]->AddGradient_Primitive(iVar, iDim, Partial_Res);
+        if (geometry->node[jPoint]->GetDomain())
+          average_node[jPoint]->SubtractGradient_Primitive(iVar, iDim, Partial_Res);
+      }
+    }
+  }
+
+  /*--- Loop boundary edges ---*/
+
+  for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
+    if (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY &&
+        config->GetMarker_All_KindBC(iMarker) != PERIODIC_BOUNDARY)
+    for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
+      iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+      if (geometry->node[iPoint]->GetDomain()) {
+
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+          PrimVar_Vertex[iVar] = average_node[iPoint]->GetPrimitive(iVar);
+
+        Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++) {
+            Partial_Res = PrimVar_Vertex[iVar]*Normal[iDim];
+            average_node[iPoint]->SubtractGradient_Primitive(iVar, iDim, Partial_Res);
+          }
+      }
+    }
+  }
+
+  /*--- Update gradient value ---*/
+
+  for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+    for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Partial_Gradient = average_node[iPoint]->GetGradient_Primitive(iVar, iDim) / (geometry->node[iPoint]->GetVolume());
+        average_node[iPoint]->SetGradient_Primitive(iVar, iDim, Partial_Gradient);
+      }
+    }
+  }
+
+  delete [] PrimVar_Vertex;
+  delete [] PrimVar_i;
+  delete [] PrimVar_j;
+
+  Set_MPI_Average_Primitive_Gradient(geometry, config);
+
+}
+
+void CEulerSolver::SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig *config) {
+
+  unsigned short iVar, iDim, jDim, iNeigh;
+  unsigned long iPoint, jPoint;
+  su2double *Coord_i, *Coord_j, r11, r12, r13, r22, r23, r23_a,
+  r23_b, r33, weight, product, z11, z12, z13, z22, z23, z33, detR2;
+  bool singular;
+
+  /*--- Loop over points of the grid ---*/
+
+  for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+    /*--- Set the value of the singular ---*/
+    singular = false;
+
+    /*--- Get coordinates ---*/
+
+    Coord_i = geometry->node[iPoint]->GetCoord();
+
+    /*--- Get primitives from CVariable ---*/
+
+    const su2double* PrimVar_i = average_node[iPoint]->GetPrimitive();
+
+    /*--- Inizialization of variables ---*/
+
+    for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+      for (iDim = 0; iDim < nDim; iDim++)
+        Cvector[iVar][iDim] = 0.0;
+
+    r11 = 0.0; r12 = 0.0;   r13 = 0.0;    r22 = 0.0;
+    r23 = 0.0; r23_a = 0.0; r23_b = 0.0;  r33 = 0.0;
+
+    AD::StartPreacc();
+    AD::SetPreaccIn(PrimVar_i, nPrimVarGrad);
+    AD::SetPreaccIn(Coord_i, nDim);
+
+    for (iNeigh = 0; iNeigh < geometry->node[iPoint]->GetnPoint(); iNeigh++) {
+      jPoint = geometry->node[iPoint]->GetPoint(iNeigh);
+      Coord_j = geometry->node[jPoint]->GetCoord();
+
+      const su2double* PrimVar_j = average_node[jPoint]->GetPrimitive();
+
+      AD::SetPreaccIn(Coord_j, nDim);
+      AD::SetPreaccIn(PrimVar_j, nPrimVarGrad);
+
+      weight = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++)
+        weight += (Coord_j[iDim]-Coord_i[iDim])*(Coord_j[iDim]-Coord_i[iDim]);
+
+      /*--- Sumations for entries of upper triangular matrix R ---*/
+
+      if (weight != 0.0) {
+
+        r11 += (Coord_j[0]-Coord_i[0])*(Coord_j[0]-Coord_i[0])/weight;
+        r12 += (Coord_j[0]-Coord_i[0])*(Coord_j[1]-Coord_i[1])/weight;
+        r22 += (Coord_j[1]-Coord_i[1])*(Coord_j[1]-Coord_i[1])/weight;
+
+        if (nDim == 3) {
+          r13 += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+          r23_a += (Coord_j[1]-Coord_i[1])*(Coord_j[2]-Coord_i[2])/weight;
+          r23_b += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
+          r33 += (Coord_j[2]-Coord_i[2])*(Coord_j[2]-Coord_i[2])/weight;
+        }
+
+        /*--- Entries of c:= transpose(A)*b ---*/
+
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Cvector[iVar][iDim] += (Coord_j[iDim]-Coord_i[iDim])*(PrimVar_j[iVar]-PrimVar_i[iVar])/weight;
+
+      }
+
+    }
+
+    /*--- Entries of upper triangular matrix R ---*/
+
+    if (r11 >= 0.0) r11 = sqrt(r11); else r11 = 0.0;
+    if (r11 != 0.0) r12 = r12/r11; else r12 = 0.0;
+    if (r22-r12*r12 >= 0.0) r22 = sqrt(r22-r12*r12); else r22 = 0.0;
+
+    if (nDim == 3) {
+      if (r11 != 0.0) r13 = r13/r11; else r13 = 0.0;
+      if ((r22 != 0.0) && (r11*r22 != 0.0)) r23 = r23_a/r22 - r23_b*r12/(r11*r22); else r23 = 0.0;
+      if (r33-r23*r23-r13*r13 >= 0.0) r33 = sqrt(r33-r23*r23-r13*r13); else r33 = 0.0;
+    }
+
+    /*--- Compute determinant ---*/
+
+    if (nDim == 2) detR2 = (r11*r22)*(r11*r22);
+    else detR2 = (r11*r22*r33)*(r11*r22*r33);
+
+    /*--- Detect singular matrices ---*/
+
+    if (abs(detR2) <= EPS) { detR2 = 1.0; singular = true; }
+
+    /*--- S matrix := inv(R)*traspose(inv(R)) ---*/
+
+    if (singular) {
+      for (iDim = 0; iDim < nDim; iDim++)
+        for (jDim = 0; jDim < nDim; jDim++)
+          Smatrix[iDim][jDim] = 0.0;
+    }
+    else {
+      if (nDim == 2) {
+        Smatrix[0][0] = (r12*r12+r22*r22)/detR2;
+        Smatrix[0][1] = -r11*r12/detR2;
+        Smatrix[1][0] = Smatrix[0][1];
+        Smatrix[1][1] = r11*r11/detR2;
+      }
+      else {
+        z11 = r22*r33; z12 = -r12*r33; z13 = r12*r23-r13*r22;
+        z22 = r11*r33; z23 = -r11*r23; z33 = r11*r22;
+        Smatrix[0][0] = (z11*z11+z12*z12+z13*z13)/detR2;
+        Smatrix[0][1] = (z12*z22+z13*z23)/detR2;
+        Smatrix[0][2] = (z13*z33)/detR2;
+        Smatrix[1][0] = Smatrix[0][1];
+        Smatrix[1][1] = (z22*z22+z23*z23)/detR2;
+        Smatrix[1][2] = (z23*z33)/detR2;
+        Smatrix[2][0] = Smatrix[0][2];
+        Smatrix[2][1] = Smatrix[1][2];
+        Smatrix[2][2] = (z33*z33)/detR2;
+      }
+    }
+
+    /*--- Computation of the gradient: S*c ---*/
+    for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        product = 0.0;
+        for (jDim = 0; jDim < nDim; jDim++) {
+          product += Smatrix[iDim][jDim]*Cvector[iVar][jDim];
+        }
+
+        average_node[iPoint]->SetGradient_Primitive(iVar, iDim, product);
+      }
+    }
+
+    AD::SetPreaccOut(average_node[iPoint]->GetGradient_Primitive(),
+                     nPrimVarGrad, nDim);
+    AD::EndPreacc();
+  }
+
+  Set_MPI_Average_Primitive_Gradient(geometry, config);
+
 }
 
 void CEulerSolver::SetPrimitive_Limiter(CGeometry *geometry, CConfig *config) {
@@ -14189,9 +14807,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
         if (config->GetWrt_Residuals()) nVar_Total += nVar_Solution;
 
         index = counter*Restart_Vars[1] + skipVars + nVar_Total;
-        for (iVar = 0; iVar < nVar; iVar++)
+        for (iVar = 0; iVar < nVar; iVar++) {
           Solution[iVar] = Restart_Data[index+iVar];
-        node[iPoint_Local]->SetAverageSolution(Solution);
+        }
+        average_node[iPoint_Local]->SetSolution(Solution);
       }
 
       /*--- For dynamic meshes, read in and store the
@@ -14269,6 +14888,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
 
   solver[MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
   solver[MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
+  if (config->GetKind_Averaging() != NO_AVERAGING) {
+    solver[MESH_0][FLOW_SOL]->Set_MPI_Average_Solution(geometry[MESH_0], config);
+    solver[MESH_0][FLOW_SOL]->Set_MPI_Average_Solution(geometry[MESH_0], config);
+  }
   solver[MESH_0][FLOW_SOL]->Preprocessing(geometry[MESH_0], solver[MESH_0], config, MESH_0, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
 
   /*--- Interpolate the solution down to the coarse multigrid levels ---*/
@@ -14289,6 +14912,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
     }
     solver[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
     solver[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
+    if (config->GetKind_Averaging() != NO_AVERAGING) {
+      solver[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
+      solver[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
+    }
     solver[iMesh][FLOW_SOL]->Preprocessing(geometry[iMesh], solver[iMesh], config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
   }
 
@@ -15541,6 +16168,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   unsigned short direct_diff = config->GetDirectDiff();
   bool rans = ((config->GetKind_Solver() == RANS )|| (config->GetKind_Solver() == DISC_ADJ_RANS));
   bool fsi     = config->GetFSI_Simulation();
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -15671,6 +16299,9 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   
   /*--- Allocate the node variables ---*/
   node = new CVariable*[nPoint];
+  if (runtime_averaging) {
+    average_node = new CVariable*[nPoint];
+  }
   
   /*--- Define some auxiliar vector related with the residual ---*/
   
@@ -16205,6 +16836,11 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CNSVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
 
+  if (runtime_averaging) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++)
+      average_node[iPoint] = new CNSVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
+  }
+
   /*--- Check that the initial solution is physical, report any non-physical nodes ---*/
 
   counter_local = 0;
@@ -16278,6 +16914,8 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
+  if (config->GetKind_Averaging() != NO_AVERAGING)
+    Set_MPI_Average_Solution(geometry, config);
   
 }
 
@@ -16367,6 +17005,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   bool van_albada           = config->GetKind_SlopeLimit_Flow() == VAN_ALBADA_EDGE;
   unsigned short kind_row_dissipation = config->GetKind_RoeLowDiss();
   bool roe_low_dissipation  = (kind_row_dissipation != NO_ROELOWDISS) && (config->GetKind_Upwind_Flow() == ROE);
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   /*--- Update the angle of attack at the far-field for fixed CL calculations. ---*/
   
@@ -16423,6 +17062,15 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     SetPrimitive_Gradient_LS(geometry, config);
   }
 
+  if (config->GetKind_Averaging() != NO_AVERAGING) {
+    if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
+      SetAverage_Primitive_Gradient_GG(geometry, config);
+    }
+    if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) {
+      SetAverage_Primitive_Gradient_LS(geometry, config);
+    }
+  }
+
   /*--- Compute the limiter in case we need it in the turbulence model
    or to limit the viscous terms (check this logic with JST and 2nd order turbulence model) ---*/
 
@@ -16443,6 +17091,11 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     
     StrainMag_Max = max(StrainMag_Max, StrainMag);
     Omega_Max = max(Omega_Max, Omega);
+    
+    if (runtime_averaging) {
+      solver_container[FLOW_SOL]->average_node[iPoint]->SetVorticity();
+      solver_container[FLOW_SOL]->average_node[iPoint]->SetStrainMag();
+    }
 
   }
 
@@ -16485,6 +17138,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                      (config->GetKind_Solver() == DISC_ADJ_RANS)) &&
                     ((config->GetKind_Turb_Model() == SST) ||
                      (config->GetKind_Turb_Model() == KE)));
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -16507,6 +17161,11 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     RightSol = node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
     node[iPoint]->SetSecondaryVar(FluidModel);
+    // FIXME: Right now this uses the instantaneous eddy_visc and turb_ke
+    if (runtime_averaging) {
+      average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      // We don't need the secondary variables
+    }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
         

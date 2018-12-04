@@ -448,10 +448,6 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetTurbLengthscale, iZone);
         RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbTimescale, iZone);
-        RegisterScalar("Avg_L_m", "L<sub>m,avg</sub>", TURB_SOL,
-                       &CVariable::GetAverageTurbLengthscale, iZone);
-        RegisterScalar("Avg_T_m", "T<sub>m,avg</sub>", TURB_SOL,
-                       &CVariable::GetAverageTurbTimescale, iZone);
       }
 
       const bool dynamic_hybrid =
@@ -2689,7 +2685,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         Buffer_Send_Var[jPoint] = solver[CurrentIndex]->node[iPoint]->GetSolution(jVar);
 
         if (runtime_average) {
-          Buffer_Send_Avg[jPoint] = solver[CurrentIndex]->node[iPoint]->GetAverageSolution(jVar);
+          Buffer_Send_Avg[jPoint] = solver[CurrentIndex]->average_node[iPoint]->GetSolution(jVar);
         }
         
         if (!config->GetLow_MemoryOutput()) {
@@ -12844,20 +12840,20 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       if (config->GetKind_Averaging() != NO_AVERAGING) {
         /*--- Mean Flow Averages ---*/
         for (jVar = 0; jVar < nVar_First; jVar++) {
-          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetAverageSolution(jVar);
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->average_node[iPoint]->GetSolution(jVar);
           iVar++;
         }
         /*--- RANS Averages ---*/
         if (SecondIndex != NONE) {
           for (jVar = 0; jVar < nVar_Second; jVar++) {
-            Local_Data[jPoint][iVar] = solver[SecondIndex]->node[iPoint]->GetAverageSolution(jVar);
+            Local_Data[jPoint][iVar] = solver[SecondIndex]->average_node[iPoint]->GetSolution(jVar);
             iVar++;
           }
         }
         /*--- Dynamic hybrid RANS/LES Averages ---*/
         if (ThirdIndex != NONE && dynamic_hybrid) {
           for (jVar = 0; jVar < nVar_Third; jVar++) {
-            Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetAverageSolution(jVar);
+            Local_Data[jPoint][iVar] = solver[ThirdIndex]->average_node[iPoint]->GetSolution(jVar);
             iVar++;
           }
         }
