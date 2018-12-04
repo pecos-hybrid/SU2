@@ -1,5 +1,5 @@
 /*!
- * \file hybrid_anisotropy_model.hpp
+ * \file hybrid_RANS_LES_model.hpp
  * \brief 
  * \author C. Pederson
  * \version 5.0.0 "Raven"
@@ -50,133 +50,6 @@
 class CSolver;
 
 using namespace std;
-
-/*!
- * \class CHybrid_Visc_Anisotropy
- * \brief Base (abstract) class for the subgrid anisotropy model for the
- *        turbulent stress.
- * \author: C. Pederson
- * \version 5.0.0 "Raven"
- */
-class CHybrid_Visc_Anisotropy {
- protected:
-  su2double** eddy_visc_anisotropy;
-  const unsigned short nDim;
- public:
-
-  /**
-   * \brief Default constructor for base class
-   * \param[in] nDim - Number of dimensions of the problem (e.g. 2D or 3D)
-   */
-  CHybrid_Visc_Anisotropy(unsigned short nDim);
-
-  /**
-   * \brief Base class destructor
-   */
-  virtual ~CHybrid_Visc_Anisotropy();
-
-  /**
-   * \brief Tells the hybrid model to calculate the turbulent stress anisotropy.
-   */
-  virtual void CalculateViscAnisotropy() = 0;
-
-  /**
-   * \brief Retrieves the turbulent stress anisotropy tensor.
-   * \return The turbulent stress anisotropy.
-   */
-  su2double** GetViscAnisotropy();
-
-  /**
-   * \brief Sets a rank-2 tensor used in the anisotropy model.
-   *
-   * In the SGS anisotropy, this is the approximate structure function. This is
-   * left abstract, in order to allow different possible tensors for different
-   * implementations.
-   *
-   * \param[in] val_tensor - The tensor used in the model
-   */
-  virtual void SetTensor(su2double** val_tensor) = 0;
-
-  /**
-   * \brief Sets a scalar used in the anisotropy model.
-   *
-   * In the SGS anisotropy, this is the resolution inadequacy and/or
-   * the RANS weighting parameter.  This is left abstract, in order to allow
-   * different possible scalars for different implementations.
-   *
-   * \param val_scalars - The scalars for the model
-   */
-  virtual void SetScalars(vector<su2double> val_scalars) = 0;
-};
-
-/*!
- * \class CHybrid_Isotropic_Visc
- * \brief Subgrid anisotropy model based on the approximate 2nd order
- *        structure function.
- * \author: C. Pederson
- * \version 5.0.0 "Raven"
- */
-class CHybrid_Isotropic_Visc : public CHybrid_Visc_Anisotropy {
- public:
-
-  CHybrid_Isotropic_Visc(unsigned short nDim);
-
-  /**
-   * \brief Tells the hybrid model to calculate the turbulent stress anisotropy.
-   */
-  void CalculateViscAnisotropy();
-  
-  /**
-   * \brief This method does nothing. No tensors are needed.
-   * \param val_tensor - This value is not used.
-   */
-  void SetTensor(su2double** val_tensor) {}
-
-  /**
-   * \brief This method does nothing. No scalars are needed.
-   * \param val_scalar
-   */
-  void SetScalars(vector<su2double> val_scalars) {}
-};
-
-/*!
- * \class CHybrid_Aniso_Q
- * \brief Subgrid anisotropy model based on the approximate 2nd order
- *        structure function.
- * \author: C. Pederson
- * \version 5.0.0 "Raven"
- */
-class CHybrid_Aniso_Q : public CHybrid_Visc_Anisotropy {
- protected:
-  su2double** Qstar; ///< \brief The approximate two-point structure function at the grid resolution
-  su2double   rans_weight; ///< \brief The weight given to the isotropic (RANS) portion
-
- public:
-  /**
-   * \brief Constructor for the anisotropy model.
-   * \param[in] nDim - The number of dimensions (2D or 3D)
-   */
-  CHybrid_Aniso_Q(unsigned short nDim);
-  
-  /**
-   * \brief Sets the approximate structure function.
-   * \param[in] val_approx_struct_func
-   */
-  void SetTensor(su2double** val_approx_struct_func);
-
-  /**
-   * \brief Sets the RANS weight
-   * \param[in] val_scalars
-   */
-  void SetScalars(vector<su2double> val_scalars);
-
-  /**
-   * \brief Tells the hybrid model to calculate the turbulent stress anisotropy.
-   */
-  void CalculateViscAnisotropy();
-};
-
-
 
 /*!
  * \class CAbstract_Hybrid_Mediator
@@ -241,20 +114,6 @@ class CAbstract_Hybrid_Mediator {
                                         CNumerics *hybrid_numerics,
                                         unsigned short iPoint,
                                         unsigned short jPoint) = 0;
-
-  /**
-   * \brief Retrieve and pass along all necessary info for the stress
-   *        anisotropy model.
-   *
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] hybrid_anisotropy - The hybrid anisotropy model
-   * \param[in] iPoint - The node being evaluated
-   */
-  virtual void SetupStressAnisotropy(CGeometry* geometry,
-                                     CSolver **solver_container,
-                                     CHybrid_Visc_Anisotropy* hybrid_anisotropy,
-                                     unsigned short iPoint) = 0;
 
   /**
    * \brief Retrieve and pass along all necessary info for resolved numerics.
@@ -438,23 +297,9 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                                 CNumerics *hybrid_param_numerics,
                                 unsigned short iPoint, unsigned short jPoint);
 
-  /**
-   * \brief The turbulent stress anisotropy needs the weighting factor and the
-   *        second order structure function.
-   *
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] hybrid_anisotropy - The hybrid anisotropy model
-   * \param[in] iPoint - The node being evaluated
-   */
-  void SetupStressAnisotropy(CGeometry* geometry,
-                             CSolver **solver_container,
-                             CHybrid_Visc_Anisotropy* hybrid_anisotropy,
-                             unsigned short iPoint);
 
   /**
-   * \brief The resolved flow needs the hybrid parameter (the energy flow
-   *        parameter) and the turbulent stress anisotropy tensor.
+   * \brief
    *
    * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
@@ -549,22 +394,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                                 unsigned short iPoint, unsigned short jPoint);
 
   /**
-   * \brief The turbulent stress anisotropy needs the weighting factor and the
-   *        second order structure function.
-   *
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] hybrid_anisotropy - The hybrid anisotropy model
-   * \param[in] iPoint - The node being evaluated
-   */
-  void SetupStressAnisotropy(CGeometry* geometry,
-                             CSolver **solver_container,
-                             CHybrid_Visc_Anisotropy* hybrid_anisotropy,
-                             unsigned short iPoint);
-
-  /**
-   * \brief The resolved flow needs the hybrid parameter (the energy flow
-   *        parameter) and the turbulent stress anisotropy tensor.
+   * \brief
    *
    * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers

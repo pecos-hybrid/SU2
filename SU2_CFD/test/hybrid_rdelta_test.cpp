@@ -41,8 +41,8 @@
 #include <limits> // used to find machine epsilon
 #include <cmath>  // std::abs
 
-#include "../include/solver_structure.hpp"
-#include "../include/variable_structure.hpp"
+#include "../include/solver_structure_v2f.hpp"
+#include "../include/variable_structure_v2f.hpp"
 #include "../include/hybrid_RANS_LES_model.hpp"
 
 void WriteCfgFile(const unsigned short& nDim) {
@@ -53,7 +53,6 @@ void WriteCfgFile(const unsigned short& nDim) {
   cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
   cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
   cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA_STRAIN_ONLY" << std::endl;
-  cfg_file << "HYBRID_ANISOTROPY_MODEL= ISOTROPIC" << std::endl;
   // This option is deprecated
   // cfg_file << "HYBRID_MODEL_CONSTANT= 1.0" << std::endl;
   cfg_file.close();
@@ -70,7 +69,8 @@ struct HybridRdeltaFixture {
     : machine_eps(std::numeric_limits<su2double>::epsilon())
   {
     WriteCfgFile(3);
-    mock_config = new CConfig("hybrid_rdelta_test.cfg", SU2_CFD, 0, 1, 3, VERB_NONE);
+    char cfg_filename[100] = "hybrid_rdelta_test.cfg";
+    mock_config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 3, VERB_NONE);
 
     su2double flow_soln[5], hybrid_soln;
 

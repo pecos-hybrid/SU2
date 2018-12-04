@@ -749,18 +749,6 @@ static const map<string, ENUM_HYBRID_RES_IND> Hybrid_Res_Ind_Map = CCreateMap<st
 ("RDELTA_FULLP_VELCON", RDELTA_INDICATOR_FULLP_VELCON);
 
 /*!
- * \brief Types of hybrid RANS/LES subgrid anisotropy models.
- */
-enum ENUM_HYBRID_ANISOTROPY {
-  ISOTROPIC = 0, /*!< \brief Kind of hybrid RANS/LES subgrid anisotropy (Isotropic) */
-  Q_BASED = 1    /*!< \brief Kind of hybrid RANS/LES subgrid anisotropy (Approximate Structure Function) */
-};
-static const map<string, ENUM_HYBRID_ANISOTROPY> Hybrid_Aniso_Map = CCreateMap<string, ENUM_HYBRID_ANISOTROPY>
-("ISOTROPIC", ISOTROPIC)
-("Q_BASED", Q_BASED);
-
-
-/*!
  * \brief types of transition models
  */
 enum ENUM_TRANS_MODEL {
