@@ -4419,6 +4419,10 @@ CAvgGrad_Base::CAvgGrad_Base(unsigned short val_nDim,
   heat_flux_vector = new su2double[nDim];
   heat_flux_jac_i = new su2double[nVar];
 
+  deviatoric = new su2double*[nDim];
+  for (iDim = 0; iDim < nDim; iDim++) {
+    deviatoric[iDim] = new su2double[nDim];
+  }
 }
 
 CAvgGrad_Base::~CAvgGrad_Base() {
@@ -4469,6 +4473,68 @@ void CAvgGrad_Base::GetStressTensor(const su2double *val_primvar,
       tau[iDim][jDim] = total_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
                         - TWO3*total_viscosity*div_vel*delta[iDim][jDim]
                         - TWO3*Density*val_turb_ke*delta[iDim][jDim];
+}
+
+void CAvgGrad_Base::GetLaminarStressTensor(su2double **val_gradprimvar,
+                                           const su2double val_laminar_viscosity) {
+
+  unsigned short iDim, jDim;
+
+  su2double div_vel = 0.0;
+  for (iDim = 0 ; iDim < nDim; iDim++)
+    div_vel += val_gradprimvar[iDim+1][iDim];
+
+  for (iDim = 0 ; iDim < nDim; iDim++) {
+    for (jDim = 0 ; jDim < nDim; jDim++) {
+      tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
+                        - TWO3*val_laminar_viscosity*div_vel*delta[iDim][jDim];
+    }
+  }
+}
+
+void CAvgGrad_Base::AddTauSGS(const su2double *val_primvar,
+                               su2double **val_gradprimvar,
+                               const su2double val_turb_ke,
+                               const su2double val_eddy_viscosity) {
+
+  unsigned short iDim, jDim;
+  const su2double Density = val_primvar[nDim+2];
+
+  su2double div_vel = 0.0;
+  for (iDim = 0 ; iDim < nDim; iDim++)
+    div_vel += val_gradprimvar[iDim+1][iDim];
+
+  for (iDim = 0 ; iDim < nDim; iDim++) {
+    for (jDim = 0 ; jDim < nDim; jDim++) {
+      tau[iDim][jDim] += val_eddy_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
+                        - TWO3*val_eddy_viscosity*div_vel*delta[iDim][jDim]
+                        - TWO3*Density*val_turb_ke*delta[iDim][jDim];
+    }
+  }
+}
+
+void CAvgGrad_Base::AddTauSGET(su2double **val_gradprimvar,
+                               su2double **val_eddy_viscosity) {
+  su2double div_vel = 0.0;
+  for (unsigned short iDim = 0 ; iDim < nDim; iDim++) {
+    div_vel += val_gradprimvar[iDim+1][iDim];
+  }
+  for (unsigned short iDim =0; iDim < nDim; iDim++) {
+    for (unsigned short jDim =0; jDim < nDim; jDim++) {
+      deviatoric[iDim][jDim] = val_gradprimvar[iDim+1][jDim] - delta[iDim][jDim]*div_vel/3;
+    }
+  }
+  for (unsigned short iDim =0; iDim < nDim; iDim++) {
+    for (unsigned short jDim =0; jDim < nDim; jDim++) {
+      for (unsigned short kDim =0; kDim < nDim; kDim++) {
+        tau[iDim][jDim] += val_eddy_viscosity[iDim][kDim]*deviatoric[jDim][kDim] +
+                           val_eddy_viscosity[jDim][kDim]*deviatoric[iDim][kDim];
+        for (unsigned short lDim = 0; lDim < nDim; lDim++) {
+          tau[iDim][jDim] -= TWO3*val_eddy_viscosity[kDim][lDim]*deviatoric[kDim][lDim]*delta[iDim][jDim];
+        }
+      }
+    }
+  }
 }
 
 void CAvgGrad_Base::AddQCR(su2double **val_gradprimvar) {

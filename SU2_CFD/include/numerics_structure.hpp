@@ -3145,22 +3145,11 @@ class CAvgGrad_Base : public CNumerics {
   Mean_TauWall,                /*!< \brief Mean wall shear stress (wall functions). */
   TauWall_i, TauWall_j,        /*!< \brief Wall shear stress at point i and j (wall functions). */
   dist_ij_2,                   /*!< \brief Length of the edge and face, squared */
+  **deviatoric,                /*!< \brief Deviatoric part of the velocity gradient tensor. */
   *Proj_Mean_GradPrimVar_Edge, /*!< \brief Inner product of the Mean gradient and the edge vector. */
   *Edge_Vector;                /*!< \brief Vector from point i to point j. */
 
-  /*!
-   * \brief Calculate the viscous + turbulent stress tensor
-   * \param[in] val_primvar - Primitive variables.
-   * \param[in] val_gradprimvar - Gradient of the primitive variables.
-   * \param[in] val_turb_ke - Turbulent kinetic energy
-   * \param[in] val_laminar_viscosity - Laminar viscosity.
-   * \param[in] val_eddy_viscosity - Eddy viscosity.
-   */
-  void GetStressTensor(const su2double *val_primvar,
-                       su2double **val_gradprimvar,
-                       const su2double val_turb_ke,
-                       const su2double val_laminar_viscosity,
-                       const su2double val_eddy_viscosity);
+
 
   /*!
    * \brief Add a correction using a Quadratic Constitutive Relation
@@ -3281,6 +3270,33 @@ class CAvgGrad_Base : public CNumerics {
    * \param[in] val_tauwall_j - Value of the wall shear stress at point j.
    */
   void SetTauWall(su2double val_tauwall_i, su2double val_tauwall_j);
+
+  su2double GetStressTensor(unsigned short iDim, unsigned short jDim);
+
+  /*!
+   * \brief Calculate the viscous + turbulent stress tensor
+   * \param[in] val_primvar - Primitive variables.
+   * \param[in] val_gradprimvar - Gradient of the primitive variables.
+   * \param[in] val_turb_ke - Turbulent kinetic energy
+   * \param[in] val_laminar_viscosity - Laminar viscosity.
+   * \param[in] val_eddy_viscosity - Eddy viscosity.
+   */
+  void GetStressTensor(const su2double *val_primvar,
+                       su2double **val_gradprimvar,
+                       const su2double val_turb_ke,
+                       const su2double val_laminar_viscosity,
+                       const su2double val_eddy_viscosity);
+
+  void GetLaminarStressTensor(su2double **val_gradprimvar,
+                              const su2double val_laminar_viscosity);
+
+  void AddTauSGS(const su2double *val_primvar,
+                 su2double **val_gradprimvar,
+                 const su2double val_turb_ke,
+                 const su2double val_eddy_viscosity);
+
+  void AddTauSGET(su2double **val_gradprimvar,
+                  su2double **val_eddy_viscosity);
 };
 
 /*!
