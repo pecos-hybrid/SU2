@@ -50,6 +50,21 @@ const unsigned short nVar = nDim+2;
 // We don't need all the primitive variables
 const unsigned short nPrimVar = nDim+3;
 
+/**
+ * Write a cfg file to be used in initializing the CConfig object.
+ */
+void WriteCfgFile() {
+
+  std::ofstream cfg_file;
+
+  cfg_file.open("test.cfg", ios::out);
+  cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
+  cfg_file << "TIME_DISCRE_FLOW= EULER_IMPLICIT" << std::endl;
+
+  cfg_file.close();
+
+}
+
 /* ----------------------------------------------------------------------------
  *  Tests
  * --------------------------------------------------------------------------*/
@@ -58,6 +73,11 @@ const unsigned short nPrimVar = nDim+3;
 
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
+/**
+ * Check that the typical RANS stress tensor matches the combination of
+ * laminar + model split (SGS) stress tensor, when the same velocity
+ * gradient is used for both model terms.
+ */
 BOOST_AUTO_TEST_CASE(RANSStressTensorMatchesModelSplit) {
 
   /*---
@@ -144,6 +164,13 @@ BOOST_AUTO_TEST_CASE(RANSStressTensorMatchesModelSplit) {
 
 }
 
+/**
+ * Check that the typical RANS stress tensor vector matches the combination
+ * of laminar + model split (SGET) stress tensor, when the anisotropic eddy
+ * viscosity from the SGET model is purely diagonal, with the RANS eddy
+ * viscosity as the diagonal components, and when the same velocity
+ * gradient is used for both model terms.
+ */
 BOOST_AUTO_TEST_CASE(RansStressMatchesIsotropicEddyViscosityStress) {
 
   /*---
@@ -240,6 +267,158 @@ BOOST_AUTO_TEST_CASE(RansStressMatchesIsotropicEddyViscosityStress) {
   }
   delete [] model_split_tau;
   delete [] rans_tau;
+  delete [] aniso_eddy_viscosity;
+
+}
+
+/**
+ * Check that the typical RANS heat flux vector matches the combination of
+ * laminar + model split (SGS) heat flux, when the same velocity gradient is
+ * used for both model terms.
+ */
+BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesModelSplitHeatFlux) {
+
+  /*---
+   * SETUP
+   * ---*/
+
+  WriteCfgFile();
+  const unsigned short iZone = 0;
+  const unsigned short nZone = 1;
+  CConfig* test_config = new CConfig("test.cfg", SU2_CFD, iZone, nZone, 2, VERB_NONE);
+  test_config->SetGas_ConstantND(287.058);
+
+  CAvgGrad_Flow numerics(nDim, nVar, false, test_config);
+
+  su2double** gradprimvar = new su2double*[nVar];
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    gradprimvar[iVar] = new su2double[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++)
+      gradprimvar[iVar][jDim] = 0.0;
+  }
+
+  gradprimvar[0][0] = 1; // dT/dx
+  gradprimvar[0][1] = 2; // dT/dy
+  gradprimvar[0][2] = 3; // dT/dz
+  const su2double laminar_viscosity = 7.0;
+  const su2double eddy_viscosity = 11.0;
+  su2double rans_q[nDim];
+  su2double model_q[nDim];
+
+  /*---
+   * TEST
+   * ---*/
+
+  numerics.GetHeatFluxVector(gradprimvar, laminar_viscosity, eddy_viscosity);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    rans_q[iDim] = numerics.GetHeatFluxVector(iDim);
+  }
+
+  numerics.GetLaminarHeatFlux(gradprimvar, laminar_viscosity);
+  numerics.AddSGSHeatFlux(gradprimvar, eddy_viscosity);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    model_q[iDim] = numerics.GetHeatFluxVector(iDim);
+  }
+
+  // Compare q
+  const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    BOOST_TEST_CONTEXT("iDim: " << iDim)
+    BOOST_CHECK_CLOSE_FRACTION(rans_q[iDim], model_q[iDim], tolerance);
+  }
+
+  /*---
+   * TEARDOWN
+   * ---*/
+
+  delete test_config;
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    delete [] gradprimvar[iVar];
+  }
+  delete [] gradprimvar;
+
+}
+
+/**
+ * Check that the typical RANS heat flux vector matches the combination of
+ * laminar + model split (SGET) heat flux, when the anisotropic eddy
+ * viscosity from the SGET model is purely diagonal, with the RANS eddy
+ * viscosity as the diagonal components, and when the same velocity
+ * gradient is used for both model terms.
+ */
+BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesIsotropicEddyViscosityHeatFlux) {
+
+  /*---
+   * SETUP
+   * ---*/
+
+  WriteCfgFile();
+  const unsigned short iZone = 0;
+  const unsigned short nZone = 1;
+  CConfig* test_config = new CConfig("test.cfg", SU2_CFD, iZone, nZone, 2, VERB_NONE);
+  test_config->SetGas_ConstantND(287.058);
+
+  CAvgGrad_Flow numerics(nDim, nVar, false, test_config);
+
+  su2double** gradprimvar = new su2double*[nVar];
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    gradprimvar[iVar] = new su2double[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++)
+      gradprimvar[iVar][jDim] = 0.0;
+  }
+
+  gradprimvar[0][0] = 1; // dT/dx
+  gradprimvar[0][1] = 2; // dT/dy
+  gradprimvar[0][2] = 3; // dT/dz
+  const su2double laminar_viscosity = 7.0;
+  const su2double eddy_viscosity = 11.0;
+  su2double rans_q[nDim];
+  su2double model_q[nDim];
+
+  su2double **aniso_eddy_viscosity = new su2double*[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    aniso_eddy_viscosity[iDim] = new su2double[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      if (iDim == jDim) aniso_eddy_viscosity[iDim][jDim] = eddy_viscosity;
+      else aniso_eddy_viscosity[iDim][jDim] = 0.0;
+    }
+  }
+
+  /*---
+   * TEST
+   * ---*/
+
+  numerics.GetHeatFluxVector(gradprimvar, laminar_viscosity, eddy_viscosity);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    rans_q[iDim] = numerics.GetHeatFluxVector(iDim);
+  }
+
+  numerics.GetLaminarHeatFlux(gradprimvar, laminar_viscosity);
+  numerics.AddSGETHeatFlux(gradprimvar, aniso_eddy_viscosity);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    model_q[iDim] = numerics.GetHeatFluxVector(iDim);
+  }
+
+  // Compare q
+  const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    BOOST_TEST_CONTEXT("iDim: " << iDim)
+    BOOST_CHECK_CLOSE_FRACTION(rans_q[iDim], model_q[iDim], tolerance);
+  }
+
+  /*---
+   * TEARDOWN
+   * ---*/
+
+  delete test_config;
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    delete [] gradprimvar[iVar];
+  }
+  delete [] gradprimvar;
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    delete [] aniso_eddy_viscosity[iDim];
+  }
   delete [] aniso_eddy_viscosity;
 
 }

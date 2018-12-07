@@ -4797,9 +4797,19 @@ CAvgGrad_Flow::CAvgGrad_Flow(unsigned short val_nDim,
                              CConfig *config)
     : CAvgGrad_Base(val_nDim, val_nVar, val_nDim+3, val_correct_grad, config) {
 
+  conductivity = new su2double*[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    conductivity[iDim] = new su2double[nDim];
+  }
+
 }
 
 CAvgGrad_Flow::~CAvgGrad_Flow(void) {
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    delete [] conductivity[iDim];
+  }
+  delete [] conductivity;
 
 }
 
@@ -4942,6 +4952,49 @@ void CAvgGrad_Flow::GetHeatFluxVector(su2double **val_gradprimvar,
   }
 }
 
+void CAvgGrad_Flow::GetLaminarHeatFlux(su2double **val_gradprimvar,
+                                       const su2double val_laminar_viscosity) {
+
+  const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
+  const su2double heat_flux_factor = Cp * (val_laminar_viscosity/Prandtl_Lam);
+
+  /*--- Gradient of primitive variables -> [Temp vel_x vel_y vel_z Pressure] ---*/
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    heat_flux_vector[iDim] = heat_flux_factor*val_gradprimvar[0][iDim];
+  }
+}
+
+void CAvgGrad_Flow::AddSGSHeatFlux(su2double **val_gradprimvar,
+                                   const su2double val_eddy_viscosity) {
+
+  const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
+  const su2double heat_flux_factor = Cp * (val_eddy_viscosity/Prandtl_Turb);
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    heat_flux_vector[iDim] += heat_flux_factor*val_gradprimvar[0][iDim];
+  }
+}
+
+void CAvgGrad_Flow::AddSGETHeatFlux(su2double** val_gradprimvar,
+                                    su2double** val_eddy_viscosity) {
+
+  const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
+
+  /*--- Anisotropic thermal conductivity model ---*/
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      conductivity[iDim][jDim] = Cp * val_eddy_viscosity[iDim][jDim]/Prandtl_Turb;
+    }
+  }
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      heat_flux_vector[iDim] += conductivity[iDim][jDim]*val_gradprimvar[0][jDim];
+    }
+  }
+}
 
 void CAvgGrad_Flow::GetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
                                         const su2double val_laminar_viscosity,
