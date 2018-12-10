@@ -44,6 +44,7 @@
 
 #include "../../Common/include/config_structure.hpp"
 #include "../include/numerics_structure.hpp"
+#include "../include/numerics_direct_mean_hybrid.hpp"
 
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
@@ -86,7 +87,8 @@ BOOST_AUTO_TEST_CASE(RANSStressTensorMatchesModelSplit) {
 
   CConfig* test_config = new CConfig();
 
-  CAvgGrad_Base numerics(nDim, nVar, nVar+3, false, test_config);
+  CAvgGrad_Flow rans_numerics(nDim, nVar, false, test_config);
+  CAvgGrad_Hybrid model_split_numerics(nDim, nVar, false, test_config);
 
   su2double primvar[nPrimVar];
   primvar[1] = 1.0;  // u
@@ -119,19 +121,19 @@ BOOST_AUTO_TEST_CASE(RANSStressTensorMatchesModelSplit) {
    * TEST
    * ---*/
 
-  numerics.GetStressTensor(primvar, gradprimvar, turb_ke,
+  rans_numerics.SetStressTensor(primvar, gradprimvar, turb_ke,
                            laminar_viscosity, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      rans_tau[iDim][jDim] = numerics.GetStressTensor(iDim, jDim);
+      rans_tau[iDim][jDim] = rans_numerics.GetStressTensor(iDim, jDim);
     }
   }
 
-  numerics.GetLaminarStressTensor(gradprimvar, laminar_viscosity);
-  numerics.AddTauSGS(primvar, gradprimvar, turb_ke, eddy_viscosity);
+  model_split_numerics.SetLaminarStressTensor(gradprimvar, laminar_viscosity);
+  model_split_numerics.AddTauSGS(primvar, gradprimvar, turb_ke, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      model_split_tau[iDim][jDim] = numerics.GetStressTensor(iDim, jDim);
+      model_split_tau[iDim][jDim] = model_split_numerics.GetStressTensor(iDim, jDim);
     }
   }
 
@@ -179,7 +181,8 @@ BOOST_AUTO_TEST_CASE(RansStressMatchesIsotropicEddyViscosityStress) {
 
   CConfig* test_config = new CConfig();
 
-  CAvgGrad_Base numerics(nDim, nVar, nVar+3, false, test_config);
+  CAvgGrad_Flow rans_numerics(nDim, nVar, false, test_config);
+  CAvgGrad_Hybrid model_split_numerics(nDim, nVar, false, test_config);
 
   su2double primvar[nPrimVar];
   primvar[1] = 1.0;  // u
@@ -221,19 +224,19 @@ BOOST_AUTO_TEST_CASE(RansStressMatchesIsotropicEddyViscosityStress) {
    * TEST
    * ---*/
 
-  numerics.GetStressTensor(primvar, gradprimvar, turb_ke,
+  rans_numerics.SetStressTensor(primvar, gradprimvar, turb_ke,
                            laminar_viscosity, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      rans_tau[iDim][jDim] = numerics.GetStressTensor(iDim, jDim);
+      rans_tau[iDim][jDim] = rans_numerics.GetStressTensor(iDim, jDim);
     }
   }
 
-  numerics.GetLaminarStressTensor(gradprimvar, laminar_viscosity);
-  numerics.AddTauSGET(gradprimvar, aniso_eddy_viscosity);
+  model_split_numerics.SetLaminarStressTensor(gradprimvar, laminar_viscosity);
+  model_split_numerics.AddTauSGET(gradprimvar, aniso_eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      model_split_tau[iDim][jDim] = numerics.GetStressTensor(iDim, jDim);
+      model_split_tau[iDim][jDim] = model_split_numerics.GetStressTensor(iDim, jDim);
     }
   }
 
@@ -288,7 +291,8 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesModelSplitHeatFlux) {
   CConfig* test_config = new CConfig("test.cfg", SU2_CFD, iZone, nZone, 2, VERB_NONE);
   test_config->SetGas_ConstantND(287.058);
 
-  CAvgGrad_Flow numerics(nDim, nVar, false, test_config);
+  CAvgGrad_Flow rans_numerics(nDim, nVar, false, test_config);
+  CAvgGrad_Hybrid model_split_numerics(nDim, nVar, false, test_config);
 
   su2double** gradprimvar = new su2double*[nVar];
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
@@ -309,15 +313,15 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesModelSplitHeatFlux) {
    * TEST
    * ---*/
 
-  numerics.GetHeatFluxVector(gradprimvar, laminar_viscosity, eddy_viscosity);
+  rans_numerics.SetHeatFluxVector(gradprimvar, laminar_viscosity, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    rans_q[iDim] = numerics.GetHeatFluxVector(iDim);
+    rans_q[iDim] = rans_numerics.GetHeatFluxVector(iDim);
   }
 
-  numerics.GetLaminarHeatFlux(gradprimvar, laminar_viscosity);
-  numerics.AddSGSHeatFlux(gradprimvar, eddy_viscosity);
+  model_split_numerics.SetLaminarHeatFlux(gradprimvar, laminar_viscosity);
+  model_split_numerics.AddSGSHeatFlux(gradprimvar, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    model_q[iDim] = numerics.GetHeatFluxVector(iDim);
+    model_q[iDim] = model_split_numerics.GetHeatFluxVector(iDim);
   }
 
   // Compare q
@@ -358,7 +362,8 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesIsotropicEddyViscosityHeatFlux) {
   CConfig* test_config = new CConfig("test.cfg", SU2_CFD, iZone, nZone, 2, VERB_NONE);
   test_config->SetGas_ConstantND(287.058);
 
-  CAvgGrad_Flow numerics(nDim, nVar, false, test_config);
+  CAvgGrad_Flow rans_numerics(nDim, nVar, false, test_config);
+  CAvgGrad_Hybrid model_split_numerics(nDim, nVar, false, test_config);
 
   su2double** gradprimvar = new su2double*[nVar];
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
@@ -388,15 +393,15 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesIsotropicEddyViscosityHeatFlux) {
    * TEST
    * ---*/
 
-  numerics.GetHeatFluxVector(gradprimvar, laminar_viscosity, eddy_viscosity);
+  rans_numerics.SetHeatFluxVector(gradprimvar, laminar_viscosity, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    rans_q[iDim] = numerics.GetHeatFluxVector(iDim);
+    rans_q[iDim] = rans_numerics.GetHeatFluxVector(iDim);
   }
 
-  numerics.GetLaminarHeatFlux(gradprimvar, laminar_viscosity);
-  numerics.AddSGETHeatFlux(gradprimvar, aniso_eddy_viscosity);
+  model_split_numerics.SetLaminarHeatFlux(gradprimvar, laminar_viscosity);
+  model_split_numerics.AddSGETHeatFlux(gradprimvar, aniso_eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    model_q[iDim] = numerics.GetHeatFluxVector(iDim);
+    model_q[iDim] = model_split_numerics.GetHeatFluxVector(iDim);
   }
 
   // Compare q

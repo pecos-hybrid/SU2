@@ -3191,7 +3191,7 @@ class CAvgGrad_Base : public CNumerics {
    * \param[in] val_dist_ij - Distance between the points.
    * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
    */
-  void GetTauJacobian(const su2double* val_Mean_PrimVar,
+  void SetTauJacobian(const su2double* val_Mean_PrimVar,
                       const su2double val_laminar_viscosity,
                       const su2double val_eddy_viscosity,
                       const su2double val_dist_ij,
@@ -3245,6 +3245,13 @@ class CAvgGrad_Base : public CNumerics {
                           su2double **val_Proj_Jac_Tensor_i,
                           su2double **val_Proj_Jac_Tensor_j);
 
+  void CorrectGradient(su2double** GradPrimVar,
+                       const su2double* val_PrimVar_i,
+                       const su2double* val_PrimVar_j,
+                       const su2double* val_edge_vector,
+                       const su2double val_dist_ij_2,
+                       const unsigned short val_nPrimVar);
+
  public:
 
   /*!
@@ -3271,8 +3278,6 @@ class CAvgGrad_Base : public CNumerics {
    */
   void SetTauWall(su2double val_tauwall_i, su2double val_tauwall_j);
 
-  su2double GetStressTensor(unsigned short iDim, unsigned short jDim);
-
   /*!
    * \brief Calculate the viscous + turbulent stress tensor
    * \param[in] val_primvar - Primitive variables.
@@ -3281,22 +3286,15 @@ class CAvgGrad_Base : public CNumerics {
    * \param[in] val_laminar_viscosity - Laminar viscosity.
    * \param[in] val_eddy_viscosity - Eddy viscosity.
    */
-  void GetStressTensor(const su2double *val_primvar,
+  void SetStressTensor(const su2double *val_primvar,
                        su2double **val_gradprimvar,
                        const su2double val_turb_ke,
                        const su2double val_laminar_viscosity,
                        const su2double val_eddy_viscosity);
 
-  void GetLaminarStressTensor(su2double **val_gradprimvar,
-                              const su2double val_laminar_viscosity);
+  su2double GetStressTensor(unsigned short iDim, unsigned short jDim);
 
-  void AddTauSGS(const su2double *val_primvar,
-                 su2double **val_gradprimvar,
-                 const su2double val_turb_ke,
-                 const su2double val_eddy_viscosity);
-
-  void AddTauSGET(su2double **val_gradprimvar,
-                  su2double **val_eddy_viscosity);
+  su2double GetHeatFluxVector(unsigned short iDim);
 };
 
 /*!
@@ -3306,9 +3304,6 @@ class CAvgGrad_Base : public CNumerics {
  * \author A. Bueno, and F. Palacios
  */
 class CAvgGrad_Flow : public CAvgGrad_Base {
-private:
-  su2double **conductivity;  /*!< \brief Anisotropic thermal conductivity */
-
 public:
 
   /*!
@@ -3340,12 +3335,9 @@ public:
    * \param[in] val_laminar_viscosity - Laminar viscosity.
    * \param[in] val_eddy_viscosity - Eddy viscosity.
    */
-  void GetHeatFluxVector(su2double **val_gradprimvar,
+  void SetHeatFluxVector(su2double **val_gradprimvar,
                          const su2double val_laminar_viscosity,
                          const su2double val_eddy_viscosity);
-
-  su2double GetHeatFluxVector(unsigned short iDim);
-
 
   /*!
    * \brief Compute the Jacobian of the heat flux vector
@@ -3360,20 +3352,11 @@ public:
    * \param[in] val_dist_ij - Distance between the points.
    * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
    */
-  void GetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
+  void SetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
                            const su2double val_laminar_viscosity,
                            const su2double val_eddy_viscosity,
                            const su2double val_dist_ij,
                            const su2double *val_normal);
-
-  void GetLaminarHeatFlux(su2double **val_gradprimvar,
-                          const su2double val_laminar_viscosity);
-
-  void AddSGSHeatFlux(su2double **val_gradprimvar,
-                      const su2double val_eddy_viscosity);
-
-  void AddSGETHeatFlux(su2double** val_gradprimvar,
-                       su2double** val_eddy_viscosity);
 };
 
 /*!
@@ -3396,7 +3379,7 @@ private:
    * \param[in] val_thermal_conductivity - Thermal Conductivity.
    * \param[in] val_heat_capacity_cp - Heat Capacity at constant pressure.
    */
-  void GetHeatFluxVector(su2double **val_gradprimvar,
+  void SetHeatFluxVector(su2double **val_gradprimvar,
                           const su2double val_laminar_viscosity,
                           const su2double val_eddy_viscosity,
                           const su2double val_thermal_conductivity,
@@ -3415,7 +3398,7 @@ private:
    * \param[in] val_heat_capacity_cp - Value of the specific heat at constant pressure.
    * \param[in] val_dist_ij - Distance between the points.
    */
-  void GetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
+  void SetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
                            const su2double *val_Mean_SecVar,
                            const su2double val_eddy_viscosity,
                            const su2double val_thermal_conductivity,

@@ -69,7 +69,9 @@ libSU2Core_sources = \
   ../include/driver_structure.hpp \
   ../include/iteration_structure.hpp \
   ../include/numerics_structure.hpp \
+  ../include/numerics_direct_mean_hybrid.hpp \
   ../include/numerics_structure.inl \
+  ../include/numerics_direct_mean_hybrid.inl \
   ../include/numerics_structure_v2f.hpp \
   ../include/output_structure.hpp \
   ../include/output_structure.inl \
@@ -102,6 +104,7 @@ libSU2Core_sources = \
   ../src/numerics_direct_poisson.cpp \
   ../src/numerics_direct_heat.cpp \
   ../src/numerics_direct_mean.cpp \
+  ../src/numerics_direct_mean_hybrid.cpp \
   ../src/numerics_direct_mean_inc.cpp \
   ../src/numerics_direct_transition.cpp \
   ../src/numerics_direct_turbulent.cpp \

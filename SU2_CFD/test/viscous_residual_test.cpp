@@ -43,14 +43,38 @@
 #include <cmath>  // std::abs
 
 #include "../include/numerics_structure.hpp"
+#include "../include/numerics_direct_mean_hybrid.hpp"
 
 #ifdef BUILD_TESTS
 
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
-const unsigned short nPrimVar = nDim+9;
+const unsigned short nPrimVar = nDim+10;
 const unsigned short nSecVar  = 4;
 
+/**
+ * Write a cfg file to be used in initializing the CConfig object.
+ */
+void WriteCfgFile() {
+
+  std::ofstream cfg_file;
+
+  cfg_file.open("test.cfg", ios::out);
+  cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
+  cfg_file << "TIME_DISCRE_FLOW= EULER_IMPLICIT" << std::endl;
+
+  cfg_file.close();
+
+}
+
+/**
+ * Prints out the residual and Jacobians in c++ formatting.
+ *
+ * To use this call:
+ * \code
+ *  PrintInformation(residual_i, Jacobian_i, Jacobian_j);
+ * \endcode
+ */
 void PrintInformation(su2double* residual_i,
                       su2double** Jacobian_i,
                       su2double** Jacobian_j) {
@@ -72,19 +96,15 @@ void PrintInformation(su2double* residual_i,
   }
 }
 
-class TestConfig : public CConfig {
- public:
-  TestConfig() : CConfig() {};
-  unsigned short GetKind_TimeIntScheme_Flow(void) { return EULER_IMPLICIT; };
-};
-
 struct ViscousResidualFixture{
   ViscousResidualFixture()
       : distance(1), area(3) {
 
-    config = new TestConfig();
-
-    /*--- Inputs ---*/
+    WriteCfgFile();
+    const unsigned short iZone = 0;
+    const unsigned short nZone = 1;
+    config = new CConfig("test.cfg", SU2_CFD, iZone, nZone, 2, VERB_NONE);
+    config->SetGas_ConstantND(287.058);
 
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       coord_i[iDim] = 0;
@@ -97,16 +117,14 @@ struct ViscousResidualFixture{
     }
 
     for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-      primvar_i[iVar] = 0.0; primvar_j[iVar] = 0.0;
+      primvar[iVar] = 0.0;
     }
 
-    primvar_grad_i = new su2double*[nPrimVar];
-    primvar_grad_j = new su2double*[nPrimVar];
+    primvar_grad = new su2double*[nPrimVar];
     for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-      primvar_grad_i[iVar] = new su2double[nDim];
-      primvar_grad_j[iVar] = new su2double[nDim];
+      primvar_grad[iVar] = new su2double[nDim];
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        primvar_grad_i[iVar][iDim] = 0.0;
+        primvar_grad[iVar][iDim] = 0.0;
       }
     }
 
@@ -136,11 +154,9 @@ struct ViscousResidualFixture{
   ~ViscousResidualFixture() {
     delete config;
     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-      delete[] primvar_grad_i[iVar];
-      delete[] primvar_grad_j[iVar];
+      delete[] primvar_grad[iVar];
     }
-    delete[] primvar_grad_i;
-    delete[] primvar_grad_j;
+    delete[] primvar_grad;
 
     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
       delete[] Jacobian_i[iVar];
@@ -163,9 +179,8 @@ struct ViscousResidualFixture{
   const su2double area;
   su2double coord_i[nDim], coord_j[nDim];
   su2double normal[nDim];
-  su2double** primvar_grad_i, **primvar_grad_j;
-  su2double primvar_i[nPrimVar];
-  su2double primvar_j[nPrimVar];
+  su2double** primvar_grad;
+  su2double primvar[nPrimVar];
   su2double** Jacobian_i, **Jacobian_j;
   su2double* residual_i;
 
@@ -186,21 +201,13 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithRotationOnly, ViscousResidualFixture)
 
   CNumerics* numerics = new CAvgGrad_Flow(3, 5, false, config);
 
-  primvar_i[nDim+1] = 1.0; // pressure
-  primvar_i[nDim+2] = 1.0; // density
-  primvar_i[nDim+5] = 1.0; // laminar viscosity
-  primvar_i[nDim+6] = 1.0; // turbulent viscosity
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    primvar_j[iVar] = primvar_i[iVar];
-  }
+  primvar[nDim+1] = 1.0; // pressure
+  primvar[nDim+2] = 1.0; // density
+  primvar[nDim+5] = 1.0; // laminar viscosity
+  primvar[nDim+6] = 1.0; // turbulent viscosity
 
-  primvar_grad_i[1][1] =  1.0; // du/dy
-  primvar_grad_i[2][0] = -1.0; // dv/dx
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      primvar_grad_j[iVar][iDim] = primvar_grad_i[iVar][iDim];
-    }
-  }
+  primvar_grad[1][1] =  1.0; // du/dy
+  primvar_grad[2][0] = -1.0; // dv/dx
 
   const su2double tke = 0;
 
@@ -211,8 +218,8 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithRotationOnly, ViscousResidualFixture)
   numerics->SetCoord(coord_i, coord_j);
   numerics->SetNormal(normal);
   numerics->SetSecondary(NULL, NULL);
-  numerics->SetPrimitive(primvar_i, primvar_j);
-  numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
+  numerics->SetPrimitive(primvar, primvar);
+  numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
@@ -228,11 +235,14 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithRotationOnly, ViscousResidualFixture)
 
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
-    for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_CLOSE_FRACTION(-expected_jacobian_i[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+    BOOST_TEST_CONTEXT("iVar = " << iVar) {
+      BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
+      for (unsigned short jVar = 0; jVar < nVar; jVar++) {
+        BOOST_TEST_CONTEXT("jVar = " << jVar) {
+          BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+          BOOST_CHECK_CLOSE_FRACTION(-expected_jacobian_i[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+        }
+      }
     }
   }
 
@@ -247,21 +257,13 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithNoViscosity, ViscousResidualFixture) 
 
   CNumerics* numerics = new CAvgGrad_Flow(3, 5, false, config);
 
-  primvar_i[nDim+1] = 1.0; // pressure
-  primvar_i[nDim+2] = 1.0; // density
-  primvar_i[nDim+5] = 0.0; // laminar viscosity
-  primvar_i[nDim+6] = 0.0; // turbulent viscosity
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    primvar_j[iVar] = primvar_i[iVar];
-  }
+  primvar[nDim+1] = 1.0; // pressure
+  primvar[nDim+2] = 1.0; // density
+  primvar[nDim+5] = 0.0; // laminar viscosity
+  primvar[nDim+6] = 0.0; // turbulent viscosity
 
-  primvar_grad_i[1][1] =  1.0; // du/dy
-  primvar_grad_i[2][0] =  1.0; // dv/dx
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      primvar_grad_j[iVar][iDim] = primvar_grad_i[iVar][iDim];
-    }
-  }
+  primvar_grad[1][1] =  1.0; // du/dy
+  primvar_grad[2][0] =  1.0; // dv/dx
 
   const su2double tke = 0;
 
@@ -272,8 +274,8 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithNoViscosity, ViscousResidualFixture) 
   numerics->SetCoord(coord_i, coord_j);
   numerics->SetNormal(normal);
   numerics->SetSecondary(NULL, NULL);
-  numerics->SetPrimitive(primvar_i, primvar_j);
-  numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
+  numerics->SetPrimitive(primvar, primvar);
+  numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
@@ -285,11 +287,14 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithNoViscosity, ViscousResidualFixture) 
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   // Ignore Jacobian of energy flux (zero viscosity can create NaNs)
   for (unsigned short iVar = 0; iVar < nVar-1; iVar++) {
-    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
-    for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_CLOSE_FRACTION(-expected_jacobian_i[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+    BOOST_TEST_CONTEXT("iVar = " << iVar) {
+      BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
+      for (unsigned short jVar = 0; jVar < nVar; jVar++) {
+        BOOST_TEST_CONTEXT("jVar = " << jVar) {
+          BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+          BOOST_CHECK_CLOSE_FRACTION(-expected_jacobian_i[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+        }
+      }
     }
   }
 
@@ -304,13 +309,10 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithTKEOnly, ViscousResidualFixture) {
 
   CNumerics* numerics = new CAvgGrad_Flow(3, 5, false, config);
 
-  primvar_i[nDim+1] = 1.0; // pressure
-  primvar_i[nDim+2] = 1.0; // density
-  primvar_i[nDim+5] = 1.0; // laminar viscosity
-  primvar_i[nDim+6] = 1.0; // turbulent viscosity
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    primvar_j[iVar] = primvar_i[iVar];
-  }
+  primvar[nDim+1] = 1.0; // pressure
+  primvar[nDim+2] = 1.0; // density
+  primvar[nDim+5] = 1.0; // laminar viscosity
+  primvar[nDim+6] = 1.0; // turbulent viscosity
 
   const su2double tke = 3; // 3 cancels out 3 in denominator
 
@@ -321,8 +323,8 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithTKEOnly, ViscousResidualFixture) {
   numerics->SetCoord(coord_i, coord_j);
   numerics->SetNormal(normal);
   numerics->SetSecondary(NULL, NULL);
-  numerics->SetPrimitive(primvar_i, primvar_j);
-  numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
+  numerics->SetPrimitive(primvar, primvar);
+  numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
@@ -340,18 +342,18 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithTKEOnly, ViscousResidualFixture) {
   expected_jacobian_i[4][1] = -3;
   expected_jacobian_j[4][1] = -3;
 
-//  cout << "Calculated:\n";
-//  PrintInformation(residual_i, Jacobian_i, Jacobian_j);
-
   // Use BOOST_CHECK_SMALL instead of BOOST_CHECK_CLOSE to avoid problems
   // with trying to compute relative errors on 0
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
-    for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_SMALL(expected_jacobian_j[iVar][jVar] - Jacobian_j[iVar][jVar], tolerance);
+    BOOST_TEST_CONTEXT("iVar = " << iVar) {
+      BOOST_CHECK_SMALL(expected_residual[iVar] - residual_i[iVar], tolerance);
+      for (unsigned short jVar = 0; jVar < nVar; jVar++) {
+        BOOST_TEST_CONTEXT("jVar = " << jVar) {
+          BOOST_CHECK_SMALL(expected_jacobian_i[iVar][jVar] - Jacobian_i[iVar][jVar], tolerance);
+          BOOST_CHECK_SMALL(expected_jacobian_j[iVar][jVar] - Jacobian_j[iVar][jVar], tolerance);
+        }
+      }
     }
   }
 
@@ -366,27 +368,20 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
 
   CNumerics* numerics = new CAvgGrad_Flow(3, 5, false, config);
 
-  primvar_i[nDim+1] = 1.0; // pressure
-  primvar_i[nDim+2] = 1.0; // density
-  primvar_i[nDim+5] = 1.0; // laminar viscosity
-  primvar_i[nDim+6] = 1.0; // turbulent viscosity
+  primvar[nDim+1] = 1.0; // pressure
+  primvar[nDim+2] = 1.0; // density
+  primvar[nDim+5] = 1.0; // laminar viscosity
+  primvar[nDim+6] = 1.0; // turbulent viscosity
   for (unsigned short iVar = 1; iVar < nDim+1; iVar++) {
-    primvar_i[iVar] = iVar; // Velocities
-  }
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    primvar_j[iVar] = primvar_i[iVar];
+    primvar[iVar] = iVar; // Velocities
   }
 
-  primvar_grad_i[1][0] =  1.0; // du/dx
-  primvar_grad_i[2][1] =  2.0; // dv/dy
-  primvar_grad_i[3][2] =  3.0; // dw/dz
-  primvar_grad_i[1][1] =  1.0; // du/dy
-  primvar_grad_i[2][0] =  1.0; // dv/dx
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      primvar_grad_j[iVar][iDim] = primvar_grad_i[iVar][iDim];
-    }
-  }
+  primvar_grad[1][0] =  1.0; // du/dx
+  primvar_grad[2][1] =  2.0; // dv/dy
+  primvar_grad[3][2] =  3.0; // dw/dz
+  primvar_grad[1][1] =  1.0; // du/dy
+  primvar_grad[2][0] =  1.0; // dv/dx
+
 
   const su2double tke = 3; // 3 cancels out 3 in denominator
 
@@ -397,8 +392,8 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
   numerics->SetCoord(coord_i, coord_j);
   numerics->SetNormal(normal);
   numerics->SetSecondary(NULL, NULL);
-  numerics->SetPrimitive(primvar_i, primvar_j);
-  numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
+    numerics->SetPrimitive(primvar, primvar);
+  numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
@@ -425,16 +420,16 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
   expected_jacobian_j[4][2] = -3;
   expected_jacobian_j[4][3] = -13.5;
 
-  cout << "Calculated:\n";
-  PrintInformation(residual_i, Jacobian_i, Jacobian_j);
-
   const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
-    for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+    BOOST_TEST_CONTEXT("iVar = " << iVar) {
+      BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
+      for (unsigned short jVar = 0; jVar < nVar; jVar++) {
+        BOOST_TEST_CONTEXT("jVar = " << jVar) {
+          BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+          BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+        }
+      }
     }
   }
 
@@ -449,29 +444,22 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualNonIdeal, ViscousResidualFixture) {
 
   CNumerics* numerics = new CGeneralAvgGrad_Flow(3, 5, false, config);
 
-  primvar_i[nDim+1] = 1.0; // pressure
-  primvar_i[nDim+2] = 1.0; // density
-  primvar_i[nDim+5] = 1.0; // laminar viscosity
-  primvar_i[nDim+6] = 1.0; // turbulent viscosity
-  primvar_i[nDim+7] = 5.0; // Thermal conductivity
-  primvar_i[nDim+8] = 1.0; // C_p
+  primvar[nDim+1] = 1.0; // pressure
+  primvar[nDim+2] = 1.0; // density
+  primvar[nDim+5] = 1.0; // laminar viscosity
+  primvar[nDim+6] = 1.0; // turbulent viscosity
+  primvar[nDim+7] = 5.0; // Thermal conductivity
+  primvar[nDim+8] = 1.0; // C_p
   for (unsigned short iVar = 1; iVar < nDim+1; iVar++) {
-    primvar_i[iVar] = iVar; // Velocities
-  }
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    primvar_j[iVar] = primvar_i[iVar];
+    primvar[iVar] = iVar; // Velocities
   }
 
-  primvar_grad_i[1][0] =  1.0; // du/dx
-  primvar_grad_i[2][1] =  2.0; // dv/dy
-  primvar_grad_i[3][2] =  3.0; // dw/dz
-  primvar_grad_i[1][1] =  1.0; // du/dy
-  primvar_grad_i[2][0] =  1.0; // dv/dx
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      primvar_grad_j[iVar][iDim] = primvar_grad_i[iVar][iDim];
-    }
-  }
+  primvar_grad[1][0] =  1.0; // du/dx
+  primvar_grad[2][1] =  2.0; // dv/dy
+  primvar_grad[3][2] =  3.0; // dw/dz
+  primvar_grad[1][1] =  1.0; // du/dy
+  primvar_grad[2][0] =  1.0; // dv/dx
+
 
   su2double secvar_i[nSecVar];
   su2double secvar_j[nSecVar];
@@ -486,9 +474,9 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualNonIdeal, ViscousResidualFixture) {
 
   numerics->SetCoord(coord_i, coord_j);
   numerics->SetNormal(normal);
-  numerics->SetPrimitive(primvar_i, primvar_j);
+    numerics->SetPrimitive(primvar, primvar);
   numerics->SetSecondary(secvar_i, secvar_j);
-  numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
+  numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
@@ -515,17 +503,17 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualNonIdeal, ViscousResidualFixture) {
   expected_jacobian_j[4][2] = -202;
   expected_jacobian_j[4][3] = -312;
 
-  cout << "Calculated:\n";
-  PrintInformation(residual_i, Jacobian_i, Jacobian_j);
-
   // Tolerance must be multiplied by
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
-    for (unsigned short jVar = 0; jVar < nVar; jVar++) {
-      cout << "iVar: " << iVar << "\tjVar: " << jVar << "\n";
-      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
-      BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+    BOOST_TEST_CONTEXT("iVar = " << iVar) {
+      BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
+      for (unsigned short jVar = 0; jVar < nVar; jVar++) {
+        BOOST_TEST_CONTEXT("jVar = " << jVar) {
+          BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+          BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+        }
+      }
     }
   }
 
@@ -540,27 +528,20 @@ BOOST_FIXTURE_TEST_CASE(ViscousTiming, ViscousResidualFixture) {
 
   CNumerics* numerics = new CAvgGrad_Flow(3, 5, false, config);
 
-  primvar_i[nDim+1] = 1.0; // pressure
-  primvar_i[nDim+2] = 1.0; // density
-  primvar_i[nDim+5] = 1.0; // laminar viscosity
-  primvar_i[nDim+6] = 1.0; // turbulent viscosity
+  primvar[nDim+1] = 1.0; // pressure
+  primvar[nDim+2] = 1.0; // density
+  primvar[nDim+5] = 1.0; // laminar viscosity
+  primvar[nDim+6] = 1.0; // turbulent viscosity
   for (unsigned short iVar = 1; iVar < nDim+1; iVar++) {
-    primvar_i[iVar] = iVar; // Velocities
-  }
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    primvar_j[iVar] = primvar_i[iVar];
+    primvar[iVar] = iVar; // Velocities
   }
 
-  primvar_grad_i[1][0] =  1.0; // du/dx
-  primvar_grad_i[2][1] =  2.0; // dv/dy
-  primvar_grad_i[3][2] =  3.0; // dw/dz
-  primvar_grad_i[1][1] =  1.0; // du/dy
-  primvar_grad_i[2][0] =  1.0; // dv/dx
-  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      primvar_grad_j[iVar][iDim] = primvar_grad_i[iVar][iDim];
-    }
-  }
+  primvar_grad[1][0] =  1.0; // du/dx
+  primvar_grad[2][1] =  2.0; // dv/dy
+  primvar_grad[3][2] =  3.0; // dw/dz
+  primvar_grad[1][1] =  1.0; // du/dy
+  primvar_grad[2][0] =  1.0; // dv/dx
+
 
   const su2double tke = 3; // 3 cancels out 3 in denominator
 
@@ -571,8 +552,8 @@ BOOST_FIXTURE_TEST_CASE(ViscousTiming, ViscousResidualFixture) {
   numerics->SetCoord(coord_i, coord_j);
   numerics->SetNormal(normal);
   numerics->SetSecondary(NULL, NULL);
-  numerics->SetPrimitive(primvar_i, primvar_j);
-  numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
+    numerics->SetPrimitive(primvar, primvar);
+  numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
   clock_t begin = clock();
   for (unsigned long i = 0; i < 1E6; i++)
@@ -582,6 +563,103 @@ BOOST_FIXTURE_TEST_CASE(ViscousTiming, ViscousResidualFixture) {
   std::cout << "Elapsed time: " << elapsed_secs << std::endl;
 
   delete numerics;
+}
+
+BOOST_FIXTURE_TEST_CASE(ViscousResidualwithModelSplit, ViscousResidualFixture) {
+
+  /*---
+   * SETUP
+   * ---*/
+
+  CNumerics* numerics = new CAvgGrad_Hybrid(3, 5, false, config);
+  CAvgGrad_Hybrid* hybrid_numerics = dynamic_cast<CAvgGrad_Hybrid*>(numerics);
+
+  primvar[nDim+1] = 1.0; // pressure
+  primvar[nDim+2] = 1.0; // density
+  primvar[nDim+5] = 1.0; // laminar viscosity
+  primvar[nDim+6] = 1.0; // turbulent viscosity
+  for (unsigned short iVar = 1; iVar < nDim+1; iVar++) {
+    primvar[iVar] = iVar; // Velocities
+  }
+
+  primvar_grad[1][0] =  1.0; // du/dx
+  primvar_grad[2][1] =  2.0; // dv/dy
+  primvar_grad[3][2] =  3.0; // dw/dz
+  primvar_grad[1][1] =  1.0; // du/dy
+  primvar_grad[2][0] =  1.0; // dv/dx
+
+
+  const su2double tke = 3; // 3 cancels out 3 in denominator
+
+  su2double **aniso_eddy_viscosity = new su2double*[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    aniso_eddy_viscosity[iDim] = new su2double[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      if (iDim == jDim) aniso_eddy_viscosity[iDim][jDim] = primvar[nDim+6];
+      else aniso_eddy_viscosity[iDim][jDim] = 0.0;
+    }
+  }
+
+  /*---
+   * TEST
+   * ---*/
+
+  numerics->SetCoord(coord_i, coord_j);
+  numerics->SetNormal(normal);
+  numerics->SetSecondary(NULL, NULL);
+  numerics->SetPrimitive(primvar, primvar);
+  numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
+  numerics->SetTurbKineticEnergy(tke, tke);
+
+  // For simplicity, have average = resolved, with no fluctuating component
+  hybrid_numerics->SetPrimitive_Average(primvar, primvar);
+  hybrid_numerics->SetPrimVarGradient_Average(primvar_grad, primvar_grad);
+  hybrid_numerics->SetAniso_Eddy_Viscosity(aniso_eddy_viscosity, aniso_eddy_viscosity);
+
+  numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
+
+  su2double expected_residual[nVar] = {0, -18, 12, 0, 6};
+  expected_jacobian_i[1][0] = 8;
+  expected_jacobian_i[1][1] = -8;
+  expected_jacobian_i[2][0] = 12;
+  expected_jacobian_i[2][2] = -6;
+  expected_jacobian_i[3][0] = 18;
+  expected_jacobian_i[3][3] = -6;
+  expected_jacobian_i[4][4] = -10.5;
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    for (unsigned short jVar = 0; jVar < nVar; jVar++) {
+      expected_jacobian_j[iVar][jVar] = -expected_jacobian_i[iVar][jVar];
+    }
+  }
+  expected_jacobian_i[4][0] = 35.75;
+  expected_jacobian_i[4][1] = -6.5;
+  expected_jacobian_i[4][2] = 15;
+  expected_jacobian_i[4][3] = 13.5;
+
+  expected_jacobian_j[4][0] = -41.75;
+  expected_jacobian_j[4][1] = -11.5;
+  expected_jacobian_j[4][2] = -3;
+  expected_jacobian_j[4][3] = -13.5;
+
+  const su2double tolerance = 100*std::numeric_limits<su2double>::epsilon();
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    BOOST_TEST_CONTEXT("iVar = " << iVar) {
+      BOOST_CHECK_CLOSE_FRACTION(expected_residual[iVar], residual_i[iVar], tolerance);
+      for (unsigned short jVar = 0; jVar < nVar; jVar++) {
+        BOOST_TEST_CONTEXT("jVar = " << jVar) {
+          BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_i[iVar][jVar], Jacobian_i[iVar][jVar], tolerance);
+          BOOST_CHECK_CLOSE_FRACTION(expected_jacobian_j[iVar][jVar], Jacobian_j[iVar][jVar], tolerance);
+        }
+      }
+    }
+  }
+
+  delete numerics;
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    delete [] aniso_eddy_viscosity[iDim];
+  }
+  delete [] aniso_eddy_viscosity;
 }
 
 #endif

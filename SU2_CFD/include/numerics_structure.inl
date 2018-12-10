@@ -615,6 +615,6 @@ inline su2double CAvgGrad_Base::GetStressTensor(unsigned short iDim, unsigned sh
   return tau[iDim][jDim];
 }
 
-inline su2double CAvgGrad_Flow::GetHeatFluxVector(unsigned short iDim) {
+inline su2double CAvgGrad_Base::GetHeatFluxVector(unsigned short iDim) {
   return heat_flux_vector[iDim];
 }
