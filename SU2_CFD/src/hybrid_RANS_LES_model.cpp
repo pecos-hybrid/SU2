@@ -40,7 +40,7 @@
 #endif
 
 CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename)
-   : nDim(nDim), C_sf(0.367), config(config) {
+   : nDim(nDim), config(config) {
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -145,21 +145,16 @@ void CHybrid_Mediator::SetupRANSNumerics(CGeometry* geometry,
                                          CNumerics* rans_numerics,
                                          unsigned short iPoint,
                                          unsigned short jPoint) {
-  su2double* alpha =
-      solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  /*--- Since this is a source term, we don't need a second point ---*/
-  rans_numerics->SetHybridParameter(alpha, NULL);
 }
 
-void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
-                                              CSolver **solver_container,
-                                              unsigned short iPoint) {
+void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
+                                    CSolver **solver_container,
+                                    unsigned short iPoint) {
 
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
   const su2double TKE_MIN = EPS;
-  su2double r_k, w_rans;
-
+  su2double r_k;
 
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
   su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
@@ -168,9 +163,10 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
 
   if (config->GetKind_Hybrid_Resolution_Indicator() != RK_INDICATOR) {
     // Compute inverse length scale tensor
+    // FIXME: Get the appropriate variables here (instead of 1)
     ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
                            solver_container[TURB_SOL]->node[iPoint],
-                           solver_container[HYBRID_SOL]->node[iPoint],
+                           1,
                            config->GetKind_Hybrid_Resolution_Indicator());
 
     vector<su2double> eigvalues_iLM;
@@ -181,13 +177,9 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
     iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
     unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
 
-    r_k = C_sf*eigvalues_iLM[max_index];
+    const su2double C_r = 3.0;
+    r_k = C_r*eigvalues_iLM[max_index];
 
-    // NB: with the r_{\Delta} variants of the model, we should never
-    // use w_rans.  So, I set it to nan s.t. if it ever gets used
-    // inadvertantly, the soln will be obviously wrong.
-
-    w_rans = std::numeric_limits<su2double>::quiet_NaN();
   }
   else if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
 
@@ -235,6 +227,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
       /*---Find the largest product of resolved fluctuations at the cutoff---*/
       su2double aniso_ratio = solver_container[TURB_SOL]->node[iPoint]->GetAnisoRatio(); 
       su2double C_kQ = 16.0;
+      const su2double C_sf = 0.367;
       su2double max_resolved = aniso_ratio*C_kQ*C_sf*TWO3*eigvalues_zQz[max_index];
 
       /*--- Find the smallest product of unresolved fluctuations at the cutoff ---*/
@@ -259,72 +252,18 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
       /*--- Calculate the resolution adequacy parameter ---*/
       r_k = max(max_resolved / fmax(min_unresolved, TKE_MIN), EPS);
 
-
-      /*--- Find the dissipation ratio ---*/
-      su2double C_eps = 0.25;
-      su2double TurbL = solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-      su2double d_max = GetProjResolution(ResolutionTensor,
-                                          eigvectors_zQz[max_index]);
-      su2double r_eps = C_eps * pow(r_k, 1.5) * TurbL / d_max;
-
-      /*--- Calculate the RANS weight ---*/
-      w_rans = tanh(0.5*pow(fmax(r_eps - 1, 0), 0.25));
     } else {
+
       r_k = 0.0;
-      w_rans = 0.0;
+
     }
   }
   else {
     SU2_MPI::Error("Unrecognized HYBRID_RESOLUTION_INDICATOR value!", CURRENT_FUNCTION);
   }
 
-  solver_container[HYBRID_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
-  solver_container[HYBRID_SOL]->node[iPoint]->SetRANSWeight(w_rans);
+  // TODO: Set resolution adequacy in the forcing class.
 
-}
-
-void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
-                                                CSolver **solver_container,
-                                                CNumerics *hybrid_param_numerics,
-                                                unsigned short iPoint,
-                                                unsigned short jPoint) {
-
-  /*--- Find and store turbulent length and timescales ---*/
-  su2double turb_T;
-  if (config->GetKind_Turb_Model() == KE) {
-    // Recompute the turbulence timescale **without** the stag. point anomaly
-    const su2double k = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-    const su2double eps = solver_container[TURB_SOL]->node[iPoint]->GetSolution(1);
-    const su2double nu = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
-    const su2double C_T = 6;
-    turb_T = max(k/eps, C_T*sqrt(nu/eps));
-  } else {
-    turb_T = solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-  }
-  su2double turb_L =
-      solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-
-#ifndef NDEBUG
-  if (turb_T <= 0) {
-    SU2_MPI::Error("Turbulent timescale was non-positive!", CURRENT_FUNCTION);
-  }
-  if (turb_L <= 0) {
-    SU2_MPI::Error("Turbulent lengthscale was non-positive!", CURRENT_FUNCTION);
-  }
-#endif
-
-  hybrid_param_numerics->SetTurbTimescale(turb_T);
-  hybrid_param_numerics->SetTurbLengthscale(turb_L);
-
-  /*--- Pass resolution adequacy into the numerics object ---*/
-
-  su2double r_k = solver_container[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
-  hybrid_param_numerics->SetResolutionAdequacy(r_k);
-
-  /*--- Pass RANS weight into the numerics object ---*/
-
-  su2double w_rans = solver_container[HYBRID_SOL]->node[iPoint]->GetRANSWeight();
-  hybrid_param_numerics->SetRANSWeight(w_rans);
 }
 
 void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
@@ -332,18 +271,12 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
                                              CNumerics* visc_numerics,
                                              unsigned short iPoint,
                                              unsigned short jPoint) {
-
-  /*--- Pass alpha to the resolved flow ---*/
-
-  su2double* alpha_i = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  su2double* alpha_j = solver_container[HYBRID_SOL]->node[jPoint]->GetSolution();
-  visc_numerics->SetHybridParameter(alpha_i, alpha_j);
 }
 
 
 void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
                                               CVariable* turb_vars,
-                                              CVariable* hybr_vars,
+                                              const su2double val_alpha,
                                               int short hybrid_res_ind) {
 
   unsigned short iDim, jDim, kDim;
@@ -361,11 +294,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   // Get eddy viscosity
   su2double eddy_viscosity = flow_vars->GetEddyViscosity();
 
-  // Get hybrid blend (i.e., alpha)
-  su2double* blend = hybr_vars->GetSolution();
-
   // Bound alpha away from zero
-  su2double alpha = max(blend[0],1e-8);
+  su2double alpha = max(val_alpha, 1e-8);
 
   // delta tensor (for convenience)
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -853,22 +783,12 @@ void CHybrid_Dummy_Mediator::SetupRANSNumerics(CGeometry* geometry,
                                          CNumerics* rans_numerics,
                                          unsigned short iPoint,
                                          unsigned short jPoint) {
-  // This next line is just here for testing purposes.
-  su2double* alpha = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  assert(alpha != NULL);
-  rans_numerics->SetHybridParameter(dummy_alpha, dummy_alpha);
 }
 
-void CHybrid_Dummy_Mediator::SetupHybridParamSolver(CGeometry* geometry,
-                                           CSolver **solver_container,
-                                           unsigned short iPoint) {
-}
+void CHybrid_Dummy_Mediator::SetupForcing(CGeometry* geometry,
+                                          CSolver **solver_container,
+                                          unsigned short iPoint) {
 
-void CHybrid_Dummy_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
-                                             CSolver **solver_container,
-                                             CNumerics *hybrid_param_numerics,
-                                             unsigned short iPoint,
-                                             unsigned short jPoint) {
 }
 
 void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
@@ -876,13 +796,4 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
                                              CNumerics* visc_numerics,
                                              unsigned short iPoint,
                                              unsigned short jPoint) {
-
-  /*--- Pass alpha to the resolved flow ---*/
-
-  // This next two lines are just here for testing purposes.
-  su2double* alpha_i = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  su2double* alpha_j = solver_container[HYBRID_SOL]->node[jPoint]->GetSolution();
-  assert(alpha_i != NULL);
-  assert(alpha_j != NULL);
-  visc_numerics->SetHybridParameter(dummy_alpha, dummy_alpha);
 }

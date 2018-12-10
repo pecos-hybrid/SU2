@@ -41,7 +41,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
   
   unsigned short iDim, jDim, iVar, nDim = geometry->GetnDim();
   unsigned short Kind_Solver = config->GetKind_Solver();
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
   unsigned long iPoint, iElem, iNode;
   unsigned long iExtIter = config->GetExtIter();
@@ -205,7 +205,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         }
       }
 
-      if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
+      if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
         for (iDim = 0; iDim < nDim; iDim++)
           for (jDim = 0; jDim < nDim; jDim++)
             Tecplot_File << ", \"M<sub>" << iDim << jDim << "</sub>\"";
@@ -3095,7 +3095,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       }
     }
 
-    if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) &&
+    if ((config->GetKind_HybridRANSLES() == MODEL_SPLIT) &&
         config->GetWrt_Resolution_Tensors()) {
       for (iDim = 0; iDim < nDim; iDim++)
         for (jDim = 0; jDim < nDim; jDim++)

@@ -65,7 +65,6 @@ using namespace std;
  * need to go.
  *
  * \author: C. Pederson
- * \version 5.0.0 "Raven"
  */
 class CAbstract_Hybrid_Mediator {
  public:
@@ -88,32 +87,15 @@ class CAbstract_Hybrid_Mediator {
                                  CNumerics* rans_numerics,
                                  unsigned short iPoint,
                                  unsigned short jPoint) = 0;
-
   /**
-   * \brief Retrieve and pass along all necessary info for the hybrid solver
+   * \brief Retrieve and pass along all necessary info for the resolved flow.
    *
    * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
-   * \param[in] iPoint - The node being evaluated
-   */
-  virtual void SetupHybridParamSolver(CGeometry* geometry,
-                                      CSolver **solver_container,
-                                      unsigned short iPoint) = 0;
-
-  /**
-   * \brief Retrieve and pass along all necessary info for the hybrid parameter numerics
-   *
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] hybrid_numerics - The source numerics for the hybrid parameter
    * \param[in] iPoint - The number of the node being evaluated
-   * \param[in] jPoint - The number of the opposite node
    */
-  virtual void SetupHybridParamNumerics(CGeometry* geometry,
-                                        CSolver **solver_container,
-                                        CNumerics *hybrid_numerics,
-                                        unsigned short iPoint,
-                                        unsigned short jPoint) = 0;
+  virtual void SetupForcing(CGeometry* geometry, CSolver **solver_container,
+                            unsigned short iPoint) = 0;
 
   /**
    * \brief Retrieve and pass along all necessary info for resolved numerics.
@@ -125,10 +107,10 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] jPoint - The number of the opposite node
    */
   virtual void SetupResolvedFlowNumerics(CGeometry* geometry,
-                                     CSolver **solver_container,
-                                     CNumerics* visc_numerics,
-                                     unsigned short iPoint,
-                                     unsigned short jPoint) = 0;
+                                         CSolver **solver_container,
+                                         CNumerics* visc_numerics,
+                                         unsigned short iPoint,
+                                         unsigned short jPoint) = 0;
 };
 
 
@@ -136,13 +118,11 @@ class CAbstract_Hybrid_Mediator {
  * \class CHybrid_Mediator
  * \brief Mediator object for the Q-based hybrid RANS/LES model.
  * \author: C. Pederson
- * \version 5.0.0 "Raven"
  */
 class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
  protected:
 
   unsigned short nDim;
-  const su2double C_sf; /*!> \brief Model constant relating the structure function to the unresolved turbulent kinetic energy  */
   su2double C_zeta; /*!> \brief Scaling constant for the transformation tensor zeta */
   su2double **Q,        /*!> \brief An approximate 2nd order structure function tensor */
             **Qapprox;  /*!> \brief An approximate 2nd order structure function tensor (used for temporary calculations) */
@@ -249,7 +229,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    */
   void ComputeInvLengthTensor(CVariable* flow_vars,
                               CVariable* turb_vars,
-                              CVariable* hybr_vars,
+                              const su2double val_alpha,
                               int short hybrid_res_ind);
 
   su2double GetInvLengthScale(unsigned short ival, unsigned short jval) {
@@ -272,31 +252,8 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                          CNumerics* rans_numerics,
                          unsigned short iPoint, unsigned short jPoint);
 
-  /**
-   * \brief The hybrid solver needs the resolution adequacy parameter, which
-   *        is dependent on RANS results.
-   *
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] iPoint - The node being evaluated
-   */
-  void SetupHybridParamSolver(CGeometry* geometry, CSolver **solver_container,
-                           unsigned short iPoint);
-
-  /**
-   * \brief The hybrid numerics need the turbulence length and timescales as
-   *        well as the resolution adequacy parameter.
-   *
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] hybrid_numerics - The source numerics for the hybrid parameter
-   * \param[in] iPoint - The number of the node being evaluated
-   * \param[in] jPoint - The number of the opposite node
-   */
-  void SetupHybridParamNumerics(CGeometry* geometry, CSolver **solver_container,
-                                CNumerics *hybrid_param_numerics,
-                                unsigned short iPoint, unsigned short jPoint);
-
+  void SetupForcing(CGeometry* geometry, CSolver **solver_container,
+                    unsigned short iPoint);
 
   /**
    * \brief
@@ -333,7 +290,6 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
  * \class CHybrid_Dummy_Mediator
  * \brief Mediator object for RANS-only operation; isotropic stress and dummy hybrid parameter
  * \author: C. Pederson
- * \version 5.0.0 "Raven"
  */
 class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
  protected:
@@ -370,28 +326,8 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                          CNumerics* rans_numerics,
                          unsigned short iPoint, unsigned short jPoint);
 
-  /**
-   * \brief The hybrid solver doesn't need anything.
-   *
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] iPoint - The node being evaluated
-   */
-  void SetupHybridParamSolver(CGeometry* geometry, CSolver **solver_container,
-                           unsigned short iPoint);
-
-  /**
-   * \brief The hybrid numerics don't need anything.
-   *
-   * \param[in] geometry - A pointer to the geometry
-   * \param[in] solver_container - An array of solvers
-   * \param[in] hybrid_numerics - The source numerics for the hybrid parameter
-   * \param[in] iPoint - The number of the node being evaluated
-   * \param[in] jPoint - The number of the opposite node
-   */
-  void SetupHybridParamNumerics(CGeometry* geometry, CSolver **solver_container,
-                                CNumerics *hybrid_param_numerics,
-                                unsigned short iPoint, unsigned short jPoint);
+  void SetupForcing(CGeometry* geometry, CSolver **solver_container,
+                    unsigned short iPoint);
 
   /**
    * \brief

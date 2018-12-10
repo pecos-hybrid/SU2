@@ -413,7 +413,6 @@ const int TURB_SOL = 2;		/*!< \brief Position of the turbulence model solution i
 const int ADJTURB_SOL = 3;	/*!< \brief Position of the continuous adjoint turbulence solution in the solver container array. */
 
 const int TRANS_SOL = 4;	/*!< \brief Position of the transition model solution in the solver container array. */
-const int HYBRID_SOL = 5; /*!< \brief Position of the hybrid RANS/LES transport eqn. for the hybrid parameter(s) in the solver container array. */
 const int POISSON_SOL = 2;		/*!< \brief Position of the electronic potential solution in the solver container array. */
 const int WAVE_SOL = 1;		/*!< \brief Position of the wave equation in the solution solver array. */
 const int HEAT_SOL = 5;		/*!< \brief Position of the heat equation in the solution solver array. */
@@ -770,8 +769,7 @@ enum ENUM_HYBRIDRANSLES {
   SA_DDES  = 2,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Delta_max SGS ). */
   SA_ZDES  = 3,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Vorticity based SGS like Zonal DES). */
   SA_EDDES  = 4,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Shear Layer Adapted SGS: Enhanced DDES). */
-  DYNAMIC_HYBRID = 5, /*!< \brief Dynamic hybrid RANS/LES model. */
-  MODEL_SPLIT = 6 /*!< \brief Model split RANS/LES hybridization. */
+  MODEL_SPLIT = 5 /*!< \brief Model split RANS/LES hybridization. */
 };
 static const map<string, ENUM_HYBRIDRANSLES> HybridRANSLES_Map = CCreateMap<string, ENUM_HYBRIDRANSLES>
 ("NONE", NO_HYBRIDRANSLES)
@@ -779,7 +777,6 @@ static const map<string, ENUM_HYBRIDRANSLES> HybridRANSLES_Map = CCreateMap<stri
 ("SA_DDES", SA_DDES)
 ("SA_ZDES", SA_ZDES)
 ("SA_EDDES", SA_EDDES)
-("DYNAMIC_HYBRID", DYNAMIC_HYBRID)
 ("MODEL_SPLIT", MODEL_SPLIT);
 
 /*!

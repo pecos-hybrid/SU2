@@ -632,7 +632,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief MATH_PROBLEM  \n DESCRIPTION: Mathematical problem \n  Options: DIRECT, ADJOINT \ingroup Config*/
   addMathProblemOption("MATH_PROBLEM", ContinuousAdjoint, false, DiscreteAdjoint, false, Restart_Flow, false);
 
-    /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: DYNAMIC_HYBRID \ingroup Config */
+    /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: FULL_TRANSPORT \ingroup Config */
   addEnumOption("HYBRID_BLENDING_SCHEME", Kind_Hybrid_Blending, Hybrid_Blending_Map, FULL_TRANSPORT);
   
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
@@ -4435,7 +4435,6 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
             case SA_DDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Standard SGS" << endl; break;
             case SA_ZDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Vorticity-based SGS" << endl; break;
             case SA_EDDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Shear-layer Adapted SGS" << endl; break;
-            case DYNAMIC_HYBRID: cout << "Dynamic Hybrid Model" << endl; break;
             case MODEL_SPLIT: cout << "Model-split hybridization" << endl; break;
             default:
               SU2_MPI::Error("Unrecognized hybrid model.", CURRENT_FUNCTION);
@@ -6882,7 +6881,6 @@ unsigned short CConfig::GetContainerPosition(unsigned short val_eqsystem) {
     case RUNTIME_FLOW_SYS:      return FLOW_SOL;
     case RUNTIME_TURB_SYS:      return TURB_SOL;
     case RUNTIME_TRANS_SYS:     return TRANS_SOL;
-    case RUNTIME_HYBRID_SYS:    return HYBRID_SOL;
     case RUNTIME_POISSON_SYS:   return POISSON_SOL;
     case RUNTIME_WAVE_SYS:      return WAVE_SOL;
     case RUNTIME_HEAT_SYS:      return HEAT_SOL;

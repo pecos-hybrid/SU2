@@ -2531,48 +2531,6 @@ public:
 };
 
 /*!
- * \class CUpwSca_HybridConv
- * \brief Class for doing a scalar upwind solver for the hybrid RANS/LES
- *        blending equation.
- * \ingroup ConvDiscr
- * \author C. Pederson
- * \version 5.0.0 "Raven"
- */
-class CUpwSca_HybridConv : public CNumerics {
-private:
-  su2double *Velocity_i, *Velocity_j;
-  bool implicit, grid_movement, incompressible;
-  su2double q_ij, a0, a1;
-  unsigned short iDim;
-
-public:
-
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CUpwSca_HybridConv(unsigned short val_nDim,
-                       unsigned short val_nVar, CConfig *config);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CUpwSca_HybridConv(void);
-
-  /*!
-   * \brief Compute the scalar upwind flux between two nodes i and j.
-   * \param[out] val_residual - Pointer to the total residual.
-   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
-   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
-   * \param[in] config - Definition of the particular problem.
-   */
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i,
-                       su2double **val_Jacobian_j, CConfig *config);
-};
-
-/*!
  * \class CUpwSca_Heat
  * \brief Class for doing a scalar upwind solver for the heat convection equation.
  * \ingroup ConvDiscr
@@ -4263,55 +4221,6 @@ public:
 };
 
 /*!
- * \class CAvgGrad_Hybrid
- * \brief Class for computing viscous term using average of gradients (Hybrid coefficient).
- * \ingroup ViscDiscr
- * \author C. Pederson
- */
-class CAvgGrad_HybridConv : public CNumerics {
-private:
-
-  bool implicit, incompressible;
-  bool correct_gradient;
-  unsigned short iVar, iDim;
-  su2double **Mean_Grad;               /*!< \brief Average of gradients at cell face */
-  su2double *Edge_Vector,                     /*!< \brief Vector from node i to node j. */
-  *Proj_Mean_Grad_Normal,    /*!< \brief Mean_gradTurbVar DOT normal */
-  *Proj_Mean_Grad_Edge,      /*!< \brief Mean_gradTurbVar DOT Edge_Vector */
-  *Proj_Mean_Grad;           /*!< \brief Mean_gradTurbVar DOT normal, corrected if required*/
-  su2double  dist_ij_2,                       /*!< \brief |Edge_Vector|^2 */
-  proj_vector_ij;                  /*!< \brief (Edge_Vector DOT normal)/|Edge_Vector|^2 */
-  const su2double sigma_alpha;
-  su2double nu_i, nu_j;
-
-public:
-
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CAvgGrad_HybridConv(unsigned short val_nDim, unsigned short val_nVar,
-                      bool correct_grad, CConfig *config);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CAvgGrad_HybridConv(void);
-
-  /*!
-   * \brief Compute the viscous residual using an average of gradients without correction.
-   * \param[out] val_residual - Pointer to the total residual.
-   * \param[out] Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
-   * \param[out] Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
-   * \param[in] config - Definition of the particular problem.
-   */
-  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i,
-                       su2double **Jacobian_j, CConfig *config);
-};
-
-/*!
  * \class CGalerkin_Flow
  * \brief Class for computing the stiffness matrix of the Galerkin method.
  * \ingroup ViscDiscr
@@ -5388,40 +5297,6 @@ public:
    */
   void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
   
-};
-
-
-/*!
- * \class CSourcePieceWise_HybridConv
- * \brief Class for integrating the source terms of the transport equation for
- *        the hybrid parameters (in a hybrid RANS/LES model).
- * \ingroup SourceDiscr
- * \author C. Pederson
- */
-class CSourcePieceWise_HybridConv : public CNumerics {
- public:
-
-   /*!
-    * \brief Constructor of the class.
-    * \param[in] val_nDim - Number of dimensions of the problem.
-    * \param[in] val_nVar - Number of variables of the problem.
-    * \param[in] config - Definition of the particular problem.
-    */
-  CSourcePieceWise_HybridConv(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CSourcePieceWise_HybridConv(void);
-
-  /*!
-   * \brief Residual for source term integration.
-   * \param[out] val_residual - Pointer to the total residual.
-   * \param[out] val_Jacobian_i - Jacobian wrt node i soln (for implicit).
-   * \param[out] val_Jacobian_j - Jacobian wrt node j soln (for implicit).
-   * \param[in] config - Definition of the particular problem.
-   */
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
 };
 
 /*!

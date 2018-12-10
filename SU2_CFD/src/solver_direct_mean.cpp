@@ -10252,7 +10252,7 @@ void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container,
         
         /*--- Pass in relevant information from hybrid model ---*/
 
-        if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID)
+        if (config->GetKind_HybridRANSLES() == MODEL_SPLIT)
           HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
                                                     visc_numerics, iPoint, iPoint);
 
@@ -17439,9 +17439,10 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
                                      solver_container[TURB_SOL]->node[jPoint]->GetSolution(0));
     
     /*--- Pass in relevant information from hybrid model ---*/
-    if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID)
+    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
       HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
                                                 numerics, iPoint, jPoint);
+    }
 
     /*--- Compute and update residual ---*/
     

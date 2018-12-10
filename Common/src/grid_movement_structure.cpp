@@ -107,7 +107,7 @@ void CVolumetricMovement::UpdateDualGrid(CGeometry *geometry, CConfig *config) {
    dual mesh control volumes in the domain and on the boundaries. ---*/
   
 	geometry->SetCoord_CG();
-	if (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
 	  geometry->SetResolutionTensor();
 	}
 	geometry->SetControlVolume(config, UPDATE);

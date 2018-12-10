@@ -39,6 +39,7 @@
 #include "../include/definition_structure.hpp"
 #include "../include/variable_structure_v2f.hpp"
 #include "../include/numerics_structure_v2f.hpp"
+#include "../include/numerics_direct_mean_hybrid.hpp"
 #include "../include/solver_structure_v2f.hpp"
 
 CDriver::CDriver(char* confFile,
@@ -712,7 +713,7 @@ void CDriver::Geometrical_Preprocessing() {
 
     /*--- Compute cell resolution tensors ---*/
 
-    if (config_container[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
+    if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT) {
       if (rank == MASTER_NODE) cout << "Computing cell resolution tensors." << endl;
       geometry_container[iZone][MESH_0]->SetResolutionTensor();
     }
@@ -877,11 +878,11 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
       default: SU2_MPI::Error("Specified turbulence model unavailable or none selected", CURRENT_FUNCTION); break;
     }
   }
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
   /*--- Creation of the hybrid mediator class ---*/ 
   
-  if (dynamic_hybrid) {
+  if (model_split_hybrid) {
     /*--- Only one hybrid model can be used for all zones ---*/
     switch (config->GetKind_Hybrid_Blending()) {
       case RANS_ONLY:
@@ -919,25 +920,14 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
     if (ns) {
       if (compressible) {
         solver_container[iMGlevel][FLOW_SOL] = new CNSSolver(geometry[iMGlevel], config, iMGlevel);
-        if (dynamic_hybrid) solver_container[iMGlevel][FLOW_SOL]->AddHybridMediator(hybrid_mediator);
+        if (model_split_hybrid)
+          solver_container[iMGlevel][FLOW_SOL]->AddHybridMediator(hybrid_mediator);
       }
       if (incompressible) {
         solver_container[iMGlevel][FLOW_SOL] = new CIncNSSolver(geometry[iMGlevel], config, iMGlevel);
       }
     }
     if (turbulent) {
-      if (dynamic_hybrid) {
-        switch (config->GetKind_Hybrid_Blending()) {
-          case RANS_ONLY: // Only the source numerics object is different.
-            solver_container[iMGlevel][HYBRID_SOL] = new CHybridConvSolver(geometry[iMGlevel], config, iMGlevel);
-            solver_container[iMGlevel][HYBRID_SOL]->AddHybridMediator(hybrid_mediator);
-            break;
-          case FULL_TRANSPORT:
-            solver_container[iMGlevel][HYBRID_SOL] = new CHybridConvSolver(geometry[iMGlevel], config, iMGlevel);
-            solver_container[iMGlevel][HYBRID_SOL]->AddHybridMediator(hybrid_mediator);
-            break;
-        }
-      }
 
       if (spalart_allmaras || e_spalart_allmaras || comp_spalart_allmaras || e_comp_spalart_allmaras || neg_spalart_allmaras) {
         solver_container[iMGlevel][TURB_SOL] = new CTurbSASolver(geometry[iMGlevel], config, iMGlevel, solver_container[iMGlevel][FLOW_SOL]->GetFluidModel() );
@@ -1065,7 +1055,6 @@ void CDriver::Solver_Restart(CSolver ***solver_container, CGeometry **geometry,
   bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
   bool adjoint = (config->GetDiscrete_Adjoint() || config->GetContinuous_Adjoint());
   bool dynamic = (config->GetDynamic_Analysis() == DYNAMIC); // Dynamic simulation (FSI).
-  const bool dynamic_hybrid = (config->GetKind_Hybrid_Blending() == DYNAMIC_HYBRID);
 
   if (dual_time) {
     if (adjoint) val_iter = SU2_TYPE::Int(config->GetUnst_AdjointIter())-1;
@@ -1110,9 +1099,6 @@ void CDriver::Solver_Restart(CSolver ***solver_container, CGeometry **geometry,
     }
     if (turbulent) {
       solver_container[MESH_0][TURB_SOL]->LoadRestart(geometry, solver_container, config, val_iter, update_geo);
-    }
-    if (dynamic_hybrid) {
-      solver_container[MESH_0][HYBRID_SOL]->LoadRestart(geometry, solver_container, config, val_iter, update_geo);
     }
     if (fem) {
       if (dynamic) val_iter = SU2_TYPE::Int(config->GetDyn_RestartIter())-1;
@@ -1223,7 +1209,6 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
     case KE:     zetaf_ke = true;             break;
     }
   }
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   
   /*--- Definition of the Class for the solution: solver_container[DOMAIN][MESH_LEVEL][EQUATION]. Note that euler, ns
    and potential are incompatible, they use the same position in sol container ---*/
@@ -1273,9 +1258,6 @@ void CDriver::Solver_Postprocessing(CSolver ***solver_container, CGeometry **geo
     if (fem) {
       delete solver_container[iMGlevel][FEA_SOL];
     }
-    if (dynamic_hybrid) {
-      delete solver_container[iMGlevel][HYBRID_SOL];
-    }
     if (disc_adj_fem) {
       delete solver_container[iMGlevel][ADJFEA_SOL];
     }
@@ -1321,7 +1303,6 @@ void CDriver::Integration_Preprocessing(CIntegration **integration_container,
     case DISC_ADJ_RANS : ns = true; turbulent = true; disc_adj = true; heat_fvm = config->GetWeakly_Coupled_Heat(); break;
     case DISC_ADJ_FEM: fem = true; disc_adj_fem = true; break;
   }
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
 
   /*--- Allocate solution for a template problem ---*/
   if (template_solver) integration_container[TEMPLATE_SOL] = new CSingleGridIntegration(config);
@@ -1331,7 +1312,6 @@ void CDriver::Integration_Preprocessing(CIntegration **integration_container,
   if (ns) integration_container[FLOW_SOL] = new CMultiGridIntegration(config);
   if (turbulent) integration_container[TURB_SOL] = new CSingleGridIntegration(config);
   if (transition) integration_container[TRANS_SOL] = new CSingleGridIntegration(config);
-  if (dynamic_hybrid) integration_container[HYBRID_SOL] = new CSingleGridIntegration(config);
   if (poisson) integration_container[POISSON_SOL] = new CSingleGridIntegration(config);
   if (wave) integration_container[WAVE_SOL] = new CSingleGridIntegration(config);
   if (heat || heat_fvm) integration_container[HEAT_SOL] = new CSingleGridIntegration(config);
@@ -1382,7 +1362,6 @@ void CDriver::Integration_Postprocessing(CIntegration **integration_container,
     case DISC_ADJ_RANS : ns = true; turbulent = true; disc_adj = true; heat_fvm = config->GetWeakly_Coupled_Heat(); break;
     case DISC_ADJ_FEM: fem = true; disc_adj_fem = true; break;
   }
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
 
   /*--- DeAllocate solution for a template problem ---*/
   if (template_solver) integration_container[TEMPLATE_SOL] = new CSingleGridIntegration(config);
@@ -1396,7 +1375,6 @@ void CDriver::Integration_Postprocessing(CIntegration **integration_container,
   if (heat || heat_fvm) delete integration_container[HEAT_SOL];
   if (fem) delete integration_container[FEA_SOL];
   if (disc_adj_fem) delete integration_container[ADJFEA_SOL];
-  if (dynamic_hybrid) delete integration_container[HYBRID_SOL];
 
   /*--- DeAllocate solution for adjoint problem ---*/
   if (adj_euler || adj_ns || disc_adj) delete integration_container[ADJFLOW_SOL];
@@ -1417,7 +1395,6 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
   nVar_Turb             = 0,
   nVar_Adj_Flow         = 0,
   nVar_Adj_Turb         = 0,
-  nVar_Hybrid           = 0,
   nVar_Poisson          = 0,
   nVar_FEM              = 0,
   nVar_Wave             = 0,
@@ -1485,7 +1462,7 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
       default: SU2_MPI::Error("Specified turbulence model unavailable or none selected", CURRENT_FUNCTION); break;
     }
   }
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
   /*--- Number of variables for the template ---*/
   
@@ -1496,7 +1473,6 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
   if (euler)        nVar_Flow = solver_container[MESH_0][FLOW_SOL]->GetnVar();
   if (ns)           nVar_Flow = solver_container[MESH_0][FLOW_SOL]->GetnVar();
   if (turbulent)    nVar_Turb = solver_container[MESH_0][TURB_SOL]->GetnVar();
-  if (dynamic_hybrid) nVar_Hybrid = solver_container[MESH_0][HYBRID_SOL]->GetnVar();
   if (transition)   nVar_Trans = solver_container[MESH_0][TRANS_SOL]->GetnVar();
   if (poisson)      nVar_Poisson = solver_container[MESH_0][POISSON_SOL]->GetnVar();
   
@@ -1720,7 +1696,19 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
     
     /*--- Definition of the viscous scheme for each equation and mesh level ---*/
     if (compressible) {
-      if (ideal_gas) {
+      if (model_split_hybrid) {
+
+        /*--- Model-split hybridization with compressible, ideal gas ---*/
+
+        numerics_container[MESH_0][FLOW_SOL][VISC_TERM] = new CAvgGrad_Hybrid(nDim, nVar_Flow, true, config);
+        for (iMGlevel = 1; iMGlevel <= config->GetnMGLevels(); iMGlevel++)
+          numerics_container[iMGlevel][FLOW_SOL][VISC_TERM] = new CAvgGrad_Hybrid(nDim, nVar_Flow, false, config);
+
+        /*--- Definition of the boundary condition method ---*/
+        for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++)
+          numerics_container[iMGlevel][FLOW_SOL][VISC_BOUND_TERM] = new CAvgGrad_Hybrid(nDim, nVar_Flow, false, config);
+
+      } else if (ideal_gas) {
         
         /*--- Compressible flow Ideal gas ---*/
         numerics_container[MESH_0][FLOW_SOL][VISC_TERM] = new CAvgGrad_Flow(nDim, nVar_Flow, true, config);
@@ -1844,93 +1832,6 @@ void CDriver::Numerics_Preprocessing(CNumerics ****numerics_container,
       }
     }
   }
-
-  /*--- Solver definition for the hybrid parameter (for hybrid RANS/LES) ---*/
-
-  if (dynamic_hybrid) {
-    if (dynamic_hybrid && not(turbulent)) {
-      ostringstream error_msg;
-      error_msg << "No turbulence model specified." << endl;
-      error_msg << "Please specify a RANS model to be used with the hybrid model.";
-      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-    }
-
-		/*--- Check if the combination of hybridization and RANS model are valid ---*/
-    if (dynamic_hybrid && not(menter_sst || zetaf_ke)) {
-      ostringstream error_msg;
-      error_msg << "Specified RANS model has not been implemented for hybrid RANS/LES." << endl;
-      error_msg << "Currently supported RANS models: SST, k-epsilon-v2-f";
-      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-    }
-
-    /*--- Definition of the convective scheme for each equation and mesh level ---*/
-
-    for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          /*--- Advection and diffusion are left for testing purposes.
-           * If the hybrid parameter is set to 1 for the entire flow field
-           * and there is no source term, then advection-diffusion should
-           * do absolutely nothing ---*/
-          numerics_container[iMGlevel][HYBRID_SOL][CONV_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
-          break;
-        case FULL_TRANSPORT:
-          numerics_container[iMGlevel][HYBRID_SOL][CONV_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
-          break;
-        default:
-          SU2_MPI::Error("Convective numerics not found for specified hybrid blending scheme.", CURRENT_FUNCTION);
-      }
-    }
-
-    /*--- Definition of the viscous scheme for each equation and mesh level ---*/
-
-    for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          /*-- See the note under convection numerics --*/
-          numerics_container[iMGlevel][HYBRID_SOL][VISC_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, true, config);
-          break;
-        case FULL_TRANSPORT:
-          numerics_container[iMGlevel][HYBRID_SOL][VISC_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, true, config);
-          break;
-        default:
-          SU2_MPI::Error("Viscous numerics not found for specified hybrid blending scheme.", CURRENT_FUNCTION);
-      }
-    }
-
-    /*--- Definition of the source term integration scheme for each equation and mesh level ---*/
-    for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          numerics_container[iMGlevel][HYBRID_SOL][SOURCE_FIRST_TERM] = new CSourceNothing(nDim, nVar_Hybrid, config);
-          break;
-        case FULL_TRANSPORT:
-          numerics_container[iMGlevel][HYBRID_SOL][SOURCE_FIRST_TERM] = new CSourcePieceWise_HybridConv(nDim, nVar_Hybrid, config);
-          break;
-        default:
-          SU2_MPI::Error("Source numerics not found for specified hybrid blending scheme.", CURRENT_FUNCTION);
-      }
-      numerics_container[iMGlevel][HYBRID_SOL][SOURCE_SECOND_TERM] = new CSourceNothing(nDim, nVar_Hybrid, config);
-    }
-
-    /*--- Definition of the boundary condition method ---*/
-    for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-      switch (config->GetKind_Hybrid_Blending()) {
-        case RANS_ONLY:
-          /*-- See the note under convection numerics --*/
-          numerics_container[iMGlevel][HYBRID_SOL][CONV_BOUND_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
-          numerics_container[iMGlevel][HYBRID_SOL][VISC_BOUND_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, false, config);
-          break;
-        case FULL_TRANSPORT:
-          numerics_container[iMGlevel][HYBRID_SOL][CONV_BOUND_TERM] = new CUpwSca_HybridConv(nDim, nVar_Hybrid, config);
-          numerics_container[iMGlevel][HYBRID_SOL][VISC_BOUND_TERM] = new CAvgGrad_HybridConv(nDim, nVar_Hybrid, false, config);
-          break;
-        default:
-          SU2_MPI::Error("Boundary numerics not found for specified hybrid blending scheme.", CURRENT_FUNCTION);
-      }
-    }
-  }
-
 
   /*--- Solver definition for the transition model problem ---*/
   if (transition) {
@@ -2399,7 +2300,7 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
       case KE:     zetaf_ke = true;             break;
     }
   }
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
   /*--- Solver definition for the template problem ---*/
   if (template_solver) {
@@ -2542,20 +2443,6 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
           delete numerics_container[iMGlevel][TURB_SOL][CONV_BOUND_TERM];
           delete numerics_container[iMGlevel][TURB_SOL][VISC_BOUND_TERM];
 
-      }
-    }
-    
-    /*--- Solver garbage collection for the hybrid model ---*/
-
-    if (dynamic_hybrid) {
-      for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
-        delete numerics_container[iMGlevel][HYBRID_SOL][CONV_TERM];
-        delete numerics_container[iMGlevel][HYBRID_SOL][VISC_TERM];
-        delete numerics_container[iMGlevel][HYBRID_SOL][SOURCE_FIRST_TERM];
-        delete numerics_container[iMGlevel][HYBRID_SOL][SOURCE_SECOND_TERM];
-        /*--- Definition of the boundary condition method ---*/
-        delete numerics_container[iMGlevel][HYBRID_SOL][CONV_BOUND_TERM];
-        delete numerics_container[iMGlevel][HYBRID_SOL][VISC_BOUND_TERM];
       }
     }
   }

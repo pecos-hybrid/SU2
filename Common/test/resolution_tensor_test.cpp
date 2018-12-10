@@ -593,7 +593,7 @@ void WriteCfgFile(const unsigned short& nDim) {
 
   cfg_file.open("test.cfg", ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
-  cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
+  cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
   if (nDim == 2)
     cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
   else

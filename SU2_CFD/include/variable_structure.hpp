@@ -4541,38 +4541,6 @@ public:
   void SetRANSWeight(su2double val_w_rans);
 };
 
-
-
-/*!
- * \class CHybridConvVariable
- * \brief Hybrid parameter corresponding to Gadebusch and Perot's method
- * \ingroup Hybrid_Parameter_Model
- * \author C. Pederson
- * \version 5.0.0 "Raven"
- */
-class CHybridConvVariable : public CHybridVariable {
-public:
-  /*!
-   * \brief Constructor of the class.
-   */
-  CHybridConvVariable(void);
-
-  /*!
-   * \overload
-   * \param[in] hybrid_param - The hybrid parameter ("energy flow" parameter)
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nvar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CHybridConvVariable(su2double hybrid_param, unsigned short val_nDim,
-                      unsigned short val_nvar, CConfig *config);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CHybridConvVariable(void);
-};
-
 /*!
  * \class CAdjEulerVariable
  * \brief Main class for defining the variables of the adjoint Euler solver.

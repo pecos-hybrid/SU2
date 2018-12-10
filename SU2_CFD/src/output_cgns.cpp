@@ -533,7 +533,7 @@ void COutput::SetCGNS_Solution(CConfig *config, CGeometry *geometry, unsigned sh
     }
   }
 
-  if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) &&
+  if ((config->GetKind_HybridRANSLES() == MODEL_SPLIT) &&
       config->GetWrt_Resolution_Tensors()) {
     for (unsigned short iDim = 1; iDim < geometry->GetnDim()+1; iDim++) {
       for (unsigned short jDim = 1; jDim < geometry->GetnDim()+1; jDim++) {

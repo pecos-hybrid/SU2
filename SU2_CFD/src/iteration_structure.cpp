@@ -513,15 +513,6 @@ void CFluidIteration::Iterate(COutput *output,
     integration_container[val_iZone][HEAT_SOL]->SingleGrid_Iteration(geometry_container, solver_container, numerics_container,
                                                                      config_container, RUNTIME_HEAT_SYS, IntIter, val_iZone);
   }
-  
-  if (config_container[val_iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
-
-    /*--- Solve the transport model for the hybrid parameter ---*/
-
-    config_container[val_iZone]->SetGlobalParam(RANS, RUNTIME_HYBRID_SYS, ExtIter);
-    integration_container[val_iZone][HYBRID_SOL]->SingleGrid_Iteration(geometry_container, solver_container, numerics_container,
-                                                                       config_container, RUNTIME_HYBRID_SYS, IntIter, val_iZone);
-  }
 
   /*--- Call Dynamic mesh update if AEROELASTIC motion was specified ---*/
   
@@ -589,13 +580,6 @@ void CFluidIteration::Update(COutput *output,
     if (config_container[val_iZone]->GetKind_Trans_Model() == LM) {
       integration_container[val_iZone][TRANS_SOL]->SetDualTime_Solver(geometry_container[val_iZone][MESH_0], solver_container[val_iZone][MESH_0][TRANS_SOL], config_container[val_iZone], MESH_0);
       integration_container[val_iZone][TRANS_SOL]->SetConvergence(false);
-    }
-    
-    /*--- Update dual time solver for the hybrid parameter  equation ---*/
-
-    if (config_container[val_iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) {
-      integration_container[val_iZone][HYBRID_SOL]->SetDualTime_Solver(geometry_container[val_iZone][MESH_0], solver_container[val_iZone][MESH_0][HYBRID_SOL], config_container[val_iZone], MESH_0);
-      integration_container[val_iZone][HYBRID_SOL]->SetConvergence(false);
     }
 
     /*--- Verify convergence criteria (based on total time) ---*/

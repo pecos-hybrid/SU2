@@ -55,7 +55,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
   bool disc_adj = config->GetDiscrete_Adjoint();
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
   bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
-  bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
 
   char cstr[200], buffer[50];
