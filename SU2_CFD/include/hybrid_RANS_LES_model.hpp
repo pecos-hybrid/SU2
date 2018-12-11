@@ -295,7 +295,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
  protected:
 
   unsigned short nDim;
-  su2double* dummy_alpha; // A default value of alpha to pass around
+  su2double** delta; /*!< \brief Kroneckor delta */
 
  public:
 

@@ -909,6 +909,12 @@ public:
   virtual su2double GetEddyViscosity(void);
 
   /*!
+   * \brief Get the anisotropic eddy-viscosity
+   * \return The anisotropic eddy viscosity of the flow.
+   */
+  virtual su2double** GetAnisoEddyViscosity(void);
+
+  /*!
    * \brief A virtual member.
    * \return Value of turbulent timescale
    */
@@ -1121,6 +1127,12 @@ public:
    * \param[in] eddy_visc - Value of the eddy viscosity.
    */
   virtual void SetEddyViscosity(su2double eddy_visc);
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] aniso_eddy_visc - Value of the eddy viscosity.
+   */
+  virtual void SetAnisoEddyViscosity(su2double** aniso_eddy_visc);
 
   /*!
    * \brief A virtual member.
@@ -3921,6 +3933,7 @@ private:
   su2double inv_TimeScale;   /*!< \brief Inverse of the reference time scale. */
   su2double Roe_Dissipation; /*!< \brief Roe low dissipation coefficient. */
   su2double Vortex_Tilting;  /*!< \brief Value of the vortex tilting variable for DES length scale computation. */
+  su2double** AnisoEddyViscosity; /*!< \brief Anisotropic eddy viscosity. */
   
 public:
   
@@ -3987,6 +4000,12 @@ public:
   void SetEddyViscosity(su2double eddy_visc);
   
   /*!
+   * \brief Set the anisotropic eddy viscosity for the flow.
+   * \param[in] aniso_eddy_visc - Value of the eddy viscosity.
+   */
+  void SetAnisoEddyViscosity(su2double** aniso_eddy_visc);
+
+  /*!
    * \brief Get the laminar viscosity of the flow.
    * \return Value of the laminar viscosity of the flow.
    */
@@ -4003,6 +4022,12 @@ public:
    * \return The eddy viscosity of the flow.
    */
   su2double GetEddyViscosity(void);
+
+  /*!
+   * \brief Get the anisotropic eddy-viscosity
+   * \return The anisotropic eddy viscosity of the flow.
+   */
+  su2double** GetAnisoEddyViscosity(void);
 
   /*!
    * \brief Get the specific heat at constant P of the flow.

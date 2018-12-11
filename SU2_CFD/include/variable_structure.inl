@@ -261,6 +261,8 @@ inline su2double *CVariable::GetIntBoundary_Jump(void) { return NULL; }
 
 inline su2double CVariable::GetEddyViscosity(void) { return 0; }
 
+inline su2double** CVariable::GetAnisoEddyViscosity(void) { return NULL; }
+
 inline su2double CVariable::GetTurbTimescale(void) { return 0; }
 
 inline su2double CVariable::GetTurbLengthscale(void) { return 0; }
@@ -450,6 +452,8 @@ inline void CVariable::SetLaminarViscosity(su2double laminarViscosity) { }
 inline void CVariable::SetLaminarViscosity(CConfig *config) { }
 
 inline void CVariable::SetEddyViscosity(su2double eddy_visc) { }
+
+inline void CVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) { }
 
 inline void CVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) { }
 
@@ -870,6 +874,8 @@ inline void CEulerVariable::Set_BGSSolution_k(void) {
 
 inline su2double CNSVariable::GetEddyViscosity(void) { return Primitive[nDim+6]; }
 
+inline su2double** CNSVariable::GetAnisoEddyViscosity(void) { return AnisoEddyViscosity; }
+
 inline su2double CNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+5]; }
 
 inline su2double CNSVariable::GetThermalConductivity(void) { return Primitive[nDim+7]; }
@@ -917,6 +923,16 @@ inline void CNSVariable::SetdktdT_rho(su2double dktdT_rho) {
 }
 
 inline void CNSVariable::SetEddyViscosity(su2double eddy_visc) { Primitive[nDim+6] = eddy_visc; }
+
+inline void CNSVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) {
+  assert(aniso_eddy_visc != NULL);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    assert(aniso_eddy_visc[iDim] != NULL);
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      AnisoEddyViscosity[iDim][jDim] = aniso_eddy_visc[iDim][jDim];
+    }
+  }
+}
 
 inline void CNSVariable::SetWallTemperature(su2double Temperature_Wall ) { Primitive[0] = Temperature_Wall; }
 

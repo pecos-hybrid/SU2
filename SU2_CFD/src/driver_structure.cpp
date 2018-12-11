@@ -884,11 +884,11 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
   
   if (model_split_hybrid) {
     /*--- Only one hybrid model can be used for all zones ---*/
-    switch (config->GetKind_Hybrid_Blending()) {
+    switch (config->GetKind_HybridRANSLES_Testing()) {
       case RANS_ONLY:
         hybrid_mediator = new CHybrid_Dummy_Mediator(nDim, config);
         break;
-      case FULL_TRANSPORT:
+      case FULL_HYBRID_RANS_LES:
         hybrid_mediator = new CHybrid_Mediator(nDim, config, config->GetHybrid_Const_FileName());
         break;
     }

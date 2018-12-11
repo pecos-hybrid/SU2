@@ -632,8 +632,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief MATH_PROBLEM  \n DESCRIPTION: Mathematical problem \n  Options: DIRECT, ADJOINT \ingroup Config*/
   addMathProblemOption("MATH_PROBLEM", ContinuousAdjoint, false, DiscreteAdjoint, false, Restart_Flow, false);
 
-    /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: FULL_TRANSPORT \ingroup Config */
-  addEnumOption("HYBRID_BLENDING_SCHEME", Kind_Hybrid_Blending, Hybrid_Blending_Map, FULL_TRANSPORT);
+    /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Testing_Map \endlink \n DEFAULT: FULL_HYBRID_RANS_LES \ingroup Config */
+  addEnumOption("HYBRID_RANS_LES_TESTING", Kind_HybridRANSLES_Testing, Hybrid_Testing_Map, FULL_HYBRID_RANS_LES);
   
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RK_INDICATOR);
@@ -3756,6 +3756,12 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
     if (nAveragingPeriods <= 0) {
       SU2_MPI::Error("The number of averaging periods must be greater than zero.", CURRENT_FUNCTION);
     }
+  }
+
+  /*--- Check that the hybrid RANS/LES options are appropriate ---*/
+
+  if (Kind_HybridRANSLES == MODEL_SPLIT && Kind_Averaging == NO_AVERAGING) {
+    SU2_MPI::Error("Model-split hybrid RANS/LES requires averaging to be used.", CURRENT_FUNCTION);
   }
 }
 

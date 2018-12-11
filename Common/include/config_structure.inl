@@ -1517,7 +1517,7 @@ inline bool CConfig::GetSmoothNumGrid(void) { return SmoothNumGrid; }
 
 inline void CConfig::SetSmoothNumGrid(bool val_smoothnumgrid) { SmoothNumGrid = val_smoothnumgrid; }
 
-inline unsigned short CConfig::GetKind_Hybrid_Blending(void) { return Kind_Hybrid_Blending; }
+inline unsigned short CConfig::GetKind_HybridRANSLES_Testing(void) { return Kind_HybridRANSLES_Testing; }
 
 inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { return Kind_Hybrid_Res_Ind; }
 

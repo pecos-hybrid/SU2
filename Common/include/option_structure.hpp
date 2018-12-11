@@ -718,17 +718,19 @@ static const map<string, ENUM_TURB_MODEL> Turb_Model_Map = CCreateMap<string, EN
 ("KE", KE);
 
 /*!
- * \brief Types of hybrid RANS/LES blending schemes.
+ * \brief Type of hybrid RANS/LES mediator
  *
- * These define the transport equation for the hybrid parameter.
+ * If the hybrid method is set to "RANS only", then the hybrid numerics
+ * will be exercised as fully as possible while still defaulting to RANS
+ * behavior.  This is intended for testing only.
  */
-enum ENUM_HYBRID_BLENDING {
+enum ENUM_HYBRID_RANS_LES_TESTING {
     RANS_ONLY = 0, /*!< \brief Kind of hybrid RANS/LES blending (RANS only). */
-    FULL_TRANSPORT = 1 /*!< \brief Kind of hybrid RANS/LES blending (Full transport). */
+    FULL_HYBRID_RANS_LES = 1 /*!< \brief Kind of hybrid RANS/LES blending (Full hybrid model). */
 };
-static const map<string, ENUM_HYBRID_BLENDING> Hybrid_Blending_Map = CCreateMap<string, ENUM_HYBRID_BLENDING>
+static const map<string, ENUM_HYBRID_RANS_LES_TESTING> Hybrid_Testing_Map = CCreateMap<string, ENUM_HYBRID_RANS_LES_TESTING>
 ("RANS_ONLY", RANS_ONLY)
-("FULL_TRANSPORT", FULL_TRANSPORT);
+("FULL_HYBRID", FULL_HYBRID_RANS_LES);
 
 /*!
  * \brief Types of hybrid RANS/LES resolution adeqeuacy indicators.

@@ -519,7 +519,7 @@ private:
   Kind_Struct_Solver,		/*!< \brief Determines the geometric condition (small or large deformations) for structural analysis. */
   Kind_DV_FEA;				/*!< \brief Kind of Design Variable for FEA problems.*/
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
-  unsigned short Kind_Hybrid_Blending; /*!< \brief Hybrid RANS/LES blending definition */
+  unsigned short Kind_HybridRANSLES_Testing; /*!< \brief Hybrid RANS/LES blending definition */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
@@ -3761,7 +3761,7 @@ public:
    * \brief Get the kind of hybrid RANS/LES blending scheme.
    * \return Kind of blending scheme.
    */
-  unsigned short GetKind_Hybrid_Blending(void);
+  unsigned short GetKind_HybridRANSLES_Testing(void);
 
   /*!
    * \brief Get the kind of hybrid RANS/LES resolution adequacy indicator.
