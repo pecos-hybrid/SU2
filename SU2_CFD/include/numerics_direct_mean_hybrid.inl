@@ -53,3 +53,9 @@ inline void CAvgGrad_Hybrid::SetPrimVarGradient_Average(su2double **val_primvar_
   PrimVar_Grad_Average_i = val_primvar_grad_i;
   PrimVar_Grad_Average_j = val_primvar_grad_j;
 }
+
+inline void CAvgGrad_Hybrid::SetKineticEnergyRatio(const su2double val_alpha_i,
+                                                   const su2double val_alpha_j) {
+  alpha_i = val_alpha_i;
+  alpha_j = val_alpha_j;
+}

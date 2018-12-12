@@ -556,7 +556,11 @@ void CEulerVariable::SetSecondaryVar(CFluidModel *FluidModel) {
 
 }
 
-CNSVariable::CNSVariable(void) : CEulerVariable() { }
+CNSVariable::CNSVariable(void) : CEulerVariable() {
+
+  ResolvedTurbStress = NULL;
+  AnisoEddyViscosity = NULL;
+}
 
 CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2double val_energy,
                          unsigned short val_nDim, unsigned short val_nvar,
@@ -571,6 +575,13 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     inv_TimeScale   = config->GetModVel_FreeStream() / config->GetRefLength();
     Roe_Dissipation = 0.0;
     Vortex_Tilting  = 0.0;
+
+    ResolvedTurbStress = new su2double*[nDim];
+    AnisoEddyViscosity = new su2double*[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ResolvedTurbStress[iDim] = new su2double[nDim];
+      AnisoEddyViscosity[iDim] = new su2double[nDim];
+    }
 
 }
 
@@ -587,9 +598,28 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     Roe_Dissipation = 0.0;
     Vortex_Tilting  = 0.0;
 
+    ResolvedTurbStress = new su2double*[nDim];
+    AnisoEddyViscosity = new su2double*[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ResolvedTurbStress[iDim] = new su2double[nDim];
+      AnisoEddyViscosity[iDim] = new su2double[nDim];
+    }
+
 }
 
 CNSVariable::~CNSVariable(void) {
+  if (ResolvedTurbStress != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      delete [] ResolvedTurbStress[iDim];
+    }
+    delete [] ResolvedTurbStress;
+  }
+  if (AnisoEddyViscosity != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      delete [] AnisoEddyViscosity[iDim];
+    }
+    delete [] AnisoEddyViscosity;
+  }
 }
 
 bool CNSVariable::SetVorticity(void) {

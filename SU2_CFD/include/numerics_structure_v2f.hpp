@@ -163,6 +163,8 @@ private:
   C_e1o,
   C_e2;
 
+  su2double** ResolvedTurbStress;
+
   bool incompressible;
 
 public:
@@ -191,5 +193,9 @@ public:
   void ComputeResidual(su2double *val_residual,
                        su2double **val_Jacobian_i, su2double **val_Jacobian_j,
                        CConfig *config);
+
+  void SetResolvedTurbStress(su2double** val_turb_stress) {
+    ResolvedTurbStress = val_turb_stress;
+  }
 
 };

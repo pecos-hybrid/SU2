@@ -2300,7 +2300,6 @@ void CDriver::Numerics_Postprocessing(CNumerics ****numerics_container,
       case KE:     zetaf_ke = true;             break;
     }
   }
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
   /*--- Solver definition for the template problem ---*/
   if (template_solver) {

@@ -35,6 +35,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../../Common/include/config_structure.hpp"
+#include "../include/numerics_structure.hpp"
 #include "../include/numerics_structure_v2f.hpp"
 #include <limits>
 
@@ -346,6 +348,18 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   // NB: we ignore the jacobian of production here
 
   Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
+
+  /*--- If using a hybrid method, include resolved production ---*/
+
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    Pk *= KineticEnergyRatio;
+    su2double Pk_resolved = 0;
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+      }
+    }
+  }
 
   Pk_rk  = 0.0;
   Pk_re  = 0.0;

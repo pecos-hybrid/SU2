@@ -517,6 +517,7 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
   CalculateTurbScales(solver_container, config);
 
   unsigned long iPoint;
+  const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
@@ -550,6 +551,14 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
 
     numerics->SetStrainMag(
       solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag(), 0.0);
+
+    /*--- Set the resolved Reynolds stress ---*/
+    if (model_split) {
+      numerics->SetKineticEnergyRatio(
+          solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio());
+      numerics->SetResolvedTurbStress(
+          solver_container[FLOW_SOL]->average_node[iPoint]->GetResolvedTurbStress());
+    }
 
     /*--- Compute the source term ---*/
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);

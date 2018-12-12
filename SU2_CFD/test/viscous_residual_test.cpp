@@ -590,6 +590,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithModelSplit, ViscousResidualFixture) {
 
 
   const su2double tke = 3; // 3 cancels out 3 in denominator
+  const su2double alpha = 1.0;
 
   su2double **aniso_eddy_viscosity = new su2double*[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
@@ -615,6 +616,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithModelSplit, ViscousResidualFixture) {
   hybrid_numerics->SetPrimitive_Average(primvar, primvar);
   hybrid_numerics->SetPrimVarGradient_Average(primvar_grad, primvar_grad);
   hybrid_numerics->SetAniso_Eddy_Viscosity(aniso_eddy_viscosity, aniso_eddy_viscosity);
+  hybrid_numerics->SetKineticEnergyRatio(alpha, alpha);
 
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 

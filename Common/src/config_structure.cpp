@@ -2134,8 +2134,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief RUNTIME_AVERAGING \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the type of averaging to be performed.  \n DEFAULT: NO_AVERAGING \ingroup Config */
   addEnumOption("RUNTIME_AVERAGING", Kind_Averaging, RuntimeAverage_Map, NO_AVERAGING);
 
-  /*!\brief AVERAGING_PERIOD \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the time period over which the averaging will be applied.  \n DEFAULT: TURB_TIMESCALE \ingroup Config */
-  addEnumOption("AVERAGING_PERIOD", Kind_Averaging_Period, AveragingPeriod_Map, TURB_TIMESCALE);
+  /*!\brief AVERAGING_PERIOD \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the time period over which the averaging will be applied.  \n DEFAULT: FLOW_TIMESCALE \ingroup Config */
+  addEnumOption("AVERAGING_PERIOD", Kind_Averaging_Period, AveragingPeriod_Map, FLOW_TIMESCALE);
 
   /*!\brief NUM_AVERAGING_PERIODS \n DESCRIPTION: If averaging is to be performed at runtime, this is the number of time periods over which to average. The inverse of this number can also be thought of as a proportional gain or a relaxation factor for the average calculations.  \n DEFAULT: 4.0 \ingroup Config */
   addDoubleOption("NUM_AVERAGING_PERIODS", nAveragingPeriods, 4.0);

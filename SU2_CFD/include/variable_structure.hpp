@@ -912,7 +912,7 @@ public:
    * \brief Get the anisotropic eddy-viscosity
    * \return The anisotropic eddy viscosity of the flow.
    */
-  virtual su2double** GetAnisoEddyViscosity(void);
+  virtual su2double** GetAnisoEddyViscosity(void) const;
 
   /*!
    * \brief A virtual member.
@@ -938,11 +938,17 @@ public:
    */
   virtual su2double GetResolutionAdequacy(void);
 
-  /**
-   * \brief Get the RANS weighting for a hybrid RANS/LES model
-   * \return The RANS weight parameter
+  /*!
+   * \brief Get the ratio of modeled to total turbulent kinetic energy
+   * \return The ratio of modeled to total turbulent kinetic energy
    */
-  virtual su2double GetRANSWeight(void);
+  virtual su2double GetKineticEnergyRatio(void) const;
+
+  virtual su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
+
+  virtual su2double** GetResolvedTurbStress(void);
+
+  virtual su2double GetResolvedKineticEnergy(void) const;
 
   /*!
    * \brief A virtual member.
@@ -1148,10 +1154,16 @@ public:
   virtual void SetResolutionAdequacy(su2double val_r_k);
 
   /*!
-   * \brief A virtual member.
-   * \param[in] val_w_rans - The RANS weight for a hybrid RANS/LES model
+   * \brief Set the ratio of modeled to total turbulent kinetic energy.
+   * \param[in] val_alpha - The ratio of modeled to total turbulent kinetic energy.
    */
-  virtual void SetRANSWeight(su2double val_w_rans);
+  virtual void SetKineticEnergyRatio(su2double val_alpha);
+
+  virtual void AddResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
+
+  virtual void SetResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
+
+  virtual void SetResolvedKineticEnergy(void);
 
   /*!
    * \brief A virtual member.
@@ -3934,6 +3946,9 @@ private:
   su2double Roe_Dissipation; /*!< \brief Roe low dissipation coefficient. */
   su2double Vortex_Tilting;  /*!< \brief Value of the vortex tilting variable for DES length scale computation. */
   su2double** AnisoEddyViscosity; /*!< \brief Anisotropic eddy viscosity. */
+  su2double KineticEnergyRatio; /*!< \brief Ratio of modeled to total turbulent kinetic energy */
+  su2double** ResolvedTurbStress;
+  su2double ResolvedKineticEnergy;
   
 public:
   
@@ -4006,6 +4021,18 @@ public:
   void SetAnisoEddyViscosity(su2double** aniso_eddy_visc);
 
   /*!
+   * \brief Set the ratio of modeled to total turbulent kinetic energy.
+   * \param val_alpha -  The ratio of modeled to total turbulent kinetic energy.
+   */
+  void SetKineticEnergyRatio(su2double val_alpha);
+
+  void AddResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
+
+  void SetResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
+
+  void SetResolvedKineticEnergy(void);
+
+  /*!
    * \brief Get the laminar viscosity of the flow.
    * \return Value of the laminar viscosity of the flow.
    */
@@ -4027,7 +4054,19 @@ public:
    * \brief Get the anisotropic eddy-viscosity
    * \return The anisotropic eddy viscosity of the flow.
    */
-  su2double** GetAnisoEddyViscosity(void);
+  su2double** GetAnisoEddyViscosity(void) const;
+
+  /*!
+   * \brief Get the ratio of modeled to total turbulent kinetic energy.
+   * \return The ratio of modeled to total turbulent kinetic energy.
+   */
+  su2double GetKineticEnergyRatio(void) const;
+
+  su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
+
+  su2double** GetResolvedTurbStress(void);
+
+  su2double GetResolvedKineticEnergy(void) const;
 
   /*!
    * \brief Get the specific heat at constant P of the flow.
@@ -4507,63 +4546,6 @@ public:
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
-};
-
-/*!
- * \class CHybridVariable
- * \brief Base class for the "hybrid parameters"; the variables defining the
- *        hybridization of RANS/LES.
- * \ingroup Hybrid_Parameter_Model
- * \author C. Pederson
- * \version 5.0.0 "Raven"
- */
-class CHybridVariable : public CVariable {
-protected:
-  su2double Resolution_Adequacy; /*!< \brief A measure of the ability of the grid to resolve the turbulence */
-  su2double RANS_Weight; /*!< \brief The weight given to the RANS solution */
-public:
-  /*!
-   * \brief Constructor of the class.
-   */
-  CHybridVariable(void);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  virtual ~CHybridVariable(void);
-
-  /*!
-   * \overload
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nvar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CHybridVariable(unsigned short val_nDim, unsigned short val_nvar,
-                    CConfig *config);
-
-  /*!
-   * \brief Get the value of the resolution adequacy
-   * \return the value of the resolution adequacy
-   */
-  su2double GetResolutionAdequacy();
-
-  /*!
-   * \brief Set the value of the resolution adequacy
-   * \param[in] val_r_k - The value of the resolution adequacy
-   */
-  void SetResolutionAdequacy(su2double val_r_k);
-
-  /*!
-   * \brief Get the value of the RANS weight
-   * \return the RANS weight
-   */
-  su2double GetRANSWeight();
-
-  /*!
-   * \brief Set the value of the blending coefficient.
-   * \param[in] val_w_rans - RANS weight
-   */
-  void SetRANSWeight(su2double val_w_rans);
 };
 
 /*!

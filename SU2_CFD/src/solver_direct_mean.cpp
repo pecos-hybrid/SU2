@@ -836,6 +836,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   if (runtime_averaging) {
     for (iPoint = 0; iPoint < nPoint; iPoint++)
       average_node[iPoint] = new CEulerVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
+
   }
 
   /*--- Check that the initial solution is physical, report any non-physical nodes ---*/
@@ -16841,6 +16842,8 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
       average_node[iPoint] = new CNSVariable(Density_Inf, Velocity_Inf, Energy_Inf, nDim, nVar, config);
   }
 
+
+
   /*--- Check that the initial solution is physical, report any non-physical nodes ---*/
 
   counter_local = 0;
@@ -17146,7 +17149,8 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     if (turb_model != NONE) {
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
-      if (tkeNeeded) turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+      if (tkeNeeded)
+        turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
       
       if (config->isDESBasedModel()){
         DES_LengthScale = solver_container[TURB_SOL]->node[iPoint]->GetDES_LengthScale();
@@ -17161,10 +17165,28 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     RightSol = node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
     node[iPoint]->SetSecondaryVar(FluidModel);
-    // FIXME: Right now this uses the instantaneous eddy_visc and turb_ke
     if (runtime_averaging) {
       average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
       // We don't need the secondary variables
+    }
+
+    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+
+      const su2double k_total = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+      const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
+      assert(k_resolved >= 0);
+
+      /*--- Check the model tke, to ensure we don't divide by a very small
+       * number ---*/
+
+      if (k_total > EPS || k_resolved <= k_total) {
+        assert(k_resolved <= turb_ke);
+        const su2double alpha = 1.0 - k_resolved / k_total;
+        average_node[iPoint]->SetKineticEnergyRatio(alpha);
+      } else {
+        // Model turb_ke is negligible, so just force alpha to 1.0
+        average_node[iPoint]->SetKineticEnergyRatio(1.0);
+      }
     }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
@@ -18830,4 +18852,61 @@ void CNSSolver::BC_ConjugateHeat_Interface(CGeometry *geometry, CSolver **solver
 
     }
   }
+}
+
+void CNSSolver::InitAverages() {
+  CSolver::InitAverages();
+
+  /*--- We assume that resolved = average, so fluctuating = 0 ---*/
+
+  // FIXME: Figure out how to setup resolved production when restarting
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        average_node[iPoint]->SetResolvedTurbStress(iDim, jDim, 0);
+      }
+    }
+  }
+}
+
+void CNSSolver::UpdateAverage(const su2double weight,
+                              const unsigned short iPoint,
+                              su2double* buffer) {
+
+  assert(average_node != NULL);
+
+  /*--- Update resolved Reynolds stress ---*/
+
+  const su2double* resolved_prim_vars = node[iPoint]->GetPrimitive();
+  const su2double* average_prim_vars = average_node[iPoint]->GetPrimitive();
+  su2double fluct_velocity[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    fluct_velocity[iDim] = resolved_prim_vars[iDim+1] - average_prim_vars[iDim+1];
+  }
+  const su2double resolved_rho = resolved_prim_vars[nDim+2];
+
+  // FIXME: Make averaging consistent with Favre-averaging
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+      const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
+      const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+
+      node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
+      average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
+    }
+  }
+
+  /*--- Update resolved turbulent kinetic energy ---*/
+
+  average_node[iPoint]->SetResolvedKineticEnergy();
+
+  /*--- We can't update alpha (the ratio of modeled to total turbulent
+   * kinetic energy) here because we don't have access to the RANS solver
+   * variables. ---*/
+
+
+  /*--- Make sure the average of the solution variables is updated too --*/
+
+  CSolver::UpdateAverage(weight, iPoint, buffer);
 }

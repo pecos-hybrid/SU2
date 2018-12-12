@@ -112,7 +112,7 @@ public:
             **HybridParam_Grad_j; /*!< \brief Gradient of variables for hybrid RANS/LES "hybrid parameters" at point j. */
   su2double TurbL, /*!< The turbulent lengthscale */
             TurbT; /*!< The turbulent timescale */
-  su2double RANS_Weight; /*!< \brief The weight given to RANS for hybrid RANS/LES */
+  su2double KineticEnergyRatio;
   su2double turb_ke_i,  /*!< \brief Turbulent kinetic energy at point i. */
   turb_ke_j;      /*!< \brief Turbulent kinetic energy at point j. */
   su2double Pressure_i,  /*!< \brief Pressure at point i. */
@@ -566,11 +566,9 @@ public:
    */
   void SetResolutionAdequacy(su2double val_resolution_adequacy);
 
-  /*!
-   * \brief Sets the RANS weight for a hybrid RANS/LES model
-   * \param val_w_rans - The RANS weight
-   */
-  void SetRANSWeight(su2double val_w_rans);
+  virtual void SetResolvedTurbStress(su2double** val_turb_stress);
+
+  void SetKineticEnergyRatio(su2double val_alpha);
 
   /*!
    * \brief Set the turbulent kinetic energy.

@@ -321,7 +321,11 @@ inline void CNumerics::SetGradResolutionTensor(su2double*** val_grad_tensor) {
 
 inline void CNumerics::SetResolutionAdequacy(su2double val_r_k) { Resolution_Adequacy = val_r_k; }
 
-inline void CNumerics::SetRANSWeight(su2double val_w_rans) { RANS_Weight = val_w_rans; }
+inline void CNumerics::SetResolvedTurbStress(su2double** val_turb_stress) { }
+
+inline void CNumerics::SetKineticEnergyRatio(su2double val_alpha) {
+  KineticEnergyRatio = val_alpha;
+}
 
 inline void CNumerics::SetIntermittency(su2double intermittency_in) { }
 

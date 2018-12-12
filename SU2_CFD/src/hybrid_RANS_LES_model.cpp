@@ -288,10 +288,16 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   su2double** aniso_viscosity_j =
       solver_container[FLOW_SOL]->node[iPoint]->GetAnisoEddyViscosity();
 
+  const su2double alpha_i =
+      solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+  const su2double alpha_j =
+      solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+
   CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
   numerics->SetPrimitive_Average(primvar_i, primvar_j);
   numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
   numerics->SetAniso_Eddy_Viscosity(aniso_viscosity_i, aniso_viscosity_j);
+  numerics->SetKineticEnergyRatio(alpha_i, alpha_j);
 }
 
 
@@ -845,4 +851,5 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   numerics->SetPrimitive_Average(primvar_i, primvar_j);
   numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
   numerics->SetAniso_Eddy_Viscosity(delta, delta);
+  numerics->SetKineticEnergyRatio(1.0, 1.0);
 }

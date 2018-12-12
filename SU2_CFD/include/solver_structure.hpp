@@ -4289,7 +4289,7 @@ public:
   /*!
    * \brief Initialize the average values of the solution.
    */
-  void InitAverages(void);
+  virtual void InitAverages(void);
 };
 
 /*!
@@ -8583,6 +8583,19 @@ public:
    */
   void SetRoe_Dissipation(CGeometry *geometry, CConfig *config);
   
+  /*!
+   * \brief Finish the averaging calculation.
+   *
+   * \param weight - The amount to weight the update on the average
+   * \param iPoint - The point at which the average will be calculated
+   * \param buffer - An allocated array of size nVar for working calculations
+   */
+  void UpdateAverage(const su2double weight,
+                     const unsigned short iPoint,
+                     su2double* buffer);
+
+  void InitAverages();
+
 };
 
 /*!

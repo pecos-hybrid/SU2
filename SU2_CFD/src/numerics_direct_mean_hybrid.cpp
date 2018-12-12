@@ -97,13 +97,7 @@ CAvgGrad_Hybrid::~CAvgGrad_Hybrid(void) {
 
 void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config) {
 
-  AD::StartPreacc();
-  AD::SetPreaccIn(V_i, nDim+9);   AD::SetPreaccIn(V_j, nDim+9);
-  AD::SetPreaccIn(Coord_i, nDim); AD::SetPreaccIn(Coord_j, nDim);
-  AD::SetPreaccIn(PrimVar_Grad_i, nDim+1, nDim);
-  AD::SetPreaccIn(PrimVar_Grad_j, nDim+1, nDim);
-  AD::SetPreaccIn(turb_ke_i); AD::SetPreaccIn(turb_ke_j);
-  AD::SetPreaccIn(Normal, nDim);
+  // TODO: Re-include the AD stuff
 
   /*--- Check validity of input ---*/
 
@@ -113,6 +107,10 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   assert(Aniso_Eddy_Viscosity_j != NULL);
   assert(PrimVar_Grad_Average_i != NULL);
   assert(PrimVar_Grad_Average_j != NULL);
+  assert(alpha_i >= 0);
+  assert(alpha_j >= 0);
+  assert(alpha_i <= 1.0);
+  assert(alpha_j <= 1.0);
 
   /*--- Normalized normal vector ---*/
 
@@ -156,6 +154,7 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
     }
   }
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
+  const su2double Mean_Alpha = 0.5*(alpha_i + alpha_j);
 
   /*--- Mean gradient approximation ---*/
 
@@ -186,13 +185,13 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   /*--- Get projected flux tensor ---*/
 
   SetLaminarStressTensor(Mean_GradPrimVar, Mean_Laminar_Viscosity);
-  AddTauSGS(Mean_PrimVar_Average, Mean_GradPrimVar_Average, Mean_turb_ke,
-            Mean_Eddy_Viscosity);
+  AddTauSGS(Mean_PrimVar_Average, Mean_GradPrimVar_Average, Mean_Alpha,
+            Mean_turb_ke, Mean_Eddy_Viscosity);
   AddTauSGET(Mean_GradPrimVar_Fluct,
              Mean_Aniso_Eddy_Viscosity);
 
   SetLaminarHeatFlux(Mean_GradPrimVar, Mean_Laminar_Viscosity);
-  AddSGSHeatFlux(Mean_GradPrimVar_Average, Mean_Eddy_Viscosity);
+  AddSGSHeatFlux(Mean_GradPrimVar_Average, Mean_Alpha, Mean_Eddy_Viscosity);
   AddSGETHeatFlux(Mean_GradPrimVar_Fluct, Mean_Aniso_Eddy_Viscosity);
 
 
@@ -226,9 +225,6 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
 
   }
 
-  AD::SetPreaccOut(val_residual, nVar);
-  AD::EndPreacc();
-
 }
 
 void CAvgGrad_Hybrid::SetLaminarStressTensor(su2double **val_gradprimvar,
@@ -250,6 +246,7 @@ void CAvgGrad_Hybrid::SetLaminarStressTensor(su2double **val_gradprimvar,
 
 void CAvgGrad_Hybrid::AddTauSGS(const su2double *val_primvar,
                                su2double **val_gradprimvar,
+                               const su2double val_alpha,
                                const su2double val_turb_ke,
                                const su2double val_eddy_viscosity) {
 
@@ -262,9 +259,9 @@ void CAvgGrad_Hybrid::AddTauSGS(const su2double *val_primvar,
 
   for (iDim = 0 ; iDim < nDim; iDim++) {
     for (jDim = 0 ; jDim < nDim; jDim++) {
-      tau[iDim][jDim] += val_eddy_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
-                        - TWO3*val_eddy_viscosity*div_vel*delta[iDim][jDim]
-                        - TWO3*Density*val_turb_ke*delta[iDim][jDim];
+      tau[iDim][jDim] += val_alpha*val_eddy_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
+                        - TWO3*val_alpha*val_eddy_viscosity*div_vel*delta[iDim][jDim]
+                        - TWO3*Density*val_alpha*val_turb_ke*delta[iDim][jDim];
     }
   }
 }
@@ -307,10 +304,11 @@ void CAvgGrad_Hybrid::SetLaminarHeatFlux(su2double **val_gradprimvar,
 }
 
 void CAvgGrad_Hybrid::AddSGSHeatFlux(su2double **val_gradprimvar,
+                                   const su2double val_alpha,
                                    const su2double val_eddy_viscosity) {
 
   const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
-  const su2double heat_flux_factor = Cp * (val_eddy_viscosity/Prandtl_Turb);
+  const su2double heat_flux_factor = Cp * (val_alpha*val_eddy_viscosity/Prandtl_Turb);
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     heat_flux_vector[iDim] += heat_flux_factor*val_gradprimvar[0][iDim];

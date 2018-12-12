@@ -110,6 +110,7 @@ BOOST_AUTO_TEST_CASE(RANSStressTensorMatchesModelSplit) {
   const su2double turb_ke = 3.0;
   const su2double laminar_viscosity = 7.0;
   const su2double eddy_viscosity = 11.0;
+  const su2double alpha = 1.0;
   su2double **rans_tau = new su2double*[nDim];
   su2double **model_split_tau = new su2double*[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
@@ -130,7 +131,7 @@ BOOST_AUTO_TEST_CASE(RANSStressTensorMatchesModelSplit) {
   }
 
   model_split_numerics.SetLaminarStressTensor(gradprimvar, laminar_viscosity);
-  model_split_numerics.AddTauSGS(primvar, gradprimvar, turb_ke, eddy_viscosity);
+  model_split_numerics.AddTauSGS(primvar, gradprimvar, alpha, turb_ke, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       model_split_tau[iDim][jDim] = model_split_numerics.GetStressTensor(iDim, jDim);
@@ -306,6 +307,7 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesModelSplitHeatFlux) {
   gradprimvar[0][2] = 3; // dT/dz
   const su2double laminar_viscosity = 7.0;
   const su2double eddy_viscosity = 11.0;
+  const su2double alpha = 1.0;
   su2double rans_q[nDim];
   su2double model_q[nDim];
 
@@ -319,7 +321,7 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesModelSplitHeatFlux) {
   }
 
   model_split_numerics.SetLaminarHeatFlux(gradprimvar, laminar_viscosity);
-  model_split_numerics.AddSGSHeatFlux(gradprimvar, eddy_viscosity);
+  model_split_numerics.AddSGSHeatFlux(gradprimvar, alpha, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     model_q[iDim] = model_split_numerics.GetHeatFluxVector(iDim);
   }

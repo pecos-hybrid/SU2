@@ -261,7 +261,7 @@ inline su2double *CVariable::GetIntBoundary_Jump(void) { return NULL; }
 
 inline su2double CVariable::GetEddyViscosity(void) { return 0; }
 
-inline su2double** CVariable::GetAnisoEddyViscosity(void) { return NULL; }
+inline su2double** CVariable::GetAnisoEddyViscosity(void) const { return NULL; }
 
 inline su2double CVariable::GetTurbTimescale(void) { return 0; }
 
@@ -271,7 +271,13 @@ inline su2double CVariable::GetAnisoRatio(void) {return 1; }
 
 inline su2double CVariable::GetResolutionAdequacy(void) {return 1; }
 
-inline su2double CVariable::GetRANSWeight(void) {return 1; }
+inline su2double CVariable::GetKineticEnergyRatio(void) const { return 1; }
+
+inline su2double CVariable::GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const { return 0; }
+
+inline su2double** CVariable::GetResolvedTurbStress(void) { return NULL; }
+
+inline su2double CVariable::GetResolvedKineticEnergy(void) const { return 0; }
 
 inline void CVariable::SetGammaEff(void) { }
 
@@ -459,7 +465,17 @@ inline void CVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L)
 
 inline void CVariable::SetResolutionAdequacy(su2double val_r_k) { }
 
-inline void CVariable::SetRANSWeight(su2double val_w_rans) { }
+inline void CVariable::SetKineticEnergyRatio(su2double val_alpha) { }
+
+inline void CVariable::AddResolvedTurbStress(unsigned short iDim,
+                                               unsigned short jDim,
+                                               su2double val_stress) { }
+
+inline void CVariable::SetResolvedTurbStress(unsigned short iDim,
+                                               unsigned short jDim,
+                                               su2double val_stress) { }
+
+inline void CVariable::SetResolvedKineticEnergy(void) { }
 
 inline void CVariable::SetThermalConductivity(su2double thermalConductivity) { }
 
@@ -874,7 +890,22 @@ inline void CEulerVariable::Set_BGSSolution_k(void) {
 
 inline su2double CNSVariable::GetEddyViscosity(void) { return Primitive[nDim+6]; }
 
-inline su2double** CNSVariable::GetAnisoEddyViscosity(void) { return AnisoEddyViscosity; }
+inline su2double** CNSVariable::GetAnisoEddyViscosity(void) const { return AnisoEddyViscosity; }
+
+inline su2double CNSVariable::GetKineticEnergyRatio(void) const { return KineticEnergyRatio; }
+
+inline su2double CNSVariable::GetResolvedTurbStress(unsigned short iDim,
+                                                    unsigned short jDim) const {
+  return ResolvedTurbStress[iDim][jDim];
+}
+
+inline su2double** CNSVariable::GetResolvedTurbStress(void) {
+  return ResolvedTurbStress;
+}
+
+inline su2double CNSVariable::GetResolvedKineticEnergy(void) const {
+  return ResolvedKineticEnergy;
+}
 
 inline su2double CNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+5]; }
 
@@ -931,6 +962,29 @@ inline void CNSVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       AnisoEddyViscosity[iDim][jDim] = aniso_eddy_visc[iDim][jDim];
     }
+  }
+}
+
+inline void CNSVariable::SetKineticEnergyRatio(const su2double val_alpha) {
+  KineticEnergyRatio = val_alpha;
+}
+
+inline void CNSVariable::AddResolvedTurbStress(unsigned short iDim,
+                                               unsigned short jDim,
+                                               su2double val_stress) {
+  ResolvedTurbStress[iDim][jDim] += val_stress;
+}
+
+inline void CNSVariable::SetResolvedTurbStress(unsigned short iDim,
+                                               unsigned short jDim,
+                                               su2double val_stress) {
+  ResolvedTurbStress[iDim][jDim] = val_stress;
+}
+
+inline void CNSVariable::SetResolvedKineticEnergy(void) {
+  ResolvedKineticEnergy = 0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    ResolvedKineticEnergy += 0.5*ResolvedTurbStress[iDim][iDim];
   }
 }
 
@@ -1419,14 +1473,6 @@ inline void CDiscAdjVariable::SetSolution_Direct(su2double *val_solution_direct)
     Solution_Direct[iVar] = val_solution_direct[iVar];
   }
 }
-
-inline void CHybridVariable::SetResolutionAdequacy(su2double val_r_k) { Resolution_Adequacy = val_r_k;}
-
-inline su2double CHybridVariable::GetResolutionAdequacy() { return Resolution_Adequacy; }
-
-inline void CHybridVariable::SetRANSWeight(su2double val_w_rans) {RANS_Weight = val_w_rans;}
-
-inline su2double CHybridVariable::GetRANSWeight() { return RANS_Weight; }
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() {
   return T;

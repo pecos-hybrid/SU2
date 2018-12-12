@@ -59,6 +59,7 @@ private:
   su2double* PrimVar_Average_j;
   su2double **Aniso_Eddy_Viscosity_i, **Aniso_Eddy_Viscosity_j;
   su2double **PrimVar_Grad_Average_i, **PrimVar_Grad_Average_j;
+  su2double alpha_i, alpha_j;
 
 public:
 
@@ -109,6 +110,7 @@ public:
                           const su2double val_laminar_viscosity);
 
   void AddSGSHeatFlux(su2double **val_gradprimvar,
+                      const su2double val_alpha,
                       const su2double val_eddy_viscosity);
 
   void AddSGETHeatFlux(su2double** val_gradprimvar,
@@ -118,8 +120,18 @@ public:
   void SetLaminarStressTensor(su2double **val_gradprimvar,
                               const su2double val_laminar_viscosity);
 
+  /*!
+   * \brief Compute the mean subfilter stress.
+   *
+   * \param val_primvar - The average primitive variables
+   * \param val_gradprimvar - The gradient of the average primitive variables
+   * \param val_alpha - The ratio of subfilter to total turbulent kinetic energy
+   * \param val_turb_ke - The total (not subfilter) turbulent kinetic energy
+   * \param val_eddy_viscosity - The eddy viscosity from the RANS model
+   */
   void AddTauSGS(const su2double *val_primvar,
                  su2double **val_gradprimvar,
+                 const su2double val_alpha,
                  const su2double val_turb_ke,
                  const su2double val_eddy_viscosity);
 
@@ -139,6 +151,9 @@ public:
    */
   void SetPrimVarGradient_Average(su2double **val_primvar_grad_i,
                                   su2double **val_primvar_grad_j);
+
+  void SetKineticEnergyRatio(const su2double val_alpha_i,
+                             const su2double val_alpha_j);
 };
 
 #include "numerics_direct_mean_hybrid.inl"
