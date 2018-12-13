@@ -2963,6 +2963,10 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
     SU2_MPI::Allreduce(&local_max_timescale, &timescale, 1,
                        MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     assert(timescale > 0);
+
+    /*--- Save the timescale so it can be accessed later ---*/
+
+    SetAveragingTimescale(timescale);
   }
 
   su2double* buffer = new su2double[nVar];
@@ -2997,8 +3001,8 @@ void CSolver::UpdateAverage(su2double weight, unsigned short iPoint,
   const su2double* current = node[iPoint]->GetSolution();
 
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    const su2double new_average = (current[iVar] - average[iVar])*weight;
-    average_node[iPoint]->AddSolution(iVar, new_average);
+    const su2double new_average = (current[iVar] - average[iVar])*weight + average[iVar];
+    average_node[iPoint]->SetSolution(iVar, new_average);
   }
 }
 

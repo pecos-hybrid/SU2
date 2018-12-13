@@ -5870,6 +5870,13 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               } else {
                 cout << endl << "Dual Time step: " << config[val_iZone]->GetDelta_UnstTimeND() << ".";
               }
+              if (config[val_iZone]->GetKind_Averaging() != NO_AVERAGING &&
+                  config[val_iZone]->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
+                const su2double timescale = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetAveragingTimescale();
+                const su2double N_T = config[val_iZone]->GetnAveragingPeriods();
+                cout << endl << "Averaging period (non-dim): " << timescale;
+                cout << endl << "Total averaging window (non-dim): " << N_T*timescale;
+              }
             }
           }
           else if (fem && !fsi) {

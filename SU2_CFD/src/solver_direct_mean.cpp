@@ -4502,6 +4502,15 @@ void CEulerSolver::SetNondimensionalization(CGeometry *geometry, CConfig *config
       cout << "Time step (non-dim): " << config->GetDelta_UnstTimeND() << endl;
     }
     
+    if (config->GetKind_Averaging() != NO_AVERAGING &&
+        config->GetKind_Averaging_Period() == FLOW_TIMESCALE) {
+      su2double timescale = config->GetRefLength()/config->GetModVel_FreeStream();
+      timescale /= config->GetTime_Ref();
+      const su2double N_T = config->GetnAveragingPeriods();
+      cout << "Averaging period (non-dim): " << timescale << endl;
+      cout << "Total averaging window (non-dim): " << N_T*timescale << endl;
+    }
+
     cout << endl;
     
   }

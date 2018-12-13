@@ -1138,6 +1138,10 @@ inline void CSolver::SetConjugateHeatVariable(unsigned short val_marker, unsigne
 
 inline su2double CSolver::GetConjugateHeatVariable(unsigned short val_marker, unsigned long val_vertex, unsigned short pos_var) { return 0.0; }
 
+inline void CSolver::SetAveragingTimescale(su2double val_timescale) { AveragingTimescale = val_timescale; }
+
+inline su2double CSolver::GetAveragingTimescale(void) const { return AveragingTimescale; }
+
 inline su2double CEulerSolver::GetDensity_Inf(void) { return Density_Inf; }
 
 inline su2double CEulerSolver::GetModVelocity_Inf(void) { 

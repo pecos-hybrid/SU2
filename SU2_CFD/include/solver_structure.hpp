@@ -128,7 +128,7 @@ protected:
   int Restart_ExtIter;     /*!< \brief Auxiliary structure for holding the external iteration offset from a restart. */
   passivedouble *Restart_Data; /*!< \brief Auxiliary structure for holding the data values from a restart. */
   unsigned short nOutputVariables;  /*!< \brief Number of variables to write. */
-
+  su2double AveragingTimescale;
 
   /*!
    * \brief Finish the averaging calculation.
@@ -4290,6 +4290,10 @@ public:
    * \brief Initialize the average values of the solution.
    */
   virtual void InitAverages(void);
+
+  void SetAveragingTimescale(su2double val_timescale);
+
+  su2double GetAveragingTimescale(void) const;
 };
 
 /*!
