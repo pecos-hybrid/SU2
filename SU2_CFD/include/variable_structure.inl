@@ -982,9 +982,11 @@ inline void CNSVariable::SetResolvedTurbStress(unsigned short iDim,
 }
 
 inline void CNSVariable::SetResolvedKineticEnergy(void) {
+  /*--- The turbulent stress is defined as \tau = - \rho u_i u_j,
+   * so we have to use a negative value and divide by density. ---*/
   ResolvedKineticEnergy = 0;
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    ResolvedKineticEnergy += 0.5*ResolvedTurbStress[iDim][iDim];
+    ResolvedKineticEnergy += -0.5*ResolvedTurbStress[iDim][iDim]/Solution[0];
   }
 }
 

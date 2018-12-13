@@ -17151,6 +17151,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                     ((config->GetKind_Turb_Model() == SST) ||
                      (config->GetKind_Turb_Model() == KE)));
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const su2double min_tke = EPS;  // XXX: This floor is arbitrary
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -17186,12 +17187,24 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       assert(k_resolved >= 0);
 
       /*--- Check the model tke, to ensure we don't divide by a very small
-       * number ---*/
+       * number or use a negative model k ---*/
 
-      if (k_total > EPS || k_resolved <= k_total) {
-        assert(k_resolved <= turb_ke);
+      if (k_total < 0) {
+
+        /*--- Unphysical value, so just default to alpha = 1.0 ---*/
+
+        RightSol = false;
+        average_node[iPoint]->SetKineticEnergyRatio(1.0);
+
+      } else if (k_total > min_tke || k_resolved <= k_total) {
+
+        /*--- If model and resolved turbulence are out of balance,
+         * mark the point as unphysical but proceed. --*/
+
+        if (k_resolved <= turb_ke) RightSol = false;
         const su2double alpha = 1.0 - k_resolved / k_total;
         average_node[iPoint]->SetKineticEnergyRatio(alpha);
+
       } else {
         // Model turb_ke is negligible, so just force alpha to 1.0
         average_node[iPoint]->SetKineticEnergyRatio(1.0);
@@ -18868,14 +18881,16 @@ void CNSSolver::InitAverages() {
 
   /*--- We assume that resolved = average, so fluctuating = 0 ---*/
 
-  // FIXME: Figure out how to setup resolved production when restarting
+  // TODO: Figure out how to setup resolved production when restarting
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
         average_node[iPoint]->SetResolvedTurbStress(iDim, jDim, 0);
       }
     }
+    average_node[iPoint]->SetResolvedKineticEnergy();
   }
+
 }
 
 void CNSSolver::UpdateAverage(const su2double weight,
@@ -18894,7 +18909,7 @@ void CNSSolver::UpdateAverage(const su2double weight,
   }
   const su2double resolved_rho = resolved_prim_vars[nDim+2];
 
-  // FIXME: Make averaging consistent with Favre-averaging
+  // TODO: Make averaging consistent with Favre-averaging
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];

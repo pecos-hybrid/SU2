@@ -4419,20 +4419,22 @@ CAvgGrad_Base::CAvgGrad_Base(unsigned short val_nDim,
   heat_flux_vector = new su2double[nDim];
   heat_flux_jac_i = new su2double[nVar];
 
-  deviatoric = new su2double*[nDim];
-  for (iDim = 0; iDim < nDim; iDim++) {
-    deviatoric[iDim] = new su2double[nDim];
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    deviatoric = new su2double*[nDim];
+    for (iDim = 0; iDim < nDim; iDim++) {
+      deviatoric[iDim] = new su2double[nDim];
+    }
+  } else {
+    deviatoric = NULL;
   }
 }
 
 CAvgGrad_Base::~CAvgGrad_Base() {
 
-  unsigned short iVar;
-
   delete [] PrimVar_i;
   delete [] PrimVar_j;
   delete [] Mean_PrimVar;
-  for (iVar = 0; iVar < nPrimVar; iVar++)
+  for (unsigned short iVar = 0; iVar < nPrimVar; iVar++)
     delete [] Mean_GradPrimVar[iVar];
   delete [] Mean_GradPrimVar;
 
@@ -4449,6 +4451,13 @@ CAvgGrad_Base::~CAvgGrad_Base() {
     delete [] heat_flux_jac_i;
   }
   
+  if (deviatoric != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      delete [] deviatoric[iDim];
+    }
+    delete [] deviatoric;
+  }
+
   delete [] Edge_Vector;
   if (Proj_Mean_GradPrimVar_Edge != NULL)
     delete [] Proj_Mean_GradPrimVar_Edge;

@@ -107,10 +107,6 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   assert(Aniso_Eddy_Viscosity_j != NULL);
   assert(PrimVar_Grad_Average_i != NULL);
   assert(PrimVar_Grad_Average_j != NULL);
-  assert(alpha_i >= 0);
-  assert(alpha_j >= 0);
-  assert(alpha_i <= 1.0);
-  assert(alpha_j <= 1.0);
 
   /*--- Normalized normal vector ---*/
 
@@ -154,7 +150,10 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
     }
   }
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
-  const su2double Mean_Alpha = 0.5*(alpha_i + alpha_j);
+
+  /*--- Limit alpha to protect from imbalance in k_model vs k_resolved ---*/
+
+  const su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j), 0.0), 1.0);
 
   /*--- Mean gradient approximation ---*/
 
@@ -250,6 +249,8 @@ void CAvgGrad_Hybrid::AddTauSGS(const su2double *val_primvar,
                                const su2double val_turb_ke,
                                const su2double val_eddy_viscosity) {
 
+  assert(val_alpha >= 0.0);
+  assert(val_alpha <= 1.0);
   unsigned short iDim, jDim;
   const su2double Density = val_primvar[nDim+2];
 
@@ -306,6 +307,9 @@ void CAvgGrad_Hybrid::SetLaminarHeatFlux(su2double **val_gradprimvar,
 void CAvgGrad_Hybrid::AddSGSHeatFlux(su2double **val_gradprimvar,
                                    const su2double val_alpha,
                                    const su2double val_eddy_viscosity) {
+
+  assert(val_alpha >= 0.0);
+  assert(val_alpha <= 1.0);
 
   const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
   const su2double heat_flux_factor = Cp * (val_alpha*val_eddy_viscosity/Prandtl_Turb);
