@@ -459,7 +459,12 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
             // No extra variables
             break;
           case FULL_HYBRID_RANS_LES:
-            // TODO: Add extra variables
+            RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
+                           &CVariable::GetKineticEnergyRatio, iZone, true);
+            RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
+                           &CVariable::GetResolvedKineticEnergy, iZone, true);
+            RegisterTensor("tau_res", "<greek>t<\greek><sub>res</sub>", FLOW_SOL,
+                           &CVariable::GetResolvedTurbStress, iZone, true);
             break;
         }
       }
@@ -469,28 +474,38 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
 
 void COutput::RegisterScalar(std::string name, std::string tecplot_name,
                                unsigned short solver_type,
-                               DataAccessor accessor, unsigned short val_zone) {
-  COutputVariable variable = {name, tecplot_name, solver_type, accessor};
+                               DataAccessor accessor, unsigned short val_zone,
+                               bool average) {
+  COutputVariable variable = {name, tecplot_name, solver_type, accessor, average};
   output_vars[val_zone].push_back(variable);
 }
 
 void COutput::RegisterTensor(std::string name, std::string tecplot_name,
                              unsigned short solver_type,
-                             TensorAccessor accessor, unsigned short val_zone) {
-  COutputTensor tensor = {name, tecplot_name, solver_type, accessor};
+                             TensorAccessor accessor, unsigned short val_zone,
+                             bool average) {
+  COutputTensor tensor = {name, tecplot_name, solver_type, accessor, average};
   output_tensors[val_zone].push_back(tensor);
 }
 
 su2double COutput::RetrieveVariable(CSolver** solver,
                                     COutputVariable var,
                                     unsigned long iPoint) {
+  if (var.Average) {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)();
+  } else {
    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)();
+  }
 }
 
 su2double COutput::RetrieveTensorComponent(CSolver** solver, COutputTensor var,
                                   unsigned long iPoint, unsigned short iDim,
                                   unsigned short jDim) {
-  return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim][jDim];
+  if (var.Average) {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)()[iDim][jDim];
+  } else {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim][jDim];
+  }
 }
 
 void COutput::SetSurfaceCSV_Flow(CConfig *config, CGeometry *geometry,

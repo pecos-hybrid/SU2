@@ -263,9 +263,9 @@ inline su2double CVariable::GetEddyViscosity(void) { return 0; }
 
 inline su2double** CVariable::GetAnisoEddyViscosity(void) const { return NULL; }
 
-inline su2double CVariable::GetTurbTimescale(void) { return 0; }
+inline su2double CVariable::GetTurbTimescale(void) const { return 0; }
 
-inline su2double CVariable::GetTurbLengthscale(void) { return 0; }
+inline su2double CVariable::GetTurbLengthscale(void) const { return 0; }
 
 inline su2double CVariable::GetAnisoRatio(void) {return 1; }
 
@@ -1474,11 +1474,11 @@ inline void CDiscAdjVariable::SetSolution_Direct(su2double *val_solution_direct)
   }
 }
 
-inline su2double CTurbSSTVariable::GetTurbTimescale() {
+inline su2double CTurbSSTVariable::GetTurbTimescale() const {
   return T;
 }
 
-inline su2double CTurbSSTVariable::GetTurbLengthscale() {
+inline su2double CTurbSSTVariable::GetTurbLengthscale() const {
  return L;
 }
 

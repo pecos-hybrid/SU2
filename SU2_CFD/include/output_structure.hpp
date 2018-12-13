@@ -56,7 +56,7 @@
 #include "../../Common/include/geometry_structure.hpp"
 #include "../../Common/include/config_structure.hpp"
 
-typedef su2double (CVariable::*DataAccessor)();
+typedef su2double (CVariable::*DataAccessor)() const;
 typedef su2double** (CVariable::*TensorAccessor)();
 /*--- Define a macro to make (()->*(function pointer)) more readable ---*/
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object)->*(ptrToMember))
@@ -66,6 +66,7 @@ struct COutputVariable {
   std::string Tecplot_Name;
   unsigned short Solver_Type;
   DataAccessor Accessor;
+  bool Average;
 };
 
 struct COutputTensor {
@@ -73,6 +74,7 @@ struct COutputTensor {
   std::string Tecplot_Name;
   unsigned short Solver_Type;
   TensorAccessor Accessor;
+  bool Average;
 };
 
 using namespace std;
@@ -228,11 +230,11 @@ public:
 
   void RegisterScalar(std::string name, std::string tecplot_name,
                         unsigned short solver_type, DataAccessor accessor,
-                        unsigned short val_zone);
+                        unsigned short val_zone, bool average=false);
 
   void RegisterTensor(std::string name, std::string tecplot_name,
                       unsigned short solver_type, TensorAccessor accessor,
-                      unsigned short val_zone);
+                      unsigned short val_zone, bool average = false);
 
   su2double RetrieveVariable(CSolver** solver, COutputVariable var,
                              unsigned long iPoint);

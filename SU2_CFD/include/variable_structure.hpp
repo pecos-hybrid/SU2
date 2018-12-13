@@ -918,13 +918,13 @@ public:
    * \brief A virtual member.
    * \return Value of turbulent timescale
    */
-  virtual su2double GetTurbTimescale(void);
+  virtual su2double GetTurbTimescale(void) const;
 
   /*!
    * \brief A virtual member.
    * \return Value of the turbulent lengthscale
    */
-  virtual su2double GetTurbLengthscale(void);
+  virtual su2double GetTurbLengthscale(void) const;
 
   /*!
    * \brief A virtual member.
@@ -4532,13 +4532,13 @@ public:
    * \brief Get the large-eddy timescale of the turbulence
    * \return The large-eddy timescale of the turbulence.
    */
-  su2double GetTurbTimescale(void);
+  su2double GetTurbTimescale(void) const;
 
   /**
    * \brief Get the large-eddy lengthscale of the turbulence
    * \return The large-eddy lengthscale of the turbulence
    */
-  su2double GetTurbLengthscale(void);
+  su2double GetTurbLengthscale(void) const;
 
   /**
    * \brief Sets the large-eddy lengthscale and the large-eddy timescale
