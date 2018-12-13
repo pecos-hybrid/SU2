@@ -450,14 +450,9 @@ CQuadrilateral::~CQuadrilateral() {
 }
 
 void CQuadrilateral::SetResolutionTensor(su2double **val_coord) {
+
   unsigned short iDim, jDim, kDim, lDim;
   unsigned short iFace;
-  unsigned short* paired_faces;
-  /** paired_faces is used to sort the faces into matching pairs.
-      The code will look for pairs of faces that are mostly opposite, then
-      sort them so that the face indices in paired_faces[0] and paired_faces[1]
-      match, then paired_faces[2] and paired_faces[3] match, etc.
-   */
 
   /*-- Allocate ResolutionTensor --*/
   ResolutionTensor = new su2double* [nDim];
@@ -472,7 +467,11 @@ void CQuadrilateral::SetResolutionTensor(su2double **val_coord) {
     }
   }
 
-  paired_faces = new unsigned short [nFaces];
+  /*--- paired_faces is used to sort the faces into matching pairs.
+      The code will look for pairs of faces that are mostly opposite, then
+      sort them so that the face indices in paired_faces[0] and paired_faces[1]
+      match, then paired_faces[2] and paired_faces[3] match, etc. ---*/
+  unsigned short paired_faces[nFaces];
   vector<vector<su2double> > eigvecs(nDim, vector<su2double>(nDim));
 
   /*-- Create cell center to face vectors --*/
