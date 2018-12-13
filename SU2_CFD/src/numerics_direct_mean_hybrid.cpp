@@ -50,6 +50,11 @@ CAvgGrad_Hybrid::CAvgGrad_Hybrid(unsigned short val_nDim,
     conductivity[iDim] = new su2double[nDim];
   }
 
+  deviatoric = new su2double*[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    deviatoric[iDim] = new su2double[nDim];
+  }
+
   Mean_PrimVar_Average = new su2double [nPrimVar];
 
   Mean_GradPrimVar_Fluct = new su2double* [nPrimVar];
@@ -78,6 +83,11 @@ CAvgGrad_Hybrid::~CAvgGrad_Hybrid(void) {
     delete [] conductivity[iDim];
   }
   delete [] conductivity;
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    delete [] deviatoric[iDim];
+  }
+  delete [] deviatoric;
 
   delete [] Mean_PrimVar_Average;
 

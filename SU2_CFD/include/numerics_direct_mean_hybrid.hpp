@@ -50,6 +50,7 @@ class CAvgGrad_Hybrid : public CAvgGrad_Base {
 private:
   /*--- Temporary variables used in calculation ---*/
   su2double **conductivity;  /*!< \brief Anisotropic thermal conductivity */
+  su2double **deviatoric;    /*!< \brief Deviatoric part of the velocity gradient tensor. */
   su2double* Mean_PrimVar_Average;
   su2double** Mean_GradPrimVar_Average;
   su2double** Mean_GradPrimVar_Fluct;

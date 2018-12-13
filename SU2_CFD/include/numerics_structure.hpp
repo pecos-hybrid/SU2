@@ -3101,7 +3101,6 @@ class CAvgGrad_Base : public CNumerics {
   Mean_TauWall,                /*!< \brief Mean wall shear stress (wall functions). */
   TauWall_i, TauWall_j,        /*!< \brief Wall shear stress at point i and j (wall functions). */
   dist_ij_2,                   /*!< \brief Length of the edge and face, squared */
-  **deviatoric,                /*!< \brief Deviatoric part of the velocity gradient tensor. */
   *Proj_Mean_GradPrimVar_Edge, /*!< \brief Inner product of the Mean gradient and the edge vector. */
   *Edge_Vector;                /*!< \brief Vector from point i to point j. */
 

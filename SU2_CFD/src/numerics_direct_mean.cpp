@@ -4419,14 +4419,6 @@ CAvgGrad_Base::CAvgGrad_Base(unsigned short val_nDim,
   heat_flux_vector = new su2double[nDim];
   heat_flux_jac_i = new su2double[nVar];
 
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-    deviatoric = new su2double*[nDim];
-    for (iDim = 0; iDim < nDim; iDim++) {
-      deviatoric[iDim] = new su2double[nDim];
-    }
-  } else {
-    deviatoric = NULL;
-  }
 }
 
 CAvgGrad_Base::~CAvgGrad_Base() {
@@ -4449,13 +4441,6 @@ CAvgGrad_Base::~CAvgGrad_Base() {
   }
   if (heat_flux_jac_i != NULL) {
     delete [] heat_flux_jac_i;
-  }
-  
-  if (deviatoric != NULL) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      delete [] deviatoric[iDim];
-    }
-    delete [] deviatoric;
   }
 
   delete [] Edge_Vector;
