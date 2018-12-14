@@ -334,7 +334,7 @@ void CAvgGrad_Hybrid::AddSGETHeatFlux(su2double** val_gradprimvar,
 
   const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
   // TODO: Add this to the config file.
-  const su2double Prandtl_sgs = 0.6;
+  const su2double Prandtl_sgs = 0.90;
 
   /*--- Anisotropic thermal conductivity model ---*/
 
