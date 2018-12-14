@@ -570,9 +570,7 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
 
     /*--- Set the resolved Reynolds stress ---*/
     if (model_split) {
-      // TODO: Wrap this in the hybrid mediator
-      numerics->SetKineticEnergyRatio(flow_node[iPoint]->GetKineticEnergyRatio());
-      numerics->SetResolvedTurbStress(flow_node[iPoint]->GetResolvedTurbStress());
+      HybridMediator->SetupRANSNumerics(solver_container, numerics, iPoint);
     }
 
     /*--- Compute the source term ---*/

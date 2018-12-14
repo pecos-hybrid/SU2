@@ -82,11 +82,9 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    * \param[in] jPoint - The number of the opposite node
    */
-  virtual void SetupRANSNumerics(CGeometry* geometry,
-                                 CSolver **solver_container,
+  virtual void SetupRANSNumerics(CSolver **solver_container,
                                  CNumerics* rans_numerics,
-                                 unsigned short iPoint,
-                                 unsigned short jPoint) = 0;
+                                 unsigned short iPoint) = 0;
   /**
    * \brief Retrieve and pass along all necessary info for the resolved flow.
    *
@@ -242,15 +240,13 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    *
    * This function sets the hybrid parameter from the previous timestep.
    *
-   * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
    * \param[in] rans_numerics - The source numerics for the turb. solver
    * \param[in] iPoint - The number of the node being evaluated
-   * \param[in] jPoint - The number of the opposite node
    */
-  void SetupRANSNumerics(CGeometry* geometry, CSolver **solver_container,
+  void SetupRANSNumerics(CSolver **solver_container,
                          CNumerics* rans_numerics,
-                         unsigned short iPoint, unsigned short jPoint);
+                         unsigned short iPoint);
 
   void SetupForcing(CGeometry* geometry, CSolver **solver_container,
                     unsigned short iPoint);
@@ -296,6 +292,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
 
   unsigned short nDim;
   su2double** delta; /*!< \brief Kroneckor delta */
+  su2double** zero_tensor; /*!< \brief A zero nDim x nDim tensor */
 
  public:
 
@@ -316,15 +313,13 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
    *
    * This function sets the hybrid parameter from the previous timestep.
    *
-   * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
    * \param[in] rans_numerics - The source numerics for the turb. solver
    * \param[in] iPoint - The number of the node being evaluated
-   * \param[in] jPoint - The number of the opposite node
    */
-  void SetupRANSNumerics(CGeometry* geometry, CSolver **solver_container,
+  void SetupRANSNumerics(CSolver **solver_container,
                          CNumerics* rans_numerics,
-                         unsigned short iPoint, unsigned short jPoint);
+                         unsigned short iPoint);
 
   void SetupForcing(CGeometry* geometry, CSolver **solver_container,
                     unsigned short iPoint);

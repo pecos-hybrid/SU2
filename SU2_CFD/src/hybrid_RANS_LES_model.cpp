@@ -141,11 +141,13 @@ CHybrid_Mediator::~CHybrid_Mediator() {
 #endif
 }
 
-void CHybrid_Mediator::SetupRANSNumerics(CGeometry* geometry,
-                                         CSolver **solver_container,
+void CHybrid_Mediator::SetupRANSNumerics(CSolver **solver_container,
                                          CNumerics* rans_numerics,
-                                         unsigned short iPoint,
-                                         unsigned short jPoint) {
+                                         unsigned short iPoint) {
+
+  CVariable** flow_node = solver_container[FLOW_SOL]->average_node;
+  rans_numerics->SetKineticEnergyRatio(flow_node[iPoint]->GetKineticEnergyRatio());
+  rans_numerics->SetResolvedTurbStress(flow_node[iPoint]->GetResolvedTurbStress());
 }
 
 void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
@@ -286,12 +288,12 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   su2double** aniso_viscosity_i =
       solver_container[FLOW_SOL]->node[iPoint]->GetAnisoEddyViscosity();
   su2double** aniso_viscosity_j =
-      solver_container[FLOW_SOL]->node[iPoint]->GetAnisoEddyViscosity();
+      solver_container[FLOW_SOL]->node[jPoint]->GetAnisoEddyViscosity();
 
   const su2double alpha_i =
       solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
   const su2double alpha_j =
-      solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+      solver_container[FLOW_SOL]->average_node[jPoint]->GetKineticEnergyRatio();
 
   CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
   numerics->SetPrimitive_Average(primvar_i, primvar_j);
@@ -803,6 +805,14 @@ CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(unsigned short nDim,
       delta[iDim][jDim] = (iDim == jDim ? 1 : 0);
     }
   }
+
+  zero_tensor = new su2double*[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    zero_tensor[iDim] = new su2double[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      zero_tensor[iDim][jDim] = 0;
+    }
+  }
 }
 
 CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
@@ -810,16 +820,19 @@ CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     delete [] delta[iDim];
+    delete [] zero_tensor[iDim];
   }
   delete [] delta;
+  delete [] zero_tensor;
 
 }
 
-void CHybrid_Dummy_Mediator::SetupRANSNumerics(CGeometry* geometry,
-                                         CSolver **solver_container,
-                                         CNumerics* rans_numerics,
-                                         unsigned short iPoint,
-                                         unsigned short jPoint) {
+void CHybrid_Dummy_Mediator::SetupRANSNumerics(CSolver **solver_container,
+                                               CNumerics* rans_numerics,
+                                               unsigned short iPoint) {
+
+  rans_numerics->SetKineticEnergyRatio(1.0);
+  rans_numerics->SetResolvedTurbStress(zero_tensor);
 }
 
 void CHybrid_Dummy_Mediator::SetupForcing(CGeometry* geometry,
