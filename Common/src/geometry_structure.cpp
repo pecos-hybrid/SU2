@@ -12065,6 +12065,20 @@ void CGeometry::SetResolutionTensor(void) {
 #endif
 
   SetResolutionGradient();
+
+  if (nDim == 2) {
+    /*--- Leave in the option for 2D grids (no error-exits) for testing
+     * and for possible extreme cases) ---*/
+    if (rank == MASTER_NODE) {
+      cout << "WARNING: Resolution tensor coefficient (aka C_M) has not been implemented for 2D grids." << endl;
+      cout << "The coefficient will be set to 1.0" << endl;
+    }
+  }
+
+  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    node[iPoint]->SetResolutionPowers();
+    node[iPoint]->SetResolutionCoeff();
+  }
 }
 
 void CGeometry::SetResolutionGradient(void) {

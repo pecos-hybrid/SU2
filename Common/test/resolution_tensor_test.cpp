@@ -419,14 +419,13 @@ void WriteTriangleMeshFile () {
     Mesh_File.close();
 }
 
-void WriteHexMeshFile () {
-  /*--- Local variables ---*/
+void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) {
+    /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim, kDim;
     int iNode, jNode, kNode;
     int iPoint;
     int num_Nodes;
-    double xSpacing, ySpacing, zSpacing;
 
     std::ofstream Mesh_File;
 
@@ -439,11 +438,6 @@ void WriteHexMeshFile () {
     iDim = 4;
     jDim = 4;
     kDim = 4;
-
-    /*--- The grid spacing in each direction ---*/
-    xSpacing = 3.0;
-    ySpacing = 2.0;
-    zSpacing = 1.0;
 
     /*--- Open .su2 grid file ---*/
     Mesh_File.open("test.su2", ios::out);
@@ -492,9 +486,9 @@ void WriteHexMeshFile () {
     for (kNode = 0; kNode < kDim; kNode++) {
       for (jNode = 0; jNode < jDim; jNode++) {
         for (iNode = 0; iNode < iDim; iNode++) {
-          Mesh_File << iNode*xSpacing << "\t";
-          Mesh_File << jNode*ySpacing << "\t";
-          Mesh_File << kNode*zSpacing << "\t";
+          Mesh_File << iNode*delta_x << "\t";
+          Mesh_File << jNode*delta_y << "\t";
+          Mesh_File << kNode*delta_z << "\t";
           Mesh_File << iPoint << std::endl;
           iPoint++;
         }
@@ -588,7 +582,7 @@ void WriteHexMeshFile () {
     Mesh_File.close();
 }
 
-void WriteCfgFile(const unsigned short& nDim) {
+void WriteCfgFile(unsigned short nDim) {
   std::ofstream cfg_file;
 
   cfg_file.open("test.cfg", ios::out);
@@ -620,7 +614,7 @@ struct ResolutionFixture {
     delete config;
   }
 
-  void SetupConfig(const unsigned short& nDim) {
+  void SetupConfig(unsigned short nDim) {
     WriteCfgFile(nDim);
     config = new CConfig("test.cfg", SU2_CFD, 0, 1, 2, VERB_NONE);
   }
@@ -799,18 +793,13 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile();
+  WriteHexMeshFile(3,2,1);
   SetupConfig(nDim);
   SetupGeometry();
 
-  unsigned short iDim;
-  unsigned short iPoint;
-
   geometry->SetResolutionTensor();
 
-  bool entries_correct = true;
-
-  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
+  for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
     su2double** Mij = geometry->node[iPoint]->GetResolutionTensor();
 
@@ -821,18 +810,97 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
     msg << Mij[0][0] << "," << Mij[0][1] << "," << Mij[0][2] << "],[";
     msg << Mij[1][0] << "," << Mij[1][1] << "," << Mij[1][2] << "],[";
     msg << Mij[2][0] << "," << Mij[2][1] << "," << Mij[2][2] << "]]";
-    BOOST_TEST_CONTEXT(msg.str());
+    BOOST_TEST_CONTEXT(msg.str()) {
+      // Check that the values of Mij are correct
+      BOOST_CHECK_CLOSE_FRACTION(Mij[0][0], 3.0, machine_eps);
+      BOOST_CHECK_SMALL(Mij[0][1], machine_eps);
+      BOOST_CHECK_SMALL(Mij[0][2], machine_eps);
+      BOOST_CHECK_SMALL(Mij[1][0], machine_eps);
+      BOOST_CHECK_CLOSE_FRACTION(Mij[1][1], 2.0, machine_eps);
+      BOOST_CHECK_SMALL(Mij[1][2], machine_eps);
+      BOOST_CHECK_SMALL(Mij[2][0], machine_eps);
+      BOOST_CHECK_SMALL(Mij[2][1], machine_eps);
+      BOOST_CHECK_CLOSE_FRACTION(Mij[2][2], 1.0, machine_eps);
+    }
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
+
+  // Write out the mesh and configuration files.
+  const unsigned short nDim = 3;
+  WriteHexMeshFile(3, 2, 1);
+  SetupConfig(nDim);
+  SetupGeometry();
+
+  geometry->SetResolutionTensor();
+
+  for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
+
+    su2double** M43 = geometry->node[iPoint]->GetResolutionTensor43();
+
+    // Build the test info
+    std::stringstream msg;
+    msg << "Computed array elements:" << std::endl;
+    msg << "[[";
+    msg << M43[0][0] << "," << M43[0][1] << "," << M43[0][2] << "],[";
+    msg << M43[1][0] << "," << M43[1][1] << "," << M43[1][2] << "],[";
+    msg << M43[2][0] << "," << M43[2][1] << "," << M43[2][2] << "]]";
+    BOOST_TEST_CONTEXT(msg.str()) {
+      // Check that the values of Mij are correct
+      BOOST_CHECK_CLOSE_FRACTION(M43[0][0], std::pow(3.0, 4.0/3), machine_eps);
+      BOOST_CHECK_SMALL(M43[0][1], machine_eps);
+      BOOST_CHECK_SMALL(M43[0][2], machine_eps);
+      BOOST_CHECK_SMALL(M43[1][0], machine_eps);
+      BOOST_CHECK_CLOSE_FRACTION(M43[1][1], std::pow(2.0, 4.0/3), machine_eps);
+      BOOST_CHECK_SMALL(M43[1][2], machine_eps);
+      BOOST_CHECK_SMALL(M43[2][0], machine_eps);
+      BOOST_CHECK_SMALL(M43[2][1], machine_eps);
+      BOOST_CHECK_CLOSE_FRACTION(M43[2][2], 1.0, machine_eps);
+    }
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(ResolutionConstantEqualsOneForIsotropic, ResolutionFixture) {
+
+  // Write out the mesh and configuration files.
+  const unsigned short nDim = 3;
+  WriteHexMeshFile(1, 1, 1);
+  SetupConfig(nDim);
+  SetupGeometry();
+
+  geometry->SetResolutionTensor();
+
+  for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
+
+    const su2double C_M = geometry->node[iPoint]->GetResolutionCoeff();
 
     // Check that the values of Mij are correct
-    BOOST_CHECK_SMALL(Mij[0][0] - 3.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[0][1] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[0][2] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[1][0] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[1][1] - 2.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[1][2] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[2][0] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[2][1] - 0.0, machine_eps);
-    BOOST_CHECK_SMALL(Mij[2][2] - 1.0, machine_eps);
+    // The constants used for the fit have this precision
+    const su2double tolerance = 0.00000000001;
+    BOOST_CHECK_SMALL(C_M - 1, tolerance);
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
+
+  // Write out the mesh and configuration files.
+  const unsigned short nDim = 3;
+  WriteHexMeshFile(3, 2, 1);
+  SetupConfig(nDim);
+  SetupGeometry();
+
+  geometry->SetResolutionTensor();
+
+  for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
+
+    const su2double C_M = geometry->node[iPoint]->GetResolutionCoeff();
+
+    // Check value against hand-calculated value
+    const su2double correct_value = 1.04805425805;
+    // The constants used for the fit have this precision
+    const su2double tolerance = 0.00000000001;
+    BOOST_CHECK_CLOSE_FRACTION(C_M, correct_value, tolerance);
   }
 }
 
