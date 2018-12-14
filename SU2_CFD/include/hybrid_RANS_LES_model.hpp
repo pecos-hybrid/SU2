@@ -291,7 +291,6 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
  protected:
 
   unsigned short nDim;
-  su2double** delta; /*!< \brief Kroneckor delta */
   su2double** zero_tensor; /*!< \brief A zero nDim x nDim tensor */
 
  public:

@@ -1839,3 +1839,5 @@ inline unsigned short CConfig::GetKind_Averaging(void) const { return Kind_Avera
 inline unsigned short CConfig::GetKind_Averaging_Period(void) const { return Kind_Averaging_Period; }
 
 inline su2double CConfig::GetnAveragingPeriods(void) const { return nAveragingPeriods; }
+
+inline su2double CConfig::GetAveragingStartTime(void) const { return AveragingStartTime; }

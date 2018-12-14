@@ -2140,6 +2140,15 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief NUM_AVERAGING_PERIODS \n DESCRIPTION: If averaging is to be performed at runtime, this is the number of time periods over which to average. The inverse of this number can also be thought of as a proportional gain or a relaxation factor for the average calculations.  \n DEFAULT: 4.0 \ingroup Config */
   addDoubleOption("NUM_AVERAGING_PERIODS", nAveragingPeriods, 4.0);
 
+  /*!\brief AVERAGING_START_TIME \n
+   * DESCRIPTION: Averaging, if specified, will only be performed starting
+   * at this specific time.  Once the current time exceeds the time
+   * specified here, averaging will start up normally.  Until then,
+   * the average will be set to the instantaneous values. This setting is
+   * useful when the initial state does not match the desired state.  \n
+   * DEFAULT: 0.0 \ingroup Config */
+  addDoubleOption("AVERAGING_START_TIME", AveragingStartTime, 0.0);
+
   /* END_CONFIG_OPTIONS */
 
 }
@@ -6011,6 +6020,8 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
     cout << endl;
 
     cout << "Number of averaging periods: " << nAveragingPeriods << endl;
+    if (AveragingStartTime > 0)
+      cout << "Averaging will start at time: " << AveragingStartTime << endl;
   }
 
 

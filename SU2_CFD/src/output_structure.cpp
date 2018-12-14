@@ -454,19 +454,12 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
           (config[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
       if (model_split_hybrid) {
-        switch (config[iZone]->GetKind_HybridRANSLES_Testing()) {
-          case RANS_ONLY:
-            // No extra variables
-            break;
-          case FULL_HYBRID_RANS_LES:
-            RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
-                           &CVariable::GetKineticEnergyRatio, iZone, true);
-            RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
-                           &CVariable::GetResolvedKineticEnergy, iZone, true);
-            RegisterTensor("tau_res", "<greek>t<\greek><sub>res</sub>", FLOW_SOL,
-                           &CVariable::GetResolvedTurbStress, iZone, true);
-            break;
-        }
+          RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
+                         &CVariable::GetKineticEnergyRatio, iZone, true);
+          RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
+                         &CVariable::GetResolvedKineticEnergy, iZone, true);
+          RegisterTensor("tau_res", "<greek>t</greek><sup>res</sup>", FLOW_SOL,
+                         &CVariable::GetResolvedTurbStress, iZone, true);
       }
     }
   }

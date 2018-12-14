@@ -333,12 +333,14 @@ void CAvgGrad_Hybrid::AddSGETHeatFlux(su2double** val_gradprimvar,
                                       su2double** val_eddy_viscosity) {
 
   const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
+  // TODO: Add this to the config file.
+  const su2double Prandtl_sgs = 0.6;
 
   /*--- Anisotropic thermal conductivity model ---*/
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      conductivity[iDim][jDim] = Cp * val_eddy_viscosity[iDim][jDim]/Prandtl_Turb;
+      conductivity[iDim][jDim] = Cp * val_eddy_viscosity[iDim][jDim]/Prandtl_sgs;
     }
   }
 

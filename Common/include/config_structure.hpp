@@ -999,6 +999,7 @@ private:
   unsigned short Kind_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
   unsigned short Kind_Averaging_Period;  /*!< \brief Type of period over which runtime averages are to be computed. */
   su2double nAveragingPeriods;  /*!< \brief Number of periods over which to average. */
+  su2double AveragingStartTime; /*!< \brief Number of periods to skip before averaging begins. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -8151,6 +8152,8 @@ public:
    * \return The number of time periods over which to average.
    */
   su2double GetnAveragingPeriods(void) const;
+
+  su2double GetAveragingStartTime(void) const;
 };
 
 #include "config_structure.inl"

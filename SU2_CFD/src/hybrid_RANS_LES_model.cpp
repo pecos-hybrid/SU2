@@ -798,14 +798,6 @@ CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(unsigned short nDim,
                                                CConfig* config)
     : nDim(nDim) {
 
-  delta = new su2double*[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    delta[iDim] = new su2double[nDim];
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      delta[iDim][jDim] = (iDim == jDim ? 1 : 0);
-    }
-  }
-
   zero_tensor = new su2double*[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     zero_tensor[iDim] = new su2double[nDim];
@@ -819,10 +811,8 @@ CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
 
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    delete [] delta[iDim];
     delete [] zero_tensor[iDim];
   }
-  delete [] delta;
   delete [] zero_tensor;
 
 }
@@ -863,6 +853,6 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
   numerics->SetPrimitive_Average(primvar_i, primvar_j);
   numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
-  numerics->SetAniso_Eddy_Viscosity(delta, delta);
+  numerics->SetAniso_Eddy_Viscosity(zero_tensor, zero_tensor);
   numerics->SetKineticEnergyRatio(1.0, 1.0);
 }
