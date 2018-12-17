@@ -1707,7 +1707,7 @@ inline void CNSSolver::SetStrainMag_Max(su2double val_strainmag_max) { StrainMag
 
 inline void CNSSolver::SetOmega_Max(su2double val_omega_max) { Omega_Max = val_omega_max; }
 
-inline void CEulerSolver::AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator) { HybridMediator = hybrid_mediator; }
+inline void CNSSolver::AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator) { HybridMediator = hybrid_mediator; }
 
 inline su2double CNSSolver::GetConjugateHeatVariable(unsigned short val_marker, unsigned long val_vertex, unsigned short pos_var) { return HeatConjugateVar[val_marker][val_vertex][pos_var]; }
 

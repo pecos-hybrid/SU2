@@ -33,9 +33,10 @@
 
 #pragma once
 
-#include "../../SU2_CFD/include/numerics_structure.hpp"
 #include "../../Common/include/geometry_structure.hpp"
 #include "../../Common/include/mpi_structure.hpp"
+#include "fluctuating_stress.hpp"
+#include "numerics_structure.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -84,7 +85,7 @@ class CAbstract_Hybrid_Mediator {
    */
   virtual void SetupRANSNumerics(CSolver **solver_container,
                                  CNumerics* rans_numerics,
-                                 unsigned short iPoint) = 0;
+                                 unsigned long iPoint) = 0;
   /**
    * \brief Retrieve and pass along all necessary info for the resolved flow.
    *
@@ -93,7 +94,11 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    */
   virtual void SetupForcing(CGeometry* geometry, CSolver **solver_container,
-                            unsigned short iPoint) = 0;
+                            unsigned long iPoint) = 0;
+
+  virtual void SetupResolvedFlowSolver(CGeometry* geometry,
+                                       CSolver **solver_container,
+                                       unsigned long iPoint) = 0;
 
   /**
    * \brief Retrieve and pass along all necessary info for resolved numerics.
@@ -107,8 +112,10 @@ class CAbstract_Hybrid_Mediator {
   virtual void SetupResolvedFlowNumerics(CGeometry* geometry,
                                          CSolver **solver_container,
                                          CNumerics* visc_numerics,
-                                         unsigned short iPoint,
-                                         unsigned short jPoint) = 0;
+                                         unsigned long iPoint,
+                                         unsigned long jPoint) = 0;
+
+  virtual void SetFluctuatingStress(CFluctuatingStress* fluct_stress) = 0;
 };
 
 
@@ -125,7 +132,9 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   su2double **Q,        /*!> \brief An approximate 2nd order structure function tensor */
             **Qapprox;  /*!> \brief An approximate 2nd order structure function tensor (used for temporary calculations) */
   su2double **invLengthTensor; /*!> \brief Inverse length scale tensor formed from production and v2 (or tke, depending on availability) */
+  su2double **aniso_eddy_viscosity; /*!> \brief A 2D array used to hold the value of the anisotropic eddy viscosity during calculations. */
   std::vector<std::vector<su2double> > constants;
+  CFluctuatingStress* fluct_stress_model;
   CConfig* config;
 
   /*--- Data structures for LAPACK ---*/
@@ -246,10 +255,14 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    */
   void SetupRANSNumerics(CSolver **solver_container,
                          CNumerics* rans_numerics,
-                         unsigned short iPoint);
+                         unsigned long iPoint);
 
   void SetupForcing(CGeometry* geometry, CSolver **solver_container,
-                    unsigned short iPoint);
+                    unsigned long iPoint);
+
+  void SetupResolvedFlowSolver(CGeometry* geometry,
+                               CSolver **solver_container,
+                               unsigned long iPoint);
 
   /**
    * \brief
@@ -263,8 +276,8 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   void SetupResolvedFlowNumerics(CGeometry* geometry,
                              CSolver **solver_container,
                              CNumerics* visc_numerics,
-                             unsigned short iPoint,
-                             unsigned short jPoint);
+                             unsigned long iPoint,
+                             unsigned long jPoint);
 
   /**
    * \brief Returns the constants for the numerical fit for the resolution tensor.
@@ -280,6 +293,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 			     vector<su2double> &eigvalues,
 			     vector<vector<su2double> > &eigvectors);
 
+  void SetFluctuatingStress(CFluctuatingStress* fluct_stress);
 };
 
 /*!
@@ -318,10 +332,14 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
    */
   void SetupRANSNumerics(CSolver **solver_container,
                          CNumerics* rans_numerics,
-                         unsigned short iPoint);
+                         unsigned long iPoint);
 
   void SetupForcing(CGeometry* geometry, CSolver **solver_container,
-                    unsigned short iPoint);
+                    unsigned long iPoint);
+
+  void SetupResolvedFlowSolver(CGeometry* geometry,
+                               CSolver **solver_container,
+                               unsigned long iPoint);
 
   /**
    * \brief
@@ -335,8 +353,10 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
   void SetupResolvedFlowNumerics(CGeometry* geometry,
                              CSolver **solver_container,
                              CNumerics* visc_numerics,
-                             unsigned short iPoint,
-                             unsigned short jPoint);
+                             unsigned long iPoint,
+                             unsigned long jPoint);
+
+  void SetFluctuatingStress(CFluctuatingStress* fluct_stress);
 };
 
 /*--- Template definitions:

@@ -10259,12 +10259,6 @@ void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container,
         if (config->GetKind_Turb_Model() == SST)
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                               solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
-        
-        /*--- Pass in relevant information from hybrid model ---*/
-
-        if (config->GetKind_HybridRANSLES() == MODEL_SPLIT)
-          HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
-                                                    visc_numerics, iPoint, iPoint);
 
         /*--- Compute and update viscous residual ---*/
         
@@ -17114,6 +17108,11 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   /*--- Initialize the Jacobian matrices ---*/
   
   if (implicit && !config->GetDiscrete_Adjoint()) Jacobian.SetValZero();
+
+  /*--- Setup the any portion of the hybrid RANS/LES model ---*/
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+  }
 
   /*--- Error message ---*/
   

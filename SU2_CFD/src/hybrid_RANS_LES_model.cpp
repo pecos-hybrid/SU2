@@ -41,12 +41,17 @@
 #endif
 
 CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename)
-   : nDim(nDim), config(config) {
+   : nDim(nDim), fluct_stress_model(NULL), config(config) {
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
+
+  aniso_eddy_viscosity = new su2double*[nDim];
+  for (unsigned int iDim = 0; iDim < nDim; iDim++) {
+    aniso_eddy_viscosity[iDim] = new su2double[nDim];
+  }
 
   /*--- Allocate the approximate structure function (used in calcs) ---*/
 
@@ -131,10 +136,19 @@ CHybrid_Mediator::~CHybrid_Mediator() {
     delete [] Q[iDim];
     delete [] Qapprox[iDim];
     delete [] invLengthTensor[iDim];
+    delete [] aniso_eddy_viscosity[iDim];
   }
   delete [] Q;
   delete [] Qapprox;
   delete [] invLengthTensor;
+  delete [] aniso_eddy_viscosity;
+
+  /*--- Through dependency injection, we've taken over responsibility for
+   * the fluctuating stress model.
+   */
+  if (fluct_stress_model != NULL) {
+    delete fluct_stress_model;
+  }
 
 #ifdef HAVE_LAPACK
   mkl_free_buffers();
@@ -143,7 +157,7 @@ CHybrid_Mediator::~CHybrid_Mediator() {
 
 void CHybrid_Mediator::SetupRANSNumerics(CSolver **solver_container,
                                          CNumerics* rans_numerics,
-                                         unsigned short iPoint) {
+                                         unsigned long iPoint) {
 
   CVariable** flow_node = solver_container[FLOW_SOL]->average_node;
   rans_numerics->SetKineticEnergyRatio(flow_node[iPoint]->GetKineticEnergyRatio());
@@ -152,7 +166,7 @@ void CHybrid_Mediator::SetupRANSNumerics(CSolver **solver_container,
 
 void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
                                     CSolver **solver_container,
-                                    unsigned short iPoint) {
+                                    unsigned long iPoint) {
 
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
@@ -269,11 +283,26 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
 
 }
 
+void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
+                                               CSolver **solver_container,
+                                               unsigned long iPoint) {
+  const su2double* primvar =
+      solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+  const su2double* turbvar =
+      solver_container[TURB_SOL]->node[iPoint]->GetSolution();
+
+  fluct_stress_model->SetPrimitive(primvar);
+  fluct_stress_model->SetTurbVar(turbvar);
+  fluct_stress_model->CalculateEddyViscosity(geometry, config, iPoint,
+                                             aniso_eddy_viscosity);
+  solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
+}
+
 void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
                                              CSolver **solver_container,
                                              CNumerics* visc_numerics,
-                                             unsigned short iPoint,
-                                             unsigned short jPoint) {
+                                             unsigned long iPoint,
+                                             unsigned long jPoint) {
 
   su2double* primvar_i =
       solver_container[FLOW_SOL]->average_node[iPoint]->GetPrimitive();
@@ -792,6 +821,9 @@ vector<vector<su2double> > CHybrid_Mediator::GetConstants() {
   return constants;
 }
 
+void CHybrid_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) {
+  fluct_stress_model = fluct_stress;
+}
 
 
 CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(unsigned short nDim,
@@ -819,7 +851,7 @@ CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
 
 void CHybrid_Dummy_Mediator::SetupRANSNumerics(CSolver **solver_container,
                                                CNumerics* rans_numerics,
-                                               unsigned short iPoint) {
+                                               unsigned long iPoint) {
 
   rans_numerics->SetKineticEnergyRatio(1.0);
   rans_numerics->SetResolvedTurbStress(zero_tensor);
@@ -827,15 +859,21 @@ void CHybrid_Dummy_Mediator::SetupRANSNumerics(CSolver **solver_container,
 
 void CHybrid_Dummy_Mediator::SetupForcing(CGeometry* geometry,
                                           CSolver **solver_container,
-                                          unsigned short iPoint) {
+                                          unsigned long iPoint) {
 
+}
+
+void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
+                                               CSolver **solver_container,
+                                               unsigned long iPoint) {
+  solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(zero_tensor);
 }
 
 void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
                                              CSolver **solver_container,
                                              CNumerics* visc_numerics,
-                                             unsigned short iPoint,
-                                             unsigned short jPoint) {
+                                             unsigned long iPoint,
+                                             unsigned long jPoint) {
 
   /*--- Set the "average" variables to be identical to the resolved
    * variables. ---*/
@@ -850,9 +888,19 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   su2double** primvar_grad_j =
       solver_container[FLOW_SOL]->node[jPoint]->GetGradient_Primitive();
 
+  /*--- This should be the zero tensor, if SetupResolvedFlowSolver was
+   * called properly ---*/
+
+  su2double** aniso_viscosity_i =
+      solver_container[FLOW_SOL]->node[iPoint]->GetAnisoEddyViscosity();
+  su2double** aniso_viscosity_j =
+      solver_container[FLOW_SOL]->node[jPoint]->GetAnisoEddyViscosity();
+
   CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
   numerics->SetPrimitive_Average(primvar_i, primvar_j);
   numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
-  numerics->SetAniso_Eddy_Viscosity(zero_tensor, zero_tensor);
+  numerics->SetAniso_Eddy_Viscosity(aniso_viscosity_i, aniso_viscosity_j);
   numerics->SetKineticEnergyRatio(1.0, 1.0);
 }
+
+void CHybrid_Dummy_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) { }

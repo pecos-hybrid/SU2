@@ -52,6 +52,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "fluctuating_stress.hpp"
 #include "fluid_model.hpp"
 #include "hybrid_RANS_LES_model.hpp"
 #include "numerics_structure.hpp"
@@ -4652,8 +4653,6 @@ protected:
   su2double ****SlidingState;
   int **SlidingStateNodes;
 
-  CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
-
 public:
   
   
@@ -6870,12 +6869,6 @@ public:
    * \param[in] inMarkerTP - turboperformance marker.
    */
   void SetNuOut(su2double value, unsigned short inMarkerTP, unsigned short valSpan);
-
-  /*!
-   * \brief Add a hybrid mediator object to manage the RANS/LES hybrid model
-   * \param[in] hybrid_mediator - The mediator object
-   */
-  void AddHybridMediator(CAbstract_Hybrid_Mediator *hybrid_mediator);
 };
 
   
@@ -8188,6 +8181,8 @@ private:
   AllBound_MaxHF_Visc; /*!< \brief Maximum heat flux (viscous contribution) for all boundaries. */
   su2double StrainMag_Max, Omega_Max; /*!< \brief Maximum Strain Rate magnitude and Omega. */
 
+  CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
+
 public:
   
   /*!
@@ -8600,6 +8595,11 @@ public:
 
   void InitAverages();
 
+  /*!
+   * \brief Add a hybrid mediator object to manage the RANS/LES hybrid model
+   * \param[in] hybrid_mediator - The mediator object
+   */
+  void AddHybridMediator(CAbstract_Hybrid_Mediator *hybrid_mediator);
 };
 
 /*!

@@ -1000,6 +1000,16 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
     }
   }
   
+  if (model_split_hybrid) {
+
+    /*--- Add a fluctuating stress model to the hybrid mediator ---*/
+
+    CFluctuatingStress* fluct_stress = new CM43Model(nDim, config);
+    hybrid_mediator->SetFluctuatingStress(fluct_stress);
+
+    /*--- The mediator is responsible for deleting fluct_stress ---*/
+  }
+
 
   /*--- Check for restarts and use the LoadRestart() routines. ---*/
 
