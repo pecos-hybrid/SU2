@@ -57,7 +57,7 @@
 #include "../../Common/include/config_structure.hpp"
 
 typedef su2double (CVariable::*DataAccessor)() const;
-typedef su2double** (CVariable::*TensorAccessor)();
+typedef su2double** (CVariable::*TensorAccessor)() const;
 /*--- Define a macro to make (()->*(function pointer)) more readable ---*/
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object)->*(ptrToMember))
 

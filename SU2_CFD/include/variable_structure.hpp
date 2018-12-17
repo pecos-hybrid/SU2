@@ -946,7 +946,7 @@ public:
 
   virtual su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
 
-  virtual su2double** GetResolvedTurbStress(void);
+  virtual su2double** GetResolvedTurbStress(void) const;
 
   virtual su2double GetResolvedKineticEnergy(void) const;
 
@@ -4064,7 +4064,7 @@ public:
 
   su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
 
-  su2double** GetResolvedTurbStress(void);
+  su2double** GetResolvedTurbStress(void) const;
 
   su2double GetResolvedKineticEnergy(void) const;
 

@@ -460,6 +460,8 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                          &CVariable::GetResolvedKineticEnergy, iZone, true);
           RegisterTensor("tau_res", "<greek>t</greek><sup>res</sup>", FLOW_SOL,
                          &CVariable::GetResolvedTurbStress, iZone, true);
+          RegisterTensor("mu_SGET", "<greek>m</greek><sup>SGET</sup>", FLOW_SOL,
+                         &CVariable::GetAnisoEddyViscosity, iZone);
       }
     }
   }

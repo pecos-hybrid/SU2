@@ -275,7 +275,7 @@ inline su2double CVariable::GetKineticEnergyRatio(void) const { return 1; }
 
 inline su2double CVariable::GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const { return 0; }
 
-inline su2double** CVariable::GetResolvedTurbStress(void) { return NULL; }
+inline su2double** CVariable::GetResolvedTurbStress(void) const { return NULL; }
 
 inline su2double CVariable::GetResolvedKineticEnergy(void) const { return 0; }
 
@@ -899,7 +899,7 @@ inline su2double CNSVariable::GetResolvedTurbStress(unsigned short iDim,
   return ResolvedTurbStress[iDim][jDim];
 }
 
-inline su2double** CNSVariable::GetResolvedTurbStress(void) {
+inline su2double** CNSVariable::GetResolvedTurbStress(void) const {
   return ResolvedTurbStress;
 }
 
@@ -956,6 +956,7 @@ inline void CNSVariable::SetdktdT_rho(su2double dktdT_rho) {
 inline void CNSVariable::SetEddyViscosity(su2double eddy_visc) { Primitive[nDim+6] = eddy_visc; }
 
 inline void CNSVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) {
+  /*--- Copy values over, since the pointed-to-values may change ---*/
   assert(aniso_eddy_visc != NULL);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     assert(aniso_eddy_visc[iDim] != NULL);
