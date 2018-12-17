@@ -43,6 +43,7 @@ check_PROGRAMS += viscous_residual_test
 check_PROGRAMS += viscous_residual_2d_test
 check_PROGRAMS += viscous_ideal_vs_general
 check_PROGRAMS += viscous_model_split
+check_PROGRAMS += fluctuating_stress_test
 check_PROGRAMS += hybrid_rdelta_test
 check_PROGRAMS += load_hybrid_constants_test
 if BUILD_LAPACK
@@ -75,6 +76,7 @@ viscous_residual_test_SOURCES          = viscous_residual_test.cpp
 viscous_residual_2d_test_SOURCES       = viscous_residual_2d_test.cpp
 viscous_ideal_vs_general_SOURCES       = viscous_ideal_vs_general.cpp
 viscous_model_split_SOURCES            = viscous_model_split.cpp
+fluctuating_stress_test_SOURCES        = fluctuating_stress_test.cpp
 hybrid_rdelta_test_SOURCES             = hybrid_rdelta_test.cpp
 load_hybrid_constants_test_SOURCES     = load_hybrid_constants_test.cpp
 if BUILD_LAPACK
@@ -89,6 +91,7 @@ TESTS += viscous_residual_test
 TESTS += viscous_residual_2d_test
 TESTS += viscous_ideal_vs_general
 TESTS += viscous_model_split
+TESTS += fluctuating_stress_test
 TESTS += hybrid_rdelta_test
 TESTS += load_hybrid_constants_test
 if BUILD_LAPACK
