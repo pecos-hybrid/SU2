@@ -416,9 +416,9 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     /*--- Compute turbulence scales ---*/
     if (model_split) {
-      rho  = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+      rho  = solver_container[FLOW_SOL]->average_node[iPoint]->GetDensity();
     } else {
-      rho = solver_container[FLOW_SOL]->average_node[iPoint]->GetDensity();
+      rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
     }
 
     /*--- Scalars ---*/
