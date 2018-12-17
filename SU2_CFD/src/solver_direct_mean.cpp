@@ -16988,7 +16988,7 @@ CNSSolver::~CNSSolver(void) {
 
 void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned short iRKStep, unsigned short RunTime_EqSystem, bool Output) {
 
-  unsigned long iPoint, ErrorCounter = 0;
+  unsigned long ErrorCounter = 0;
   su2double StrainMag = 0.0, Omega = 0.0, *Vorticity;
     
   unsigned long ExtIter     = config->GetExtIter();
@@ -17086,7 +17086,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   /*--- Evaluate the vorticity and strain rate magnitude ---*/
   
   StrainMag_Max = 0.0; Omega_Max = 0.0;
-  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     
     solver_container[FLOW_SOL]->node[iPoint]->SetVorticity();
     solver_container[FLOW_SOL]->node[iPoint]->SetStrainMag();
@@ -17103,16 +17103,15 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
       solver_container[FLOW_SOL]->average_node[iPoint]->SetStrainMag();
     }
 
+    /*--- Setup the any portion of the hybrid RANS/LES model ---*/
+    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+      HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+    }
   }
 
   /*--- Initialize the Jacobian matrices ---*/
   
   if (implicit && !config->GetDiscrete_Adjoint()) Jacobian.SetValZero();
-
-  /*--- Setup the any portion of the hybrid RANS/LES model ---*/
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-    HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
-  }
 
   /*--- Error message ---*/
   

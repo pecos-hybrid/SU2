@@ -581,12 +581,6 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       ResolvedTurbStress[iDim] = new su2double[nDim];
       AnisoEddyViscosity[iDim] = new su2double[nDim];
-      // TODO: Remove this initialization once the tau_SGET model is complete
-      // We don't want to be initializing values and thereby hiding
-      // use of unitialized value errors.
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        AnisoEddyViscosity[iDim][jDim] = 0.0;
-      }
     }
 
     /*--- Initialize this here so that preprocessing can run properly ---*/
@@ -613,9 +607,6 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       ResolvedTurbStress[iDim] = new su2double[nDim];
       AnisoEddyViscosity[iDim] = new su2double[nDim];
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        AnisoEddyViscosity[iDim][jDim] = 0.0;
-      }
     }
 
     /*--- Initialize this here so that preprocessing can run properly ---*/

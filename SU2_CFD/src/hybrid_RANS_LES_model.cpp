@@ -903,4 +903,7 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   numerics->SetKineticEnergyRatio(1.0, 1.0);
 }
 
-void CHybrid_Dummy_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) { }
+void CHybrid_Dummy_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) {
+  /*--- We won't use it, so just delete it. ---*/
+  delete fluct_stress;
+}
