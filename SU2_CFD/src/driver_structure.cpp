@@ -892,6 +892,11 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
         hybrid_mediator = new CHybrid_Mediator(nDim, config, config->GetHybrid_Const_FileName());
         break;
     }
+
+    /*--- Add a fluctuating stress model to the hybrid mediator ---*/
+
+    CFluctuatingStress* fluct_stress = new CM43Model(nDim, config);
+    hybrid_mediator->SetFluctuatingStress(fluct_stress);
   }
 
   /*--- Definition of the Class for the solution: solver_container[DOMAIN][MESH_LEVEL][EQUATION]. Note that euler, ns
@@ -999,17 +1004,6 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
       solver_container[iMGlevel][ADJFEA_SOL] = new CDiscAdjFEASolver(geometry[iMGlevel], config, solver_container[iMGlevel][FEA_SOL], RUNTIME_FEA_SYS, iMGlevel);
     }
   }
-  
-  if (model_split_hybrid) {
-
-    /*--- Add a fluctuating stress model to the hybrid mediator ---*/
-
-    CFluctuatingStress* fluct_stress = new CM43Model(nDim, config);
-    hybrid_mediator->SetFluctuatingStress(fluct_stress);
-
-    /*--- The mediator is responsible for deleting fluct_stress ---*/
-  }
-
 
   /*--- Check for restarts and use the LoadRestart() routines. ---*/
 

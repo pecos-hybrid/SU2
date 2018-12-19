@@ -286,16 +286,21 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
 void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
                                                CSolver **solver_container,
                                                unsigned long iPoint) {
-  const su2double* primvar =
-      solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
-  const su2double* turbvar =
-      solver_container[TURB_SOL]->node[iPoint]->GetSolution();
 
-  fluct_stress_model->SetPrimitive(primvar);
-  fluct_stress_model->SetTurbVar(turbvar);
-  fluct_stress_model->CalculateEddyViscosity(geometry, config, iPoint,
-                                             aniso_eddy_viscosity);
-  solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
+  if (fluct_stress_model) {
+
+    const su2double* primvar =
+        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+    const su2double* turbvar =
+        solver_container[TURB_SOL]->node[iPoint]->GetSolution();
+
+    fluct_stress_model->SetPrimitive(primvar);
+    fluct_stress_model->SetTurbVar(turbvar);
+    fluct_stress_model->CalculateEddyViscosity(geometry, config, iPoint,
+                                               aniso_eddy_viscosity);
+    solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
+
+  }
 }
 
 void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
@@ -304,15 +309,46 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
                                              unsigned long iPoint,
                                              unsigned long jPoint) {
 
-  su2double* primvar_i =
-      solver_container[FLOW_SOL]->average_node[iPoint]->GetPrimitive();
-  su2double* primvar_j =
-      solver_container[FLOW_SOL]->average_node[jPoint]->GetPrimitive();
+  CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
 
-  su2double** primvar_grad_i =
-      solver_container[FLOW_SOL]->average_node[iPoint]->GetGradient_Primitive();
-  su2double** primvar_grad_j =
-      solver_container[FLOW_SOL]->average_node[jPoint]->GetGradient_Primitive();
+  // TODO: Check the consistency of the nondimensionalization.
+  const su2double time = config->GetCurrent_UnstTime();
+
+  if (time > config->GetAveragingStartTime()) {
+    su2double* primvar_i =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetPrimitive();
+    su2double* primvar_j =
+        solver_container[FLOW_SOL]->average_node[jPoint]->GetPrimitive();
+
+    su2double** primvar_grad_i =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetGradient_Primitive();
+    su2double** primvar_grad_j =
+        solver_container[FLOW_SOL]->average_node[jPoint]->GetGradient_Primitive();
+
+    numerics->SetPrimitive_Average(primvar_i, primvar_j);
+    numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
+
+  } else {
+
+    /*--- Since averages are only calculated once per timestep, prevent
+     * the averages from lagging behind the fluctuating quantities.
+     * Otherwise, nonzero "fluctuations" will appear. ---*/
+
+    su2double* primvar_i =
+        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+    su2double* primvar_j =
+        solver_container[FLOW_SOL]->node[jPoint]->GetPrimitive();
+
+    su2double** primvar_grad_i =
+        solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
+    su2double** primvar_grad_j =
+        solver_container[FLOW_SOL]->node[jPoint]->GetGradient_Primitive();
+
+
+    numerics->SetPrimitive_Average(primvar_i, primvar_j);
+    numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
+
+  }
 
   su2double** aniso_viscosity_i =
       solver_container[FLOW_SOL]->node[iPoint]->GetAnisoEddyViscosity();
@@ -324,9 +360,6 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
   const su2double alpha_j =
       solver_container[FLOW_SOL]->average_node[jPoint]->GetKineticEnergyRatio();
 
-  CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
-  numerics->SetPrimitive_Average(primvar_i, primvar_j);
-  numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
   numerics->SetAniso_Eddy_Viscosity(aniso_viscosity_i, aniso_viscosity_j);
   numerics->SetKineticEnergyRatio(alpha_i, alpha_j);
 }

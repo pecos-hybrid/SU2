@@ -74,7 +74,7 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   su2double dissipation = 0;
   switch (config->GetKind_Turb_Model()) {
     case KE:
-     dissipation = TurbVar[1]; break;
+     dissipation = max(0.0, TurbVar[1]); break;
     default:
       SU2_MPI::Error("The M43 model has not been set up for your RANS model.", CURRENT_FUNCTION);
   }
@@ -82,9 +82,9 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   /*--- Check the preconditions ---*/
 
   assert(density > 0);
-  assert(dissipation >= 0);
   assert(M43 != NULL);
   assert(M43[0] != NULL);
+  assert(eddy_viscosity != NULL);
   assert(C_M > 0);
 
   /*--- C_M0 is an overall coefficient used to calibrate the model to match
@@ -95,6 +95,22 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       eddy_viscosity[iDim][jDim] =
           density * C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
+    }
+  }
+}
+
+CNoStressModel::CNoStressModel(unsigned short val_nDim)
+  : CFluctuatingStress(val_nDim) {
+}
+
+void CNoStressModel::CalculateEddyViscosity(const CGeometry* geometry,
+                                            CConfig* config,
+                                            unsigned short iPoint,
+                                            su2double** eddy_viscosity) const {
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      eddy_viscosity[iDim][jDim] = 0;
     }
   }
 }

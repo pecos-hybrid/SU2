@@ -12619,7 +12619,11 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
          it != output_vars[val_iZone].end(); ++it) {
       nVar_Par += 1;
-      Variable_Names.push_back(it->Name);
+      if (config->GetOutput_FileFormat() == PARAVIEW){
+        Variable_Names.push_back(it->Name);
+      } else {
+        Variable_Names.push_back(it->Tecplot_Name);
+      }
     }
 
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
@@ -12627,9 +12631,15 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
         for (unsigned int jDim=1; jDim < nDim+1; jDim++) {
           nVar_Par += 1;
-          ostringstream label(it->Name);
-          label << "_" << iDim << jDim;
-          Variable_Names.push_back(label.str());
+          if (config->GetOutput_FileFormat() == PARAVIEW){
+            ostringstream label;
+            label << it->Name << "_" << iDim << jDim;
+            Variable_Names.push_back(label.str());
+          } else {
+            ostringstream label;
+            label << it->Tecplot_Name << "<sub>" << iDim << jDim << "</sub>";
+            Variable_Names.push_back(label.str());
+          }
         }
       }
     }

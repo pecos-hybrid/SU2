@@ -17194,12 +17194,12 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
         RightSol = false;
         average_node[iPoint]->SetKineticEnergyRatio(1.0);
 
-      } else if (k_total > min_tke || k_resolved <= k_total) {
+      } else if (k_total > min_tke || (k_total > 0 && k_resolved <= k_total)) {
 
         /*--- If model and resolved turbulence are out of balance,
          * mark the point as unphysical but proceed. --*/
 
-        if (k_resolved <= turb_ke) RightSol = false;
+        if (k_resolved < turb_ke) RightSol = false;
         const su2double alpha = 1.0 - k_resolved / k_total;
         average_node[iPoint]->SetKineticEnergyRatio(alpha);
 
@@ -17207,6 +17207,8 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
         // Model turb_ke is negligible, so just force alpha to 1.0
         average_node[iPoint]->SetKineticEnergyRatio(1.0);
       }
+      const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
+      assert(alpha == alpha); // Alpha should not be NaN
     }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }

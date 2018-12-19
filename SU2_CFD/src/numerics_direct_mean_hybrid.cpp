@@ -117,6 +117,8 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   assert(Aniso_Eddy_Viscosity_j != NULL);
   assert(PrimVar_Grad_Average_i != NULL);
   assert(PrimVar_Grad_Average_j != NULL);
+  assert(alpha_i == alpha_i);  // alpha_i is not NaN
+  assert(alpha_j == alpha_j);  // alpha_j is not NaN
 
   /*--- Normalized normal vector ---*/
 
@@ -179,8 +181,8 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   if (correct_gradient && dist_ij_2 != 0.0) {
     CorrectGradient(Mean_GradPrimVar, PrimVar_i, PrimVar_j, Edge_Vector,
                     dist_ij_2, nDim+1);
-    CorrectGradient(Mean_GradPrimVar_Average, PrimVar_i, PrimVar_j,
-                    Edge_Vector, dist_ij_2, nDim+1);
+    CorrectGradient(Mean_GradPrimVar_Average, PrimVar_Average_i,
+                    PrimVar_Average_j, Edge_Vector, dist_ij_2, nDim+1);
   }
 
   /*--- Gradient of the fluctuating variables ---*/
@@ -190,6 +192,18 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
       Mean_GradPrimVar_Fluct[iVar][iDim] = Mean_GradPrimVar[iVar][iDim] - Mean_GradPrimVar_Average[iVar][iDim];
     }
   }
+
+#ifndef NDEBUG
+  // Check that fluctuations are zero if averaging is not to be performed
+  const su2double time = config->GetCurrent_UnstTime();
+  if (time < config->GetAveragingStartTime()) {
+    for (iVar = 0; iVar < nDim+1; iVar++) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        assert(std::abs(Mean_GradPrimVar_Fluct[iVar][iDim]) < EPS);
+      }
+    }
+  }
+#endif
 
   /*--- Get projected flux tensor ---*/
 

@@ -102,3 +102,13 @@ class CM43Model : public CFluctuatingStress {
  private:
   unsigned short density_index;
 };
+
+class CNoStressModel : public CFluctuatingStress {
+ public:
+  CNoStressModel(unsigned short val_nDim);
+
+  void CalculateEddyViscosity(const CGeometry* geometry,
+                              CConfig* config,
+                              unsigned short iPoint,
+                              su2double** eddy_viscosity) const;
+};

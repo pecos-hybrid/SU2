@@ -352,17 +352,19 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   /*--- If using a hybrid method, include resolved production ---*/
 
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-
     /*--- Limit alpha to protect from imbalance in k_model vs k_resolved ---*/
-    const su2double alpha = min(max(KineticEnergyRatio, 0.0), 1.0);
-    Pk *= alpha;
-    su2double Pk_resolved = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+    if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
+      // Rescale total production to get subfilter production
+      Pk *= KineticEnergyRatio;
+      // Add in resolved production
+      su2double Pk_resolved = 0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+        }
       }
+      Pk += Pk_resolved;
     }
-    Pk += Pk_resolved;
   }
 
   Pk_rk  = 0.0;
