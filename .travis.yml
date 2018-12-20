@@ -18,6 +18,7 @@ branches:
     only:
         - pecos-dev
         - refactor-viscous-numerics
+        - pecos-model-split
 
 python:
     - 2.7
