@@ -14738,6 +14738,7 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
                      (config->GetFSI_Simulation()));
   bool steady_restart = config->GetSteadyRestart();
   bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
+  bool runtime_averaging = config->GetKind_Averaging() != NO_AVERAGING;
 
   string UnstExt, text_line;
   ifstream restart_file;
@@ -14778,6 +14779,31 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
     Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
   }
 
+  /*--- Find average flow variables, if present ---*/
+
+  bool found_average_index = false;
+  unsigned short Average_Index;
+  if (runtime_averaging) {
+    counter = 0;
+    for(std::vector<string>::iterator it = config->fields.begin();
+        it != config->fields.end(); ++it) {
+      if ("\"Average_Density\"" == *it) {
+        if (!found_average_index) {
+          Average_Index = counter-1; // No point number in Restart_Data
+          found_average_index = true;
+        } else {
+          SU2_MPI::Error("Found two variables named \"Average_Density.\"", CURRENT_FUNCTION);
+        }
+      }
+      counter++;
+    }
+    if (!found_average_index && rank == MASTER_NODE) {
+      cout << "Average flow variables not found in restart file.\n";
+      cout << "Setting the initial values of the average to the ";
+      cout << "unsteady values from the restart file.\n";
+    }
+  }
+
   /*--- Load data from the restart into correct containers. ---*/
 
   counter = 0;
@@ -14800,21 +14826,16 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
 
       /*--- Read in the runtime averages ---*/
 
-      if (config->GetKind_Averaging() != NO_AVERAGING) {
-        unsigned short nVar_Solution = nVar;
-        if (turb_model != NO_TURB_MODEL) {
-          nVar_Solution += solver[MESH_0][TURB_SOL]->GetnVar();
+      if (runtime_averaging) {
+        if (found_average_index) {
+          index = counter*Restart_Vars[1] + Average_Index;
+          for (iVar = 0; iVar < nVar; iVar++) {
+            Solution[iVar] = Restart_Data[index+iVar];
+          }
+          average_node[iPoint_Local]->SetSolution(Solution);
+        } else {
+          average_node[iPoint_Local]->SetSolution(node[iPoint_Local]->GetSolution());
         }
-
-        unsigned short nVar_Total = nVar_Solution;
-        if (config->GetWrt_Limiters()) nVar_Total += nVar_Solution;
-        if (config->GetWrt_Residuals()) nVar_Total += nVar_Solution;
-
-        index = counter*Restart_Vars[1] + skipVars + nVar_Total;
-        for (iVar = 0; iVar < nVar; iVar++) {
-          Solution[iVar] = Restart_Data[index+iVar];
-        }
-        average_node[iPoint_Local]->SetSolution(Solution);
       }
 
       /*--- For dynamic meshes, read in and store the
@@ -14892,7 +14913,7 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
 
   solver[MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
   solver[MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry[MESH_0], config);
-  if (config->GetKind_Averaging() != NO_AVERAGING) {
+  if (runtime_averaging) {
     solver[MESH_0][FLOW_SOL]->Set_MPI_Average_Solution(geometry[MESH_0], config);
     solver[MESH_0][FLOW_SOL]->Set_MPI_Average_Solution(geometry[MESH_0], config);
   }
@@ -14916,7 +14937,7 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
     }
     solver[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
     solver[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
-    if (config->GetKind_Averaging() != NO_AVERAGING) {
+    if (runtime_averaging) {
       solver[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
       solver[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
     }
@@ -16920,7 +16941,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
-  if (config->GetKind_Averaging() != NO_AVERAGING)
+  if (runtime_averaging)
     Set_MPI_Average_Solution(geometry, config);
   
 }
