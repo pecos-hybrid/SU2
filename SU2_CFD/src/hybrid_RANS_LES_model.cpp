@@ -180,10 +180,11 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
 
   if (config->GetKind_Hybrid_Resolution_Indicator() != RK_INDICATOR) {
     // Compute inverse length scale tensor
-    // FIXME: Get the appropriate variables here (instead of 1)
+    const su2double alpha =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
     ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
                            solver_container[TURB_SOL]->node[iPoint],
-                           1,
+                           alpha,
                            config->GetKind_Hybrid_Resolution_Indicator());
 
     vector<su2double> eigvalues_iLM;
