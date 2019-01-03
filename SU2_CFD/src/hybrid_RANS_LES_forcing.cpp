@@ -601,11 +601,13 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     /*--- This velocity retrieval works only for compressible ---*/
     assert(config->GetKind_Regime() == COMPRESSIBLE);
     const su2double* prim_vars = solver[FLOW_SOL]->node[iPoint]->GetPrimitive();
+    const su2double* prim_mean =
+      solver[FLOW_SOL]->average_node[iPoint]->GetPrimitive();
 
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       /*--- Copy the values (and not the pointer), since we're changing them. ---*/
       x[iDim] = geometry->node[iPoint]->GetCoord(iDim);
-      x[iDim] = TransformCoords(x[iDim], prim_vars[iDim+1], time, timescale);
+      x[iDim] = TransformCoords(x[iDim], prim_mean[iDim+1], time, timescale);
     }
 
     /*--- Setup the TG vortex ---*/
@@ -617,8 +619,10 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double tdr  = solver[TURB_SOL]->node[iPoint]->GetSolution(1);
     const su2double v2 = solver[TURB_SOL]->node[iPoint]->GetSolution(2);
 
-    // resolved k, from averages (where can I get this from?)
-    const su2double kres = 0.0; // FIXME: Get real kres
+    // resolved k, from averages
+    const su2double kres =
+      solver[FLOW_SOL]->average_node[iPoint]->GetResolvedKineticEnergy();
+
 
     // ratio of modeled to total TKE
     const su2double alpha = 1.0 - kres/ktot;
@@ -626,15 +630,13 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     // TODO: Need to limit alpha here?
 
     // FIXME: Where is average r_M stored?
+    // I can't find it... looks like it isn't getting averaged?
     const su2double resolution_adequacy = 1.0;
 
     const su2double density = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
     const su2double nu =
       solver[FLOW_SOL]->node[iPoint]->GetLaminarViscosity() / density;
 
-
-    // TODO: The length scales are defined in three different places.
-    // Eliminate the repitition.
     const su2double Ltot = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
     const su2double Lsgs = alpha*Ltot;
 
@@ -652,8 +654,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     // Compute PFtest
     su2double PFtest = 0.0;
     for (unsigned short iDim=0; iDim<nDim; iDim++) {
-      // TODO: Get mean velocity and subtract it!
-      uf[iDim] = prim_vars[iDim+1]; // - umean[iDim]
+      uf[iDim] = prim_vars[iDim+1] - prim_mean[iDim+1];
       PFtest += uf[iDim]*h[iDim];
     }
     PFtest *= Ftar*dt;
