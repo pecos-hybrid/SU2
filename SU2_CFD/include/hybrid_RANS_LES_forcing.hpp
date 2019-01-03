@@ -40,6 +40,65 @@
 #include "../include/solver_structure.hpp"
 
 /*!
+ * \class CHybridForcingAbstractBase
+ * \brief Abstract base class for hybrid forcing.
+ * \author T. A. Oliver
+ * \version 5.0.0 "Raven"
+ *
+ * This class provides a uniform interface to various forcing options,
+ * which are implemented as derived classes.
+ */
+class CHybridForcingAbstractBase {
+ public:
+  CHybridForcingAbstractBase(const unsigned short nDim,
+                             const unsigned long nPoint,
+                             const unsigned long nPointDomain);
+  virtual ~CHybridForcingAbstractBase();
+
+  /**
+   * \brief Transform physical coordinates into coordinates used for forcing.
+   *
+   * This method is only left public for testing purposes. It is usually
+   * not necessary to call it manually.
+   *
+   * \param[in] x - Physical coordinates
+   * \param[in] iDim - The component to be transformed
+   * \param[in] val_time - The current time
+   * \return A component of the shifted coordinates.
+   */
+  su2double TransformCoords(const su2double x, const su2double mean_velocity,
+                            const su2double time, const su2double timescale);
+
+  /**
+   * \brief Evaluate baseline TG field at point.
+   *
+   * This method is only left public for testing purposes. It is usually
+   * not necessary to call it manually.
+   *
+   * \param[in]  x - Forcing coordinates (i.e., result of TransformCoords)
+   * \param[in]  L - Length scales
+   * \param[out] b - TG velocity at point.
+   */
+  void SetTGField(const su2double* x, const su2double* L, su2double* b);
+
+  /**
+   * \brief Evaluate forcing field (pure virtual)
+   */
+  virtual void ComputeForcingField(CSolver** solver, CGeometry *geometry,
+                                   CConfig *config) = 0;
+
+ protected:
+  const unsigned short nDim,   /*!< \brief Number of dimensions of the problem. */
+  nVar,                        /*!< \brief Number of variables of the problem. */
+  nVarGrad;                    /*!< \brief Number of variables for deallocating the LS Cvector. */
+  const unsigned long nPoint,  /*!< \brief Number of points of the computational grid. */
+  nPointDomain;                /*!< \brief Number of points of the computational grid. */
+
+  int*** LeviCivita;    /*!< \brief The alternating or permutation tensor. */
+};
+
+
+/*!
  * \class CHybridForcing
  * \brief Class for defining the forcing needed in a hybrid RANS/LES model
  * \author C. Pederson
@@ -54,27 +113,13 @@
  * but that would require fundamental restructuring of the code.
  */
 
-class CHybridForcing {
+class CHybridForcing : public CHybridForcingAbstractBase{
  public:
   CHybridForcing(const unsigned short nDim, const unsigned long nPoint,
                  const unsigned long nPointDomain);
   CHybridForcing(CGeometry* geometry, CConfig* config);
   ~CHybridForcing();
 
-  /**
-   * \brief Transform physical coordinates into coordinates used for forcing.
-   *
-   * This method is only left public for testing purposes. It is usually
-   * not necessary to call it manually.  See CalculateForcing instead.
-   *
-   * \param[in] x - Physical coordinates
-   * \param[in] iDim - The component to be transformed
-   * \param[in] val_time - The current time
-   * \return A component of the shifted coordinates.
-   */
-  su2double TransformCoords(const su2double x, const su2double mean_velocity,
-                            const su2double time, const su2double timescale);
-  void SetTGField(const su2double* x, const su2double* L, su2double* b);
   void SetStreamFunc(const su2double* x, const su2double* L, su2double* h);
   void SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config);
   void Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *config);
@@ -88,12 +133,7 @@ class CHybridForcing {
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                            CConfig *config);
 
- private:
-  const unsigned short nDim,   /*!< \brief Number of dimensions of the problem. */
-  nVar,                        /*!< \brief Number of variables of the problem. */
-  nVarGrad;                    /*!< \brief Number of variables for deallocating the LS Cvector. */
-  const unsigned long nPoint,  /*!< \brief Number of points of the computational grid. */
-  nPointDomain;                /*!< \brief Number of points of the computational grid. */
+ protected:
 
   su2double** node;
   su2double*** Gradient;       /*!< \brief The indexing is Gradient[iPoint][iVar][iDim] */
@@ -101,7 +141,6 @@ class CHybridForcing {
   su2double **Smatrix,  /*!< \brief Auxiliary structure for computing gradients by least-squares */
   **Cvector;            /*!< \brief Auxiliary structure for computing gradients by least-squares */
 
-  int*** LeviCivita;    /*!< \brief The alternating or permutation tensor. */
 };
 
 #include "hybrid_RANS_LES_forcing.inl"

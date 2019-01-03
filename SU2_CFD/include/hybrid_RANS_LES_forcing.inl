@@ -31,18 +31,18 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-inline su2double CHybridForcing::TransformCoords(const su2double x,
-                                                 const su2double mean_velocity,
-                                                 const su2double time,
-                                                 const su2double timescale) {
+inline su2double CHybridForcingAbstractBase::TransformCoords(
+                                               const su2double x,
+                                               const su2double mean_velocity,
+                                               const su2double time,
+                                               const su2double timescale) {
   const su2double N_T = 4.0;
   return x + mean_velocity*fmod(time, N_T*timescale);
-
 }
 
-inline void CHybridForcing::SetTGField(const su2double* x,
-                                       const su2double* L,
-                                       su2double* b) {
+inline void CHybridForcingAbstractBase::SetTGField(const su2double* x,
+                                                   const su2double* L,
+                                                   su2double* b) {
   const su2double pi = atan(1.0)*4.0;
   const int A = 3, B = -1, C = -2;
   const su2double a[3] = {2*pi/L[0], 2*pi/L[1], 2*pi/L[2]};

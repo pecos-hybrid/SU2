@@ -33,22 +33,12 @@
 
 #include "../include/hybrid_RANS_LES_forcing.hpp"
 
-CHybridForcing::CHybridForcing(const unsigned short nDim,
-                               const unsigned long nPoint,
-                               const unsigned long nPointDomain)
-    : nDim(nDim), nVar(nDim), nVarGrad(nDim),
-      nPoint(nPoint), nPointDomain(nPointDomain) {
-
-  node = NULL;
-  Gradient = NULL;
-
-  Smatrix = new su2double* [nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    Smatrix[iDim] = new su2double [nDim];
-
-  Cvector = new su2double* [nVarGrad];
-  for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
-    Cvector[iVar] = new su2double [nDim];
+CHybridForcingAbstractBase::CHybridForcingAbstractBase(
+                              const unsigned short nDim,
+                              const unsigned long nPoint,
+                              const unsigned long nPointDomain)
+  : nDim(nDim), nVar(nDim), nVarGrad(nDim),
+    nPoint(nPoint), nPointDomain(nPointDomain) {
 
   LeviCivita = new int**[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
@@ -70,10 +60,40 @@ CHybridForcing::CHybridForcing(const unsigned short nDim,
   LeviCivita[1][0][2] = -1;
 }
 
+CHybridForcingAbstractBase::~CHybridForcingAbstractBase() {
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      delete [] LeviCivita[iDim][jDim];
+    }
+    delete [] LeviCivita[iDim];
+  }
+  delete [] LeviCivita;
+
+}
+
+CHybridForcing::CHybridForcing(const unsigned short nDim,
+                               const unsigned long nPoint,
+                               const unsigned long nPointDomain)
+  : CHybridForcingAbstractBase(nDim, nPoint, nPointDomain) {
+
+  node = NULL;
+  Gradient = NULL;
+
+  Smatrix = new su2double* [nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    Smatrix[iDim] = new su2double [nDim];
+
+  Cvector = new su2double* [nVarGrad];
+  for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
+    Cvector[iVar] = new su2double [nDim];
+}
+
+
 CHybridForcing::CHybridForcing(CGeometry* geometry, CConfig* config)
-    : nDim(geometry->GetnDim()), nVar(nDim), nVarGrad(nDim),
-      nPoint(geometry->GetnPoint()),
-      nPointDomain(geometry->GetnPointDomain()) {
+  : CHybridForcingAbstractBase(geometry->GetnDim(),
+                               geometry->GetnPoint(),
+                               geometry->GetnPointDomain()) {
 
   node = new su2double*[nPoint];
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
@@ -95,25 +115,6 @@ CHybridForcing::CHybridForcing(CGeometry* geometry, CConfig* config)
   Cvector = new su2double* [nVarGrad];
   for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
     Cvector[iVar] = new su2double [nDim];
-
-  LeviCivita = new int**[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    LeviCivita[iDim] = new int*[nDim];
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      LeviCivita[iDim][jDim] = new int[nDim];
-      for (unsigned short kDim = 0; kDim < nDim; kDim++) {
-        LeviCivita[iDim][jDim][kDim] = 0;
-      }
-    }
-  }
-  /*--- These could be assigned programmatically, but the straightforward
-   * way is less error-prone. ---*/
-  LeviCivita[0][1][2] = 1;
-  LeviCivita[1][2][0] = 1;
-  LeviCivita[2][0][1] = 1;
-  LeviCivita[0][2][1] = -1;
-  LeviCivita[2][1][0] = -1;
-  LeviCivita[1][0][2] = -1;
 
 }
 
@@ -147,14 +148,6 @@ CHybridForcing::~CHybridForcing() {
       delete [] Cvector[iVar];
     delete [] Cvector;
   }
-
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      delete [] LeviCivita[iDim][jDim];
-    }
-    delete [] LeviCivita[iDim];
-  }
-  delete [] LeviCivita;
 
 }
 
