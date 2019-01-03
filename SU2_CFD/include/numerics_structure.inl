@@ -614,14 +614,8 @@ inline su2double CSourcePieceWise_TurbSA_Neg::GetDestruction(void) { return Dest
 
 inline su2double CSourcePieceWise_TurbSA_Neg::GetCrossProduction(void) { return CrossProduction; }
 
-inline void CSourcePieceWise_TurbKE::SetForcingProduction(su2double val_production) { ForcingProduction = val_production; }
-
-inline void CSourcePieceWise_HybridConv::SetForcingRatio(su2double val_production_ratio) { Forcing_Ratio = val_production_ratio; }
-
-inline void CSourcePieceWise_HybridConv::SetSourceTerms(su2double* val_source_terms) {
-  S_alpha = val_source_terms[0];
-  S_cf = val_source_terms[1];
-}
+// Belongs in v2f file now?
+//inline void CSourcePieceWise_TurbKE::SetForcingProduction(su2double val_production) { ForcingProduction = val_production; }
 
 inline su2double CUpwTurkel_Flow::GetPrecond_Beta() { return Beta; }
 
