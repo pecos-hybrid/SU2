@@ -72,7 +72,7 @@ CHybridForcingAbstractBase::~CHybridForcingAbstractBase() {
 
 }
 
-CHybridForcing::CHybridForcing(const unsigned short nDim,
+CHybridForcingTGSF::CHybridForcingTGSF(const unsigned short nDim,
                                const unsigned long nPoint,
                                const unsigned long nPointDomain)
   : CHybridForcingAbstractBase(nDim, nPoint, nPointDomain) {
@@ -90,7 +90,7 @@ CHybridForcing::CHybridForcing(const unsigned short nDim,
 }
 
 
-CHybridForcing::CHybridForcing(CGeometry* geometry, CConfig* config)
+CHybridForcingTGSF::CHybridForcingTGSF(CGeometry* geometry, CConfig* config)
   : CHybridForcingAbstractBase(geometry->GetnDim(),
                                geometry->GetnPoint(),
                                geometry->GetnPointDomain()) {
@@ -118,7 +118,7 @@ CHybridForcing::CHybridForcing(CGeometry* geometry, CConfig* config)
 
 }
 
-CHybridForcing::~CHybridForcing() {
+CHybridForcingTGSF::~CHybridForcingTGSF() {
 
   if (node != NULL) {
     for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
@@ -151,7 +151,7 @@ CHybridForcing::~CHybridForcing() {
 
 }
 
-su2double CHybridForcing::ComputeScalingFactor(const su2double L,
+su2double CHybridForcingTGSF::ComputeScalingFactor(const su2double L,
                                                const su2double P_F,
                                                const su2double dt,
                                                const su2double* b) {
@@ -174,7 +174,7 @@ su2double CHybridForcing::ComputeScalingFactor(const su2double L,
   return C_P * sqrt(2*abs(C_alpha)*dt)/max(max(ax, ay), az);
 }
 
-void CHybridForcing::ComputeForcingField(CSolver** solver, CGeometry *geometry,
+void CHybridForcingTGSF::ComputeForcingField(CSolver** solver, CGeometry *geometry,
                                          CConfig *config) {
 
   const unsigned short kind_time_marching = config->GetUnsteady_Simulation();
@@ -265,7 +265,7 @@ void CHybridForcing::ComputeForcingField(CSolver** solver, CGeometry *geometry,
 
 }
 
-void CHybridForcing::SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config) {
+void CHybridForcingTGSF::SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config) {
 
   unsigned short iVar, iDim, jDim, iNeigh;
   unsigned long iPoint, jPoint;
@@ -411,7 +411,7 @@ void CHybridForcing::SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config
 
 }
 
-void CHybridForcing::Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *config) {
+void CHybridForcingTGSF::Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *config) {
 //  unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
 //  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
 //  su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
@@ -532,4 +532,142 @@ void CHybridForcing::Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *conf
 //    delete [] Gradient[iVar];
 //  delete [] Gradient;
 
+}
+
+
+CHybridForcingTG0::CHybridForcingTG0(const unsigned short nDim,
+                               const unsigned long nPoint,
+                               const unsigned long nPointDomain)
+  : CHybridForcingAbstractBase(nDim, nPoint, nPointDomain) {
+
+  node = new su2double*[nPoint];
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    node[iPoint] = new su2double[nVar];
+  }
+
+}
+
+
+CHybridForcingTG0::CHybridForcingTG0(CGeometry* geometry, CConfig* config)
+  : CHybridForcingAbstractBase(geometry->GetnDim(),
+                               geometry->GetnPoint(),
+                               geometry->GetnPointDomain()) {
+
+  node = new su2double*[nPoint];
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    node[iPoint] = new su2double[nVar];
+  }
+
+}
+
+CHybridForcingTG0::~CHybridForcingTG0() {
+
+  if (node != NULL) {
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+      delete [] node[iPoint];
+    }
+    delete [] node;
+  }
+}
+
+void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometry,
+                                            CConfig *config) {
+
+  const unsigned short kind_time_marching = config->GetUnsteady_Simulation();
+
+  assert(kind_time_marching == TIME_STEPPING   ||
+         kind_time_marching == DT_STEPPING_1ST ||
+         kind_time_marching == DT_STEPPING_2ND );
+
+  // FIXME: Current UnstTime or Total UnstTime???
+  const su2double time = config->GetTotal_UnstTimeND();
+  const su2double dt = config->GetDelta_UnstTimeND();
+
+  /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
+  su2double h[nDim]; // Initial TG vortex field.
+  su2double Lsgs; // SGS length scale
+  su2double x[nDim]; // Position
+  su2double Lmesh[nDim]; // Mesh length scales in coord direction (computed from res tensor)
+  su2double D[nDim]; // Domain lengths (for periodic directions)
+  su2double dwall; // distance to the wall
+  su2double uf[nDim];
+
+
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+
+    const su2double timescale =
+      solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+
+    /*--- This velocity retrieval works only for compressible ---*/
+    assert(config->GetKind_Regime() == COMPRESSIBLE);
+    const su2double* prim_vars = solver[FLOW_SOL]->node[iPoint]->GetPrimitive();
+
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      /*--- Copy the values (and not the pointer), since we're changing them. ---*/
+      x[iDim] = geometry->node[iPoint]->GetCoord(iDim);
+      x[iDim] = TransformCoords(x[iDim], prim_vars[iDim+1], time, timescale);
+    }
+
+    /*--- Setup the TG vortex ---*/
+
+    // total k, epsilon, and v2 from model
+    // NB: Assumes k-e-v2-f model for now
+    // TODO: Generalize beyond v2-f
+    const su2double ktot = solver[TURB_SOL]->node[iPoint]->GetSolution(0);
+    const su2double tdr  = solver[TURB_SOL]->node[iPoint]->GetSolution(1);
+    const su2double v2 = solver[TURB_SOL]->node[iPoint]->GetSolution(2);
+
+    // resolved k, from averages (where can I get this from?)
+    const su2double kres = 0.0; // FIXME: Get real kres
+
+    // ratio of modeled to total TKE
+    const su2double alpha = 1.0 - kres/ktot;
+
+    // TODO: Need to limit alpha here?
+
+    // FIXME: Where is average r_M stored?
+    const su2double resolution_adequacy = 1.0;
+
+    const su2double density = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
+    const su2double nu =
+      solver[FLOW_SOL]->node[iPoint]->GetLaminarViscosity() / density;
+
+
+    // TODO: The length scales are defined in three different places.
+    // Eliminate the repitition.
+    const su2double Ltot = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
+    const su2double Lsgs = alpha*Ltot;
+
+    // TODO: Get Lmesh
+    // TODO: Get D
+    // TODO: Get dwall
+
+    // Compute TG velocity at this point
+    this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
+
+    const su2double Ttot = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+
+    const su2double Ftar = this->GetTargetProduction(v2, Ttot, alpha);
+
+    // Compute PFtest
+    su2double PFtest = 0.0;
+    for (unsigned short iDim=0; iDim<nDim; iDim++) {
+      // TODO: Get mean velocity and subtract it!
+      uf[iDim] = prim_vars[iDim+1]; // - umean[iDim]
+      PFtest += uf[iDim]*h[iDim];
+    }
+    PFtest *= Ftar*dt;
+
+    const su2double Cnu = 1.0;
+    const su2double alpha_kol = Cnu*std::sqrt(nu*tdr)/ktot;
+
+    const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
+                                                     alpha, alpha_kol, PFtest);
+
+    /*--- Store eta*h so we can compute the derivatives ---*/
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      node[iPoint][iDim] = eta*h[iDim];
+    }
+
+  } // end loop over points
 }

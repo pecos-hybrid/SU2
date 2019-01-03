@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(Shifting_Returns_Original_Coordinates_When_Time_Is_Zero) {
 
   const unsigned short nDim = 3;
 
-  CHybridForcing forcing(nDim, 0, 0);
+  CHybridForcingTGSF forcing(nDim, 0, 0);
 
   su2double time = 0.0;
   su2double T_m = 1.0;
@@ -196,7 +196,7 @@ BOOST_AUTO_TEST_CASE(Coordinate_Shifting_With_Nonzero_Velocity) {
 
   const unsigned short nDim = 3;
 
-  CHybridForcing forcing(nDim, 0, 0);
+  CHybridForcingTGSF forcing(nDim, 0, 0);
 
   const su2double time = 0.5;
   const su2double timescale = 2.0;
@@ -220,7 +220,7 @@ BOOST_AUTO_TEST_CASE(Initial_Taylor_Green_Is_Periodic_In_L) {
 
   su2double b_at_x1[3], b_at_x2[3];
 
-  CHybridForcing forcing(nDim, 0, 0);
+  CHybridForcingTGSF forcing(nDim, 0, 0);
 
   forcing.SetTGField(x1, L, b_at_x1);
 
@@ -270,7 +270,7 @@ BOOST_AUTO_TEST_CASE(Compute_Derivatives) {
   geometry->SetControlVolume(config, ALLOCATE);
   geometry->SetBoundControlVolume(config, ALLOCATE);
 
-  CHybridForcing forcing(geometry, config);
+  CHybridForcingTGSF forcing(geometry, config);
 
   /*--- Act ---*/
 

@@ -69,17 +69,6 @@ class CHybridForcingAbstractBase {
   su2double TransformCoords(const su2double x, const su2double mean_velocity,
                             const su2double time, const su2double timescale);
 
-  /**
-   * \brief Evaluate baseline TG field at point.
-   *
-   * This method is only left public for testing purposes. It is usually
-   * not necessary to call it manually.
-   *
-   * \param[in]  x - Forcing coordinates (i.e., result of TransformCoords)
-   * \param[in]  L - Length scales
-   * \param[out] b - TG velocity at point.
-   */
-  void SetTGField(const su2double* x, const su2double* L, su2double* b);
 
   /**
    * \brief Evaluate forcing field (pure virtual)
@@ -99,7 +88,7 @@ class CHybridForcingAbstractBase {
 
 
 /*!
- * \class CHybridForcing
+ * \class CHybridForcingTGSF
  * \brief Class for defining the forcing needed in a hybrid RANS/LES model
  * \author C. Pederson
  * \version 5.0.0 "Raven"
@@ -111,14 +100,30 @@ class CHybridForcingAbstractBase {
  *
  * Ideally, both would inherit from the same abstract interfaces,
  * but that would require fundamental restructuring of the code.
+ *
+ * This class implements the Taylor-Green, Stream Function (TGSF)
+ * approach, which provides an analytically divergence-free forcing
+ * field.
  */
 
-class CHybridForcing : public CHybridForcingAbstractBase{
+class CHybridForcingTGSF : public CHybridForcingAbstractBase{
  public:
-  CHybridForcing(const unsigned short nDim, const unsigned long nPoint,
-                 const unsigned long nPointDomain);
-  CHybridForcing(CGeometry* geometry, CConfig* config);
-  ~CHybridForcing();
+  CHybridForcingTGSF(const unsigned short nDim, const unsigned long nPoint,
+                     const unsigned long nPointDomain);
+  CHybridForcingTGSF(CGeometry* geometry, CConfig* config);
+  ~CHybridForcingTGSF();
+
+  /**
+   * \brief Evaluate baseline TG field at point.
+   *
+   * This method is only left public for testing purposes. It is usually
+   * not necessary to call it manually.
+   *
+   * \param[in]  x - Forcing coordinates (i.e., result of TransformCoords)
+   * \param[in]  L - Length scales
+   * \param[out] b - TG velocity at point.
+   */
+  void SetTGField(const su2double* x, const su2double* L, su2double* b);
 
   void SetStreamFunc(const su2double* x, const su2double* L, su2double* h);
   void SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config);
@@ -130,6 +135,53 @@ class CHybridForcing : public CHybridForcingAbstractBase{
                                 const su2double laminar_viscosity);
   su2double ComputeScalingFactor(const su2double L, const su2double P_F,
                                  const su2double dt, const su2double* b);
+  void ComputeForcingField(CSolver** solver, CGeometry *geometry,
+                           CConfig *config);
+
+ protected:
+
+  su2double** node;
+  su2double*** Gradient;       /*!< \brief The indexing is Gradient[iPoint][iVar][iDim] */
+
+  su2double **Smatrix,  /*!< \brief Auxiliary structure for computing gradients by least-squares */
+  **Cvector;            /*!< \brief Auxiliary structure for computing gradients by least-squares */
+
+};
+
+class CHybridForcingTG0 : public CHybridForcingAbstractBase{
+ public:
+  CHybridForcingTG0(const unsigned short nDim, const unsigned long nPoint,
+                     const unsigned long nPointDomain);
+  CHybridForcingTG0(CGeometry* geometry, CConfig* config);
+  ~CHybridForcingTG0();
+
+  /**
+   * \brief Evaluate baseline TG field at point.
+   *
+   * This method is only left public for testing purposes. It is usually
+   * not necessary to call it manually.
+   *
+   * \param[in]  x - Forcing coordinates (i.e., result of TransformCoords)
+   * \param[in]  Lsgs - SGS length scales
+   * \param[in]  Lmesh - Mesh length scales
+   * \param[in]  D - Domain lengths in periodic directions
+   * \param[in]  dwall - Distance to nearest wall
+   * \param[out] b - TG velocity at point.
+   */
+  void SetTGField(const su2double* x, const su2double Lsgs,
+                  const su2double* Lmesh, const su2double* D,
+                  const su2double dwall, su2double* h);
+
+  su2double GetTargetProduction(const su2double v2,
+                                const su2double T,
+                                const su2double alpha);
+
+  su2double ComputeScalingFactor(const su2double Ftar,
+                                 const su2double resolution_adequacy,
+                                 const su2double alpha,
+                                 const su2double alpha_kol,
+                                 const su2double PFtest);
+
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                            CConfig *config);
 
