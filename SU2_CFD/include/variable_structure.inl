@@ -279,6 +279,13 @@ inline su2double** CVariable::GetResolvedTurbStress(void) const { return NULL; }
 
 inline su2double CVariable::GetResolvedKineticEnergy(void) const { return 0; }
 
+inline su2double** CVariable::GetForcingStress(void) { return NULL; }
+
+inline su2double CVariable::GetForcingStress(unsigned short iDim,
+                                             unsigned short jDim) {
+  return 0.0;
+}
+
 inline void CVariable::SetGammaEff(void) { }
 
 inline void CVariable::SetGammaSep(su2double gamma_sep) { }
@@ -477,6 +484,8 @@ inline void CVariable::SetResolvedTurbStress(unsigned short iDim,
 
 inline void CVariable::SetResolvedKineticEnergy(void) { }
 
+inline void CVariable::SetForcingStress(su2double** val_tau_F) { }
+
 inline void CVariable::SetThermalConductivity(su2double thermalConductivity) { }
 
 inline void CVariable::SetThermalConductivity(CConfig *config) { }
@@ -532,6 +541,22 @@ inline su2double CVariable::GetF2blending(void) { return 0; }
 inline su2double CVariable::GetmuT() { return 0;}
 
 inline void CVariable::SetmuT(su2double val_muT) { }
+
+inline void CVariable::SetForcingProduction(su2double val_P_F) { }
+
+inline su2double CVariable::GetForcingProduction(void) { return 0; }
+
+inline void CVariable::SetForcingRatio(su2double P_F_ratio) { }
+
+inline su2double CVariable::GetForcingRatio(void) { return 1; }
+
+inline void CVariable::SetSourceTerms(su2double* val_source_terms) { };
+
+inline su2double* CVariable::GetSourceTerms() { return NULL; };
+
+inline su2double CVariable::GetSAlpha() { return 0; };
+
+inline su2double CVariable::GetScf() { return 0; }
 
 inline su2double* CVariable::GetSolution_Direct() { return NULL; }
 
@@ -1366,6 +1391,12 @@ inline su2double* CHeatVariable::GetSolution_Direct() { return Solution_Direct;}
 
 inline void CHeatVariable::SetSolution_Direct(su2double *val_solution_direct) { for (unsigned short iVar = 0; iVar < nVar; iVar++) Solution_Direct[iVar] += val_solution_direct[iVar];}
 
+inline void CTurbVariable::SetForcingProduction(su2double val_P_F) {
+  Forcing_Production = val_P_F;
+}
+
+inline su2double CTurbVariable::GetForcingProduction() { return Forcing_Production; }
+
 inline void CTurbSAVariable::SetHarmonicBalance_Source(unsigned short val_var, su2double val_source) { HB_Source[val_var] = val_source; }
 
 inline su2double CTurbSAVariable::GetHarmonicBalance_Source(unsigned short val_var) { return HB_Source[val_var]; }
@@ -1476,6 +1507,26 @@ inline void CDiscAdjVariable::SetSolution_Direct(su2double *val_solution_direct)
     Solution_Direct[iVar] = val_solution_direct[iVar];
   }
 }
+
+// FIXME: Still need these?
+inline void CNSVariable::SetForcingStress(su2double** val_tau_F) {
+    // Copy values instead of copying pointers to values that may change
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      for (unsigned short jDim = 0; jDim < nDim; jDim++)
+        Forcing_Stress[iDim][jDim] = val_tau_F[iDim][jDim];
+}
+
+inline su2double** CNSVariable::GetForcingStress(void) { return Forcing_Stress; }
+
+inline su2double CNSVariable::GetForcingStress(unsigned short iDim,
+                                               unsigned short jDim) {
+  if (Forcing_Stress != NULL)
+    return Forcing_Stress[iDim][jDim];
+  else
+    SU2_MPI::Error("Attempted to access forcing stress before forcing stress is properly initialized!", CURRENT_FUNCTION);
+    return 0;   // This return is here to make static checkers happy
+}
+// FIXME: end 'these'
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() const {
   return T;

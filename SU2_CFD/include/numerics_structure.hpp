@@ -1294,7 +1294,7 @@ public:
    * \param[in] val_production - Value of the Production.
    */
   virtual void SetProduction(su2double val_production);
-  
+
   /*!
    * \brief Residual for source term integration.
    * \param[in] val_destruction - Value of the Destruction.
@@ -1330,6 +1330,27 @@ public:
    */
   virtual su2double GetGammaBC(void);
   
+  /*!
+   * \brief Residual for source term integration.
+   * \param[in] val_production - Value of the Production due to forcing
+   */
+  virtual void SetForcingProduction(su2double val_production);
+
+  /*!
+   * \brief Ratio of the unmodified forcing production to a limited forcing production
+   * \param[in] val_production - Value of the production ratio
+   */
+  virtual void SetForcingRatio(su2double val_production_ratio);
+
+  virtual void SetSourceTerms(su2double* val_source_terms);
+
+  /*!
+   * \brief Set the stress tensor coming from turbulent forcing
+   * \param[in] tau_F_i - Value of the forcing stress tensor at node i
+   * \param[in] tau_F_j - Value of the forcing stress tensor at node j
+   */
+  virtual void SetForcingStress(su2double** tau_F_i, su2double** tau_F_j);
+
   /*!
    * \overload
    * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i
@@ -3095,6 +3116,8 @@ class CAvgGrad_Base : public CNumerics {
   su2double *Mean_PrimVar,     /*!< \brief Mean primitive variables. */
   *PrimVar_i, *PrimVar_j,      /*!< \brief Primitives variables at point i and 1. */
   **Mean_GradPrimVar,          /*!< \brief Mean value of the gradient. */
+  **Forcing_Stress_i,          /*!< \brief The turbulent forcing stress tensor at point i */
+  **Forcing_Stress_j,          /*!< \brief The turbulent forcing stress tensor at point j */
   Mean_Laminar_Viscosity,      /*!< \brief Mean value of the viscosity. */
   Mean_Eddy_Viscosity,         /*!< \brief Mean value of the eddy viscosity. */
   Mean_turb_ke,                /*!< \brief Mean value of the turbulent kinetic energy. */
@@ -3275,6 +3298,13 @@ public:
    */
   ~CAvgGrad_Flow(void);
 
+  /*!
+   * \brief Set the stress tensor coming from turbulent forcing
+   * \param[in] tau_F_i - Value of the forcing stress tensor at node i
+   * \param[in] tau_F_j - Value of the forcing stress tensor at node j
+   */
+  void SetForcingStress(su2double** tau_F_i, su2double** tau_F_j);
+  
   /*!
    * \brief Compute the viscous flow residual using an average of gradients.
    * \param[out] val_residual - Pointer to the total residual.
@@ -5295,6 +5325,7 @@ public:
   void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
   
 };
+
 
 /*!
  * \class CSourceGravity

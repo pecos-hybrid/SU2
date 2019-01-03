@@ -46,6 +46,8 @@ CTurbSolver::CTurbSolver(void) : CSolver() {
   nVertex       = NULL;
   nMarker       = 0;
   Inlet_TurbVars = NULL;
+
+  HybridMediator = NULL;
   
 }
 
@@ -64,6 +66,8 @@ CTurbSolver::CTurbSolver(CGeometry* geometry, CConfig *config) : CSolver() {
   nVertex = new unsigned long[nMarker];
   for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++)
     nVertex[iMarker] = geometry->nVertex[iMarker];
+
+  HybridMediator = NULL;
   
 }
 
@@ -3879,7 +3883,7 @@ void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
     /*--- Cross diffusion ---*/
     
     numerics->SetCrossDiff(node[iPoint]->GetCrossDiff(),0.0);
-    
+
     /*--- Compute the source term ---*/
     
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);

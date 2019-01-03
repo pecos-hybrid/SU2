@@ -583,6 +583,15 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
       AnisoEddyViscosity[iDim] = new su2double[nDim];
     }
 
+    // Why Forcing_Stress?  Is this correct name?
+    if (config->isHybrid_Forced()) {
+      Forcing_Stress = new su2double*[nDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++)
+        Forcing_Stress[iDim] = new su2double[nDim];
+    } else {
+      Forcing_Stress = NULL;
+    }
+
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
     ResolvedKineticEnergy = 0;
@@ -609,6 +618,15 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
       AnisoEddyViscosity[iDim] = new su2double[nDim];
     }
 
+    // Why Forcing_Stress?  Is this correct name?
+    if (config->isHybrid_Forced()) {
+      Forcing_Stress = new su2double*[nDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++)
+        Forcing_Stress[iDim] = new su2double[nDim];
+    } else {
+      Forcing_Stress = NULL;
+    }
+
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
     ResolvedKineticEnergy = 0;
@@ -627,6 +645,11 @@ CNSVariable::~CNSVariable(void) {
       delete [] AnisoEddyViscosity[iDim];
     }
     delete [] AnisoEddyViscosity;
+  }
+  if (Forcing_Stress != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      delete [] Forcing_Stress[iDim];
+    delete [] Forcing_Stress;
   }
 }
 

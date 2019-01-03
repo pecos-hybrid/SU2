@@ -521,6 +521,7 @@ private:
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
   unsigned short Kind_HybridRANSLES_Testing; /*!< \brief Hybrid RANS/LES blending definition */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
+  bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -3769,6 +3770,12 @@ public:
    * \return Kind of blending scheme.
    */
   unsigned short GetKind_Hybrid_Resolution_Indicator(void);
+
+  /*!
+   * \brief Checks if a hybrid LES/RANS method should be forced.
+   * \return True if the hybrid RANS/LES model is to be forced.
+   */
+  bool isHybrid_Forced(void);
 
   /*!
    * \brief Get the kind of the turbulence model.

@@ -1671,6 +1671,8 @@ void CNumerics::GetAdjViscousFlux_Jac(su2double Pressure_i, su2double Pressure_j
  
 }
 
+
+
 void CNumerics::GetViscousArtCompProjFlux(su2double **val_gradprimvar, su2double *val_normal, su2double val_laminar_viscosity,
     su2double val_eddy_viscosity) {
   unsigned short iVar, iDim;

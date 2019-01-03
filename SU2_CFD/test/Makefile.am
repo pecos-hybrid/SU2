@@ -100,6 +100,19 @@ TESTS += zeta_unit_cell_test
 TESTS += zeta_transform_test
 endif
 
+# Why at the end?
+AM_CPPFLAGS += -DBUILD_TESTS @BOOST_CXX@
+
+# Test Programs
+check_PROGRAMS += forcing_test
+
+# Test Sources
+forcing_test_SOURCES = forcing_test.cpp
+
+# Tests to be run
+TESTS += forcing_test
+
 # Any of above we expect to fail?
 #XFAIL_TESTS =
+
 endif

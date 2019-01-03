@@ -81,6 +81,8 @@ libSU2Core_sources = \
   ../include/solver_structure_v2f.inl \
   ../include/fluctuating_stress.hpp \
   ../include/fluctuating_stress.inl \
+  ../include/hybrid_RANS_LES_forcing.hpp \
+  ../include/hybrid_RANS_LES_forcing.inl \
   ../include/hybrid_RANS_LES_model.hpp \
   ../include/SU2_CFD.hpp \
   ../include/transport_model.hpp \
@@ -142,6 +144,7 @@ libSU2Core_sources = \
   ../src/solver_structure.cpp \
   ../src/solver_template.cpp \
   ../src/fluctuating_stress.cpp \
+  ../src/hybrid_RANS_LES_forcing.cpp \
   ../src/hybrid_RANS_LES_model.cpp \
   ../src/transfer_physics.cpp \
   ../src/transfer_structure.cpp \

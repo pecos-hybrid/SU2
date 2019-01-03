@@ -1521,6 +1521,8 @@ inline unsigned short CConfig::GetKind_HybridRANSLES_Testing(void) { return Kind
 
 inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { return Kind_Hybrid_Res_Ind; }
 
+inline bool CConfig::isHybrid_Forced(void) { return Hybrid_Forcing; }
+
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
 
 inline unsigned short CConfig::GetKind_Trans_Model(void) { return Kind_Trans_Model; }
