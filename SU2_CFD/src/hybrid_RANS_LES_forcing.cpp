@@ -640,7 +640,14 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double Ltot = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
     const su2double Lsgs = alpha*Ltot;
 
-    // TODO: Get Lmesh
+    // FIXME: I think this is equivalent to repo version of CDP,but
+    // not consistent with paper description, except for orthogonal
+    // grids aligned with coordinate axes.  Check with Sigfried.
+    su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
+    Lmesh[0] = ResolutionTensor[0][0];
+    Lmesh[1] = ResolutionTensor[1][1];
+    Lmesh[2] = ResolutionTensor[2][2];
+
     // TODO: Get D
     // TODO: Get dwall
 
