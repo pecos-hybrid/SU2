@@ -610,6 +610,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_body_force         = new su2double[3];
   default_sineload_coeff     = new su2double[3];
   default_nacelle_location   = new su2double[5];
+  default_hybrid_periodic_length = new su2double[3];
 
   // This config file is parsed by a number of programs to make it easy to write SU2
   // wrapper scripts (in python, go, etc.) so please do
@@ -640,6 +641,20 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
+
+
+  default_hybrid_periodic_length[0] = -1.0;
+  default_hybrid_periodic_length[1] = -1.0;
+  default_hybrid_periodic_length[2] = -1.0;
+  /*! \brief HYBRID_FORCING_PERIODIC_LENGTH \n
+   * DESCRIPTION: Vector of domain lengths for periodic directions,
+   * used in hybrid forcing (D_X, D_Y, D_Z), negative value indicates
+   * direction is not periodic. \n
+   * DEFAULT: (-1,-1,-1).
+   */
+  addDoubleArrayOption("HYBRID_FORCING_PERIODIC_LENGTH", 3,
+                       Hybrid_Forcing_Periodic_Length,
+                       default_hybrid_periodic_length);
 
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
@@ -6747,6 +6762,7 @@ CConfig::~CConfig(void) {
   if (default_body_force    != NULL) delete [] default_body_force;
   if (default_sineload_coeff!= NULL) delete [] default_sineload_coeff;
   if (default_nacelle_location    != NULL) delete [] default_nacelle_location;
+  if (default_hybrid_periodic_length != NULL) delete [] default_hybrid_periodic_length;
 
   if (FFDTag != NULL) delete [] FFDTag;
   if (nDV_Value != NULL) delete [] nDV_Value;

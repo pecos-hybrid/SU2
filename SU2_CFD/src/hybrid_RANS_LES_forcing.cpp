@@ -588,9 +588,11 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
   su2double Lsgs; // SGS length scale
   su2double x[nDim]; // Position
   su2double Lmesh[nDim]; // Mesh length scales in coord direction (computed from res tensor)
-  su2double D[nDim]; // Domain lengths (for periodic directions)
   su2double dwall; // distance to the wall
   su2double uf[nDim];
+
+  // Domain lengths for periodic directions
+  su2double *D = config->GetHybrid_Forcing_Periodic_Length();
 
 
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
@@ -648,8 +650,8 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     Lmesh[1] = ResolutionTensor[1][1];
     Lmesh[2] = ResolutionTensor[2][2];
 
-    // TODO: Get D
-    // TODO: Get dwall
+    // Get dwall
+    dwall = geometry->node[iPoint]->GetWall_Distance();
 
     // Compute TG velocity at this point
     this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
