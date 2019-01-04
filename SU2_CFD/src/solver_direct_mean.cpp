@@ -18951,6 +18951,13 @@ void CNSSolver::UpdateAverage(const su2double weight,
    * variables. ---*/
 
 
+  /*--- Update the average of the resolution adequacy ---*/
+  const su2double mean_r_k = average_node[iPoint]->GetResolutionAdequacy();
+  const su2double inst_r_k = node[iPoint]->GetResolutionAdequacy();
+  const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
+  average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
+
+
   /*--- Make sure the average of the solution variables is updated too --*/
 
   CSolver::UpdateAverage(weight, iPoint, buffer);

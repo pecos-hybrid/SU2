@@ -443,6 +443,12 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     node[iPoint]->SetmuT(muT);
 
+    /* Compute resolution adequacy */
+    if (model_split) {
+      HybridMediator->ComputeResolutionAdequacy(geometry, solver_container,
+                                                iPoint);
+    }
+
   }
 }
 

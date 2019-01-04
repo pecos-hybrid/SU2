@@ -633,7 +633,8 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
     // FIXME: Where is average r_M stored?
     // I can't find it... looks like it isn't getting averaged?
-    const su2double resolution_adequacy = 1.0;
+    const su2double resolution_adequacy =
+      solver[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
 
     const su2double density = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
     const su2double nu =
