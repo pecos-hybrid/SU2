@@ -86,6 +86,17 @@ class CAbstract_Hybrid_Mediator {
   virtual void SetupRANSNumerics(CSolver **solver_container,
                                  CNumerics* rans_numerics,
                                  unsigned long iPoint) = 0;
+
+  /**
+   * \brief Compute instantaneous resolution adequacy and store with variables
+   *
+   * \param[in] geometry - A pointer to the geometry
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
+  virtual void ComputeResolutionAdequacy(CGeometry* geometry,
+                                         CSolver **solver_container,
+                                         unsigned long iPoint) = 0;
   /**
    * \brief Retrieve and pass along all necessary info for the resolved flow.
    *
@@ -93,9 +104,6 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  virtual void SetupForcing(CGeometry* geometry, CSolver **solver_container,
-                            unsigned long iPoint) = 0;
-
   virtual void SetupResolvedFlowSolver(CGeometry* geometry,
                                        CSolver **solver_container,
                                        unsigned long iPoint) = 0;
@@ -257,8 +265,9 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                          CNumerics* rans_numerics,
                          unsigned long iPoint);
 
-  void SetupForcing(CGeometry* geometry, CSolver **solver_container,
-                    unsigned long iPoint);
+  void ComputeResolutionAdequacy(CGeometry* geometry,
+                                 CSolver **solver_container,
+                                 unsigned long iPoint);
 
   void SetupResolvedFlowSolver(CGeometry* geometry,
                                CSolver **solver_container,
@@ -334,8 +343,9 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                          CNumerics* rans_numerics,
                          unsigned long iPoint);
 
-  void SetupForcing(CGeometry* geometry, CSolver **solver_container,
-                    unsigned long iPoint);
+  void ComputeResolutionAdequacy(CGeometry* geometry,
+                                 CSolver **solver_container,
+                                 unsigned long iPoint);
 
   void SetupResolvedFlowSolver(CGeometry* geometry,
                                CSolver **solver_container,

@@ -3972,6 +3972,7 @@ private:
   su2double** ResolvedTurbStress;
   su2double ResolvedKineticEnergy;
   su2double** Forcing_Stress;
+  su2double ResolutionAdequacy;
   
 public:
   
@@ -4055,6 +4056,8 @@ public:
 
   void SetResolvedKineticEnergy(void);
 
+  void SetResolutionAdequacy(su2double val_r_k);
+
   /*!
    * \brief Get the laminar viscosity of the flow.
    * \return Value of the laminar viscosity of the flow.
@@ -4090,6 +4093,8 @@ public:
   su2double** GetResolvedTurbStress(void) const;
 
   su2double GetResolvedKineticEnergy(void) const;
+
+  su2double GetResolutionAdequacy(void) const;
 
   void SetForcingStress(su2double** val_tau_F);
 

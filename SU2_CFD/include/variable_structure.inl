@@ -932,6 +932,10 @@ inline su2double CNSVariable::GetResolvedKineticEnergy(void) const {
   return ResolvedKineticEnergy;
 }
 
+inline su2double CNSVariable::GetResolutionAdequacy(void) const {
+  return ResolutionAdequacy;
+}
+
 inline su2double CNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+5]; }
 
 inline su2double CNSVariable::GetThermalConductivity(void) { return Primitive[nDim+7]; }
@@ -1015,6 +1019,8 @@ inline void CNSVariable::SetResolvedKineticEnergy(void) {
     ResolvedKineticEnergy += -0.5*ResolvedTurbStress[iDim][iDim]/Solution[0];
   }
 }
+
+inline void CNSVariable::SetResolutionAdequacy(su2double val_r_k) { ResolutionAdequacy = val_r_k; }
 
 inline void CNSVariable::SetWallTemperature(su2double Temperature_Wall ) { Primitive[0] = Temperature_Wall; }
 

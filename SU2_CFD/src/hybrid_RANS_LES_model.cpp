@@ -164,9 +164,10 @@ void CHybrid_Mediator::SetupRANSNumerics(CSolver **solver_container,
   rans_numerics->SetResolvedTurbStress(flow_node[iPoint]->GetResolvedTurbStress());
 }
 
-void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
-                                    CSolver **solver_container,
-                                    unsigned long iPoint) {
+void CHybrid_Mediator::ComputeResolutionAdequacy(CGeometry* geometry,
+                                                 CSolver **solver_container,
+                                                 unsigned long iPoint) {
+
 
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
@@ -280,8 +281,8 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
     SU2_MPI::Error("Unrecognized HYBRID_RESOLUTION_INDICATOR value!", CURRENT_FUNCTION);
   }
 
-  // TODO: Set resolution adequacy in the forcing class.
-
+  // Set resolution adequacy in the CNSVariables class
+  solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
 }
 
 void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
@@ -891,10 +892,11 @@ void CHybrid_Dummy_Mediator::SetupRANSNumerics(CSolver **solver_container,
   rans_numerics->SetResolvedTurbStress(zero_tensor);
 }
 
-void CHybrid_Dummy_Mediator::SetupForcing(CGeometry* geometry,
-                                          CSolver **solver_container,
-                                          unsigned long iPoint) {
-
+void CHybrid_Dummy_Mediator::ComputeResolutionAdequacy(CGeometry* geometry,
+                                                       CSolver **solver_container,
+                                                       unsigned long iPoint) {
+  // Set resolution adequacy in the CNSVariables class
+  solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(1.0);
 }
 
 void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
