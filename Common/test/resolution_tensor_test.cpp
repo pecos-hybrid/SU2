@@ -616,6 +616,7 @@ struct ResolutionFixture {
     char cfg_filename[100] = "resolution_tensor_test.cfg";
     WriteCfgFile(nDim, cfg_filename);
     config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
+    std::remove(cfg_filename);
   }
 
   void SetupGeometry() {
@@ -797,26 +798,9 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
   SetupConfig(nDim);
   SetupGeometry();
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-  unsigned short iDim;
-  unsigned short iPoint;
-
-=======
-  unsigned short iPoint;
-
->>>>>>> pecos-dev
   geometry->SetResolutionTensor();
 
-<<<<<<< HEAD
   for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
-||||||| merged common ancestors
-  bool entries_correct = true;
-
-  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
-=======
-  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
->>>>>>> pecos-dev
 
     su2double** Mij = geometry->node[iPoint]->GetResolutionTensor();
 

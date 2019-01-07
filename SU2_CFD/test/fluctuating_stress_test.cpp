@@ -39,6 +39,10 @@
 #include "../include/fluctuating_stress.hpp"
 
 #include "../../Common/test/MPI_global_fixture.hpp"
+
+#include <cstdio> // std::remove
+#include <fstream>
+
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) {
@@ -205,10 +209,10 @@ void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) 
 }
 
 
-void WriteCfgFile(const unsigned short& nDim) {
+void WriteCfgFile(unsigned short nDim, const char* filename) {
   std::ofstream cfg_file;
 
-  cfg_file.open("test.cfg", ios::out);
+  cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
   cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
@@ -237,9 +241,11 @@ struct FluctuatingStressFixture {
     delete config;
   }
 
-  void SetupConfig(const unsigned short& nDim) {
-    WriteCfgFile(nDim);
-    config = new CConfig("test.cfg", SU2_CFD, 0, 1, 2, VERB_NONE);
+  void SetupConfig(unsigned short nDim) {
+    char cfg_filename[100] = "viscous_ideal_vs_general_test.cfg";
+    WriteCfgFile(nDim, cfg_filename);
+    config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
+    std::remove(cfg_filename);
   }
 
   void SetupGeometry() {

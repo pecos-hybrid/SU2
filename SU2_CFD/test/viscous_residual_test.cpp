@@ -35,7 +35,7 @@
 #define BOOST_TEST_MODULE ViscousResidual
 #include "MPI_global_fixture.hpp"
 
-
+#include <cstdio> // std::remove
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -55,11 +55,11 @@ const unsigned short nSecVar  = 4;
 /**
  * Write a cfg file to be used in initializing the CConfig object.
  */
-void WriteCfgFile() {
+void WriteCfgFile(const char* filename) {
 
   std::ofstream cfg_file;
 
-  cfg_file.open("test.cfg", ios::out);
+  cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "TIME_DISCRE_FLOW= EULER_IMPLICIT" << std::endl;
 
@@ -100,11 +100,13 @@ struct ViscousResidualFixture{
   ViscousResidualFixture()
       : distance(1), area(3) {
 
-    WriteCfgFile();
+    char cfg_filename[100] = "viscous_residual_test.cfg";
+    WriteCfgFile(cfg_filename);
     const unsigned short iZone = 0;
     const unsigned short nZone = 1;
-    config = new CConfig("test.cfg", SU2_CFD, iZone, nZone, 2, VERB_NONE);
+    config = new CConfig(cfg_filename, SU2_CFD, iZone, nZone, 2, VERB_NONE);
     config->SetGas_ConstantND(287.058);
+    std::remove(cfg_filename);
 
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       coord_i[iDim] = 0;

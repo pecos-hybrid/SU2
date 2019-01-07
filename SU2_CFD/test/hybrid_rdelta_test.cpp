@@ -35,6 +35,7 @@
 #define BOOST_TEST_MODULE hybrid_rdelta
 #include "MPI_global_fixture.hpp"
 
+#include <cstdio> // std::remove
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -73,6 +74,7 @@ struct HybridRdeltaFixture {
     char cfg_filename[100] = "hybrid_rdelta_test.cfg";
     WriteCfgFile(3, cfg_filename);
     mock_config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 3, VERB_NONE);
+    std::remove(cfg_filename);
 
     su2double flow_soln[5], hybrid_soln;
 
