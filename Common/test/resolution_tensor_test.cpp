@@ -56,8 +56,6 @@ void WriteGradientMeshFile () {
     int iNode, jNode, kNode;
     int iPoint;
     int num_Nodes;
-    double xSpacing, ySpacing, zSpacing;
-    double xFactor, yFactor, zFactor;
     double xCoord[5] = {0, 1, 2, 5, 8}; // Variable gradient
     double yCoord[5] = {0, 2, 4, 6, 8}; // Gradient of 0
     double zCoord[5] = {0, 1, 2, 3, 4}; // Gradient of 0
@@ -219,7 +217,7 @@ void WriteQuadMeshFile () {
   /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim;
-    int iNode, jNode, kNode;
+    int iNode, jNode;
     int iPoint;
     int num_Nodes;
     double xSpacing, ySpacing;
@@ -588,10 +586,10 @@ void WriteHexMeshFile () {
     Mesh_File.close();
 }
 
-void WriteCfgFile(const unsigned short& nDim) {
+void WriteCfgFile(unsigned short nDim, const char* filename) {
   std::ofstream cfg_file;
 
-  cfg_file.open("test.cfg", ios::out);
+  cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
   if (nDim == 2)
@@ -618,9 +616,10 @@ struct ResolutionFixture {
     delete config;
   }
 
-  void SetupConfig(const unsigned short& nDim) {
-    WriteCfgFile(nDim);
-    config = new CConfig("test.cfg", SU2_CFD, 0, 1, 2, VERB_NONE);
+  void SetupConfig(unsigned short nDim) {
+    char cfg_filename[100] = "resolution_tensor_test.cfg";
+    WriteCfgFile(nDim, cfg_filename);
+    config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
   }
 
   void SetupGeometry() {
@@ -645,6 +644,7 @@ struct ResolutionFixture {
     geometry->SetBoundControlVolume(config, ALLOCATE);
   }
 
+  static unsigned short cfg_file_counter;
   const su2double machine_eps;
   CConfig* config;
   CGeometry* geometry;
@@ -801,12 +801,9 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
   SetupConfig(nDim);
   SetupGeometry();
 
-  unsigned short iDim;
   unsigned short iPoint;
 
   geometry->SetResolutionTensor();
-
-  bool entries_correct = true;
 
   for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
