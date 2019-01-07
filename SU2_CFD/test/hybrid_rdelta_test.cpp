@@ -46,10 +46,10 @@
 #include "../include/variable_structure_v2f.hpp"
 #include "../include/hybrid_RANS_LES_model.hpp"
 
-void WriteCfgFile(const unsigned short& nDim) {
+void WriteCfgFile(unsigned short nDim, const char* filename) {
   std::ofstream cfg_file;
 
-  cfg_file.open("hybrid_rdelta_test.cfg", ios::out);
+  cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
   cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
@@ -70,8 +70,8 @@ struct HybridRdeltaFixture {
   HybridRdeltaFixture()
     : machine_eps(std::numeric_limits<su2double>::epsilon())
   {
-    WriteCfgFile(3);
     char cfg_filename[100] = "hybrid_rdelta_test.cfg";
+    WriteCfgFile(3, cfg_filename);
     mock_config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 3, VERB_NONE);
 
     su2double flow_soln[5], hybrid_soln;
