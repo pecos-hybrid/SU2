@@ -18,7 +18,10 @@ Active branches
    time-stepping.  These problems were believed to be due to the
    approximations made in calculating Jacobians.  Focus has shifted away
    from RK methods due to these problems, and this branch was abandoned.
-+ _pecos-model-split_ Adds a model-split option to the config file.
++ _pecos-model-split_ The main development branch for the fully integrated
+  model-split hybridization.  While other branches may contain pieces of
+  the model-split hybridization, this branch is used to combine all the
+  pieces together.
 + _pecos-new-forcing_ The branch containing the stream-function version
   of the model-split forcing.  This branch has not been tested, and may
   have some issues.
@@ -31,8 +34,6 @@ Branches based off su2code/SU2
   boundaries.
 + _fix_unify-FD-NTS-blending_ This branch contains some improvements and
   bug fixes for the FD/NTS central/upwind blending.
-+ _fix_viscous_jacobian_sign_error_ Changes the sign of a term in the
-  Jacobian of the viscous flux
 
 Deprecated branches
 -------------------
