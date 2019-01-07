@@ -31,7 +31,6 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef BUILD_TESTS
 #include "boost/test/included/unit_test.hpp"
 
 // If Boost isn't recent enough to support test info/context, ignore it
@@ -84,5 +83,3 @@ struct MPIGlobalFixture {
   }
 
 };
-
-#endif

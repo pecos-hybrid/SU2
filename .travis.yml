@@ -17,6 +17,7 @@ notifications:
 branches:
     only:
         - pecos-dev
+        - pecos-improve-unit-tests
 
 python:
     - 2.7
@@ -24,7 +25,7 @@ python:
 
 env:
     global:
-        CXXFLAGS="-O1 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
+        CXXFLAGS="-O0 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
     matrix:
         # Serial build and test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
@@ -71,6 +72,7 @@ install:
     - ./bootstrap
     - $CONFIGURE_COMMAND
     - make -j 4
+    - make check -j 4
     - make install
 
     # Add environmental variables according to the configure step
@@ -80,13 +82,7 @@ install:
     - export PYTHONPATH=$PYTHONPATH:$SU2_RUN
 
 before_script:
-    # Get the test cases
-    - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
-    - cp -R ./TestData/* ./TestCases/
+    cd ./
 
-    # Enter the SU2/TestCases/ directory, which is now ready to run
-    - cd TestCases/
-
-script: 
-    # Run the tests via the Python scripts
-    - travis_wait 90 python $TEST_SCRIPT
+script:
+    cd ./

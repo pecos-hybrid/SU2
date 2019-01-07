@@ -654,8 +654,6 @@ struct ResolutionFixture {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-#ifdef BUILD_TESTS
-
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
@@ -830,5 +828,3 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
     BOOST_CHECK_SMALL(Mij[2][2] - 1.0, machine_eps);
   }
 }
-
-#endif
