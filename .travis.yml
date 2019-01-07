@@ -20,28 +20,46 @@ branches:
         - pecos-improve-unit-tests
 
 python:
+    # TODO: Re-include python 3 after testing is complete
     - 2.7
-    - 3.6
+
+matrix:
+  include:
+    - env:
+        # Serial build and test
+        - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
+          TEST_SCRIPT=serial_regression.py
+    - env:
+        # Parallel build and test
+        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
+          TEST_SCRIPT=parallel_regression.py
+    - env:
+        # Serial build and test for AD
+        - CONFIGURE_COMMAND="./preconfigure.py --with-cc=gcc --with-cxx=g++ --prefix=$TRAVIS_BUILD_DIR --enable-autodiff --enable-direct-diff --disable-tecio"
+          TEST_SCRIPT=serial_regression_AD.py
+    - env:
+        # Serial build and unit-test
+        - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --disable-tecio --with-Boost-include=/usr/include/"
+          TEST_SCRIPT=serial_regression.py
+      addons:
+          apt:
+              sources: ['boost-latest']
+      after_success:
+        - make check -j 4
+    - env:
+        # Parallel build and unit-test
+        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --disable-tecio --with-Boost-include=/usr/include/"
+          TEST_SCRIPT=parallel_regression.py
+      addons:
+          apt:
+              sources: ['boost-latest']
+      after_success:
+        - make check -j 4
+
 
 env:
     global:
         CXXFLAGS="-O0 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
-    matrix:
-        # Serial build and test
-        - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
-          TEST_SCRIPT=serial_regression.py
-
-        # Parallel build and test
-        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
-          TEST_SCRIPT=parallel_regression.py
-
-        # Serial build and test for AD
-        - CONFIGURE_COMMAND="./preconfigure.py --with-cc=gcc --with-cxx=g++ --prefix=$TRAVIS_BUILD_DIR --enable-autodiff --enable-direct-diff --disable-tecio"
-          TEST_SCRIPT=serial_regression_AD.py
-
-        # Parallel build and test for AD:
-        # CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-autodiff --enable-direct-diff --disable-tecio"
-        # TEST_SCRIPT=parallel_regression_AD.py
 
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
@@ -72,7 +90,6 @@ install:
     - ./bootstrap
     - $CONFIGURE_COMMAND
     - make -j 4
-    - make check -j 4
     - make install
 
     # Add environmental variables according to the configure step
@@ -82,7 +99,12 @@ install:
     - export PYTHONPATH=$PYTHONPATH:$SU2_RUN
 
 before_script:
-    cd ./
+    # Get the test cases
+    - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+    - cp -R ./TestData/* ./TestCases/
+
+    # Enter the SU2/TestCases/ directory, which is now ready to run
+    - cd TestCases/
 
 script:
     cd ./
