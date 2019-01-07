@@ -512,6 +512,7 @@ void CConfig::SetPointersNull(void) {
   default_body_force         = NULL;
   default_sineload_coeff     = NULL;
   default_nacelle_location   = NULL;
+  default_hybrid_periodic_length = NULL;
 
   Riemann_FlowDir       = NULL;
   Giles_FlowDir         = NULL;
