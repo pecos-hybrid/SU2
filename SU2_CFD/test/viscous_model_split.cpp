@@ -246,7 +246,7 @@ BOOST_AUTO_TEST_CASE(RansStressMatchesIsotropicEddyViscosityStress) {
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     BOOST_TEST_CONTEXT("iDim: " << iDim) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        su2double diff = std::abs(rans_tau[iDim][jDim] - model_split_tau[iDim][jDim]);
+        su2double diff = abs(rans_tau[iDim][jDim] - model_split_tau[iDim][jDim]);
         BOOST_TEST_CONTEXT("jDim: " << jDim)
         BOOST_CHECK_SMALL(diff, tolerance);
       }
