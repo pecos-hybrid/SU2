@@ -56,7 +56,7 @@ matrix:
     - env:
         # Serial build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          UNITS_TESTS=ON
+          UNIT_TESTS=ON
       addons:
           apt:
               packages:
@@ -65,7 +65,7 @@ matrix:
     - env:
         # Parallel build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          UNITS_TESTS=ON
+          UNIT_TESTS=ON
       addons:
           apt:
               packages:
