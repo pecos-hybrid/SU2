@@ -17170,7 +17170,6 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                     ((config->GetKind_Turb_Model() == SST) ||
                      (config->GetKind_Turb_Model() == KE)));
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
-  const su2double min_tke = EPS;  // XXX: This floor is arbitrary
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -17201,35 +17200,41 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 
     if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
 
+      // TODO: Move this to the hybrid mediator to keep the CNSSolver cleaner
+
       const su2double k_total = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
       const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
       assert(k_resolved >= 0);
 
-      /*--- Check the model tke, to ensure we don't divide by a very small
-       * number or use a negative model k ---*/
+      if (k_resolved <= k_total) {
 
-      if (k_total < 0) {
-
-        /*--- Unphysical value, so just default to alpha = 1.0 ---*/
-
-        RightSol = false;
-        average_node[iPoint]->SetKineticEnergyRatio(1.0);
-
-      } else if (k_total > min_tke || (k_total > 0 && k_resolved <= k_total)) {
-
-        /*--- If model and resolved turbulence are out of balance,
-         * mark the point as unphysical but proceed. --*/
-
-        if (k_resolved < turb_ke) RightSol = false;
+        assert(k_total >= 0.0); // We should only reach this branch if k > 0
         const su2double alpha = 1.0 - k_resolved / k_total;
         average_node[iPoint]->SetKineticEnergyRatio(alpha);
+        assert(alpha == alpha);  // alpha should not be NaN
 
       } else {
-        // Model turb_ke is negligible, so just force alpha to 1.0
-        average_node[iPoint]->SetKineticEnergyRatio(1.0);
+
+        RightSol = false;
+
+        /*--- Check the model tke, to ensure we don't divide by a very small
+         * number or use a negative model k ---*/
+
+        const su2double min_tke = EPS;  // XXX: This floor is arbitrary
+        if (k_total > min_tke) {
+
+          /*--- Even though alpha > 1, proceed and hope the solution improves ---*/
+          const su2double alpha = 1.0 - k_resolved / k_total;
+          average_node[iPoint]->SetKineticEnergyRatio(alpha);
+          assert(alpha == alpha);  // alpha should not be NaN
+
+        } else {
+
+          /*--- k_total is either negative or very small, so default to 1 ---*/
+          average_node[iPoint]->SetKineticEnergyRatio(1.0);
+
+        }
       }
-      const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
-      assert(alpha == alpha); // Alpha should not be NaN
     }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
