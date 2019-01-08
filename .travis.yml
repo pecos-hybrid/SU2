@@ -29,25 +29,28 @@ matrix:
         # Serial build and test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=serial_regression.py
+          REGRESSION_TESTS=ON
     - env:
         # Parallel build and test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=parallel_regression.py
+          REGRESSION_TESTS=ON
     - env:
         # Serial build and test for AD
         - CONFIGURE_COMMAND="./preconfigure.py --with-cc=gcc --with-cxx=g++ --prefix=$TRAVIS_BUILD_DIR --enable-autodiff --enable-direct-diff --disable-tecio"
           TEST_SCRIPT=serial_regression_AD.py
+          REGRESSION_TESTS=ON
     - env:
         # Serial build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          TEST_SCRIPT=serial_regression.py
       after_success:
+        - cd $TRAVIS_BUILD_DIR
         - make check -j 4
     - env:
         # Parallel build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          TEST_SCRIPT=parallel_regression.py
       after_success:
+        - cd $TRAVIS_BUILD_DIR
         - make check -j 4
 
 
@@ -95,11 +98,14 @@ install:
 
 before_script:
     # Get the test cases
-    - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
-    - cp -R ./TestData/* ./TestCases/
-
-    # Enter the SU2/TestCases/ directory, which is now ready to run
-    - cd TestCases/
+    - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
+      git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData &&
+      cp -R ./TestData/* ./TestCases/ &&
+      cd TestCases/;
+      fi
 
 script:
-    cd ./
+    # Run the tests via the Python scripts
+    - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
+      travis_wait 90 python $TEST_SCRIPT;
+      fi
