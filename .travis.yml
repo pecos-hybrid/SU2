@@ -30,29 +30,48 @@ matrix:
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=serial_regression.py
           REGRESSION_TESTS=ON
+      addons:
+          apt:
+              packages:
+                - build-essential
     - env:
         # Parallel build and test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=parallel_regression.py
           REGRESSION_TESTS=ON
+      addons:
+          apt:
+              packages:
+                - build-essential
+                - libopenmpi-dev
     - env:
         # Serial build and test for AD
         - CONFIGURE_COMMAND="./preconfigure.py --with-cc=gcc --with-cxx=g++ --prefix=$TRAVIS_BUILD_DIR --enable-autodiff --enable-direct-diff --disable-tecio"
           TEST_SCRIPT=serial_regression_AD.py
           REGRESSION_TESTS=ON
+      addons:
+          apt:
+              packages:
+                - build-essential
     - env:
         # Serial build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-      after_success:
-        - cd $TRAVIS_BUILD_DIR
-        - make check -j 4
+          UNITS_TESTS=ON
+      addons:
+          apt:
+              packages:
+                - build-essential
+                - libboost-test-dev
     - env:
         # Parallel build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-      after_success:
-        - cd $TRAVIS_BUILD_DIR
-        - make check -j 4
-
+          UNITS_TESTS=ON
+      addons:
+          apt:
+              packages:
+                - build-essential
+                - libopenmpi-dev
+                - libboost-test-dev
 
 env:
     global:
@@ -61,11 +80,6 @@ env:
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - export PATH=/usr/bin:$PATH
-
-    # Install the necessary packages using apt-get with sudo
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq build-essential libopenmpi-dev
-    - sudo apt-get install -qq libboost-test-dev
  
     # Install Python dependencies
     # http://conda.pydata.org/docs/travis.html#the-travis-yml-file
@@ -87,6 +101,7 @@ install:
     - echo $CONFIGURE_COMMAND
     - ./bootstrap
     - $CONFIGURE_COMMAND
+    - pwd
     - make -j 4
     - make install
 
@@ -108,4 +123,7 @@ script:
     # Run the tests via the Python scripts
     - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
       travis_wait 90 python $TEST_SCRIPT;
+      fi
+    - if [[ "${UNIT_TESTS}" == "ON" ]]; then
+      cd $TRAVIS_BUILD_DIR && make check -j4;
       fi
