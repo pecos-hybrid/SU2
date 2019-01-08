@@ -39,13 +39,13 @@ matrix:
           TEST_SCRIPT=serial_regression_AD.py
     - env:
         # Serial build and unit-test
-        - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --disable-tecio --with-Boost-include=/usr/include/"
+        - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
           TEST_SCRIPT=serial_regression.py
       after_success:
         - make check -j 4
     - env:
         # Parallel build and unit-test
-        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --disable-tecio --with-Boost-include=/usr/include/"
+        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
           TEST_SCRIPT=parallel_regression.py
       after_success:
         - make check -j 4
