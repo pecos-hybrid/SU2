@@ -102,7 +102,6 @@ install:
     - ./bootstrap
     - $CONFIGURE_COMMAND
     - make -j 4
-    - make check -j 4
     - make install
 
     # Add environmental variables according to the configure step
@@ -123,4 +122,8 @@ script:
     # Run the tests via the Python scripts
     - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
       travis_wait 90 python $TEST_SCRIPT;
+      fi
+    # Run the unit tests
+    - if [[ "${UNIT_TESTS}" == "ON" ]]; then
+      cd $TRAVIS_BUILD_DIR && make check -j4;
       fi
