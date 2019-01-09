@@ -897,6 +897,10 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
 
     CFluctuatingStress* fluct_stress = new CM43Model(nDim, config);
     hybrid_mediator->SetFluctuatingStress(fluct_stress);
+
+    /*--- Add a forcing model to the hybrid mediator ---*/
+    CHybridForcingAbstractBase* forcing = new CHybridForcingTG0(geometry[0], config);
+    hybrid_mediator->SetForcingModel(forcing);
   }
 
   /*--- Definition of the Class for the solution: solver_container[DOMAIN][MESH_LEVEL][EQUATION]. Note that euler, ns
