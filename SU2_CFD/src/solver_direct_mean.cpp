@@ -17529,6 +17529,51 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
   
 }
 
+void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
+                                CNumerics *numerics, CNumerics *second_numerics,
+                                CConfig *config, unsigned short iMesh,
+                                unsigned short iRKStep) {
+  // Call base class for most of work
+  CEulerSolver::Source_Residual(geometry, solver_container,
+                                numerics, second_numerics, config,
+                                iMesh, iRKStep);
+
+  // If hybrid...
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+
+    // ... evaluate forcing field...
+    HybridMediator->ComputeForcingField(solver_container, geometry, config);
+
+    // ... and add to residual
+    for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+      const su2double Volume = geometry->node[iPoint]->GetVolume();
+      const su2double* U = node[iPoint]->GetSolution();
+
+      // TODO: Implement!
+      const su2double* Force = HybridMediator->GetForcingVector(iPoint);
+
+      // mass (no forcing)
+      Residual[0] = 0.0;
+
+      // momentum
+      for (unsigned short iDim = 0; iDim < nDim; iDim++)
+        Residual[iDim+1] = -Volume * U[0] * Force[iDim];
+
+      // energy
+      Residual[nDim+1] = 0.0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++)
+        Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
+
+      // update residual
+      LinSysRes.AddBlock(iPoint, Residual);
+
+      // TODO: Jacobian
+    }
+  }
+
+}
+
 void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
   
   unsigned long iVertex, iPoint, iPointNormal;
