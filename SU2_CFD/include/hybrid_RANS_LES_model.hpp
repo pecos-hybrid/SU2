@@ -37,6 +37,7 @@
 #include "../../Common/include/mpi_structure.hpp"
 #include "fluctuating_stress.hpp"
 #include "numerics_structure.hpp"
+#include "hybrid_RANS_LES_forcing.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -49,6 +50,7 @@
 
 // Forward declarations to resolve circular dependencies
 class CSolver;
+class CHybridForcingAbstractBase;
 
 using namespace std;
 
@@ -97,6 +99,13 @@ class CAbstract_Hybrid_Mediator {
   virtual void ComputeResolutionAdequacy(CGeometry* geometry,
                                          CSolver **solver_container,
                                          unsigned long iPoint) = 0;
+
+  /**
+   * \brief Evaluate forcing field
+   */
+  virtual void ComputeForcingField(CSolver** solver, CGeometry *geometry,
+                                   CConfig *config) = 0;
+
   /**
    * \brief Retrieve and pass along all necessary info for the resolved flow.
    *
@@ -124,6 +133,9 @@ class CAbstract_Hybrid_Mediator {
                                          unsigned long jPoint) = 0;
 
   virtual void SetFluctuatingStress(CFluctuatingStress* fluct_stress) = 0;
+
+  virtual void SetForcingModel(CHybridForcingAbstractBase* forcing_model) = 0;
+  virtual const su2double* GetForcingVector(unsigned long iPoint) = 0;
 };
 
 
@@ -144,6 +156,8 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   std::vector<std::vector<su2double> > constants;
   CFluctuatingStress* fluct_stress_model;
   CConfig* config;
+  CHybridForcingAbstractBase* forcing_model;
+
 
   /*--- Data structures for LAPACK ---*/
 #ifdef HAVE_LAPACK
@@ -269,6 +283,9 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                                  CSolver **solver_container,
                                  unsigned long iPoint);
 
+  void ComputeForcingField(CSolver** solver, CGeometry *geometry,
+                           CConfig *config);
+
   void SetupResolvedFlowSolver(CGeometry* geometry,
                                CSolver **solver_container,
                                unsigned long iPoint);
@@ -303,6 +320,9 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 			     vector<vector<su2double> > &eigvectors);
 
   void SetFluctuatingStress(CFluctuatingStress* fluct_stress);
+
+  void SetForcingModel(CHybridForcingAbstractBase* forcing);
+  const su2double* GetForcingVector(unsigned long iPoint);
 };
 
 /*!
@@ -314,7 +334,9 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
  protected:
 
   unsigned short nDim;
+  su2double*  zero_vector; /*!< \brief A zero nDim x nDim tensor */
   su2double** zero_tensor; /*!< \brief A zero nDim x nDim tensor */
+
 
  public:
 
@@ -347,6 +369,9 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                                  CSolver **solver_container,
                                  unsigned long iPoint);
 
+  void ComputeForcingField(CSolver** solver, CGeometry *geometry,
+                           CConfig *config);
+
   void SetupResolvedFlowSolver(CGeometry* geometry,
                                CSolver **solver_container,
                                unsigned long iPoint);
@@ -367,6 +392,9 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                              unsigned long jPoint);
 
   void SetFluctuatingStress(CFluctuatingStress* fluct_stress);
+
+  void SetForcingModel(CHybridForcingAbstractBase* forcing);
+  const su2double* GetForcingVector(unsigned long iPoint);
 };
 
 /*--- Template definitions:

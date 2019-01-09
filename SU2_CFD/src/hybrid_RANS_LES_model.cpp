@@ -41,7 +41,7 @@
 #endif
 
 CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename)
-   : nDim(nDim), fluct_stress_model(NULL), config(config) {
+    : nDim(nDim), fluct_stress_model(NULL), forcing_model(NULL), config(config) {
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -144,10 +144,14 @@ CHybrid_Mediator::~CHybrid_Mediator() {
   delete [] aniso_eddy_viscosity;
 
   /*--- Through dependency injection, we've taken over responsibility for
-   * the fluctuating stress model.
+   * the fluctuating stress and forcing models.
    */
   if (fluct_stress_model != NULL) {
     delete fluct_stress_model;
+  }
+
+  if (forcing_model != NULL) {
+    delete forcing_model;
   }
 
 #ifdef HAVE_LAPACK
@@ -284,6 +288,13 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(CGeometry* geometry,
   // Set resolution adequacy in the CNSVariables class
   solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
 }
+
+void CHybrid_Mediator::ComputeForcingField(CSolver** solver,
+                                           CGeometry *geometry,
+                                           CConfig *config) {
+  forcing_model->ComputeForcingField(solver, geometry, config);
+}
+
 
 void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
                                                CSolver **solver_container,
@@ -860,13 +871,24 @@ void CHybrid_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) {
   fluct_stress_model = fluct_stress;
 }
 
+void CHybrid_Mediator::SetForcingModel(CHybridForcingAbstractBase* forcing) {
+  forcing_model = forcing;
+}
+
+const su2double* CHybrid_Mediator::GetForcingVector(unsigned long iPoint) {
+  return forcing_model->GetForcingVector(iPoint);
+}
+
 
 CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(unsigned short nDim,
                                                CConfig* config)
     : nDim(nDim) {
 
+  zero_vector = new su2double[nDim];
+
   zero_tensor = new su2double*[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    zero_vector[iDim] = 0;
     zero_tensor[iDim] = new su2double[nDim];
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       zero_tensor[iDim][jDim] = 0;
@@ -881,7 +903,7 @@ CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
     delete [] zero_tensor[iDim];
   }
   delete [] zero_tensor;
-
+  delete [] zero_vector;
 }
 
 void CHybrid_Dummy_Mediator::SetupRANSNumerics(CSolver **solver_container,
@@ -898,6 +920,13 @@ void CHybrid_Dummy_Mediator::ComputeResolutionAdequacy(CGeometry* geometry,
   // Set resolution adequacy in the CNSVariables class
   solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(1.0);
 }
+
+void CHybrid_Dummy_Mediator::ComputeForcingField(CSolver** solver,
+                                                 CGeometry *geometry,
+                                                 CConfig *config) {
+  // nothing to compute
+}
+
 
 void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
                                                CSolver **solver_container,
@@ -942,4 +971,14 @@ void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
 void CHybrid_Dummy_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) {
   /*--- We won't use it, so just delete it. ---*/
   delete fluct_stress;
+}
+
+void CHybrid_Dummy_Mediator::SetForcingModel(CHybridForcingAbstractBase* forcing) {
+  /*--- We won't use it, so just delete it. ---*/
+  delete forcing;
+}
+
+const su2double* CHybrid_Dummy_Mediator::GetForcingVector(unsigned long iPoint) {
+  // dummy mediator has no forcing
+  return zero_vector;
 }
