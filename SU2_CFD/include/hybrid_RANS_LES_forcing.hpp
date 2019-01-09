@@ -37,7 +37,11 @@
 
 #include "../../Common/include/geometry_structure.hpp"
 #include "../../Common/include/config_structure.hpp"
-#include "../include/solver_structure.hpp"
+//#include "solver_structure.hpp" // moved to hybrid_RANS_LES_forcing.cpp to avoid circular includes here
+
+// Forward declarations to resolve circular dependencies
+class CSolver;
+
 
 /*!
  * \class CHybridForcingAbstractBase
@@ -75,6 +79,8 @@ class CHybridForcingAbstractBase {
    */
   virtual void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                                    CConfig *config) = 0;
+
+  virtual const su2double* GetForcingVector(unsigned long iPoint) = 0;
 
  protected:
   const unsigned short nDim,   /*!< \brief Number of dimensions of the problem. */
@@ -137,6 +143,7 @@ class CHybridForcingTGSF : public CHybridForcingAbstractBase{
                                  const su2double dt, const su2double* b);
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                            CConfig *config);
+  const su2double* GetForcingVector(unsigned long iPoint);
 
  protected:
 
@@ -184,6 +191,8 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
 
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                            CConfig *config);
+
+  const su2double* GetForcingVector(unsigned long iPoint);
 
  protected:
 

@@ -32,6 +32,7 @@
  */
 
 #include "../include/hybrid_RANS_LES_forcing.hpp"
+#include "../include/solver_structure.hpp"
 
 CHybridForcingAbstractBase::CHybridForcingAbstractBase(
                               const unsigned short nDim,
@@ -534,6 +535,11 @@ void CHybridForcingTGSF::Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *
 
 }
 
+const su2double* CHybridForcingTGSF::GetForcingVector(unsigned long iPoint) {
+  // FIXME: Have this return valid forcing
+  // Can't b/c valid forcing not stored!
+  return NULL;
+}
 
 CHybridForcingTG0::CHybridForcingTG0(const unsigned short nDim,
                                const unsigned long nPoint,
@@ -681,4 +687,8 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     }
 
   } // end loop over points
+}
+
+const su2double* CHybridForcingTG0::GetForcingVector(unsigned long iPoint) {
+  return node[iPoint];
 }
