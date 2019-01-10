@@ -2949,7 +2949,7 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
      * values stored in the "Solution" are good values. ---*/
 
     su2double timescale;
-    const su2double dt = config->GetDelta_UnstTimeND();
+    const su2double dt = solver[FLOW_SOL]->node[0]->GetDelta_Time();
     const su2double N_T = config->GetnAveragingPeriods();
 
     assert(dt > 0);

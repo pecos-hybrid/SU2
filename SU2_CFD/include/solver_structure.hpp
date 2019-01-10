@@ -6869,6 +6869,14 @@ public:
    * \param[in] inMarkerTP - turboperformance marker.
    */
   void SetNuOut(su2double value, unsigned short inMarkerTP, unsigned short valSpan);
+  void FindRestartVariable(const std::string& name,
+                           const vector<string>& fields,
+                           bool& found_index,
+                           unsigned short & index) const;
+  void LoadSolution(bool val_update_geo,
+                    const string& restart_filename,
+                    CConfig* config,
+                    CGeometry** geometry);
 };
 
   

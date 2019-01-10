@@ -56,8 +56,6 @@ void WriteGradientMeshFile () {
     int iNode, jNode, kNode;
     int iPoint;
     int num_Nodes;
-    double xSpacing, ySpacing, zSpacing;
-    double xFactor, yFactor, zFactor;
     double xCoord[5] = {0, 1, 2, 5, 8}; // Variable gradient
     double yCoord[5] = {0, 2, 4, 6, 8}; // Gradient of 0
     double zCoord[5] = {0, 1, 2, 3, 4}; // Gradient of 0
@@ -219,7 +217,7 @@ void WriteQuadMeshFile () {
   /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim;
-    int iNode, jNode, kNode;
+    int iNode, jNode;
     int iPoint;
     int num_Nodes;
     double xSpacing, ySpacing;
@@ -582,10 +580,10 @@ void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) 
     Mesh_File.close();
 }
 
-void WriteCfgFile(unsigned short nDim) {
+void WriteCfgFile(unsigned short nDim, const char* filename) {
   std::ofstream cfg_file;
 
-  cfg_file.open("test.cfg", ios::out);
+  cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
   cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
@@ -615,8 +613,10 @@ struct ResolutionFixture {
   }
 
   void SetupConfig(unsigned short nDim) {
-    WriteCfgFile(nDim);
-    config = new CConfig("test.cfg", SU2_CFD, 0, 1, 2, VERB_NONE);
+    char cfg_filename[100] = "resolution_tensor_test.cfg";
+    WriteCfgFile(nDim, cfg_filename);
+    config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
+    std::remove(cfg_filename);
   }
 
   void SetupGeometry() {
@@ -640,6 +640,7 @@ struct ResolutionFixture {
     geometry->SetBoundControlVolume(config, ALLOCATE);
   }
 
+  static unsigned short cfg_file_counter;
   const su2double machine_eps;
   CConfig* config;
   CGeometry* geometry;

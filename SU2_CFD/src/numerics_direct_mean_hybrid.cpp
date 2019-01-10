@@ -199,7 +199,7 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   if (time < config->GetAveragingStartTime()) {
     for (iVar = 0; iVar < nDim+1; iVar++) {
       for (iDim = 0; iDim < nDim; iDim++) {
-        assert(std::abs(Mean_GradPrimVar_Fluct[iVar][iDim]) < EPS);
+        assert(abs(Mean_GradPrimVar_Fluct[iVar][iDim]) < EPS);
       }
     }
   }

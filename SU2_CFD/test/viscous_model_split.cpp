@@ -35,7 +35,7 @@
 #define BOOST_TEST_MODULE ViscousModelSplit
 #include "MPI_global_fixture.hpp"
 
-
+#include <cstdio> // std::remove
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -54,11 +54,11 @@ const unsigned short nPrimVar = nDim+3;
 /**
  * Write a cfg file to be used in initializing the CConfig object.
  */
-void WriteCfgFile() {
+void WriteCfgFile(const char* filename) {
 
   std::ofstream cfg_file;
 
-  cfg_file.open("test.cfg", ios::out);
+  cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "TIME_DISCRE_FLOW= EULER_IMPLICIT" << std::endl;
 
@@ -246,7 +246,7 @@ BOOST_AUTO_TEST_CASE(RansStressMatchesIsotropicEddyViscosityStress) {
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     BOOST_TEST_CONTEXT("iDim: " << iDim) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        su2double diff = std::abs(rans_tau[iDim][jDim] - model_split_tau[iDim][jDim]);
+        su2double diff = abs(rans_tau[iDim][jDim] - model_split_tau[iDim][jDim]);
         BOOST_TEST_CONTEXT("jDim: " << jDim)
         BOOST_CHECK_SMALL(diff, tolerance);
       }
@@ -286,11 +286,13 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesModelSplitHeatFlux) {
    * SETUP
    * ---*/
 
-  WriteCfgFile();
+  char cfg_filename[100] = "viscous_model_split_test.cfg";
+  WriteCfgFile(cfg_filename);
   const unsigned short iZone = 0;
   const unsigned short nZone = 1;
-  CConfig* test_config = new CConfig("test.cfg", SU2_CFD, iZone, nZone, 2, VERB_NONE);
+  CConfig* test_config = new CConfig(cfg_filename, SU2_CFD, iZone, nZone, 2, VERB_NONE);
   test_config->SetGas_ConstantND(287.058);
+  std::remove(cfg_filename);
 
   CAvgGrad_Flow rans_numerics(nDim, nVar, false, test_config);
   CAvgGrad_Hybrid model_split_numerics(nDim, nVar, false, test_config);
@@ -358,11 +360,13 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesIsotropicEddyViscosityHeatFlux) {
    * SETUP
    * ---*/
 
-  WriteCfgFile();
+  char cfg_filename[100] = "viscous_model_split_test.cfg";
+  WriteCfgFile(cfg_filename);
   const unsigned short iZone = 0;
   const unsigned short nZone = 1;
-  CConfig* test_config = new CConfig("test.cfg", SU2_CFD, iZone, nZone, 2, VERB_NONE);
+  CConfig* test_config = new CConfig(cfg_filename, SU2_CFD, iZone, nZone, 2, VERB_NONE);
   test_config->SetGas_ConstantND(287.058);
+  std::remove(cfg_filename);
 
   CAvgGrad_Flow rans_numerics(nDim, nVar, false, test_config);
   CAvgGrad_Hybrid model_split_numerics(nDim, nVar, false, test_config);

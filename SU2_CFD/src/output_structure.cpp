@@ -2441,6 +2441,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   nVar_Consv = nVar_First + nVar_Second + nVar_Third;
   nVar_Total = nVar_Consv;
   
+  /*--- Add the average values ---*/
+
+  if (runtime_average) nVar_Total += nVar_Consv;
+
   if (!config->GetLow_MemoryOutput()) {
     
     /*--- Add the limiters ---*/
@@ -2450,10 +2454,6 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     /*--- Add the residuals ---*/
     
     if (config->GetWrt_Residuals()) nVar_Total += nVar_Consv;
-    
-    /*--- Add the average values ---*/
-
-    if (runtime_average) nVar_Total += nVar_Consv;
 
     /*--- Add the grid velocity to the restart file for the unsteady adjoint ---*/
     

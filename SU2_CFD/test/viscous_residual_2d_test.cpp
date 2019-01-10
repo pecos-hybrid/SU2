@@ -35,6 +35,7 @@
 #define BOOST_TEST_MODULE Viscous2dResidual
 #include "MPI_global_fixture.hpp"
 
+
 #include <fstream>
 #include <iomanip>
 #include <iostream>

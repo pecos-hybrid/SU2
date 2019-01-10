@@ -1018,7 +1018,8 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
 
   /*--- Initialize the averages ---*/
 
-  if (config->GetKind_Averaging() != NO_AVERAGING) {
+  if (!config->GetRestart() && !config->GetRestart_Flow() &&
+      config->GetKind_Averaging() != NO_AVERAGING) {
     for (iMGlevel = 0; iMGlevel <= config->GetnMGLevels(); iMGlevel++) {
       solver_container[iMGlevel][FLOW_SOL]->InitAverages();
       if (turbulent) {

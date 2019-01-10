@@ -98,6 +98,9 @@ CEulerSolver::CEulerSolver(void) : CSolver() {
   DonorPrimVar = NULL; DonorGlobalIndex = NULL;
   ActDisk_DeltaP = NULL; ActDisk_DeltaT = NULL;
 
+  Inlet_Ttotal = NULL; Inlet_Ptotal = NULL; Inlet_FlowDir = NULL;
+  nVertex = NULL;
+
   LinSysKexp = NULL; LinSysKimp = NULL;
 
   Smatrix = NULL; Cvector = NULL;
@@ -14724,79 +14727,52 @@ void CEulerSolver::UpdateSolution_BGS(CGeometry *geometry, CConfig *config){
 
 }
 
-void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter, bool val_update_geo) {
-
-  /*--- Restart the solution from file information ---*/
-  unsigned short iDim, iVar, iMesh, iMeshFine;
-  unsigned long iPoint, index, iChildren, Point_Fine;
-  unsigned short turb_model = config->GetKind_Turb_Model();
-  su2double Area_Children, Area_Parent, *Coord, *Solution_Fine;
-  bool grid_movement  = config->GetGrid_Movement();
-  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
-                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
-  bool static_fsi = ((config->GetUnsteady_Simulation() == STEADY) &&
-                     (config->GetFSI_Simulation()));
-  bool steady_restart = config->GetSteadyRestart();
-  bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
-  bool runtime_averaging = config->GetKind_Averaging() != NO_AVERAGING;
-
-  string UnstExt, text_line;
-  ifstream restart_file;
-
-  unsigned short iZone = config->GetiZone();
-  unsigned short nZone = config->GetnZone();
-
-  string restart_filename = config->GetSolution_FlowFileName();
-
-  Coord = new su2double [nDim];
-  for (iDim = 0; iDim < nDim; iDim++)
-    Coord[iDim] = 0.0;
-
-  int counter = 0;
-  long iPoint_Local = 0; unsigned long iPoint_Global = 0;
-  unsigned long iPoint_Global_Local = 0;
-  unsigned short rbuf_NotMatching = 0, sbuf_NotMatching = 0;
-
-  /*--- Skip coordinates ---*/
-  
-  unsigned short skipVars = geometry[MESH_0]->GetnDim();
-
-  /*--- Multizone problems require the number of the zone to be appended. ---*/
-
-  if (nZone > 1)
-    restart_filename = config->GetMultizone_FileName(restart_filename, iZone);
-
-  /*--- Modify file name for an unsteady restart ---*/
-
-  if (dual_time || time_stepping)
-    restart_filename = config->GetUnsteady_FileName(restart_filename, val_iter);
-
-  /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
-
-  if (config->GetRead_Binary_Restart()) {
-    Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
-  } else {
-    Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
+void CEulerSolver::FindRestartVariable(const std::string& name,
+                                       const vector<string>& fields,
+                                       bool& found_index,
+                                       unsigned short & index) const {
+  unsigned short variable_counter = 0;
+  for (std::vector<string>::const_iterator it = fields.begin();
+       it != fields.end(); ++it) {
+    if (name == *it) {
+      if (!found_index) {
+        index = variable_counter - 1;  // No point number in Restart_Data
+        found_index = true;
+      } else {
+        std::ostringstream error_msg;
+        error_msg << "Found two variables named " << name;
+        SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
+    }
+    variable_counter++;
   }
+}
+
+void CEulerSolver::LoadSolution(bool val_update_geo,
+                                const string& restart_filename,
+                                CConfig* config,
+                                CGeometry** geometry) {
+
+  const unsigned short turb_model = config->GetKind_Turb_Model();
+  const bool grid_movement  = config->GetGrid_Movement();
+  const bool static_fsi = ((config->GetUnsteady_Simulation() == STEADY) &&
+                           (config->GetFSI_Simulation()));
+  const bool steady_restart = config->GetSteadyRestart();
+  const bool runtime_averaging = config->GetKind_Averaging() != NO_AVERAGING;
+  const unsigned short skipVars = geometry[MESH_0]->GetnDim();
+  const bool model_split = config->GetKind_HybridRANSLES() == MODEL_SPLIT;
+
+  su2double* Coord = new su2double [nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    Coord[iDim] = 0.0;
 
   /*--- Find average flow variables, if present ---*/
 
   bool found_average_index = false;
   unsigned short Average_Index;
   if (runtime_averaging) {
-    counter = 0;
-    for(std::vector<string>::iterator it = config->fields.begin();
-        it != config->fields.end(); ++it) {
-      if ("\"Average_Density\"" == *it) {
-        if (!found_average_index) {
-          Average_Index = counter-1; // No point number in Restart_Data
-          found_average_index = true;
-        } else {
-          SU2_MPI::Error("Found two variables named \"Average_Density.\"", CURRENT_FUNCTION);
-        }
-      }
-      counter++;
-    }
+    FindRestartVariable("\"Average_Density\"", config->fields,
+                        found_average_index, Average_Index);
     if (!found_average_index && rank == MASTER_NODE) {
       cout << "Average flow variables not found in restart file.\n";
       cout << "Setting the initial values of the average to the ";
@@ -14804,23 +14780,35 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
     }
   }
 
+  bool found_resolved_stress = false;
+  unsigned short resolved_stress_index;
+  if (model_split && found_average_index) {
+    FindRestartVariable("\"tau_res_11\"", config->fields,
+                        found_resolved_stress, resolved_stress_index);
+    if (!found_resolved_stress) {
+      SU2_MPI::Error("Could not find resolved turbulent stress in the restart file.\nStarting a hybrid simulation from a URANS simulation is not currently supported.", CURRENT_FUNCTION);
+    }
+  }
+
   /*--- Load data from the restart into correct containers. ---*/
 
-  counter = 0;
-  for (iPoint_Global = 0; iPoint_Global < geometry[MESH_0]->GetGlobal_nPointDomain(); iPoint_Global++ ) {
+  int counter = 0;
+  unsigned long iPoint_Global_Local = 0;
+
+  for (unsigned long iPoint_Global = 0; iPoint_Global < geometry[MESH_0]->GetGlobal_nPointDomain(); iPoint_Global++ ) {
 
     /*--- Retrieve local index. If this node from the restart file lives
      on the current processor, we will load and instantiate the vars. ---*/
 
-    iPoint_Local = geometry[MESH_0]->GetGlobal_to_Local_Point(iPoint_Global);
+    long iPoint_Local = geometry[MESH_0]->GetGlobal_to_Local_Point(iPoint_Global);
 
     if (iPoint_Local > -1) {
 
       /*--- We need to store this point's data, so jump to the correct
        offset in the buffer of data from the restart file and load it. ---*/
 
-      index = counter*Restart_Vars[1] + skipVars;
-      for (iVar = 0; iVar < nVar; iVar++) Solution[iVar] = Restart_Data[index+iVar];
+      unsigned long index = counter*Restart_Vars[1] + skipVars;
+      for (unsigned short iVar = 0; iVar < nVar; iVar++) Solution[iVar] = Restart_Data[index+iVar];
       node[iPoint_Local]->SetSolution(Solution);
       iPoint_Global_Local++;
 
@@ -14829,13 +14817,37 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
       if (runtime_averaging) {
         if (found_average_index) {
           index = counter*Restart_Vars[1] + Average_Index;
-          for (iVar = 0; iVar < nVar; iVar++) {
+          for (unsigned short iVar = 0; iVar < nVar; iVar++) {
             Solution[iVar] = Restart_Data[index+iVar];
           }
           average_node[iPoint_Local]->SetSolution(Solution);
         } else {
           average_node[iPoint_Local]->SetSolution(node[iPoint_Local]->GetSolution());
         }
+      }
+
+      /*--- Read in the resolved turbulent stress ---*/
+
+      if (model_split) {
+        if (found_average_index) {
+          // We should have gotten an error previously if this is not true.
+          assert(found_resolved_stress);
+          index = counter*Restart_Vars[1] + resolved_stress_index;
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, Restart_Data[index]);
+              index++;
+            }
+          }
+        } else {
+          /*--- No averages, so just set production to 0 ---*/
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
+            }
+          }
+        }
+        average_node[iPoint_Local]->SetResolvedKineticEnergy();
       }
 
       /*--- For dynamic meshes, read in and store the
@@ -14863,25 +14875,25 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
 
           /*--- Rewind the index to retrieve the Coords. ---*/
           index = counter*Restart_Vars[1];
-          for (iDim = 0; iDim < nDim; iDim++) { Coord[iDim] = Restart_Data[index+iDim]; }
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) { Coord[iDim] = Restart_Data[index+iDim]; }
 
           /*--- Move the index forward to get the grid velocities. ---*/
           index = counter*Restart_Vars[1] + skipVars + nVar;
-          for (iDim = 0; iDim < nDim; iDim++) { GridVel[iDim] = Restart_Data[index+iDim]; }
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) { GridVel[iDim] = Restart_Data[index+iDim]; }
         }
 
-        for (iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
           geometry[MESH_0]->node[iPoint_Local]->SetCoord(iDim, Coord[iDim]);
           geometry[MESH_0]->node[iPoint_Local]->SetGridVel(iDim, GridVel[iDim]);
         }
       }
-        
+
       if (static_fsi && val_update_geo) {
        /*--- Rewind the index to retrieve the Coords. ---*/
         index = counter*Restart_Vars[1];
-        for (iDim = 0; iDim < nDim; iDim++) { Coord[iDim] = Restart_Data[index+iDim];}
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) { Coord[iDim] = Restart_Data[index+iDim];}
 
-        for (iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
           geometry[MESH_0]->node[iPoint_Local]->SetCoord(iDim, Coord[iDim]);
         }
       }
@@ -14892,8 +14904,11 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
 
   }
 
+  delete [] Coord;
+
   /*--- Detect a wrong solution file ---*/
 
+  unsigned short rbuf_NotMatching = 0, sbuf_NotMatching = 0;
   if (iPoint_Global_Local < nPointDomain) { sbuf_NotMatching = 1; }
 
 #ifndef HAVE_MPI
@@ -14905,6 +14920,51 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
       SU2_MPI::Error(string("The solution file ") + restart_filename + string(" doesn't match with the mesh file!\n") +
                      string("It could be empty lines at the end of the file."), CURRENT_FUNCTION);
   }
+}
+
+void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter, bool val_update_geo) {
+
+  /*--- Restart the solution from file information ---*/
+  unsigned short iVar, iMesh, iMeshFine;
+  unsigned long iPoint, iChildren, Point_Fine;
+  su2double Area_Children, Area_Parent, *Solution_Fine;
+  bool grid_movement  = config->GetGrid_Movement();
+  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
+                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
+  bool static_fsi = ((config->GetUnsteady_Simulation() == STEADY) &&
+                     (config->GetFSI_Simulation()));
+  bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
+  const bool runtime_averaging = config->GetKind_Averaging() != NO_AVERAGING;
+
+  string UnstExt, text_line;
+  ifstream restart_file;
+
+  unsigned short iZone = config->GetiZone();
+  unsigned short nZone = config->GetnZone();
+
+  string restart_filename = config->GetSolution_FlowFileName();
+
+  /*--- Multizone problems require the number of the zone to be appended. ---*/
+
+  if (nZone > 1)
+    restart_filename = config->GetMultizone_FileName(restart_filename, iZone);
+
+  /*--- Modify file name for an unsteady restart ---*/
+
+  if (dual_time || time_stepping)
+    restart_filename = config->GetUnsteady_FileName(restart_filename, val_iter);
+
+  /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
+
+  if (config->GetRead_Binary_Restart()) {
+    Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
+  } else {
+    Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
+  }
+
+  /*--- Find average flow variables, if present ---*/
+
+  LoadSolution(val_update_geo, restart_filename, config, geometry);
 
   /*--- Communicate the loaded solution on the fine grid before we transfer
    it down to the coarse levels. We alo call the preprocessing routine
@@ -14997,8 +15057,6 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
       geometry[iMesh]->SetCoord(geometry[iMeshFine]);
     }
   }
-  
-  delete [] Coord;
 
   /*--- Delete the class memory that is used to load the restart. ---*/
 
@@ -16154,6 +16212,7 @@ CNSSolver::CNSSolver(void) : CEulerSolver() {
   /*--- Rotorcraft simulation array initialization ---*/
   
   CMerit_Visc = NULL; CT_Visc = NULL; CQ_Visc = NULL;
+  HF_Visc = NULL; MaxHF_Visc = NULL;
 
   /*--- Inlet Variables ---*/
   Inlet_Ttotal = NULL;
@@ -16162,6 +16221,8 @@ CNSSolver::CNSSolver(void) : CEulerSolver() {
   
   SlidingState      = NULL;
   SlidingStateNodes = NULL;
+
+  HeatConjugateVar = NULL;
 
 }
 
@@ -17170,7 +17231,6 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                     ((config->GetKind_Turb_Model() == SST) ||
                      (config->GetKind_Turb_Model() == KE)));
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
-  const su2double min_tke = EPS;  // XXX: This floor is arbitrary
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -17201,35 +17261,47 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 
     if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
 
+      // TODO: Move this to the hybrid mediator to keep the CNSSolver cleaner
+      // TODO: Remove extra asserts after testing is complete.
+
       const su2double k_total = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
       const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
       assert(k_resolved >= 0);
 
-      /*--- Check the model tke, to ensure we don't divide by a very small
-       * number or use a negative model k ---*/
+      if (k_resolved <= k_total) {
 
-      if (k_total < 0) {
-
-        /*--- Unphysical value, so just default to alpha = 1.0 ---*/
-
-        RightSol = false;
-        average_node[iPoint]->SetKineticEnergyRatio(1.0);
-
-      } else if (k_total > min_tke || (k_total > 0 && k_resolved <= k_total)) {
-
-        /*--- If model and resolved turbulence are out of balance,
-         * mark the point as unphysical but proceed. --*/
-
-        if (k_resolved < turb_ke) RightSol = false;
-        const su2double alpha = 1.0 - k_resolved / k_total;
-        average_node[iPoint]->SetKineticEnergyRatio(alpha);
+        assert(k_total >= 0.0); // We should only reach this branch if k > 0
+        if (k_total == 0) {
+          assert(k_resolved == 0.0); // We should only reach this branch if this is true.
+          average_node[iPoint]->SetKineticEnergyRatio(1.0);
+        } else {
+          const su2double alpha = 1.0 - k_resolved / k_total;
+          average_node[iPoint]->SetKineticEnergyRatio(alpha);
+          assert(alpha == alpha);  // alpha should not be NaN
+        }
 
       } else {
-        // Model turb_ke is negligible, so just force alpha to 1.0
-        average_node[iPoint]->SetKineticEnergyRatio(1.0);
+
+        RightSol = false;
+
+        /*--- Check the model tke, to ensure we don't divide by a very small
+         * number or use a negative model k ---*/
+
+        const su2double min_tke = EPS;  // XXX: This floor is arbitrary
+        if (k_total > min_tke) {
+
+          /*--- Even though alpha > 1, proceed and hope the solution improves ---*/
+          const su2double alpha = 1.0 - k_resolved / k_total;
+          average_node[iPoint]->SetKineticEnergyRatio(alpha);
+          assert(alpha == alpha);  // alpha should not be NaN
+
+        } else {
+
+          /*--- k_total is either negative or very small, so default to 1 ---*/
+          average_node[iPoint]->SetKineticEnergyRatio(1.0);
+
+        }
       }
-      const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
-      assert(alpha == alpha); // Alpha should not be NaN
     }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
@@ -18947,7 +19019,6 @@ void CNSSolver::InitAverages() {
 
   /*--- We assume that resolved = average, so fluctuating = 0 ---*/
 
-  // TODO: Figure out how to setup resolved production when restarting
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
