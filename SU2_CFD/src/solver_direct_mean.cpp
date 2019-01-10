@@ -14839,11 +14839,15 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
               index++;
             }
           }
-          average_node[iPoint_Local]->SetResolvedKineticEnergy();
         } else {
           /*--- No averages, so just set production to 0 ---*/
-
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
+            }
+          }
         }
+        average_node[iPoint_Local]->SetResolvedKineticEnergy();
       }
 
       /*--- For dynamic meshes, read in and store the
@@ -18970,7 +18974,6 @@ void CNSSolver::InitAverages() {
 
   /*--- We assume that resolved = average, so fluctuating = 0 ---*/
 
-  // TODO: Figure out how to setup resolved production when restarting
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
