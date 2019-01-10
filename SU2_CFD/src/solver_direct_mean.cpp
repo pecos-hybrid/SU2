@@ -14783,8 +14783,15 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
   bool found_resolved_stress = false;
   unsigned short resolved_stress_index;
   if (model_split && found_average_index) {
+    // Non-tecplot name
     FindRestartVariable("\"tau_res_11\"", config->fields,
                         found_resolved_stress, resolved_stress_index);
+    if (!found_resolved_stress) {
+      // Tecplot name
+      FindRestartVariable("\"tau<sup>res</sup><sub>11</sub>\"", config->fields,
+                          found_resolved_stress, resolved_stress_index);
+    }
+
     if (!found_resolved_stress) {
       SU2_MPI::Error("Could not find resolved turbulent stress in the restart file.\nStarting a hybrid simulation from a URANS simulation is not currently supported.", CURRENT_FUNCTION);
     }
