@@ -14807,7 +14807,7 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
       /*--- We need to store this point's data, so jump to the correct
        offset in the buffer of data from the restart file and load it. ---*/
 
-      unsigned short index = counter*Restart_Vars[1] + skipVars;
+      unsigned long index = counter*Restart_Vars[1] + skipVars;
       for (unsigned short iVar = 0; iVar < nVar; iVar++) Solution[iVar] = Restart_Data[index+iVar];
       node[iPoint_Local]->SetSolution(Solution);
       iPoint_Global_Local++;
