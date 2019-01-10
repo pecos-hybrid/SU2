@@ -46,6 +46,7 @@ check_PROGRAMS += viscous_model_split
 check_PROGRAMS += fluctuating_stress_test
 check_PROGRAMS += hybrid_rdelta_test
 check_PROGRAMS += load_hybrid_constants_test
+check_PROGRAMS += load_heterogeneous_restart
 if BUILD_LAPACK
 check_PROGRAMS += eigensolver_test
 check_PROGRAMS += zeta_unit_cell_test
@@ -79,6 +80,7 @@ viscous_model_split_SOURCES            = viscous_model_split.cpp
 fluctuating_stress_test_SOURCES        = fluctuating_stress_test.cpp
 hybrid_rdelta_test_SOURCES             = hybrid_rdelta_test.cpp
 load_hybrid_constants_test_SOURCES     = load_hybrid_constants_test.cpp
+load_heterogeneous_restart_SOURCES     = load_heterogeneous_restart.cpp
 if BUILD_LAPACK
 eigensolver_test_SOURCES               = eigensolver_test.cpp
 zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
@@ -94,6 +96,7 @@ TESTS += viscous_model_split
 TESTS += fluctuating_stress_test
 TESTS += hybrid_rdelta_test
 TESTS += load_hybrid_constants_test
+TESTS += load_heterogeneous_restart
 if BUILD_LAPACK
 TESTS += eigensolver_test
 TESTS += zeta_unit_cell_test

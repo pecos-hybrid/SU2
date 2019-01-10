@@ -987,8 +987,9 @@ inline void CNSVariable::SetResolvedKineticEnergy(void) {
    * so we have to use a negative value and divide by density. ---*/
   ResolvedKineticEnergy = 0;
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    ResolvedKineticEnergy += -0.5*ResolvedTurbStress[iDim][iDim]/Solution[0];
+    ResolvedKineticEnergy += -0.5*ResolvedTurbStress[iDim][iDim];
   }
+  ResolvedKineticEnergy /= GetDensity();
 }
 
 inline void CNSVariable::SetWallTemperature(su2double Temperature_Wall ) { Primitive[0] = Temperature_Wall; }
