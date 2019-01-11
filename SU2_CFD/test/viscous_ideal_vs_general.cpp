@@ -36,8 +36,6 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef BUILD_TESTS
-
 #define BOOST_TEST_MODULE ViscousIdealVsGeneral
 #include "MPI_global_fixture.hpp"
 
@@ -307,5 +305,3 @@ BOOST_AUTO_TEST_CASE(IdealVsGeneralComparison) {
   delete [] general_jacobian_i;
   delete [] general_jacobian_j;
 }
-
-#endif

@@ -31,8 +31,6 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef BUILD_TESTS
-
 #define BOOST_TEST_MODULE FluctuatingStress
 #include "boost/test/included/unit_test.hpp"
 
@@ -308,5 +306,3 @@ BOOST_FIXTURE_TEST_CASE(Smoke_Test, FluctuatingStressFixture) {
   delete [] eddy_viscosity;
   delete m43;
 }
-
-#endif
