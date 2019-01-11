@@ -36,8 +36,6 @@
 
 #include "../../Common/include/config_structure.hpp"
 
-#ifdef BUILD_TESTS
-
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 BOOST_AUTO_TEST_CASE(Unit_Test_Config) {
@@ -49,5 +47,3 @@ BOOST_AUTO_TEST_CASE(Unit_Test_Config) {
 
   delete test_config;
 }
-
-#endif
