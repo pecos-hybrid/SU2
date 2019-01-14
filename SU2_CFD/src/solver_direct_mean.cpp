@@ -17238,6 +17238,23 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                     ((config->GetKind_Turb_Model() == SST) ||
                      (config->GetKind_Turb_Model() == KE)));
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
+
+  /*--- Compute the minimum value of TKE allowed ---*/
+
+  su2double tke_min;
+  if (model_split) {
+    su2double scale = 1.0e-8;  // XXX: This value is somewhat arbitrary.
+    su2double* VelInf = config->GetVelocity_FreeStreamND();
+    su2double VelMag = 0;
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      VelMag += VelInf[iDim]*VelInf[iDim];
+    VelMag = sqrt(VelMag);
+    if (VelMag == 0) {
+      SU2_MPI::Error("The model split method assumes the use of a nonzero freestream velocity.", CURRENT_FUNCTION);
+    }
+    tke_min = scale*0.5*VelMag*VelMag;
+  }
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -17275,39 +17292,16 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
       assert(k_resolved >= 0);
 
-      if (k_resolved <= k_total) {
-
-        assert(k_total >= 0.0); // We should only reach this branch if k > 0
-        if (k_total == 0) {
-          assert(k_resolved == 0.0); // We should only reach this branch if this is true.
-          average_node[iPoint]->SetKineticEnergyRatio(1.0);
-        } else {
-          const su2double alpha = 1.0 - k_resolved / k_total;
-          average_node[iPoint]->SetKineticEnergyRatio(alpha);
-          assert(alpha == alpha);  // alpha should not be NaN
-        }
-
+      if (k_total < tke_min) {
+        /*--- If the supposed "total" turbulence is negligible, don't do
+         * anything.  Otherwise, we could get NaNs from dividing by zero
+         * or very large numbers from dividing by very small numbers. ---*/
+        average_node[iPoint]->SetKineticEnergyRatio(1.0);
       } else {
-
-        RightSol = false;
-
-        /*--- Check the model tke, to ensure we don't divide by a very small
-         * number or use a negative model k ---*/
-
-        const su2double min_tke = EPS;  // XXX: This floor is arbitrary
-        if (k_total > min_tke) {
-
-          /*--- Even though alpha > 1, proceed and hope the solution improves ---*/
-          const su2double alpha = 1.0 - k_resolved / k_total;
-          average_node[iPoint]->SetKineticEnergyRatio(alpha);
-          assert(alpha == alpha);  // alpha should not be NaN
-
-        } else {
-
-          /*--- k_total is either negative or very small, so default to 1 ---*/
-          average_node[iPoint]->SetKineticEnergyRatio(1.0);
-
-        }
+        /*--- Allow unbalanced (negative) alpha values to go through ---*/
+        const su2double alpha = 1.0 - k_resolved / k_total;
+        average_node[iPoint]->SetKineticEnergyRatio(alpha);
+        assert(alpha == alpha);  // alpha should not be NaN
       }
     }
 
