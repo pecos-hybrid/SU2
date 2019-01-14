@@ -302,7 +302,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
   /*--- Write the header ---*/
   Tecplot_File << "ZONE ";
   if (config->GetUnsteady_Simulation() && config->GetWrt_Unsteady()) {
-    Tecplot_File << "STRANDID="<<SU2_TYPE::Int(iExtIter+1)<<", SOLUTIONTIME="<<config->GetDelta_UnstTime()*iExtIter<<", ";
+    Tecplot_File << "STRANDID="<<SU2_TYPE::Int(iExtIter+1)<<", SOLUTIONTIME="<<config->GetCurrent_UnstTime()<<", ";
   } else if (config->GetUnsteady_Simulation() == HARMONIC_BALANCE) {
     /*--- Compute period of oscillation & compute time interval using nTimeInstances ---*/
     su2double period = config->GetHarmonicBalance_Period();
@@ -928,7 +928,7 @@ void COutput::WriteTecplotASCII_Parallel(CConfig *config, CGeometry *geometry, C
     
     Tecplot_File << "ZONE ";
     if (config->GetUnsteady_Simulation() && config->GetWrt_Unsteady()) {
-      Tecplot_File << "STRANDID="<<SU2_TYPE::Int(iExtIter+1)<<", SOLUTIONTIME="<<config->GetDelta_UnstTime()*iExtIter<<", ";
+      Tecplot_File << "STRANDID="<<SU2_TYPE::Int(iExtIter+1)<<", SOLUTIONTIME="<<config->GetCurrent_UnstTime()<<", ";
     } else if (config->GetUnsteady_Simulation() == HARMONIC_BALANCE) {
       /*--- Compute period of oscillation & compute time interval using nTimeInstances ---*/
       su2double period = config->GetHarmonicBalance_Period();
@@ -1684,7 +1684,7 @@ void COutput::SetTecplotBinary_DomainSolution(CConfig *config, CGeometry *geomet
   Debug            = 0;
   IsDouble          = 1;
   NPts            = (INTEGER4)nGlobal_Poin;
-  t              = SU2_TYPE::GetValue(iExtIter*config->GetDelta_UnstTime());
+  t              = SU2_TYPE::GetValue(config->GetCurrent_UnstTime());
   KMax            = 0;
   ICellMax          = 0;
   JCellMax          = 0;
@@ -2751,7 +2751,7 @@ void COutput::SetTecplotBinary_SurfaceSolution(CConfig *config, CGeometry *geome
   Debug            = 0;
   IsDouble          = 1;
   NPts            = (INTEGER4)nSurf_Poin;
-  t              = SU2_TYPE::GetValue(iExtIter*config->GetDelta_UnstTime());
+  t              = SU2_TYPE::GetValue(config->GetCurrent_UnstTime());
   KMax            = 0;
   ICellMax          = 0;
   JCellMax          = 0;
