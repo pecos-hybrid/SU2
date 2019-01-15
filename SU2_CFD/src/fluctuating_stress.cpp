@@ -62,7 +62,7 @@ CM43Model::CM43Model(unsigned short val_nDim,
 
 void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
                                        CConfig* config,
-                                       unsigned short iPoint,
+                                       unsigned long iPoint,
                                        su2double** eddy_viscosity) const {
 
   /*-- Retrieve necessary variables ---*/
@@ -105,7 +105,7 @@ CNoStressModel::CNoStressModel(unsigned short val_nDim)
 
 void CNoStressModel::CalculateEddyViscosity(const CGeometry* geometry,
                                             CConfig* config,
-                                            unsigned short iPoint,
+                                            unsigned long iPoint,
                                             su2double** eddy_viscosity) const {
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {

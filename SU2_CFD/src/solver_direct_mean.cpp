@@ -18987,7 +18987,7 @@ void CNSSolver::InitAverages() {
 }
 
 void CNSSolver::UpdateAverage(const su2double weight,
-                              const unsigned short iPoint,
+                              const unsigned long iPoint,
                               su2double* buffer) {
 
   assert(average_node != NULL);

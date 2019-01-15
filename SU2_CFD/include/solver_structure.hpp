@@ -159,7 +159,7 @@ protected:
    * \param buffer - An allocated array of size nVar for working calculations
    */
   virtual void UpdateAverage(const su2double weight,
-                             const unsigned short iPoint,
+                             const unsigned long iPoint,
                              su2double* buffer);
 
 public:
@@ -8598,7 +8598,7 @@ public:
    * \param buffer - An allocated array of size nVar for working calculations
    */
   void UpdateAverage(const su2double weight,
-                     const unsigned short iPoint,
+                     const unsigned long iPoint,
                      su2double* buffer);
 
   void InitAverages();
