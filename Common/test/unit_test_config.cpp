@@ -31,8 +31,6 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef BUILD_TESTS
-
 #define BOOST_TEST_MODULE Unit_test_config
 
 #include "../../Common/test/MPI_global_fixture.hpp"
