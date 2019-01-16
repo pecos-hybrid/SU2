@@ -45,8 +45,6 @@
 #include "../include/numerics_structure.hpp"
 #include "../include/numerics_direct_mean_hybrid.hpp"
 
-#ifdef BUILD_TESTS
-
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
 const unsigned short nPrimVar = nDim+10;
@@ -665,5 +663,3 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithModelSplit, ViscousResidualFixture) {
   }
   delete [] aniso_eddy_viscosity;
 }
-
-#endif

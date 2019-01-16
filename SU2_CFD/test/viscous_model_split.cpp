@@ -70,8 +70,6 @@ void WriteCfgFile(const char* filename) {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-#ifdef BUILD_TESTS
-
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 /**
@@ -433,5 +431,3 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesIsotropicEddyViscosityHeatFlux) {
   delete [] aniso_eddy_viscosity;
 
 }
-
-#endif

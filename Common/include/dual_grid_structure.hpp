@@ -863,7 +863,7 @@ public:
          * \return The cell-to-cell distances along the "principal directions" of the
          *         current cell.
          */
-        su2double* GetResolutionValues(void);
+        const su2double* GetResolutionValues(void) const;
 
         /**
          * \brief Gets the set of vectors for the resolution tensor.

@@ -49,5 +49,3 @@ BOOST_AUTO_TEST_CASE(Unit_Test_Config) {
 
   delete test_config;
 }
-
-#endif

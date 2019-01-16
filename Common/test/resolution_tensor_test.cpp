@@ -650,8 +650,6 @@ struct ResolutionFixture {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-#ifdef BUILD_TESTS
-
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
@@ -903,5 +901,3 @@ BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
     BOOST_CHECK_CLOSE_FRACTION(C_M, correct_value, tolerance);
   }
 }
-
-#endif

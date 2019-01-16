@@ -3007,7 +3007,7 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
 }
 
 
-void CSolver::UpdateAverage(su2double weight, unsigned short iPoint,
+void CSolver::UpdateAverage(su2double weight, unsigned long iPoint,
                             su2double* buffer) {
 
   assert(average_node != NULL);

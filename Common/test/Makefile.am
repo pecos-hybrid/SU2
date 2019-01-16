@@ -33,42 +33,35 @@
 #
 ################################################################################
 
-# Test programs
 check_PROGRAMS  =
-
-# Test sources
-
-# Tests to be run
 TESTS  =
 
-# Any of above we expect to fail?
-#XFAIL_TESTS =
+if HAVE_BOOST
+check_PROGRAMS += unit_test_config
+check_PROGRAMS += resolution_tensor_test
+endif
 
-# Include the compiled SU2 common library
+# Eventually these will likely be required
 AM_CPPFLAGS = -I$(top_srcdir)/Common/include
+#AM_LDFLAGS = 
+#LIBS = 
 LDADD = $(top_builddir)/Common/lib/libSU2.a
 
 # always link to built dependencies from ./externals
-AM_CPPFLAGS += @su2_externals_INCLUDES@
+AM_CPPFLAGS += @su2_externals_INCLUDES@ @BOOST_CXX@
 LDADD += @su2_externals_LIBS@
 
-if BUILD_TESTS
-
-AM_CPPFLAGS += -DBUILD_TESTS @BOOST_CXX@
-
-# Test programs
-check_PROGRAMS += unit_test_config
-check_PROGRAMS += resolution_tensor_test
-
 # Test sources
+if HAVE_BOOST
 unit_test_config_SOURCES = unit_test_config.cpp
 resolution_tensor_test_SOURCES = resolution_tensor_test.cpp
+endif
 
 # Tests to be run
+if HAVE_BOOST
 TESTS += unit_test_config
 TESTS += resolution_tensor_test
+endif
 
 # Any of above we expect to fail?
 #XFAIL_TESTS =
-
-endif

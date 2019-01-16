@@ -124,8 +124,6 @@ struct HybridRdeltaFixture {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-#ifdef BUILD_TESTS
-
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
@@ -325,5 +323,3 @@ BOOST_FIXTURE_TEST_CASE(PureRotation, HybridRdeltaFixture) {
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,2),0.0);
 
 }
-
-#endif
