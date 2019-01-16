@@ -255,7 +255,7 @@ inline su2double CPoint::GetResolutionCoeff(void) const { return ResolutionCoeff
 
 inline su2double** CPoint::GetResolutionVectors(void) { return ResolutionVectors; }
 
-inline su2double* CPoint::GetResolutionValues(void) { return ResolutionValues; }
+inline const su2double* CPoint::GetResolutionValues(void) const { return ResolutionValues; }
 inline void CPoint::SetAdjointCoord(su2double *adj_coor){
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
         SU2_TYPE::SetDerivative(Coord[iDim], SU2_TYPE::GetValue(adj_coor[iDim]));

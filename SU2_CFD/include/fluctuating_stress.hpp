@@ -82,7 +82,7 @@ class CFluctuatingStress {
    */
   virtual void CalculateEddyViscosity(const CGeometry* geometry,
                                       CConfig* config,
-                                      unsigned short iPoint,
+                                      unsigned long iPoint,
                                       su2double** eddy_viscosity) const = 0;
  protected:
   const unsigned short nDim;
@@ -97,10 +97,12 @@ class CM43Model : public CFluctuatingStress {
 
   void CalculateEddyViscosity(const CGeometry* geometry,
                               CConfig* config,
-                              unsigned short iPoint,
+                              unsigned long iPoint,
                               su2double** eddy_viscosity) const;
  private:
   unsigned short density_index;
+  su2double ComputeDamping(const CGeometry* geometry, CConfig* config,
+                           unsigned long iPoint) const;
 };
 
 class CNoStressModel : public CFluctuatingStress {
@@ -109,6 +111,6 @@ class CNoStressModel : public CFluctuatingStress {
 
   void CalculateEddyViscosity(const CGeometry* geometry,
                               CConfig* config,
-                              unsigned short iPoint,
+                              unsigned long iPoint,
                               su2double** eddy_viscosity) const;
 };

@@ -175,7 +175,7 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
 
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
   su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-  su2double* ResolutionValues = geometry->node[iPoint]->GetResolutionValues();
+  const su2double* ResolutionValues = geometry->node[iPoint]->GetResolutionValues();
   su2double** ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
 
   if (config->GetKind_Hybrid_Resolution_Indicator() != RK_INDICATOR) {
@@ -606,7 +606,7 @@ vector<su2double> CHybrid_Mediator::GetEigValues_Q(vector<su2double> eigvalues_M
   return eigvalues_Q;
 }
 
-vector<vector<su2double> > CHybrid_Mediator::BuildZeta(su2double* values_M,
+vector<vector<su2double> > CHybrid_Mediator::BuildZeta(const su2double* values_M,
                                                        su2double** vectors_M) {
 
   vector<vector<su2double> > zeta(3, vector<su2double>(3,0));
