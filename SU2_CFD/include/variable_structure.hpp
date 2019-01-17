@@ -942,7 +942,7 @@ public:
    * \brief Get the resolution adequacy parameter for a hybrid RANS/LES model
    * \return The resolution adequacy parameter
    */
-  virtual su2double GetResolutionAdequacy(void);
+  virtual su2double GetResolutionAdequacy(void) const;
 
   /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy

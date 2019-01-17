@@ -269,7 +269,7 @@ inline su2double CVariable::GetTurbLengthscale(void) const { return 0; }
 
 inline su2double CVariable::GetAnisoRatio(void) {return 1; }
 
-inline su2double CVariable::GetResolutionAdequacy(void) {return 1; }
+inline su2double CVariable::GetResolutionAdequacy(void) const { return 1; }
 
 inline su2double CVariable::GetKineticEnergyRatio(void) const { return 1; }
 
