@@ -19002,7 +19002,6 @@ void CNSSolver::UpdateAverage(const su2double weight,
   }
   const su2double resolved_rho = resolved_prim_vars[nDim+2];
 
-  // TODO: Make averaging consistent with Favre-averaging
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
