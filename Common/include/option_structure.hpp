@@ -750,6 +750,17 @@ static const map<string, ENUM_HYBRID_RES_IND> Hybrid_Res_Ind_Map = CCreateMap<st
 ("RDELTA_FULLP_VELCON", RDELTA_INDICATOR_FULLP_VELCON);
 
 /*!
+ * \brief Type of subgrid energy transfer (SGET) model
+ */
+enum ENUM_SGET_MODEL {
+  NO_SGET_MODEL, /*!< \brief A zero stress model */
+  M43_MODEL      /*!< \brief Haering's M43 LES model */
+};
+static const map<string, ENUM_SGET_MODEL> SGET_Model_Map = CCreateMap<string, ENUM_SGET_MODEL>
+("NONE", NO_SGET_MODEL)
+("M43", M43_MODEL);
+
+/*!
  * \brief types of transition models
  */
 enum ENUM_TRANS_MODEL {

@@ -638,6 +638,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RK_INDICATOR);
 
+  /*! \brief SUBGRID_ENERGY_TRANSFER_MODEL \n DESCRIPTION: Specify the subgrid energy transfer model to be used with the model-split hybrid RANS/LES model. \n Options: see \link Hybrid_SGET_Model_Map \endlink \n DEFAULT: M43 \ingroup Config */
+  addEnumOption("SUBGRID_ENERGY_TRANSFER_MODEL", Kind_Hybrid_SGET_Model, SGET_Model_Map, M43_MODEL);
+
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
 

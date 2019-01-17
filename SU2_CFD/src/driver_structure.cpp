@@ -895,7 +895,11 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
 
     /*--- Add a fluctuating stress model to the hybrid mediator ---*/
 
-    CFluctuatingStress* fluct_stress = new CM43Model(nDim, config);
+    CFluctuatingStress* fluct_stress;
+    switch (config->GetKind_Hybrid_SGET_Model()) {
+      case NONE: fluct_stress = new CNoStressModel(nDim); break;
+      case M43_MODEL: fluct_stress = new CM43Model(nDim, config); break;
+    }
     hybrid_mediator->SetFluctuatingStress(fluct_stress);
   }
 

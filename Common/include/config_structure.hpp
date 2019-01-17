@@ -521,6 +521,7 @@ private:
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
   unsigned short Kind_HybridRANSLES_Testing; /*!< \brief Hybrid RANS/LES blending definition */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
+  unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -3769,6 +3770,13 @@ public:
    * \return Kind of blending scheme.
    */
   unsigned short GetKind_Hybrid_Resolution_Indicator(void);
+
+  /*!
+   * \brief Get the kind of subgrid energy-transfer model for hybrid
+   *        RANS/LES
+   * \return Kind of SGET model
+   */
+  unsigned short GetKind_Hybrid_SGET_Model(void);
 
   /*!
    * \brief Get the kind of the turbulence model.
