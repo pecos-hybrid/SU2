@@ -12957,7 +12957,17 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Local_Data[jPoint][iVar] = RetrieveVariable(solver, *it, iPoint);
           iVar++;
         }
-        
+
+        /*--- Load data for the additional vectors ---*/
+
+        for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+             it != output_vectors[val_iZone].end(); ++it) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            Local_Data[jPoint][iVar] = RetrieveVectorComponent(solver, *it, iPoint, iDim);
+            iVar++;
+          }
+        }
+
         /*--- Load data for the additional tensors ---*/
 
         for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
