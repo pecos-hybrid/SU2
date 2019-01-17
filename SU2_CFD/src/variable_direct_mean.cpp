@@ -560,6 +560,7 @@ CNSVariable::CNSVariable(void) : CEulerVariable() {
 
   ResolvedTurbStress = NULL;
   AnisoEddyViscosity = NULL;
+  ForcingVector = NULL;
 }
 
 CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2double val_energy,
@@ -591,6 +592,8 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     } else {
       Forcing_Stress = NULL;
     }
+
+    ForcingVector = new su2double[nDim];
 
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
@@ -627,6 +630,8 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
       Forcing_Stress = NULL;
     }
 
+    ForcingVector = new su2double[nDim];
+
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
     ResolvedKineticEnergy = 0;
@@ -650,6 +655,9 @@ CNSVariable::~CNSVariable(void) {
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
       delete [] Forcing_Stress[iDim];
     delete [] Forcing_Stress;
+  }
+  if (ForcingVector != NULL) {
+    delete [] ForcingVector;
   }
 }
 

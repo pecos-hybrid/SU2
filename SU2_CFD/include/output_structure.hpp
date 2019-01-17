@@ -57,7 +57,9 @@
 #include "../../Common/include/config_structure.hpp"
 
 typedef su2double (CVariable::*DataAccessor)() const;
+typedef su2double* (CVariable::*VectorAccessor)() const;
 typedef su2double** (CVariable::*TensorAccessor)() const;
+
 /*--- Define a macro to make (()->*(function pointer)) more readable ---*/
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object)->*(ptrToMember))
 
@@ -66,6 +68,14 @@ struct COutputVariable {
   std::string Tecplot_Name;
   unsigned short Solver_Type;
   DataAccessor Accessor;
+  bool Average;
+};
+
+struct COutputVector {
+  std::string Name;
+  std::string Tecplot_Name;
+  unsigned short Solver_Type;
+  VectorAccessor Accessor;
   bool Average;
 };
 
@@ -152,6 +162,7 @@ class COutput {
   su2double RhoRes_New, *RhoRes_Old;
   int cgns_base, cgns_zone, cgns_base_results, cgns_zone_results;
   std::vector<std::vector<COutputVariable> > output_vars;
+  std::vector<std::vector<COutputVector> > output_vectors;
   std::vector<std::vector<COutputTensor> > output_tensors;
   
   su2double Sum_Total_RadialDistortion, Sum_Total_CircumferentialDistortion; // Add all the distortion to compute a run average.
@@ -232,12 +243,19 @@ public:
                         unsigned short solver_type, DataAccessor accessor,
                         unsigned short val_zone, bool average=false);
 
+  void RegisterVector(std::string name, std::string tecplot_name,
+                      unsigned short solver_type, VectorAccessor accessor,
+                      unsigned short val_zone, bool average = false);
+
   void RegisterTensor(std::string name, std::string tecplot_name,
                       unsigned short solver_type, TensorAccessor accessor,
                       unsigned short val_zone, bool average = false);
 
   su2double RetrieveVariable(CSolver** solver, COutputVariable var,
                              unsigned long iPoint);
+
+  su2double RetrieveVectorComponent(CSolver** solver, COutputVector var,
+                                    unsigned long iPoint, unsigned short iDim);
 
   su2double RetrieveTensorComponent(CSolver** solver, COutputTensor var,
                                     unsigned long iPoint, unsigned short iDim,

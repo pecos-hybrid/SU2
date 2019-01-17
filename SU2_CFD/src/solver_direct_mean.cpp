@@ -17626,6 +17626,9 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
       // TODO: Implement!
       const su2double* Force = HybridMediator->GetForcingVector(iPoint);
 
+      // Set forcing in variable class (for output purposes)
+      node[iPoint]->SetForcingVector(Force);
+
       // mass (no forcing)
       Residual[0] = 0.0;
 

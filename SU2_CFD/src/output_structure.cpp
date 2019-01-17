@@ -435,6 +435,7 @@ COutput::~COutput(void) {
 void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
 
   output_vars.resize(val_nZone);
+  output_vectors.resize(val_nZone);
   output_tensors.resize(val_nZone);
 
   for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
@@ -462,6 +463,8 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                          &CVariable::GetResolutionAdequacy, iZone, false);
           RegisterScalar("Average_r_M", "avgr<sub>M</sub>", FLOW_SOL,
                          &CVariable::GetResolutionAdequacy, iZone, true);
+          RegisterVector("hyb_force", "F", FLOW_SOL,
+                         &CVariable::GetForcingVector, iZone, false);
           RegisterTensor("tau_res", "tau<sup>res</sup>", FLOW_SOL,
                          &CVariable::GetResolvedTurbStress, iZone, true);
           RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
@@ -488,6 +491,14 @@ void COutput::RegisterScalar(std::string name, std::string tecplot_name,
   output_vars[val_zone].push_back(variable);
 }
 
+void COutput::RegisterVector(std::string name, std::string tecplot_name,
+                             unsigned short solver_type,
+                             VectorAccessor accessor, unsigned short val_zone,
+                             bool average) {
+  COutputVector vector = {name, tecplot_name, solver_type, accessor, average};
+  output_vectors[val_zone].push_back(vector);
+}
+
 void COutput::RegisterTensor(std::string name, std::string tecplot_name,
                              unsigned short solver_type,
                              TensorAccessor accessor, unsigned short val_zone,
@@ -503,6 +514,15 @@ su2double COutput::RetrieveVariable(CSolver** solver,
     return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)();
   } else {
    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)();
+  }
+}
+
+su2double COutput::RetrieveVectorComponent(CSolver** solver, COutputVector var,
+                                           unsigned long iPoint, unsigned short iDim) {
+  if (var.Average) {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)()[iDim];
+  } else {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim];
   }
 }
 

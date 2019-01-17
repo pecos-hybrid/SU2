@@ -944,6 +944,8 @@ public:
    */
   virtual su2double GetResolutionAdequacy(void) const;
 
+  virtual su2double* GetForcingVector() const;
+
   /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy
    * \return The ratio of modeled to total turbulent kinetic energy
@@ -1158,6 +1160,8 @@ public:
    * \param[in] val_r_k - The resolution adequacy parameter for hybrid RANS/LES
    */
   virtual void SetResolutionAdequacy(su2double val_r_k);
+
+  virtual void SetForcingVector(const su2double* force);
 
   /*!
    * \brief Set the ratio of modeled to total turbulent kinetic energy.
@@ -3973,6 +3977,7 @@ private:
   su2double ResolvedKineticEnergy;
   su2double** Forcing_Stress;
   su2double ResolutionAdequacy;
+  su2double* ForcingVector;
   
 public:
   
@@ -4058,6 +4063,8 @@ public:
 
   void SetResolutionAdequacy(su2double val_r_k);
 
+  void SetForcingVector(const su2double* force);
+
   /*!
    * \brief Get the laminar viscosity of the flow.
    * \return Value of the laminar viscosity of the flow.
@@ -4095,6 +4102,8 @@ public:
   su2double GetResolvedKineticEnergy(void) const;
 
   su2double GetResolutionAdequacy(void) const;
+
+  su2double* GetForcingVector() const;
 
   void SetForcingStress(su2double** val_tau_F);
 
