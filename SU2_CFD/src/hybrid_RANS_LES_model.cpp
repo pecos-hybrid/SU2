@@ -294,10 +294,13 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
         solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
     const su2double* turbvar =
         solver_container[TURB_SOL]->node[iPoint]->GetSolution();
+    const su2double mean_eddy_visc =
+        solver_container[FLOW_SOL]->node[iPoint]->GetEddyViscosity();
 
     fluct_stress_model->SetPrimitive(primvar);
     fluct_stress_model->SetTurbVar(turbvar);
     fluct_stress_model->CalculateEddyViscosity(geometry, config, iPoint,
+                                               mean_eddy_visc,
                                                aniso_eddy_viscosity);
     solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
 

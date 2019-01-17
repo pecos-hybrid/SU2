@@ -240,7 +240,7 @@ struct FluctuatingStressFixture {
   }
 
   void SetupConfig(unsigned short nDim) {
-    char cfg_filename[100] = "viscous_ideal_vs_general_test.cfg";
+    char cfg_filename[100] = "fluctuating_stress_test.cfg";
     WriteCfgFile(nDim, cfg_filename);
     config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
     std::remove(cfg_filename);
@@ -295,10 +295,12 @@ BOOST_FIXTURE_TEST_CASE(Smoke_Test, FluctuatingStressFixture) {
   const su2double turb_vars[] = {0.0, 1.0, 0.0, 0.0};
   m43->SetPrimitive(flow_prim_vars);
   m43->SetTurbVar(turb_vars);
+  const su2double rans_eddy_viscosity = 0.0;
 
   /*--- Test ---*/
 
-  m43->CalculateEddyViscosity(geometry, config, dummy_point, eddy_viscosity);
+  m43->CalculateEddyViscosity(geometry, config, dummy_point,
+                              rans_eddy_viscosity, eddy_viscosity);
 
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++)
