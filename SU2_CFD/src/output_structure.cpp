@@ -2520,6 +2520,11 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       nVar_Total += 1;
     }
     
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      nVar_Total += nDim;
+    }
+
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       nVar_Total += nDim*nDim;
@@ -3349,6 +3354,60 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       }
 
       iVar++;
+    }
+
+    /*--- Communicate the extra vector variables ---*/
+
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+
+        /*--- Loop over this partition to collect the current variable ---*/
+
+        jPoint = 0;
+        for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+          /*--- Check for halos & write only if requested ---*/
+
+          if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+            /*--- Load buffers with the variables. ---*/
+
+            Buffer_Send_Var[jPoint] = RetrieveVectorComponent(solver, *it, iPoint, iDim);
+
+            jPoint++;
+          }
+        }
+
+        /*--- Gather the data on the master node. ---*/
+
+#ifdef HAVE_MPI
+        SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+#else
+        for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+#endif
+
+        /*--- The master node unpacks and sorts this variable by global index ---*/
+
+        if (rank == MASTER_NODE) {
+          jPoint = 0;
+          for (iProcessor = 0; iProcessor < size; iProcessor++) {
+            for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+              /*--- Get global index, then loop over each variable and store ---*/
+
+              iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+              Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+              jPoint++;
+            }
+
+            /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+            jPoint = (iProcessor+1)*nBuffer_Scalar;
+          }
+        }
+        iVar++;
+      }
     }
 
     /*--- Communicate the extra tensor variables ---*/
@@ -4455,6 +4514,20 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"" << it->Tecplot_Name << "\"";
     }
     
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      if (config->GetOutput_FileFormat() == PARAVIEW) {
+        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+          restart_file << "\t\"" << it->Name << "_" << iDim << "\"";
+        }
+      } else {
+        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+            restart_file << "\t\"" << it->Tecplot_Name;
+            restart_file << "<sub>" << iDim << "</sub>" << "\"";
+        }
+      }
+    }
+
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
@@ -12656,6 +12729,22 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         Variable_Names.push_back(it->Name);
       } else {
         Variable_Names.push_back(it->Tecplot_Name);
+      }
+    }
+
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
+        nVar_Par += 1;
+        if (config->GetOutput_FileFormat() == PARAVIEW){
+          ostringstream label;
+          label << it->Name << "_" << iDim;
+          Variable_Names.push_back(label.str());
+        } else {
+          ostringstream label;
+          label << it->Tecplot_Name << "<sub>" << iDim << "</sub>";
+          Variable_Names.push_back(label.str());
+        }
       }
     }
 
