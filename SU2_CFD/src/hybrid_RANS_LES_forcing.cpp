@@ -579,6 +579,8 @@ CHybridForcingTG0::~CHybridForcingTG0() {
 void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometry,
                                             CConfig *config) {
 
+  const su2double TKE_MIN = EPS;
+
   const unsigned short kind_time_marching = config->GetUnsteady_Simulation();
 
   assert(kind_time_marching == TIME_STEPPING   ||
@@ -599,7 +601,6 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
   // Domain lengths for periodic directions
   su2double *D = config->GetHybrid_Forcing_Periodic_Length();
-
 
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
@@ -633,9 +634,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
 
     // ratio of modeled to total TKE
-    const su2double alpha = 1.0 - kres/ktot;
-
-    // TODO: Need to limit alpha here?
+    const su2double alpha = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
 
     // FIXME: Where is average r_M stored?
     // I can't find it... looks like it isn't getting averaged?
@@ -676,7 +675,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     PFtest *= Ftar*dt;
 
     const su2double Cnu = 1.0;
-    const su2double alpha_kol = Cnu*std::sqrt(nu*tdr)/ktot;
+    const su2double alpha_kol = Cnu*std::sqrt(nu*std::max(tdr,0.0))/std::max(ktot,TKE_MIN);
 
     const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
                                                      alpha, alpha_kol, PFtest);
