@@ -944,10 +944,40 @@ public:
    */
   virtual su2double GetKineticEnergyRatio(void) const;
 
+  /*!
+   * \brief Get a component of the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \return The component of the resolved turbulent stress at iDim, jDim
+   */
   virtual su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
 
+  /*!
+   * \brief Get the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \return An nDim x nDim tensor with the resolved turbulent stress
+   */
   virtual su2double** GetResolvedTurbStress(void) const;
 
+  /*!
+   * \brief Get the resolved turbulent kinetic energy.
+   * \return The resolved turbulent kinetic energy.
+   */
   virtual su2double GetResolvedKineticEnergy(void) const;
 
   /*!
@@ -1159,10 +1189,28 @@ public:
    */
   virtual void SetKineticEnergyRatio(su2double val_alpha);
 
+  /*!
+   * \brief Add to the value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The amount to be added.
+   */
   virtual void AddResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
 
+  /*!
+   * \brief Set a value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The value of the component of the turbulent stress.
+   */
   virtual void SetResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
 
+  /*!
+   * \brief Calculate the resolved kinetic energy and store it.
+   *
+   * This function accepts no parameters because it uses the resolved
+   * turbulent stress to calculate the resolved kinetic energy.
+   */
   virtual void SetResolvedKineticEnergy(void);
 
   /*!
@@ -4026,10 +4074,28 @@ public:
    */
   void SetKineticEnergyRatio(su2double val_alpha);
 
+  /*!
+   * \brief Add to the value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The amount to be added.
+   */
   void AddResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
 
+  /*!
+   * \brief Set a value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The value of the component of the turbulent stress.
+   */
   void SetResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
 
+  /*!
+   * \brief Calculate the resolved kinetic energy and store it.
+   *
+   * This function accepts no parameters because it uses the resolved
+   * turbulent stress to calculate the resolved kinetic energy.
+   */
   void SetResolvedKineticEnergy(void);
 
   /*!
@@ -4062,10 +4128,40 @@ public:
    */
   su2double GetKineticEnergyRatio(void) const;
 
+  /*!
+   * \brief Get a component of the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \return The component of the resolved turbulent stress at iDim, jDim
+   */
   su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
 
+  /*!
+   * \brief Get the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \return An nDim x nDim tensor with the resolved turbulent stress
+   */
   su2double** GetResolvedTurbStress(void) const;
 
+  /*!
+   * \brief Get the resolved turbulent kinetic energy.
+   * \return The resolved turbulent kinetic energy.
+   */
   su2double GetResolvedKineticEnergy(void) const;
 
   /*!

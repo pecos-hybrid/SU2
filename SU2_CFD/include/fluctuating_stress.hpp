@@ -49,11 +49,15 @@
  */
 class CFluctuatingStress {
  public:
-  /**
+  /*!
    * \brief Basic constructor
+   * \param[in] val_nDim - Number of dimensions of the problem.
    */
   CFluctuatingStress(unsigned short val_nDim);
 
+  /*!
+   * \brief Virtual desctructor.
+   */
   virtual ~CFluctuatingStress();
 
   /**
@@ -65,7 +69,7 @@ class CFluctuatingStress {
 
   /**
    * \brief Set the mean of turbulence variables
-   * \param turb_vars - An array containing the mean turbulence variables
+   * \param[in] turb_vars - An array containing the mean turbulence variables
    */
   void SetTurbVar(const su2double* val_turb_var);
 
@@ -78,6 +82,7 @@ class CFluctuatingStress {
    * \param[in] geometry - The geometry
    * \param[in] config - The config settings
    * \param[in] iPoint - The current point to be used
+   * \param[in] mean_eddy_visc - The mean (i.e. RANS) eddy viscosity.
    * \param[out] eddy_viscosity - The computed anisotropic eddy viscosity
    */
   virtual void CalculateEddyViscosity(const CGeometry* geometry,
@@ -86,30 +91,78 @@ class CFluctuatingStress {
                                       su2double mean_eddy_visc,
                                       su2double** eddy_viscosity) const = 0;
  protected:
-  const unsigned short nDim;
-  const su2double* FlowPrimVar;
-  const su2double* TurbVar;
+  const unsigned short nDim; /*!< \brief The number of physical dimensions */
+  const su2double* FlowPrimVar; /*!< \brief The flow primitive variables */
+  const su2double* TurbVar; /*!< \brief The mean turbulence solution variables */
 };
 
+/*!
+ * \class CM43Model
+ * \brief Haering's M43 energy transfer model
+ * \author S. Haering and C. Pederson
+ */
 class CM43Model : public CFluctuatingStress {
  public:
+  /*!
+   * \brief Basic constructor.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
   CM43Model(unsigned short val_nDim,
             CConfig* config);
+  /*!
+   * \brief Destructor
+   */
   ~CM43Model();
 
+  /**
+   * \brief Calculate the eddy viscosity.
+   *
+   * The eddy viscosity computed is anisotropic and is a rank-2 tensor.
+   * The mean eddy viscosity is only used if the cell has too high of an
+   * aspect ratio to use the M43 model. The M43 model will replace the
+   * typical M43 eddy viscosity with the isotropic RANS eddy viscosity.
+   *
+   * \param[in] geometry - The geometry
+   * \param[in] config - The config settings
+   * \param[in] iPoint - The current point to be used
+   * \param[in] mean_eddy_visc - The mean (i.e. RANS) eddy viscosity.
+   * \param[out] eddy_viscosity - The computed anisotropic eddy viscosity
+   */
   void CalculateEddyViscosity(const CGeometry* geometry,
                               CConfig* config,
                               unsigned long iPoint,
                               su2double mean_eddy_visc,
                               su2double** eddy_viscosity) const;
  private:
-  su2double** delta;
+  su2double** delta; /*!< \brief The Kroneckor delta. */
 };
 
+/*!
+ * \class CNoStressModel
+ * \brief A model that always returns 0 for the eddy viscosity.
+ *
+ * This model serves as a type of "null object"
+ *
+ * \author C. Pederson
+ */
 class CNoStressModel : public CFluctuatingStress {
  public:
+  /*!
+   * \brief Basic constructor.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   */
   CNoStressModel(unsigned short val_nDim);
 
+  /**
+   * \brief Calculate the eddy viscosity (which is always 0)
+   *
+   * \param[in] geometry - The geometry
+   * \param[in] config - The config settings
+   * \param[in] iPoint - The current point to be used
+   * \param[in] mean_eddy_visc - The mean (i.e. RANS) eddy viscosity.
+   * \param[out] eddy_viscosity - The computed anisotropic eddy viscosity
+   */
   void CalculateEddyViscosity(const CGeometry* geometry,
                               CConfig* config,
                               unsigned long iPoint,

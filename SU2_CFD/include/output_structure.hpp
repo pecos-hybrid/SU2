@@ -61,20 +61,26 @@ typedef su2double** (CVariable::*TensorAccessor)() const;
 /*--- Define a macro to make (()->*(function pointer)) more readable ---*/
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object)->*(ptrToMember))
 
+/*!
+ * \brief A struct used to store information about an output variable
+ */
 struct COutputVariable {
-  std::string Name;
-  std::string Tecplot_Name;
-  unsigned short Solver_Type;
-  DataAccessor Accessor;
-  bool Average;
+  std::string Name; /*!< \brief The name to be used when storing the variable */
+  std::string Tecplot_Name; /*!< \brief The name to be used when writing tecplot files */ 
+  unsigned short Solver_Type; /*!< \brief The solver where the variable is stored (e.g. FLOW_SOL) */
+  DataAccessor Accessor; /*!< \brief A function pointer that can be used to access the variable */
+  bool Average; /*!< \brief True if the variable is found on average nodes only */
 };
 
+/*!
+ * \brief A struct used to store information about an output tensor
+ */
 struct COutputTensor {
-  std::string Name;
-  std::string Tecplot_Name;
-  unsigned short Solver_Type;
-  TensorAccessor Accessor;
-  bool Average;
+  std::string Name; /*!< \brief The name to be used when storing the variable */
+  std::string Tecplot_Name; /*!< \brief The name to be used when writing tecplot files */ 
+  unsigned short Solver_Type; /*!< \brief The solver where the variable is stored (e.g. FLOW_SOL) */
+  TensorAccessor Accessor; /*!< \brief A function pointer that can be used to access the tensor */
+  bool Average; /*!< \brief True if the variable is found on average nodes only */
 };
 
 using namespace std;
@@ -151,8 +157,8 @@ class COutput {
   unsigned short wrote_base_file;
   su2double RhoRes_New, *RhoRes_Old;
   int cgns_base, cgns_zone, cgns_base_results, cgns_zone_results;
-  std::vector<std::vector<COutputVariable> > output_vars;
-  std::vector<std::vector<COutputTensor> > output_tensors;
+  std::vector<std::vector<COutputVariable> > output_vars; /*!< \brief Info on the non-standard variables to be outputted */
+  std::vector<std::vector<COutputTensor> > output_tensors; /*!< \brief Info on the non-standard tensors to be outputted */
   
   su2double Sum_Total_RadialDistortion, Sum_Total_CircumferentialDistortion; // Add all the distortion to compute a run average.
   bool turbo;
@@ -226,19 +232,63 @@ public:
    */
   ~COutput(void);
 
+  /*!
+   * \brief Setup all the extra variables and tensors to be used in output
+   *
+   * This function is meant to simplify adding new output variables.
+   * New output variables can be added here, and only here, in order
+   * to output them to all available output formats.
+   *
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_nZone - Total number of domains in the grid file.
+   */
   void RegisterAllVariables(CConfig** config, unsigned short val_nZone);
 
+  /*!
+   * \brief Add a scalar to the list of extra variables to be used in output
+   * \param[in] name - The name to be used when storing the variable
+   * \param[in] tecplot_name - The name to be used when writing tecplot files
+   * \param[in] solver_type - The solver where the variable is stored (e.g. FLOW_SOL)
+   * \param[in] accessor - A function pointer that can be used to access the variable
+   * \param[in] val_zone - The zone where the variables exists
+   * \param[in] average - True if the variable is found on average nodes only
+   * */
   void RegisterScalar(std::string name, std::string tecplot_name,
                         unsigned short solver_type, DataAccessor accessor,
                         unsigned short val_zone, bool average=false);
 
+  /*!
+   * \brief Add a tensor to the list of extra variables to be used in output
+   * \param[in] name - The name to be used when storing the variable
+   * \param[in] tecplot_name - The name to be used when writing tecplot files
+   * \param[in] solver_type - The solver where the variable is stored (e.g. FLOW_SOL)
+   * \param[in] accessor - A function pointer that can be used to access the tensor 
+   * \param[in] val_zone - The zone where the variables exists
+   * \param[in] average - True if the variable is found on average nodes only
+   * */
   void RegisterTensor(std::string name, std::string tecplot_name,
                       unsigned short solver_type, TensorAccessor accessor,
                       unsigned short val_zone, bool average = false);
 
+  /*!
+   * \brief Pull one of the extra variables from the solver container
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] var - Information about the variable to be retrieved
+   * \param[in] iPoint - The point at which to pull the variable
+   * \return The value of the variable at iPoint
+   */
   su2double RetrieveVariable(CSolver** solver, COutputVariable var,
                              unsigned long iPoint);
 
+  /*!
+   * \brief Pull a component from one of the extra tensors
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] var - Information about the variable to be retrieved
+   * \param[in] iPoint - The point at which to pull the variable
+   * \param[in] iDim - The first index of the tensor
+   * \param[in] jDim - The second index of the tensor
+   * \return The value of the tensor at iPoint and component iDim, jDim
+   */
   su2double RetrieveTensorComponent(CSolver** solver, COutputTensor var,
                                     unsigned long iPoint, unsigned short iDim,
                                     unsigned short jDim);

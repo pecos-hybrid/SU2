@@ -718,7 +718,7 @@ static const map<string, ENUM_TURB_MODEL> Turb_Model_Map = CCreateMap<string, EN
 ("KE", KE);
 
 /*!
- * \brief Type of hybrid RANS/LES mediator
+ * \brief Type of hybrid RANS/LES testing scheme
  *
  * If the hybrid method is set to "RANS only", then the hybrid numerics
  * will be exercised as fully as possible while still defaulting to RANS
@@ -751,6 +751,8 @@ static const map<string, ENUM_HYBRID_RES_IND> Hybrid_Res_Ind_Map = CCreateMap<st
 
 /*!
  * \brief Type of subgrid energy transfer (SGET) model
+ *
+ * This option is used for model-split hybrid RANS/LES only.
  */
 enum ENUM_SGET_MODEL {
   NO_SGET_MODEL, /*!< \brief A zero stress model */

@@ -50,7 +50,6 @@ using namespace std;
  * \ingroup Turbulence_Model
  * \author S. Haering
  */
-
 class CTurbKESolver: public CTurbSolver {
 
 private:

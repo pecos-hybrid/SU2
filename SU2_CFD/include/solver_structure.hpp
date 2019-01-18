@@ -4292,8 +4292,16 @@ public:
    */
   virtual void InitAverages(void);
 
+  /*!
+   * \brief Store the timescale used for runtime averaging (i.e. the averaging period)
+   * \param[in] val_timescale - The timescale
+   */
   void SetAveragingTimescale(su2double val_timescale);
 
+  /*!
+   * \brief Get the timescale used for runtime averaging (i.e. the averaging period)
+   * \return The average timescale
+   */
   su2double GetAveragingTimescale(void) const;
 };
 
@@ -6869,10 +6877,26 @@ public:
    * \param[in] inMarkerTP - turboperformance marker.
    */
   void SetNuOut(su2double value, unsigned short inMarkerTP, unsigned short valSpan);
+
+  /*!
+   * \brief Given a vector of field names, find the location of a field
+   * \param[in] name - The name of the field to be found
+   * \param[in] fields - A vector of field names
+   * \param[in] found_index - Set to true if the name is found
+   * \param[in] index - Set to the index of the variable in the vector
+   */
   void FindRestartVariable(const std::string& name,
                            const vector<string>& fields,
                            bool& found_index,
                            unsigned short & index) const;
+
+  /*!
+   * \brief Load the solution from the unpacked restart data into this solver.
+   * \param[in] val_update_geo - Update the geometry
+   * \param[in] restart_filename - The name of the restart file.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
   void LoadSolution(bool val_update_geo,
                     const string& restart_filename,
                     CConfig* config,
@@ -8601,6 +8625,9 @@ public:
                      const unsigned long iPoint,
                      su2double* buffer);
 
+  /*!
+   * \brief Initialize the extra quantities associated with averages.
+   */
   void InitAverages();
 
   /*!

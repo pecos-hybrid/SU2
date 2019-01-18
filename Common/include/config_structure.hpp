@@ -1000,7 +1000,7 @@ private:
   unsigned short Kind_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
   unsigned short Kind_Averaging_Period;  /*!< \brief Type of period over which runtime averages are to be computed. */
   su2double nAveragingPeriods;  /*!< \brief Number of periods over which to average. */
-  su2double AveragingStartTime; /*!< \brief Number of periods to skip before averaging begins. */
+  su2double AveragingStartTime; /*!< \brief Amount of time to skip before averaging begins. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -3760,8 +3760,13 @@ public:
   void SetKind_SU2(unsigned short val_kind_su2);
 
   /*!
-   * \brief Get the kind of hybrid RANS/LES blending scheme.
-   * \return Kind of blending scheme.
+   * \brief Get the kind of hybrid RANS/LES testing scheme.
+   *
+   * This allows the hybrid scheme to enter special testing
+   * modes where only parts of the hybrid scheme are enabled.
+   * This only works for the model-split hybridization.
+   *
+   * \return Kind of testing scheme.
    */
   unsigned short GetKind_HybridRANSLES_Testing(void);
 
@@ -8161,6 +8166,10 @@ public:
    */
   su2double GetnAveragingPeriods(void) const;
 
+  /*!
+   * \brief Get The time at which to start runtime averaging.
+   * \return The time at which to start runtime averaging.
+   */
   su2double GetAveragingStartTime(void) const;
 };
 

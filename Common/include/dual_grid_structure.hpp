@@ -785,11 +785,25 @@ public:
         su2double GetResolutionTensor(unsigned short iDim,
                                       unsigned short jDim) const;
 
+        /*!
+         * \brief Get the resolution tensor, raised to the 4/3 power.
+         * \return The resolution tensor, raised to the 4/3 power.
+         */
         su2double** GetResolutionTensor43() const;
 
+        /*!
+         * \brief Get the resolution coefficent C(M)
+         *
+         * This coefficient is designed to be used with the M43 SGET model,
+         * and is based on the eigenvalues of the resolution tensor.
+         *
+         * \return The resolution coefficient
+         */
         su2double GetResolutionCoeff() const;
 
-        /*---
+        /*!
+         * \brief Setup the powers of the resolution tensor (e.g. 4/3 power)
+         *
          * We're actually computing:
          *
          * M^(power) = V (D^power) V^T
@@ -800,6 +814,9 @@ public:
          */
         void SetResolutionPowers();
 
+        /*!
+         * \brief Calculate the resolution coefficient C(M)
+         */
         void SetResolutionCoeff();
 
         /*!

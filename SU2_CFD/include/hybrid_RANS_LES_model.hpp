@@ -56,9 +56,9 @@ using namespace std;
  * \class CAbstract_Hybrid_Mediator
  * \brief Base abstract class for a hybrid model mediator object.
  *
- * In order to decouple the RANS model, the subgrid model, the hybrid parameter,
+ * In order to decouple the RANS model, the energy transfer model,
  * and the resolved flow, a mediator object is necessary.  This allows the
- * RANS, subgrid, hybrid parameter, and resolved flow equations to follow the
+ * RANS, energy transfer model, and resolved flow equations to follow the
  * single responsibility principle, while this class makes sure they
  * have the information they need.
  *
@@ -77,25 +77,32 @@ class CAbstract_Hybrid_Mediator {
   /**
    * \brief Retrieve and pass along all necessary info for the RANS model.
    *
-   * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
    * \param[in] rans_numerics - The source numerics for the turb. solver
    * \param[in] iPoint - The number of the node being evaluated
-   * \param[in] jPoint - The number of the opposite node
    */
   virtual void SetupRANSNumerics(CSolver **solver_container,
                                  CNumerics* rans_numerics,
                                  unsigned long iPoint) = 0;
+
   /**
-   * \brief Retrieve and pass along all necessary info for the resolved flow.
+   * \brief Retrieve and pass along all necessary info for the forcing.
    *
-   * \param[in] geometry - A pointer to the geometry
+   * \param[in] geometry - The grid information
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
   virtual void SetupForcing(CGeometry* geometry, CSolver **solver_container,
                             unsigned long iPoint) = 0;
 
+  /**
+   * \brief Retrieve and pass along all necessary info to calculate
+   *        variables needed for the flow solver.
+   *
+   * \param[in] geometry - The grid information
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
   virtual void SetupResolvedFlowSolver(CGeometry* geometry,
                                        CSolver **solver_container,
                                        unsigned long iPoint) = 0;
@@ -115,13 +122,20 @@ class CAbstract_Hybrid_Mediator {
                                          unsigned long iPoint,
                                          unsigned long jPoint) = 0;
 
+  /*!
+   * \brief Set the fluctuating stress model to be used.
+   *
+   * This will take ownership of the fluctuating stress model.
+   *
+   * \param[in] fluct_stress - A model for the fluctuating stress
+   */
   virtual void SetFluctuatingStress(CFluctuatingStress* fluct_stress) = 0;
 };
 
 
 /*!
  * \class CHybrid_Mediator
- * \brief Mediator object for the Q-based hybrid RANS/LES model.
+ * \brief Mediator object for the model-split hybrid RANS/LES model.
  * \author: C. Pederson
  */
 class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
@@ -245,9 +259,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 
 
   /**
-   * \brief RANS needs the hybrid parameter (the energy flow parameter).
-   *
-   * This function sets the hybrid parameter from the previous timestep.
+   * \brief Retrieve and pass along all necessary info for the RANS model.
    *
    * \param[in] solver_container - An array of solvers
    * \param[in] rans_numerics - The source numerics for the turb. solver
@@ -257,15 +269,30 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                          CNumerics* rans_numerics,
                          unsigned long iPoint);
 
+  /**
+   * \brief Retrieve and pass along all necessary info for the forcing.
+   *
+   * \param[in] geometry - The grid information
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
   void SetupForcing(CGeometry* geometry, CSolver **solver_container,
                     unsigned long iPoint);
 
+  /**
+   * \brief Retrieve and pass along all necessary info to calculate
+   *        variables needed for the flow solver.
+   *
+   * \param[in] geometry - The grid information
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
   void SetupResolvedFlowSolver(CGeometry* geometry,
                                CSolver **solver_container,
                                unsigned long iPoint);
 
   /**
-   * \brief
+   * \brief Retrieve and pass along all necessary info for resolved numerics.
    *
    * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
@@ -293,6 +320,13 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 			     vector<su2double> &eigvalues,
 			     vector<vector<su2double> > &eigvectors);
 
+  /*!
+   * \brief Set the fluctuating stress model to be used.
+   *
+   * This will take ownership of the fluctuating stress model.
+   *
+   * \param[in] fluct_stress - A model for the fluctuating stress
+   */
   void SetFluctuatingStress(CFluctuatingStress* fluct_stress);
 };
 
@@ -322,9 +356,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
   ~CHybrid_Dummy_Mediator();
 
   /**
-   * \brief RANS needs the hybrid parameter (the energy flow parameter).
-   *
-   * This function sets the hybrid parameter from the previous timestep.
+   * \brief Retrieve and pass along all necessary info for the RANS model.
    *
    * \param[in] solver_container - An array of solvers
    * \param[in] rans_numerics - The source numerics for the turb. solver
@@ -334,15 +366,30 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                          CNumerics* rans_numerics,
                          unsigned long iPoint);
 
+  /**
+   * \brief Retrieve and pass along all necessary info for the forcing.
+   *
+   * \param[in] geometry - The grid information
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
   void SetupForcing(CGeometry* geometry, CSolver **solver_container,
                     unsigned long iPoint);
 
+  /**
+   * \brief Retrieve and pass along all necessary info to calculate
+   *        variables needed for the flow solver.
+   *
+   * \param[in] geometry - The grid information
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
   void SetupResolvedFlowSolver(CGeometry* geometry,
                                CSolver **solver_container,
                                unsigned long iPoint);
 
   /**
-   * \brief
+   * \brief Retrieve and pass along all necessary info for resolved numerics.
    *
    * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
@@ -356,6 +403,13 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                              unsigned long iPoint,
                              unsigned long jPoint);
 
+  /*!
+   * \brief Set the fluctuating stress model to be used.
+   *
+   * This will take ownership of the fluctuating stress model.
+   *
+   * \param[in] fluct_stress - A model for the fluctuating stress
+   */
   void SetFluctuatingStress(CFluctuatingStress* fluct_stress);
 };
 

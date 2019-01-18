@@ -566,8 +566,16 @@ public:
    */
   void SetResolutionAdequacy(su2double val_resolution_adequacy);
 
+  /*!
+   * \brief Sets the resolved turbulent stress
+   * \param[in] val_turb_stress - A tensor representing the resolved turbulent stress.
+   */
   virtual void SetResolvedTurbStress(su2double** val_turb_stress);
 
+  /*!
+   * \brief Set the ratio of modeled to total turbulent kinetic energy
+   * \param[in] val_alpha - The turbulent kinetic energy ratio
+   */
   void SetKineticEnergyRatio(su2double val_alpha);
 
   /*!
@@ -3200,6 +3208,15 @@ class CAvgGrad_Base : public CNumerics {
                           su2double **val_Proj_Jac_Tensor_i,
                           su2double **val_Proj_Jac_Tensor_j);
 
+  /*!
+   * \brief Apply a correction to the gradient to reduce the truncation error
+   *
+   * \param[in] val_PrimVar_i - Primitive variables at point i
+   * \param[in] val_PrimVar_j - Primitive variables at point j
+   * \param[in] val_edge_vector - The vector between points i and j
+   * \param[in] val_dist_ij_2 - The distance between points i and j, squared
+   * \param[in] val_nPrimVar - The number of primitive variables
+   */
   void CorrectGradient(su2double** GradPrimVar,
                        const su2double* val_PrimVar_i,
                        const su2double* val_PrimVar_j,
@@ -3247,8 +3264,20 @@ class CAvgGrad_Base : public CNumerics {
                        const su2double val_laminar_viscosity,
                        const su2double val_eddy_viscosity);
 
+  /*!
+   * \brief Get a component of the viscous stress tensor.
+   *
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \return The component of the viscous stress tensor at iDim, jDim
+   */
   su2double GetStressTensor(unsigned short iDim, unsigned short jDim);
 
+  /*!
+   * \brief Get a component of the heat flux vector.
+   * \param[in] iDim - The index of the component
+   * \return The component of the heat flux vector at iDim
+   */
   su2double GetHeatFluxVector(unsigned short iDim);
 };
 

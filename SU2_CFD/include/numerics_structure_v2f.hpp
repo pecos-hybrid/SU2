@@ -194,6 +194,10 @@ public:
                        su2double **val_Jacobian_i, su2double **val_Jacobian_j,
                        CConfig *config);
 
+  /*!
+   * \brief Set the resolved turbulent stress
+   * \param[in] val_turb_stress - The turbulent stress to be used
+   */
   void SetResolvedTurbStress(su2double** val_turb_stress) {
     ResolvedTurbStress = val_turb_stress;
   }
