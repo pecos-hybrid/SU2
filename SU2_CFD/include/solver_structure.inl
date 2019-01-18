@@ -2206,8 +2206,6 @@ inline void CTurbSolver::SetInlet_TurbVar(unsigned short val_marker, unsigned lo
     Inlet_TurbVars[val_marker][val_vertex][val_dim] = val_turb_var;
 }
 
-inline void CHybridSolver::AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator) { HybridMediator = hybrid_mediator; }
-
 inline void CTurbSolver::AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator) { HybridMediator = hybrid_mediator; }
 
 inline void CTurbSASolver::SetFreeStream_Solution(CConfig *config) {
