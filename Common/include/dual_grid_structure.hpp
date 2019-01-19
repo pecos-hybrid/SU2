@@ -773,7 +773,7 @@ public:
          * \return A tensor representing the separation distances
          *         across the cell in the global coordinates.
          */
-        su2double** GetResolutionTensor(void) const;
+        const su2double* const* GetResolutionTensor(void) const;
 
         /*!
          * \brief Gets a specific element of the resolution tensor array
@@ -789,7 +789,7 @@ public:
          * \brief Get the resolution tensor, raised to the 4/3 power.
          * \return The resolution tensor, raised to the 4/3 power.
          */
-        su2double** GetResolutionTensor43() const;
+        const su2double* const* GetResolutionTensor43() const;
 
         /*!
          * \brief Get the resolution coefficent C(M)
@@ -840,7 +840,7 @@ public:
          *         distances across the cell in the global coordinates, with
          *         the gradient taken in direction iDim
          */
-        su2double** GetResolutionGradient(unsigned short iDim);
+        const su2double* const* GetResolutionGradient(unsigned short iDim) const;
 
         /*!
          * \brief Gets the gradient of the resolution tensor for the given CV
@@ -848,7 +848,7 @@ public:
          * \return A rank 3 tensor representing the gradient of the separation
          *         distances across the cell in the global coordinates.
          */
-        su2double*** GetResolutionGradient();
+        const su2double* const* const* GetResolutionGradient() const;
 
         /*!
          * \brief Adds to the existing set of values for the resolution tensor.
@@ -891,7 +891,7 @@ public:
          * \return Vectors representing the "principal directions" for the
          * cell-to-cell separations.
          */
-        su2double** GetResolutionVectors(void);
+        const su2double* const* GetResolutionVectors(void) const;
 
         /*!
          * \brief Set the adjoint values of the coordinates.

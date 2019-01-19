@@ -40,7 +40,8 @@
 #include "mkl_lapacke.h"
 #endif
 
-CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename)
+CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
+                                   const string& filename)
    : nDim(nDim), fluct_stress_model(NULL), config(config) {
 
   int rank = MASTER_NODE;
@@ -157,16 +158,16 @@ CHybrid_Mediator::~CHybrid_Mediator() {
 
 void CHybrid_Mediator::SetupRANSNumerics(CSolver **solver_container,
                                          CNumerics* rans_numerics,
-                                         unsigned long iPoint) {
+                                         const unsigned long iPoint) {
 
   CVariable** flow_node = solver_container[FLOW_SOL]->average_node;
   rans_numerics->SetKineticEnergyRatio(flow_node[iPoint]->GetKineticEnergyRatio());
   rans_numerics->SetResolvedTurbStress(flow_node[iPoint]->GetResolvedTurbStress());
 }
 
-void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
+void CHybrid_Mediator::SetupForcing(const CGeometry* geometry,
                                     CSolver **solver_container,
-                                    unsigned long iPoint) {
+                                    const unsigned long iPoint) {
 
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
@@ -174,9 +175,9 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
   su2double r_k;
 
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
-  su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
+  const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
   const su2double* ResolutionValues = geometry->node[iPoint]->GetResolutionValues();
-  su2double** ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
+  const su2double* const* ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
 
   if (config->GetKind_Hybrid_Resolution_Indicator() != RK_INDICATOR) {
     // Compute inverse length scale tensor
@@ -284,9 +285,9 @@ void CHybrid_Mediator::SetupForcing(CGeometry* geometry,
 
 }
 
-void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
+void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
                                                CSolver **solver_container,
-                                               unsigned long iPoint) {
+                                               const unsigned long iPoint) {
 
   if (fluct_stress_model) {
 
@@ -307,11 +308,11 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
   }
 }
 
-void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
+void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
                                              CSolver **solver_container,
                                              CNumerics* visc_numerics,
-                                             unsigned long iPoint,
-                                             unsigned long jPoint) {
+                                             const unsigned long iPoint,
+                                             const unsigned long jPoint) {
 
   CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
 
@@ -372,7 +373,7 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
 void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
                                               CVariable* turb_vars,
                                               const su2double val_alpha,
-                                              int short hybrid_res_ind) {
+                                              const int short hybrid_res_ind) {
 
   unsigned short iDim, jDim, kDim;
   su2double Sd[3][3], Om[3][3], delta[3][3], Pij[3][3];
@@ -499,8 +500,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 }
 
 
-su2double CHybrid_Mediator::GetProjResolution(su2double** resolution_tensor,
-                                              vector<su2double> direction) {
+su2double CHybrid_Mediator::GetProjResolution(const su2double* const* resolution_tensor,
+                                              const vector<su2double>& direction) {
 
 #ifndef NDEBUG
   su2double magnitude_squared = 0;
@@ -526,7 +527,7 @@ su2double CHybrid_Mediator::GetProjResolution(su2double** resolution_tensor,
   return sqrt(result);
 }
 
-vector<vector<su2double> > CHybrid_Mediator::LoadConstants(string filename) {
+vector<vector<su2double> > CHybrid_Mediator::LoadConstants(const string& filename) {
   vector<vector<su2double> > output;
   output.resize(nDim);
   ifstream file;
@@ -551,7 +552,7 @@ vector<vector<su2double> > CHybrid_Mediator::LoadConstants(string filename) {
   return output;
 };
 
-vector<su2double> CHybrid_Mediator::GetEigValues_Q(vector<su2double> eigvalues_M) {
+vector<su2double> CHybrid_Mediator::GetEigValues_Q(const vector<su2double>& eigvalues_M) {
   su2double dnorm = *min_element(eigvalues_M.begin(), eigvalues_M.end());
 
   /*--- Normalize eigenvalues ---*/
@@ -610,7 +611,7 @@ vector<su2double> CHybrid_Mediator::GetEigValues_Q(vector<su2double> eigvalues_M
 }
 
 vector<vector<su2double> > CHybrid_Mediator::BuildZeta(const su2double* values_M,
-                                                       su2double** vectors_M) {
+                                                       const su2double* const* vectors_M) {
 
   vector<vector<su2double> > zeta(3, vector<su2double>(3,0));
 
@@ -647,7 +648,7 @@ vector<vector<su2double> > CHybrid_Mediator::BuildZeta(const su2double* values_M
 
 }
 
-vector<su2double> CHybrid_Mediator::GetEigValues_Zeta(vector<su2double> eigvalues_M) {
+vector<su2double> CHybrid_Mediator::GetEigValues_Zeta(const vector<su2double>& eigvalues_M) {
   /*--- Find the minimum eigenvalue ---*/
 
   su2double dnorm = *min_element(eigvalues_M.begin(), eigvalues_M.end());
@@ -679,7 +680,7 @@ vector<su2double> CHybrid_Mediator::GetEigValues_Zeta(vector<su2double> eigvalue
   return eigvalues_zeta;
 }
 
-void CHybrid_Mediator::SolveEigen(su2double** M,
+void CHybrid_Mediator::SolveEigen(const su2double* const* M,
                                   vector<su2double> &eigvalues,
                                   vector<vector<su2double> > &eigvectors) {
 unsigned short iDim, jDim;
@@ -793,7 +794,8 @@ unsigned short iDim, jDim;
 #endif
 }
 
-void CHybrid_Mediator::SolveGeneralizedEigen(su2double** A, su2double** B,
+void CHybrid_Mediator::SolveGeneralizedEigen(const su2double* const* A,
+                                             const su2double* const* B,
 					     vector<su2double> &eigvalues,
 					     vector<vector<su2double> > &eigvectors) {
 
@@ -894,19 +896,19 @@ void CHybrid_Dummy_Mediator::SetupRANSNumerics(CSolver **solver_container,
   rans_numerics->SetResolvedTurbStress(zero_tensor);
 }
 
-void CHybrid_Dummy_Mediator::SetupForcing(CGeometry* geometry,
+void CHybrid_Dummy_Mediator::SetupForcing(const CGeometry* geometry,
                                           CSolver **solver_container,
                                           unsigned long iPoint) {
 
 }
 
-void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(CGeometry* geometry,
+void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
                                                CSolver **solver_container,
                                                unsigned long iPoint) {
   solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(zero_tensor);
 }
 
-void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
+void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
                                              CSolver **solver_container,
                                              CNumerics* visc_numerics,
                                              unsigned long iPoint,

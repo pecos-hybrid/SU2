@@ -92,7 +92,7 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  virtual void SetupForcing(CGeometry* geometry, CSolver **solver_container,
+  virtual void SetupForcing(const CGeometry* geometry, CSolver **solver_container,
                             unsigned long iPoint) = 0;
 
   /**
@@ -103,7 +103,7 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  virtual void SetupResolvedFlowSolver(CGeometry* geometry,
+  virtual void SetupResolvedFlowSolver(const CGeometry* geometry,
                                        CSolver **solver_container,
                                        unsigned long iPoint) = 0;
 
@@ -116,7 +116,7 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    * \param[in] jPoint - The number of the opposite node
    */
-  virtual void SetupResolvedFlowNumerics(CGeometry* geometry,
+  virtual void SetupResolvedFlowNumerics(const CGeometry* geometry,
                                          CSolver **solver_container,
                                          CNumerics* visc_numerics,
                                          unsigned long iPoint,
@@ -168,7 +168,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] v2 - The v2 value from Durbin's k-eps-v2-f model
    * \return The resolution inadequacy parameter
    */
-  su2double CalculateRk(su2double** Q, su2double v2);
+  su2double CalculateRk(const su2double* const* Q, su2double v2);
 
   /*!
    * \brief Projects the resolution on a specific vector
@@ -176,8 +176,8 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] direction - The direction vector (assumed to be normalized)
    * \return The magnitude of the resolution tensor projected on the direction.
    */
-  su2double GetProjResolution(su2double** resolution_tensor,
-                              vector<su2double> direction);
+  su2double GetProjResolution(const su2double* const *resolution_tensor,
+                              const vector<su2double>& direction);
 
   /**
    * \brief Uses a resolution tensor and a gradient-gradient tensor to build an
@@ -189,7 +189,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    */
   template <class T>
   void CalculateApproxStructFunc(T val_ResolutionTensor,
-                                 su2double** val_PrimVar_Grad,
+                                 const su2double* const* val_PrimVar_Grad,
                                  su2double** val_Q);
 
   /*!
@@ -197,7 +197,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] filename - The base name for the files (e.g. [filename]0.dat)
    * \return The 3 sets of constants pulled from the files.
    */
-  vector<vector<su2double> > LoadConstants(string filename);
+  vector<vector<su2double> > LoadConstants(const string& filename);
 
   /*!
    * \brief Solve for the eigenvalues of Q, given eigenvalues of M
@@ -209,7 +209,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] eig_values_M - Eigenvalues of the resolution tensor.
    * \return The eigenvalues of the expected value of the approx SF tensor.
    */
-  vector<su2double> GetEigValues_Q(vector<su2double> eig_values_M);
+  vector<su2double> GetEigValues_Q(const vector<su2double>& eig_values_M);
 
   /*!
    * \brief Calculates the eigenvalues of a modified resolution tensor.
@@ -218,7 +218,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    *         differences at grid resolution to the two-point second-order
    *         structure function.
    */
-  vector<su2double> GetEigValues_Zeta(vector<su2double> eig_values_M);
+  vector<su2double> GetEigValues_Zeta(const vector<su2double>& eig_values_M);
 
  public:
   /*!
@@ -227,7 +227,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    *            "directions"
    */
   vector<vector<su2double> > BuildZeta(const su2double* values_M,
-                                       su2double** vectors_M);
+                                       const su2double* const* vectors_M);
 
 
   /**
@@ -235,7 +235,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] nDim - The number of dimensions of the problem
    * \param[in] CConfig - The configuration for the current zone
    */
-  CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename="");
+  CHybrid_Mediator(unsigned short nDim, CConfig* config, const string& filename="");
 
   /**
    * \brief Destructor for the hybrid mediator object.
@@ -250,7 +250,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    */
   void ComputeInvLengthTensor(CVariable* flow_vars,
                               CVariable* turb_vars,
-                              const su2double val_alpha,
+                              su2double val_alpha,
                               int short hybrid_res_ind);
 
   su2double GetInvLengthScale(unsigned short ival, unsigned short jval) {
@@ -276,7 +276,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  void SetupForcing(CGeometry* geometry, CSolver **solver_container,
+  void SetupForcing(const CGeometry* geometry, CSolver **solver_container,
                     unsigned long iPoint);
 
   /**
@@ -287,7 +287,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  void SetupResolvedFlowSolver(CGeometry* geometry,
+  void SetupResolvedFlowSolver(const CGeometry* geometry,
                                CSolver **solver_container,
                                unsigned long iPoint);
 
@@ -300,7 +300,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    * \param[in] jPoint - The number of the opposite node
    */
-  void SetupResolvedFlowNumerics(CGeometry* geometry,
+  void SetupResolvedFlowNumerics(const CGeometry* geometry,
                              CSolver **solver_container,
                              CNumerics* visc_numerics,
                              unsigned long iPoint,
@@ -313,10 +313,10 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   vector<vector<su2double> > GetConstants();
 
 
-  void SolveEigen(su2double** M, vector<su2double> &eigvalues,
+  void SolveEigen(const su2double* const* M, vector<su2double> &eigvalues,
                   vector<vector<su2double> > &eigvectors);
 
-  void SolveGeneralizedEigen(su2double** A, su2double** B,
+  void SolveGeneralizedEigen(const su2double* const* A, const su2double* const* B,
 			     vector<su2double> &eigvalues,
 			     vector<vector<su2double> > &eigvectors);
 
@@ -373,7 +373,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  void SetupForcing(CGeometry* geometry, CSolver **solver_container,
+  void SetupForcing(const CGeometry* geometry, CSolver **solver_container,
                     unsigned long iPoint);
 
   /**
@@ -384,7 +384,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  void SetupResolvedFlowSolver(CGeometry* geometry,
+  void SetupResolvedFlowSolver(const CGeometry* geometry,
                                CSolver **solver_container,
                                unsigned long iPoint);
 
@@ -397,7 +397,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    * \param[in] jPoint - The number of the opposite node
    */
-  void SetupResolvedFlowNumerics(CGeometry* geometry,
+  void SetupResolvedFlowNumerics(const CGeometry* geometry,
                              CSolver **solver_container,
                              CNumerics* visc_numerics,
                              unsigned long iPoint,
@@ -419,7 +419,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
 
 template <class T>
 void CHybrid_Mediator::CalculateApproxStructFunc(T val_ResolutionTensor,
-                                                 su2double** val_PrimVar_Grad,
+                                                 const su2double* const* val_PrimVar_Grad,
                                                  su2double** val_Q) {
   unsigned int iDim, jDim, kDim, lDim, mDim;
 

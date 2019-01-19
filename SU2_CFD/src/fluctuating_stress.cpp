@@ -85,14 +85,14 @@ CM43Model::~CM43Model() {
 
 void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
                                        CConfig* config,
-                                       unsigned long iPoint,
-                                       su2double mean_eddy_visc,
+                                       const unsigned long iPoint,
+                                       const su2double mean_eddy_visc,
                                        su2double** eddy_viscosity) const {
 
   /*-- Retrieve necessary variables ---*/
 
   const su2double C_M = geometry->node[iPoint]->GetResolutionCoeff();
-  su2double** M43 = geometry->node[iPoint]->GetResolutionTensor43();
+  const su2double* const* M43 = geometry->node[iPoint]->GetResolutionTensor43();
 
   const su2double density = FlowPrimVar[nDim+2];
   su2double dissipation = 0;
@@ -154,8 +154,8 @@ CNoStressModel::CNoStressModel(unsigned short val_nDim)
 
 void CNoStressModel::CalculateEddyViscosity(const CGeometry* geometry,
                                             CConfig* config,
-                                            unsigned long iPoint,
-                                            su2double mean_eddy_visc,
+                                            const unsigned long iPoint,
+                                            const su2double mean_eddy_visc,
                                             su2double** eddy_viscosity) const {
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {

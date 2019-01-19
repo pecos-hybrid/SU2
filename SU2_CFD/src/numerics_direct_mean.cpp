@@ -4467,7 +4467,7 @@ void CAvgGrad_Base::CorrectGradient(su2double** GradPrimVar,
 }
 
 void CAvgGrad_Base::SetStressTensor(const su2double *val_primvar,
-                           su2double **val_gradprimvar,
+                           const su2double* const *val_gradprimvar,
                            const su2double val_turb_ke,
                            const su2double val_laminar_viscosity,
                            const su2double val_eddy_viscosity) {
@@ -4487,7 +4487,7 @@ void CAvgGrad_Base::SetStressTensor(const su2double *val_primvar,
                         - TWO3*Density*val_turb_ke*delta[iDim][jDim];
 }
 
-void CAvgGrad_Base::AddQCR(su2double **val_gradprimvar) {
+void CAvgGrad_Base::AddQCR(const su2double* const *val_gradprimvar) {
 
   su2double den_aux, c_cr1= 0.3, O_ik, O_jk;
   unsigned short iDim, jDim, kDim;
@@ -4868,7 +4868,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
 
 
 
-void CAvgGrad_Flow::SetHeatFluxVector(su2double **val_gradprimvar,
+void CAvgGrad_Flow::SetHeatFluxVector(const su2double* const *val_gradprimvar,
                                       const su2double val_laminar_viscosity,
                                       const su2double val_eddy_viscosity) {
 
@@ -4943,7 +4943,7 @@ CGeneralAvgGrad_Flow::~CGeneralAvgGrad_Flow(void) {
   
 }
 
-void CGeneralAvgGrad_Flow::SetHeatFluxVector(su2double **val_gradprimvar,
+void CGeneralAvgGrad_Flow::SetHeatFluxVector(const su2double* const *val_gradprimvar,
                                              const su2double val_laminar_viscosity,
                                              const su2double val_eddy_viscosity,
                                              const su2double val_thermal_conductivity,

@@ -533,12 +533,12 @@ void CPoint::SetResolutionGradient(unsigned short iDim, unsigned short jDim,
     ResolutionTensorGradient[iDim][jDim][kDim] = grad_value;
 };
 
-su2double** CPoint::GetResolutionGradient(unsigned short iDim) {
+const su2double* const* CPoint::GetResolutionGradient(unsigned short iDim) const {
   assert(ResolutionTensorGradient);
   return ResolutionTensorGradient[iDim];
 }
 
-su2double*** CPoint::GetResolutionGradient() {
+const su2double* const* const* CPoint::GetResolutionGradient() const {
   assert(ResolutionTensorGradient);
   return ResolutionTensorGradient;
 }

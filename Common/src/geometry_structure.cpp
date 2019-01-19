@@ -12085,7 +12085,7 @@ void CGeometry::SetResolutionGradient(void) {
   unsigned short iDim, jDim, kDim, lDim;
   unsigned short iNeigh;
   unsigned long iPoint, jPoint;
-  su2double** M_temp;
+  const su2double* const* M_temp;
   vector<vector<su2double> > M_i(nDim, vector<su2double>(nDim));
   vector<vector<su2double> > M_j(nDim, vector<su2double>(nDim));
   su2double** Smatrix;
