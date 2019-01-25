@@ -543,18 +543,22 @@ const su2double* const* const* CPoint::GetResolutionGradient() const {
   return ResolutionTensorGradient;
 }
 
-void CPoint::AddResolutionValue(unsigned short iDim, su2double scalar_value) {
+void CPoint::SetResolutionValues(const su2double* values) {
   assert(ResolutionValues);
-  assert(iDim < nDim);
-  ResolutionValues[iDim] += scalar_value;
+  assert(values);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    ResolutionValues[iDim] = values[iDim];
+  }
 }
 
-void CPoint::AddResolutionVector(unsigned short iDim, unsigned short jDim,
-                                 su2double scalar_value) {
-  assert(ResolutionVectors);
-  assert(iDim < nDim);
-  assert(jDim < nDim);
-  ResolutionVectors[iDim][jDim] += scalar_value;
+void CPoint::SetResolutionVectors(const su2double* const* vectors) {
+  assert(ResolutionValues);
+  assert(vectors);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      ResolutionVectors[iDim][jDim] = vectors[iDim][jDim];
+    }
+  }
 }
 
 void CPoint::SetResolutionPowers() {

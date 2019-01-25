@@ -856,24 +856,20 @@ public:
          * These values can be thought of as cell-to-cell distances along the
          * "principal directions".
          *
-         * \param[in] iDim - The first array index of the entry to be added.
-         * \param[in] scalar_value - The value to be added.
+         * \param[in] value - An nDim array of the values to be set.
          */
-        void AddResolutionValue(unsigned short iDim, su2double scalar_value);
+        void SetResolutionValues(const su2double* values);
 
         /*!
-         * \brief Adds to the existing set of vectors for the resolution tensor.
+         * \brief Sets the vectors for the resolution tensor.
          *
          * These vectors can be thought of as "principal directions" for the
          * cell-to-cell separations. They are stored as a matrix, e.g. V,
          * where V[i][j] corresonds to the jth component of the ith vector.
          *
-         * \param[in] iDim - The first array index of the entry to be added.
-         * \param[in] jDim - The second array index of the entry to be added.
-         * \param[in] scalar_value - The value to be added.
+         * \param[in] vectors - A 2D array of the vectors.
          */
-        void AddResolutionVector(unsigned short iDim, unsigned short jDim,
-                                 su2double scalar_value);
+        void SetResolutionVectors(const su2double* const* vectors);
 
         /*!
          * \brief Gets the set of values for the resolution tensor.
