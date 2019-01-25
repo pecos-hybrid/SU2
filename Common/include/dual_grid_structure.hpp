@@ -851,14 +851,36 @@ public:
         const su2double* const* const* GetResolutionGradient() const;
 
         /*!
-         * \brief Adds to the existing set of values for the resolution tensor.
+         * \brief Sets the values for the resolution tensor.
          *
          * These values can be thought of as cell-to-cell distances along the
          * "principal directions".
          *
-         * \param[in] value - An nDim array of the values to be set.
+         * \param[in] values - An nDim array of the values to be set.
          */
         void SetResolutionValues(const su2double* values);
+
+        /*!
+         * \brief Sets the value of a component of the resolution tensor.
+         *
+         * These values can be thought of as cell-to-cell distances along the
+         * "principal directions".
+         *
+         * \param[in] iDim - The component to be set.
+         * \param[in] value - The value to be set.
+         */
+        void SetResolutionValue(unsigned short iDim, su2double value);
+
+        /*!
+         * \brief Adds to one of the values for the resolution tensor.
+         *
+         * These values can be thought of as cell-to-cell distances along the
+         * "principal directions".
+         *
+         * \param[in] iDim - The component to add to.
+         * \param[in] value - The value to be added.
+         */
+        void AddResolutionValue(unsigned short iDim, su2double value);
 
         /*!
          * \brief Sets the vectors for the resolution tensor.
@@ -870,6 +892,33 @@ public:
          * \param[in] vectors - A 2D array of the vectors.
          */
         void SetResolutionVectors(const su2double* const* vectors);
+
+        /*!
+         * \brief Sets a component of a vector for the resolution tensor.
+         *
+         * These vectors can be thought of as "principal directions" for the
+         * cell-to-cell separations. They are stored as a matrix, e.g. V,
+         * where V[i][j] corresonds to the jth component of the ith vector.
+         *
+         * \param[in] iDim - The vector to be modified.
+         * \param[in] jDim - The component to be set.
+         * \param[in] value - The value to be set.
+         */
+        void SetResolutionVector(unsigned short iDim, unsigned short jDim,
+                                 su2double value);
+        /*!
+         * \brief Adds to a component of a vector for the resolution tensor.
+         *
+         * These vectors can be thought of as "principal directions" for the
+         * cell-to-cell separations. They are stored as a matrix, e.g. V,
+         * where V[i][j] corresonds to the jth component of the ith vector.
+         *
+         * \param[in] iDim - The vector to be modified.
+         * \param[in] jDim - The component to be modified.
+         * \param[in] value - The value to be added.
+         */
+        void AddResolutionVector(unsigned short iDim, unsigned short jDim,
+                                 su2double value);
 
         /*!
          * \brief Gets the set of values for the resolution tensor.

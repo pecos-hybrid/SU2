@@ -551,6 +551,18 @@ void CPoint::SetResolutionValues(const su2double* values) {
   }
 }
 
+void CPoint::SetResolutionValue(unsigned short iDim, su2double value) {
+  assert(ResolutionValues);
+  assert(iDim < nDim);
+  ResolutionValues[iDim] = value;
+}
+
+void CPoint::AddResolutionValue(unsigned short iDim, su2double value) {
+  assert(ResolutionValues);
+  assert(iDim < nDim);
+  ResolutionValues[iDim] += value;
+}
+
 void CPoint::SetResolutionVectors(const su2double* const* vectors) {
   assert(ResolutionValues);
   assert(vectors);
@@ -559,6 +571,22 @@ void CPoint::SetResolutionVectors(const su2double* const* vectors) {
       ResolutionVectors[iDim][jDim] = vectors[iDim][jDim];
     }
   }
+}
+
+void CPoint::SetResolutionVector(unsigned short iDim, unsigned short jDim,
+                                 su2double value) {
+  assert(ResolutionVectors);
+  assert(iDim < nDim);
+  assert(jDim < nDim);
+  ResolutionVectors[iDim][jDim] = value;
+}
+
+void CPoint::AddResolutionVector(unsigned short iDim, unsigned short jDim,
+                                 su2double value) {
+  assert(ResolutionVectors);
+  assert(iDim < nDim);
+  assert(jDim < nDim);
+  ResolutionVectors[iDim][jDim] += value;
 }
 
 void CPoint::SetResolutionPowers() {

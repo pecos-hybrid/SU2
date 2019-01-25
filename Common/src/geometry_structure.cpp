@@ -12066,7 +12066,39 @@ void CGeometry::SetResolutionTensor(void) {
   }
   delete [] eigvectors;
 #else
-  SU2_MPI::Error("Eigensolver without LAPACK not implemented; please use LAPACK.", CURRENT_FUNCTION);
+  if (rank == MASTER_NODE) {
+    cout << "WARNING: Obtaining accurate eigenvalues and eigenvectors of the\n";
+    cout << "         resolution tensor requires LAPACK. Approximate values\n";
+    cout << "         are currently being used.  Please recompile SU2 with\n";
+    cout << "         LAPACK if you want to use the hybrid RANS/LES solver.";
+  }
+  /*--- Left in for testing only. ---*/
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    const unsigned short nElem = node[iPoint]->GetnElem();
+    /*-- Initialize to zero ---*/
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      node[iPoint]->SetResolutionValue(iDim, 0);
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        node[iPoint]->SetResolutionVector(iDim, jDim, 0);
+      }
+    }
+    /*--- Compute as component-wise average ---*/
+    for (unsigned long iElem = 0; iElem < nElem; iElem++) {
+      unsigned long iElem_global = node[iPoint]->GetElem(iElem);
+      const su2double* values = elem[iElem_global]->GetResolutionValues();
+      const su2double* const* vectors = elem[iElem_global]->GetResolutionVectors();
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        su2double temp_value = values[iDim] / nElem;
+        if (temp_value > EPS)
+           node[iPoint]->AddResolutionValue(iDim, temp_value);
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          temp_value = vectors[iDim][jDim] / nElem;
+          if (temp_value > EPS)
+             node[iPoint]->AddResolutionVector(iDim, jDim, temp_value);
+        }
+      }
+    }
+  }
 #endif
 
   SetResolutionGradient();
@@ -12076,7 +12108,7 @@ void CGeometry::SetResolutionTensor(void) {
      * and for possible extreme cases) ---*/
     if (rank == MASTER_NODE) {
       cout << "WARNING: Resolution tensor coefficient (aka C_M) has not been implemented for 2D grids." << endl;
-      cout << "The coefficient will be set to 1.0" << endl;
+      cout << "         The coefficient will be set to 1.0" << endl;
     }
   }
 

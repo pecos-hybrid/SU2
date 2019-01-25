@@ -298,21 +298,21 @@ public:
   /*!
    * \brief Gets the resolution tensor for the given grid object.
    */
-  su2double** GetResolutionTensor(void);
+  const su2double* const* GetResolutionTensor(void) const;
 
   /*!
    * \brief Gets the set of values for the resolution tensor.
    * \return The cell-to-cell distances along the "principal directions" of the
    *         current cell.
    */
-  su2double* GetResolutionValues(void);
+  const su2double* GetResolutionValues(void) const;
 
   /**
    * \brief Gets the set of vectors for the resolution tensor.
    * \return Vectors representing the "principal directions" for the
    * cell-to-cell separations.
    */
-  su2double** GetResolutionVectors(void);
+  const su2double* const* GetResolutionVectors(void) const;
 };
 
 /*!
