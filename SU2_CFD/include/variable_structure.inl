@@ -279,6 +279,10 @@ inline su2double** CVariable::GetResolvedTurbStress(void) const { return NULL; }
 
 inline su2double CVariable::GetResolvedKineticEnergy(void) const { return 0; }
 
+inline su2double CVariable::GetProduction(void) const { return 0; }
+
+inline void CVariable::SetProduction(su2double val_production) { }
+
 inline void CVariable::SetGammaEff(void) { }
 
 inline void CVariable::SetGammaSep(su2double gamma_sep) { }
@@ -906,6 +910,10 @@ inline su2double** CNSVariable::GetResolvedTurbStress(void) const {
 inline su2double CNSVariable::GetResolvedKineticEnergy(void) const {
   return ResolvedKineticEnergy;
 }
+
+inline su2double CNSVariable::GetProduction(void) const { return TurbProduction; }
+
+inline void CNSVariable::SetProduction(su2double val_production) { TurbProduction = val_production; }
 
 inline su2double CNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+5]; }
 

@@ -641,6 +641,12 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*! \brief SUBGRID_ENERGY_TRANSFER_MODEL \n DESCRIPTION: Specify the subgrid energy transfer model to be used with the model-split hybrid RANS/LES model. \n Options: see \link Hybrid_SGET_Model_Map \endlink \n DEFAULT: M43 \ingroup Config */
   addEnumOption("SUBGRID_ENERGY_TRANSFER_MODEL", Kind_Hybrid_SGET_Model, SGET_Model_Map, M43_MODEL);
 
+  /*!\brief SAVE_RESOLVED_TURB_STRESS \n DESCRIPTION: Save the resolved turbulent stress. \ingroup Config*/
+  addBoolOption("SAVE_RESOLVED_TURB_STRESS", Save_Resolved_Turb_Stress, YES);
+
+  /*!\brief LOAD_RESOLVED_TURB_STRESS \n DESCRIPTION: Load the resolved turbulent stress. \ingroup Config*/
+  addBoolOption("LOAD_RESOLVED_TURB_STRESS", Load_Resolved_Turb_Stress, YES);
+
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
 

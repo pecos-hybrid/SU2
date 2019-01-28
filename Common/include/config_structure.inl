@@ -1523,6 +1523,12 @@ inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { retur
 
 inline unsigned short CConfig::GetKind_Hybrid_SGET_Model(void) {return Kind_Hybrid_SGET_Model; }
 
+inline bool CConfig::GetSave_Resolved_Turb_Stress(void) const { return Save_Resolved_Turb_Stress; }
+
+inline bool CConfig::GetLoad_Resolved_Turb_Stress(void) const { return Load_Resolved_Turb_Stress; }
+
+inline void CConfig::SetLoad_Resolved_Turb_Stress(bool load_stress) { Load_Resolved_Turb_Stress = load_stress; }
+
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
 
 inline unsigned short CConfig::GetKind_Trans_Model(void) { return Kind_Trans_Model; }

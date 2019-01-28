@@ -981,6 +981,18 @@ public:
   virtual su2double GetResolvedKineticEnergy(void) const;
 
   /*!
+   * \brief Get the turbulent production
+   * \return The turbulent production.
+   */
+  virtual su2double GetProduction(void) const;
+
+  /*!
+   * \brief Set the turbulent production
+   * \param[in] val_production - The turbulent production.
+   */
+  virtual void SetProduction(su2double val_production);
+
+  /*!
    * \brief A virtual member.
    * \return Value of the flow enthalpy.
    */
@@ -3997,6 +4009,7 @@ private:
   su2double KineticEnergyRatio; /*!< \brief Ratio of modeled to total turbulent kinetic energy */
   su2double** ResolvedTurbStress;
   su2double ResolvedKineticEnergy;
+  su2double TurbProduction;
   
 public:
   
@@ -4163,6 +4176,19 @@ public:
    * \return The resolved turbulent kinetic energy.
    */
   su2double GetResolvedKineticEnergy(void) const;
+
+  /*!
+   * \brief Get the improved turbulent production term, including
+   *        contributions from the resolved stress.
+   * \return The improved turbulent production.
+   */
+  su2double GetProduction(void) const;
+
+  /*!
+   * \brief Set the turbulent production
+   * \param[in] val_production - The turbulent production.
+   */
+  void SetProduction(su2double val_production);
 
   /*!
    * \brief Get the specific heat at constant P of the flow.

@@ -522,6 +522,8 @@ private:
   unsigned short Kind_HybridRANSLES_Testing; /*!< \brief Hybrid RANS/LES blending definition */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
+  bool Save_Resolved_Turb_Stress; /*!< \brief Save the resolved turbulent stress in the restarts files. */
+  bool Load_Resolved_Turb_Stress; /*!< \brief Load the resolved turbulent stress during restarts. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -3782,6 +3784,24 @@ public:
    * \return Kind of SGET model
    */
   unsigned short GetKind_Hybrid_SGET_Model(void);
+
+  /*!
+   * \brief Check if the resolved turbulent stress is saved.
+   * \return True if the resolved turbulent stress is saved.
+   */
+  bool GetSave_Resolved_Turb_Stress(void) const;
+
+  /*!
+   * \brief Check if the resolved turbulent stress is loaded during restarts..
+   * \return True if the resolved turbulent stress is to be  loaded.
+   */
+  bool GetLoad_Resolved_Turb_Stress(void) const;
+
+  /*!
+   * \brief Change whether the resolved turb stress should be used..
+   * \param[in] load_stress - True if the resolved turbulent stress is to be used.
+   */
+  void SetLoad_Resolved_Turb_Stress(bool load_stress);
 
   /*!
    * \brief Get the kind of the turbulence model.

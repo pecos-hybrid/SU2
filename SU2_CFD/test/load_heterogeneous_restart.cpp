@@ -42,6 +42,7 @@
 #include <string>
 
 #include "../include/solver_structure.hpp"
+#include "../include/solver_structure_v2f.hpp"
 
 // Setup MPI
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
@@ -370,4 +371,50 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsFromHybridRestart,
                                  resolved_stress, tolerance);
     }
   }
+}
+
+BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsProductionFromHybridRestart,
+                       HetergeneousRestartFixture) {
+
+  char* name_array[] = {"Point_ID",
+      "\"x\"", "\"y\"", "\"z\"",
+      "\"Density\"", "\"X-Momentum\"", "\"Y-Momentum\"", "\"Z-Momentum\"", "\"Energy\"",
+      "\"TKE\"", "\"Dissipation\"", "\"v2\"", "\"f\"",
+      "\"Average_Density\"","\"Average_X-Momentum\"", "\"Average_Y-Momentum\"", "\"Average_Z-Momentum\"", "\"Average_Energy\"",
+      "\"Pressure\"", "\"Temperature\"", "\"Mach\"",
+      "\"Pressure_Coefficient\"", "\"Laminar_Viscosity\"",
+      "\"Skin_Friction_Coefficient_X\"", "\"Skin_Friction_Coefficient_Y\"",
+      "\"Skin_Friction_Coefficient_Z\"", "\"Heat_Flux\"", "\"Y_Plus\"",
+      "\"Eddy_Viscosity\"", "\"L_m\"", "\"T_m\"",
+      "\"alpha\"", "\"k_res\"", "\"Production\"", "\"mu_SGET_11\"", "\"mu_SGET_12\"", "mu_SGET_13\"",
+      "\"mu_SGET_21\"", "\"mu_SGET_22\"", "\"mu_SGET_23\"", "\"mu_SGET_31\"",
+      "\"mu_SGET_32\"", "\"mu_SGET_33\""};
+
+  const su2double production = 4;
+  const su2double k_resolved = 0.5;
+  passivedouble restart_data[] =
+        {/* x */ 0, /* y */ 0, /* z */ 0,
+         /* resolved state */ density, momentum[0], momentum[1], momentum[2], energy,
+         /* TKE */ 0,
+         /* Dissipation */ 0.17797,
+         /* v2 */ 0,
+         /* f */ 0,
+         /* average state */ density, momentum[0], momentum[1], momentum[2], energy,
+         /* Other variables */ 116372, 303.772, 0, 0.598286, 1.86371e-05,
+         1.1907e-06, 0, -9.30875e-15, -0.286451, 1276.33, 3.76891e-31, 0.0246201,
+         0.0531493,
+         /* alpha */ 1,
+         /* k_res */ k_resolved,
+         /* improved production */ production,
+         /* mu_SGET */ 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+
+  const size_t nFields = sizeof(name_array)/sizeof(name_array[0]);
+  SetupRestart(name_array, nFields, restart_data);
+  solver->LoadSolution(false, "dummy_string", config, geometry);
+
+  const su2double actual_production = solver->average_node[0]->GetProduction();
+
+  const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
+  BOOST_CHECK_CLOSE_FRACTION(actual_production, production, tolerance);
 }
