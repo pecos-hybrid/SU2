@@ -448,20 +448,26 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetTurbLengthscale, iZone);
         RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbTimescale, iZone);
+        RegisterScalar("Production", "Production", TURB_SOL,
+                       &CVariable::GetProduction, iZone, false);
       }
 
       const bool model_split_hybrid =
           (config[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
       if (model_split_hybrid) {
-          RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
-                         &CVariable::GetKineticEnergyRatio, iZone, true);
-          RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
-                         &CVariable::GetResolvedKineticEnergy, iZone, true);
+        RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
+                       &CVariable::GetKineticEnergyRatio, iZone, true);
+        RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
+                       &CVariable::GetResolvedKineticEnergy, iZone, true);
+        RegisterScalar("SGSProduction", "SGSProduction", FLOW_SOL,
+                       &CVariable::GetSGSProduction, iZone, true);
+        RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
+                       &CVariable::GetAnisoEddyViscosity, iZone);
+        if (config[iZone]->GetUse_Resolved_Turb_Stress()) {
           RegisterTensor("tau_res", "tau<sup>res</sup>", FLOW_SOL,
                          &CVariable::GetResolvedTurbStress, iZone, true);
-          RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
-                         &CVariable::GetAnisoEddyViscosity, iZone);
+        }
       }
     }
   }

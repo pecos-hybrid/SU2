@@ -14842,7 +14842,6 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
 
   int counter = 0;
   unsigned long iPoint_Global_Local = 0;
-
   for (unsigned long iPoint_Global = 0; iPoint_Global < geometry[MESH_0]->GetGlobal_nPointDomain(); iPoint_Global++ ) {
 
     /*--- Retrieve local index. If this node from the restart file lives
@@ -14898,6 +14897,7 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
             assert(found_production);
             index = counter*Restart_Vars[1] + production_index;
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
+            assert(average_node[iPoint_Local]->GetProduction() == Restart_Data[index]);
             assert(found_k_res);
             index = counter*Restart_Vars[1] + k_res_index;
             average_node[iPoint_Local]->SetResolvedKineticEnergy(Restart_Data[index]);

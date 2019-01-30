@@ -540,6 +540,7 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
     flow_node = solver_container[FLOW_SOL]->node;
   }
 
+  cout << "Computing source residual...\n";
   for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
     numerics->SetTimeStep(
@@ -576,7 +577,6 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
     /*--- Compute the source term ---*/
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
 
-    CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
     if (model_split) {
       CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
       const su2double sgs_production = v2f_numerics->GetSGSProduction();
@@ -588,6 +588,7 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
       }
     }
     node[iPoint]->SetProduction(numerics->GetProduction());
+    assert(node[iPoint]->GetProduction() == numerics->GetProduction());
 
     /*--- Subtract residual and the Jacobian ---*/
     LinSysRes.SubtractBlock(iPoint, Residual);
