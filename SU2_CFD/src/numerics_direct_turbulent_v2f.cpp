@@ -341,48 +341,40 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
 
   // TKE equation...
-  su2double Pk, Pk_rk, Pk_re, Pk_rv2;
+  su2double Pk_rk, Pk_re, Pk_rv2;
   su2double Dk, Dk_rk, Dk_re, Dk_rv2;
 
   //... production
   // NB: we ignore the Jacobian of production here
 
-  Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
+  SGSProduction     = muT*S*S - 2.0/3.0*rho*tke*diverg;
 
   /*--- If using a hybrid method, include resolved production ---*/
 
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-    if (config->GetUse_Resolved_Turb_Stress()) {
-      /*--- Limit alpha to protect from imbalance in k_model vs k_resolved.
-       * Don't allow resolved turb. stress to be added if alpha is not valid,
-       * in case the resolved flow data are bad. ---*/
-      if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
-        // Rescale total production to get subfilter production
-        Pk *= KineticEnergyRatio;
-        // Add in resolved production
+    /*--- Limit alpha to protect from imbalance in k_model vs k_resolved. ---*/
+    if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
+      SGSProduction *= KineticEnergyRatio;
+      if (config->GetUse_Resolved_Turb_Stress()) {
         su2double Pk_resolved = 0;
         for (unsigned short iDim = 0; iDim < nDim; iDim++) {
           for (unsigned short jDim = 0; jDim < nDim; jDim++) {
             Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
           }
         }
-        Pk += Pk_resolved;
+        Pk = SGSProduction + Pk_resolved;
       }
-      Production = Pk;
+      /*--- If using production instead of resolved turb. stress,
+       * the production (`Pk`) has been set externally.  So we only need to
+       * make sure that SGSProduction has been properly calculated, since
+       * it will be pulled back out and passed to the averaging routine. ---*/
     } else {
-      /*--- An improved production (using resolved production) has been
-       * calculated in the averaging procedure, and should be used. ---*/
-      if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
-        /*--- Set the SGSProduction so it can be passed back out to the
-         * averaging routine ---*/
-        SGSProduction = KineticEnergyRatio * Pk;
-      } else {
-        SGSProduction = Pk;
-      }
-      Pk = Production;
+      /*--- Don't allow resolved turb. stress to be added if alpha is not
+       * valid, in case the resolved flow data are bad. ---*/
+      Pk = SGSProduction;
     }
   } else {
-    Production = Pk;
+    Pk = SGSProduction;
   }
 
   Pk_rk  = 0.0;

@@ -1319,7 +1319,7 @@ public:
    * \brief Residual for source term integration.
    * \param[in] val_production - Value of the Production.
    */
-  virtual su2double GetProduction(void);
+  virtual su2double GetProduction(void) const;
   
   /*!
    * \brief Residual for source term integration.
@@ -4784,7 +4784,7 @@ public:
   /*!
    * \brief ______________.
    */
-  su2double GetProduction(void);
+  su2double GetProduction(void) const;
 
   /*!
    * \brief  Get the intermittency for the BC trans. model.
@@ -4887,7 +4887,7 @@ public:
     /*!
      * \brief ______________.
      */
-    su2double GetProduction(void);
+    su2double GetProduction(void) const;
     
     /*!
      * \brief  ______________.
@@ -4984,7 +4984,7 @@ public:
     /*!
      * \brief ______________.
      */
-    su2double GetProduction(void);
+    su2double GetProduction(void) const;
     
     /*!
      * \brief  ______________.
@@ -5082,7 +5082,7 @@ public:
     /*!
      * \brief ______________.
      */
-    su2double GetProduction(void);
+    su2double GetProduction(void) const;
     
     /*!
      * \brief  ______________.
@@ -5176,7 +5176,7 @@ public:
   /*!
    * \brief ______________.
    */
-  su2double GetProduction(void);
+  su2double GetProduction(void) const;
   
   /*!
    * \brief  ______________.

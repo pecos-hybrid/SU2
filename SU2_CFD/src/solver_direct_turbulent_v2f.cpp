@@ -578,16 +578,16 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
 
     CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
     if (model_split) {
+      CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
+      const su2double sgs_production = v2f_numerics->GetSGSProduction();
+      solver_container[FLOW_SOL]->average_node[iPoint]->SetSGSProduction(sgs_production);
       if (config->GetUse_Resolved_Turb_Stress()) {
-        CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
-        const su2double sgs_production = v2f_numerics->GetSGSProduction();
-        solver_container[FLOW_SOL]->average_node[iPoint]->SetSGSProduction(sgs_production);
+        /*--- Production is not passed in, so output it instead ---*/
+        const su2double production = numerics->GetProduction();
+        solver_container[FLOW_SOL]->average_node[iPoint]->SetProduction(production);
       }
-      // Store production in the v2f solver and average node, just in case.
-      node[iPoint]->SetProduction(v2f_numerics->GetProduction());
-    } else {
-      node[iPoint]->SetProduction(v2f_numerics->GetProduction());
     }
+    node[iPoint]->SetProduction(numerics->GetProduction());
 
     /*--- Subtract residual and the Jacobian ---*/
     LinSysRes.SubtractBlock(iPoint, Residual);
