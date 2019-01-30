@@ -578,7 +578,7 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
 
     CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
     if (model_split) {
-      if (config->GetLoad_Resolved_Turb_Stress()) {
+      if (config->GetUse_Resolved_Turb_Stress()) {
         CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
         const su2double sgs_production = v2f_numerics->GetSGSProduction();
         solver_container[FLOW_SOL]->average_node[iPoint]->SetSGSProduction(sgs_production);

@@ -14797,22 +14797,24 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
                           found_production, production_index);
      if (!found_resolved_stress && !found_production) {
        SU2_MPI::Error("Found averages in the restart file, but could not find production nor the\nresolved turbulent stress in the restart. Starting a hybrid simulation\nfrom a URANS simulation is not currently supported.", CURRENT_FUNCTION);
-     } else if (config->GetLoad_Resolved_Turb_Stress() && !found_resolved_stress) {
+     } else if (config->GetUse_Resolved_Turb_Stress() && !found_resolved_stress) {
         if (rank == MASTER_NODE) {
           cout << "While the *.cfg file specifies that the resolved turbulent stress should be\n";
           cout << "loaded, SU2 found only the production (not the resolved turbulent stress).\n";
           cout << "SU2 will proceed using this turbulent production instead.\n";
         }
-        config->SetLoad_Resolved_Turb_Stress(false);
-      } else if (!(config->GetLoad_Resolved_Turb_Stress()) && !found_production) {
+        config->SetUse_Resolved_Turb_Stress(false);
+      } else if (!(config->GetUse_Resolved_Turb_Stress()) && !found_production) {
         if (rank == MASTER_NODE) {
           cout << "While the *.cfg file specifies that the resolved turbulent stress should not\n";
           cout << "be loaded, SU2 found only the resolved turbulent stress (not production).\n";
           cout << "SU2 will proceed using this turbulent stress instead.\n";
         }
-        config->SetLoad_Resolved_Turb_Stress(true);
+        config->SetUse_Resolved_Turb_Stress(true);
       }
-      if (!config->GetLoad_Resolved_Turb_Stress()) {
+      if (!config->GetUse_Resolved_Turb_Stress()) {
+        /*--- We need to load resolved kinetic energy if we're not loading
+         * the turbulent stress ---*/
         // Non-tecplot name
         FindRestartVariable("\"k_res\"", config->fields,
                             found_k_res, k_res_index);
@@ -14820,14 +14822,14 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
           // Tecplot name
           FindRestartVariable("\"k<sub>res</sub>\"", config->fields,
                               found_k_res, k_res_index);
-        }
-        if (!found_k_res) {
-          SU2_MPI::Error("Could not find resolved kinetic energy in the restart file!", CURRENT_FUNCTION);
+          if (!found_k_res) {
+            SU2_MPI::Error("Could not find resolved kinetic energy in the restart file!", CURRENT_FUNCTION);
+          }
         }
       }
     } else {
       // TODO: Allow loading production
-      config->SetLoad_Resolved_Turb_Stress(true);
+      config->SetUse_Resolved_Turb_Stress(true);
       if (rank == MASTER_NODE) {
         cout << "Since no averages were found in the restart file, the hybrid model will\n";
         cout << "be set to track the resolved turbulent stress as an average variable,\n";
@@ -14876,9 +14878,10 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
 
       if (model_split) {
         if (found_average) {
-
-          if (found_resolved_stress) {
-            // Load resolved stress, if found, for either setup
+          if (config->GetUse_Resolved_Turb_Stress()) {
+            // We should have gotten an error previously if this is not true.
+            assert(found_resolved_stress);
+            // Load resolved stress
             index = counter*Restart_Vars[1] + resolved_stress_index;
             for (unsigned short iDim = 0; iDim < nDim; iDim++) {
               for (unsigned short jDim = 0; jDim < nDim; jDim++) {
@@ -14886,18 +14889,6 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
                 index++;
               }
             }
-          } else {
-            for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-              for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-                average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
-                index++;
-              }
-            }
-          }
-
-          if (config->GetLoad_Resolved_Turb_Stress()) {
-            // We should have gotten an error previously if this is not true.
-            assert(found_resolved_stress);
             /*--- We don't need to load the (possibly improved) production,
              * since it can be recomputed at every time step using the
              * resolved turb stress ---*/
@@ -19067,7 +19058,7 @@ void CNSSolver::UpdateAverage(const su2double weight,
   }
   const su2double resolved_rho = resolved_prim_vars[nDim+2];
 
-  if (config->GetLoad_Resolved_Turb_Stress()) {
+  if (config->GetUse_Resolved_Turb_Stress()) {
 
     /*--- Update resolved Reynolds stress ---*/
 

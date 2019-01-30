@@ -352,7 +352,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   /*--- If using a hybrid method, include resolved production ---*/
 
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-    if (config->GetLoad_Resolved_Turb_Stress()) {
+    if (config->GetUse_Resolved_Turb_Stress()) {
       /*--- Limit alpha to protect from imbalance in k_model vs k_resolved.
        * Don't allow resolved turb. stress to be added if alpha is not valid,
        * in case the resolved flow data are bad. ---*/
