@@ -164,6 +164,8 @@ private:
   C_e2;
 
   su2double** ResolvedTurbStress;
+  su2double SGSProduction;
+  su2double Production;
 
   bool incompressible;
 
@@ -201,5 +203,17 @@ public:
   void SetResolvedTurbStress(su2double** val_turb_stress) {
     ResolvedTurbStress = val_turb_stress;
   }
+
+  void SetProduction(su2double val_production) {
+    Production = val_production;
+  }
+
+  /*!
+   * \brief Get the SGS production.
+   * \return The SGS production term.
+   */
+  su2double GetSGSProduction(void) const { return SGSProduction; }
+
+  su2double GetProduction(void) const { return Production; }
 
 };

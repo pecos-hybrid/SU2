@@ -283,6 +283,10 @@ inline su2double CVariable::GetProduction(void) const { return 0; }
 
 inline void CVariable::SetProduction(su2double val_production) { }
 
+inline su2double CVariable::GetSGSProduction(void) const { return 0; }
+
+inline void CVariable::SetSGSProduction(su2double val_production) { }
+
 inline void CVariable::SetGammaEff(void) { }
 
 inline void CVariable::SetGammaSep(su2double gamma_sep) { }
@@ -480,6 +484,8 @@ inline void CVariable::SetResolvedTurbStress(unsigned short iDim,
                                                su2double val_stress) { }
 
 inline void CVariable::SetResolvedKineticEnergy(void) { }
+
+inline void CVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) { }
 
 inline void CVariable::SetThermalConductivity(su2double thermalConductivity) { }
 
@@ -915,6 +921,10 @@ inline su2double CNSVariable::GetProduction(void) const { return TurbProduction;
 
 inline void CNSVariable::SetProduction(su2double val_production) { TurbProduction = val_production; }
 
+inline su2double CNSVariable::GetSGSProduction(void) const { return SGSProduction; }
+
+inline void CNSVariable::SetSGSProduction(su2double val_production) { SGSProduction = val_production; }
+
 inline su2double CNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+5]; }
 
 inline su2double CNSVariable::GetThermalConductivity(void) { return Primitive[nDim+7]; }
@@ -998,6 +1008,10 @@ inline void CNSVariable::SetResolvedKineticEnergy(void) {
     ResolvedKineticEnergy += -0.5*ResolvedTurbStress[iDim][iDim];
   }
   ResolvedKineticEnergy /= GetDensity();
+}
+
+inline void CNSVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) {
+  ResolvedKineticEnergy = val_kinetic_energy;
 }
 
 inline void CNSVariable::SetWallTemperature(su2double Temperature_Wall ) { Primitive[0] = Temperature_Wall; }

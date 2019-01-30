@@ -414,7 +414,9 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsProductionFromHybridRestart,
   solver->LoadSolution(false, "dummy_string", config, geometry);
 
   const su2double actual_production = solver->average_node[0]->GetProduction();
+  const su2double actual_k_resolved = solver->average_node[0]->GetResolvedKineticEnergy();
 
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   BOOST_CHECK_CLOSE_FRACTION(actual_production, production, tolerance);
+  BOOST_CHECK_CLOSE_FRACTION(actual_k_resolved, k_resolved, tolerance);
 }

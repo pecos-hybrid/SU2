@@ -14768,47 +14768,71 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
 
   /*--- Find average flow variables, if present ---*/
 
-  bool found_average_index = false;
+  bool found_average = false;
   unsigned short Average_Index;
   if (runtime_averaging) {
     FindRestartVariable("\"Average_Density\"", config->fields,
-                        found_average_index, Average_Index);
-    if (!found_average_index && rank == MASTER_NODE) {
+                        found_average, Average_Index);
+    if (!found_average && rank == MASTER_NODE) {
       cout << "Average flow variables not found in restart file.\n";
       cout << "Setting the initial values of the average to the ";
-      cout << "unsteady values from the restart file.\n";
+      cout << "unsteady values from the\nrestart file.\n";
     }
   }
 
-  bool found_resolved_stress = false, found_production = false;
-  unsigned short resolved_stress_index, production_index;
-  if (model_split && found_average_index) {
-    // Non-tecplot name
-    FindRestartVariable("\"tau_res_11\"", config->fields,
-                        found_resolved_stress, resolved_stress_index);
-    if (!found_resolved_stress) {
-      // Tecplot name
-      FindRestartVariable("\"tau<sup>res</sup><sub>11</sub>\"", config->fields,
+  bool found_resolved_stress = false, found_production = false,
+       found_k_res = false;
+  unsigned short resolved_stress_index, production_index, k_res_index;
+  if (model_split) {
+    if (found_average) {
+      // Non-tecplot name
+      FindRestartVariable("\"tau_res_11\"", config->fields,
                           found_resolved_stress, resolved_stress_index);
-    }
-    FindRestartVariable("\"Production\"", config->fields,
-                        found_production, production_index);
-   if (!found_resolved_stress && !found_production) {
-     SU2_MPI::Error("Found averages in the restart file, but could not find production nor the\nresolved turbulent stress in the restart. Starting a hybrid simulation\nfrom a URANS simulation is not currently supported.", CURRENT_FUNCTION);
-   } else if (config->GetLoad_Resolved_Turb_Stress() && !found_resolved_stress) {
-      if (rank == MASTER_NODE) {
-        cout << "While the *.cfg file specifies that the resolved turbulent stress should be\n";
-        cout << "loaded, SU2 found only the production (not the resolved turbulent stress).\n";
-        cout << "SU2 will proceed using this turbulent production instead.";
+      if (!found_resolved_stress) {
+        // Tecplot name
+        FindRestartVariable("\"tau<sup>res</sup><sub>11</sub>\"", config->fields,
+                            found_resolved_stress, resolved_stress_index);
       }
-      config->SetLoad_Resolved_Turb_Stress(false);
-    } else if (!(config->GetLoad_Resolved_Turb_Stress()) && !found_production) {
-      if (rank == MASTER_NODE) {
-        cout << "While the *.cfg file specifies that the resolved turbulent stress should not\n";
-        cout << "be loaded, SU2 found only the resolved turbulent stress (not production).\n";
-        cout << "SU2 will proceed using this turbulent stress instead.";
+      FindRestartVariable("\"Production\"", config->fields,
+                          found_production, production_index);
+     if (!found_resolved_stress && !found_production) {
+       SU2_MPI::Error("Found averages in the restart file, but could not find production nor the\nresolved turbulent stress in the restart. Starting a hybrid simulation\nfrom a URANS simulation is not currently supported.", CURRENT_FUNCTION);
+     } else if (config->GetLoad_Resolved_Turb_Stress() && !found_resolved_stress) {
+        if (rank == MASTER_NODE) {
+          cout << "While the *.cfg file specifies that the resolved turbulent stress should be\n";
+          cout << "loaded, SU2 found only the production (not the resolved turbulent stress).\n";
+          cout << "SU2 will proceed using this turbulent production instead.\n";
+        }
+        config->SetLoad_Resolved_Turb_Stress(false);
+      } else if (!(config->GetLoad_Resolved_Turb_Stress()) && !found_production) {
+        if (rank == MASTER_NODE) {
+          cout << "While the *.cfg file specifies that the resolved turbulent stress should not\n";
+          cout << "be loaded, SU2 found only the resolved turbulent stress (not production).\n";
+          cout << "SU2 will proceed using this turbulent stress instead.\n";
+        }
+        config->SetLoad_Resolved_Turb_Stress(true);
       }
+      if (!config->GetLoad_Resolved_Turb_Stress()) {
+        // Non-tecplot name
+        FindRestartVariable("\"k_res\"", config->fields,
+                            found_k_res, k_res_index);
+        if (!found_k_res) {
+          // Tecplot name
+          FindRestartVariable("\"k<sub>res</sub>\"", config->fields,
+                              found_k_res, k_res_index);
+        }
+        if (!found_k_res) {
+          SU2_MPI::Error("Could not find resolved kinetic energy in the restart file!", CURRENT_FUNCTION);
+        }
+      }
+    } else {
+      // TODO: Allow loading production
       config->SetLoad_Resolved_Turb_Stress(true);
+      if (rank == MASTER_NODE) {
+        cout << "Since no averages were found in the restart file, the hybrid model will\n";
+        cout << "be set to track the resolved turbulent stress as an average variable,\n";
+        cout << "rather than use the turbulent production.\n";
+      }
     }
   }
 
@@ -14837,7 +14861,7 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
       /*--- Read in the runtime averages ---*/
 
       if (runtime_averaging) {
-        if (found_average_index) {
+        if (found_average) {
           index = counter*Restart_Vars[1] + Average_Index;
           for (unsigned short iVar = 0; iVar < nVar; iVar++) {
             Solution[iVar] = Restart_Data[index+iVar];
@@ -14851,10 +14875,10 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
       /*--- Read in the resolved turbulent stress ---*/
 
       if (model_split) {
-        if (found_average_index) {
-          if (config->GetLoad_Resolved_Turb_Stress()) {
-            // We should have gotten an error previously if this is not true.
-            assert(found_resolved_stress);
+        if (found_average) {
+
+          if (found_resolved_stress) {
+            // Load resolved stress, if found, for either setup
             index = counter*Restart_Vars[1] + resolved_stress_index;
             for (unsigned short iDim = 0; iDim < nDim; iDim++) {
               for (unsigned short jDim = 0; jDim < nDim; jDim++) {
@@ -14862,13 +14886,32 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
                 index++;
               }
             }
-            // TODO: What about the production?
           } else {
+            for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+              for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+                average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
+                index++;
+              }
+            }
+          }
+
+          if (config->GetLoad_Resolved_Turb_Stress()) {
+            // We should have gotten an error previously if this is not true.
+            assert(found_resolved_stress);
+            /*--- We don't need to load the (possibly improved) production,
+             * since it can be recomputed at every time step using the
+             * resolved turb stress ---*/
+            average_node[iPoint_Local]->SetResolvedKineticEnergy();
+          } else {
+            // We should have gotten an error previously if this is not true.
             assert(found_production);
             index = counter*Restart_Vars[1] + production_index;
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
+            assert(found_k_res);
+            index = counter*Restart_Vars[1] + k_res_index;
+            average_node[iPoint_Local]->SetResolvedKineticEnergy(Restart_Data[index]);
           }
-          // TODO: What about the resolved turbulent stress?
+
         } else {
           /*--- No averages, so just set resolved turb. stress to 0 ---*/
           for (unsigned short iDim = 0; iDim < nDim; iDim++) {
@@ -14876,9 +14919,8 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
               average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
             }
           }
+          average_node[iPoint_Local]->SetResolvedKineticEnergy();
         }
-        average_node[iPoint_Local]->SetResolvedKineticEnergy();
-        // TODO: What about production?
       }
 
       /*--- For dynamic meshes, read in and store the
@@ -19012,11 +19054,10 @@ void CNSSolver::InitAverages() {
 
 void CNSSolver::UpdateAverage(const su2double weight,
                               const unsigned long iPoint,
-                              su2double* buffer) {
+                              su2double* buffer,
+                              const CConfig* config) {
 
   assert(average_node != NULL);
-
-  /*--- Update resolved Reynolds stress ---*/
 
   const su2double* resolved_prim_vars = node[iPoint]->GetPrimitive();
   const su2double* average_prim_vars = average_node[iPoint]->GetPrimitive();
@@ -19026,27 +19067,59 @@ void CNSSolver::UpdateAverage(const su2double weight,
   }
   const su2double resolved_rho = resolved_prim_vars[nDim+2];
 
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
-      const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
-      const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+  if (config->GetLoad_Resolved_Turb_Stress()) {
 
-      node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
-      average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
+    /*--- Update resolved Reynolds stress ---*/
+
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+        const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
+        const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+
+        node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
+        average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
+      }
     }
+
+    /*--- Update resolved turbulent kinetic energy ---*/
+
+    average_node[iPoint]->SetResolvedKineticEnergy();
+
+  } else {
+
+    /*--- Update improved production ---*/
+
+    const su2double* const* PrimVar_Grad = average_node[iPoint]->GetGradient_Primitive();
+    const su2double production = average_node[iPoint]->GetProduction();
+    su2double current_production = average_node[iPoint]->GetSGSProduction();
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+        current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
+      }
+    }
+    const su2double new_Pk = production + (current_production - production)*weight;
+    average_node[iPoint]->SetProduction(new_Pk);
+
+    /*--- Update resolved kinetic energy ---*/
+
+    const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
+    su2double current_resolved_k = 0;
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
+    }
+    // TODO: Make this consistent with Favre averaging
+    const su2double new_resolved_k = resolved_k + (current_resolved_k - resolved_k)*weight;
+    average_node[iPoint]->SetResolvedKineticEnergy(new_resolved_k);
+
   }
-
-  /*--- Update resolved turbulent kinetic energy ---*/
-
-  average_node[iPoint]->SetResolvedKineticEnergy();
 
   /*--- We can't update alpha (the ratio of modeled to total turbulent
    * kinetic energy) here because we don't have access to the RANS solver
    * variables. ---*/
 
-
   /*--- Make sure the average of the solution variables is updated too --*/
 
-  CSolver::UpdateAverage(weight, iPoint, buffer);
+  CSolver::UpdateAverage(weight, iPoint, buffer, config);
 }

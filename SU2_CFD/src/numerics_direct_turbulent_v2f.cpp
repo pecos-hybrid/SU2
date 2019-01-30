@@ -345,26 +345,44 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   su2double Dk, Dk_rk, Dk_re, Dk_rv2;
 
   //... production
-  // NB: we ignore the jacobian of production here
+  // NB: we ignore the Jacobian of production here
 
   Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
 
   /*--- If using a hybrid method, include resolved production ---*/
 
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-    /*--- Limit alpha to protect from imbalance in k_model vs k_resolved ---*/
-    if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
-      // Rescale total production to get subfilter production
-      Pk *= KineticEnergyRatio;
-      // Add in resolved production
-      su2double Pk_resolved = 0;
-      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-          Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+    if (config->GetLoad_Resolved_Turb_Stress()) {
+      /*--- Limit alpha to protect from imbalance in k_model vs k_resolved.
+       * Don't allow resolved turb. stress to be added if alpha is not valid,
+       * in case the resolved flow data are bad. ---*/
+      if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
+        // Rescale total production to get subfilter production
+        Pk *= KineticEnergyRatio;
+        // Add in resolved production
+        su2double Pk_resolved = 0;
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+            Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+          }
         }
+        Pk += Pk_resolved;
       }
-      Pk += Pk_resolved;
+      Production = Pk;
+    } else {
+      /*--- An improved production (using resolved production) has been
+       * calculated in the averaging procedure, and should be used. ---*/
+      if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
+        /*--- Set the SGSProduction so it can be passed back out to the
+         * averaging routine ---*/
+        SGSProduction = KineticEnergyRatio * Pk;
+      } else {
+        SGSProduction = Pk;
+      }
+      Pk = Production;
     }
+  } else {
+    Production = Pk;
   }
 
   Pk_rk  = 0.0;

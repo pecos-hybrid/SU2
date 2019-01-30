@@ -993,6 +993,18 @@ public:
   virtual void SetProduction(su2double val_production);
 
   /*!
+   * \brief Get the subgrid production of turbulent kinetic energy.
+   * \return The subgrid production
+   */
+  virtual su2double GetSGSProduction(void) const;
+
+  /*!
+   * \brief Set the subgrid production of turbulent kinetic energy.
+   * \param[in] val_sgs_production - The sgs turbulent production.
+   */
+  virtual void SetSGSProduction(su2double val_sgs_production);
+
+  /*!
    * \brief A virtual member.
    * \return Value of the flow enthalpy.
    */
@@ -1224,6 +1236,13 @@ public:
    * turbulent stress to calculate the resolved kinetic energy.
    */
   virtual void SetResolvedKineticEnergy(void);
+
+  /*!
+   * \brief Store the resolved kinetic energy;
+   *
+   * \param[in] val_kinetic_energy - The resolved kinetic energy;
+   */
+  virtual void SetResolvedKineticEnergy(su2double val_kinetic_energy);
 
   /*!
    * \brief A virtual member.
@@ -4010,6 +4029,7 @@ private:
   su2double** ResolvedTurbStress;
   su2double ResolvedKineticEnergy;
   su2double TurbProduction;
+  su2double SGSProduction;
   
 public:
   
@@ -4112,6 +4132,13 @@ public:
   void SetResolvedKineticEnergy(void);
 
   /*!
+   * \brief Store the resolved kinetic energy;
+   *
+   * \param[in] val_kinetic_energy - The resolved kinetic energy;
+   */
+  void SetResolvedKineticEnergy(su2double val_kinetic_energy);
+
+  /*!
    * \brief Get the laminar viscosity of the flow.
    * \return Value of the laminar viscosity of the flow.
    */
@@ -4189,6 +4216,18 @@ public:
    * \param[in] val_production - The turbulent production.
    */
   void SetProduction(su2double val_production);
+
+  /*!
+   * \brief Get the subgrid production of turbulent kinetic energy.
+   * \return The subgrid production
+   */
+  su2double GetSGSProduction(void) const;
+
+  /*!
+   * \brief Set the subgrid production of turbulent kinetic energy.
+   * \param[in] val_sgs_production - The sgs turbulent production.
+   */
+  void SetSGSProduction(su2double val_sgs_production);
 
   /*!
    * \brief Get the specific heat at constant P of the flow.

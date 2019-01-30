@@ -151,16 +151,18 @@ protected:
    * function if you intend to keep the solution variables. Include
    * this line:
    * \code
-   *   CSolver::UpdateAverage(weight, iPoint, buffer);
+   *   CSolver::UpdateAverage(weight, iPoint, buffer, config);
    * \endcode
    *
-   * \param weight - The amount to weight the update on the average
-   * \param iPoint - The point at which the average will be calculated
-   * \param buffer - An allocated array of size nVar for working calculations
+   * \param[in] weight - The amount to weight the update on the average
+   * \param[in] iPoint - The point at which the average will be calculated
+   * \param[inout] buffer - An allocated array of size nVar for working calculations
+   * \param[in] config - Definition of the particular problem.
    */
-  virtual void UpdateAverage(const su2double weight,
-                             const unsigned long iPoint,
-                             su2double* buffer);
+  virtual void UpdateAverage(su2double weight,
+                             unsigned long iPoint,
+                             su2double* buffer,
+                             const CConfig* config);
 
 public:
   
@@ -8620,10 +8622,12 @@ public:
    * \param weight - The amount to weight the update on the average
    * \param iPoint - The point at which the average will be calculated
    * \param buffer - An allocated array of size nVar for working calculations
+   * \param[in] config - Definition of the particular problem.
    */
-  void UpdateAverage(const su2double weight,
-                     const unsigned long iPoint,
-                     su2double* buffer);
+  void UpdateAverage(su2double weight,
+                     unsigned long iPoint,
+                     su2double* buffer,
+                     const CConfig* config);
 
   /*!
    * \brief Initialize the extra quantities associated with averages.

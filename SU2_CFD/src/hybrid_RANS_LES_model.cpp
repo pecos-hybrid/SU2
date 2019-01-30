@@ -162,7 +162,11 @@ void CHybrid_Mediator::SetupRANSNumerics(CSolver **solver_container,
 
   CVariable** flow_node = solver_container[FLOW_SOL]->average_node;
   rans_numerics->SetKineticEnergyRatio(flow_node[iPoint]->GetKineticEnergyRatio());
-  rans_numerics->SetResolvedTurbStress(flow_node[iPoint]->GetResolvedTurbStress());
+  if (config->GetLoad_Resolved_Turb_Stress()) {
+    rans_numerics->SetResolvedTurbStress(flow_node[iPoint]->GetResolvedTurbStress());
+  } else {
+    rans_numerics->SetProduction(flow_node[iPoint]->GetProduction());
+  }
 }
 
 void CHybrid_Mediator::SetupForcing(const CGeometry* geometry,
