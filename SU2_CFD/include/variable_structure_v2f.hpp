@@ -109,9 +109,17 @@ public:
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
-  void SetProduction(su2double val_production) { Production = val_production; }
+  /*!
+   * \brief Set the production of turbulent kinetic energy.
+   * \param[in] val_production - Production of turbulent kinetic energy.
+   */
+  void SetProduction(su2double val_production);
 
-  su2double GetProduction(void) const { return Production; }
+  /*!
+   * \brief Get the production of turbulent kinetic energy.
+   * \return Production of turbulent kinetic energy.
+   */
+  su2double GetProduction(void) const;
 };
 
 #include "variable_structure_v2f.inl"

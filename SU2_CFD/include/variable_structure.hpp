@@ -4032,10 +4032,10 @@ private:
   su2double Vortex_Tilting;  /*!< \brief Value of the vortex tilting variable for DES length scale computation. */
   su2double** AnisoEddyViscosity; /*!< \brief Anisotropic eddy viscosity. */
   su2double KineticEnergyRatio; /*!< \brief Ratio of modeled to total turbulent kinetic energy */
-  su2double** ResolvedTurbStress;
-  su2double ResolvedKineticEnergy;
-  su2double TurbProduction;
-  su2double SGSProduction;
+  su2double** ResolvedTurbStress; /*!< \brief The resolved portion of the Reynolds stress tensor */
+  su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
+  su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
+  su2double SGSProduction; /*!< \brief The subgrid portion of the production of TKE */
   
 public:
   

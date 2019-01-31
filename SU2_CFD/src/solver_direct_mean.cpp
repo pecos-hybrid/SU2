@@ -14836,6 +14836,13 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
         cout << "rather than use the turbulent production.\n";
       }
     }
+    if (rank == MASTER_NODE) {
+      if (config->GetUse_Resolved_Turb_Stress()) {
+        cout << "SU2 is set to track the resolved turbulent stress." << endl;
+      } else {
+        cout << "SU2 is set to track the improved production." << endl;
+      }
+    }
   }
 
   /*--- Load data from the restart into correct containers. ---*/

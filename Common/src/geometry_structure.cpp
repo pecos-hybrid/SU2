@@ -12070,7 +12070,7 @@ void CGeometry::SetResolutionTensor(void) {
     cout << "WARNING: Obtaining accurate eigenvalues and eigenvectors of the\n";
     cout << "         resolution tensor requires LAPACK. Approximate values\n";
     cout << "         are currently being used.  Please recompile SU2 with\n";
-    cout << "         LAPACK if you want to use the hybrid RANS/LES solver.";
+    cout << "         LAPACK if you want to use the hybrid RANS/LES solver\n.";
   }
   /*--- Left in for testing only. ---*/
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
