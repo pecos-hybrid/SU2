@@ -263,6 +263,8 @@ inline su2double CVariable::GetEddyViscosity(void) { return 0; }
 
 inline su2double** CVariable::GetAnisoEddyViscosity(void) const { return NULL; }
 
+inline su2double CVariable::GetTraceAnisoEddyViscosity(void) const { return 0; }
+
 inline su2double CVariable::GetTurbTimescale(void) const { return 0; }
 
 inline su2double CVariable::GetTurbLengthscale(void) const { return 0; }
@@ -901,6 +903,14 @@ inline void CEulerVariable::Set_BGSSolution_k(void) {
 inline su2double CNSVariable::GetEddyViscosity(void) { return Primitive[nDim+6]; }
 
 inline su2double** CNSVariable::GetAnisoEddyViscosity(void) const { return AnisoEddyViscosity; }
+
+inline su2double CNSVariable::GetTraceAnisoEddyViscosity(void) const {
+  if (nDim == 2) {
+    return (AnisoEddyViscosity[0][0] + AnisoEddyViscosity[1][1]);
+  } else {
+    return (AnisoEddyViscosity[0][0] + AnisoEddyViscosity[1][1] + AnisoEddyViscosity[2][2]);
+  }
+}
 
 inline su2double CNSVariable::GetKineticEnergyRatio(void) const { return KineticEnergyRatio; }
 

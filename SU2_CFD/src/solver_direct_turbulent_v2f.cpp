@@ -540,7 +540,6 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
     flow_node = solver_container[FLOW_SOL]->node;
   }
 
-  cout << "Computing source residual...\n";
   for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
     numerics->SetTimeStep(

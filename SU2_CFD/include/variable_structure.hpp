@@ -915,6 +915,12 @@ public:
   virtual su2double** GetAnisoEddyViscosity(void) const;
 
   /*!
+   * \brief Get the trace of the anisotropic eddy-viscosity
+   * \return The trace of the anisotropic eddy viscosity of the flow.
+   */
+  virtual su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
    * \brief A virtual member.
    * \return Value of turbulent timescale
    */
@@ -4161,6 +4167,12 @@ public:
    * \return The anisotropic eddy viscosity of the flow.
    */
   su2double** GetAnisoEddyViscosity(void) const;
+
+  /*!
+   * \brief Get the trace of the anisotropic eddy-viscosity
+   * \return The trace of the anisotropic eddy viscosity of the flow.
+   */
+  su2double GetTraceAnisoEddyViscosity(void) const;
 
   /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy.

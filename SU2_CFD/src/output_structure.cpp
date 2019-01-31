@@ -462,6 +462,8 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetResolvedKineticEnergy, iZone, true);
         RegisterScalar("SGSProduction", "SGSProduction", FLOW_SOL,
                        &CVariable::GetSGSProduction, iZone, true);
+        RegisterScalar("trace_mu_SGET", "trace_mu_SGET", FLOW_SOL,
+                       &CVariable::GetTraceAnisoEddyViscosity, iZone);
         RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
                        &CVariable::GetAnisoEddyViscosity, iZone);
         if (config[iZone]->GetUse_Resolved_Turb_Stress()) {
@@ -4458,15 +4460,15 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"Resolution_Tensor_32\"";
         restart_file << "\t\"Resolution_Tensor_33\"";
       } else {
-        restart_file << "\t\"M<sub>11</sub>\"";
-        restart_file << "\t\"M<sub>12</sub>\"";
-        restart_file << "\t\"M<sub>13</sub>\"";
-        restart_file << "\t\"M<sub>21</sub>\"";
-        restart_file << "\t\"M<sub>22</sub>\"";
-        restart_file << "\t\"M<sub>23</sub>\"";
-        restart_file << "\t\"M<sub>31</sub>\"";
-        restart_file << "\t\"M<sub>32</sub>\"";
-        restart_file << "\t\"M<sub>33</sub>\"";
+        restart_file << "\t\"Resolution_Tensor_11\"";
+        restart_file << "\t\"Resolution_Tensor_12\"";
+        restart_file << "\t\"Resolution_Tensor_13\"";
+        restart_file << "\t\"Resolution_Tensor_21\"";
+        restart_file << "\t\"Resolution_Tensor_22\"";
+        restart_file << "\t\"Resolution_Tensor_23\"";
+        restart_file << "\t\"Resolution_Tensor_31\"";
+        restart_file << "\t\"Resolution_Tensor_32\"";
+        restart_file << "\t\"Resolution_Tensor_33\"";
       }
     }
 
@@ -12938,6 +12940,18 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           for (unsigned short iDim = 0; iDim < nDim; iDim++) {
             for (unsigned short jDim = 0; jDim < nDim; jDim++) {
               Local_Data[jPoint][iVar] = RetrieveTensorComponent(solver, *it, iPoint, iDim, jDim);
+              iVar++;
+            }
+          }
+        }
+
+        /*--- Load data for the resolution tensors ---*/
+
+
+        if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetResolutionTensor(iDim, jDim);
               iVar++;
             }
           }

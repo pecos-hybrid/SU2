@@ -208,7 +208,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
       if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
         for (iDim = 0; iDim < nDim; iDim++)
           for (jDim = 0; jDim < nDim; jDim++)
-            Tecplot_File << ", \"M<sub>" << iDim << jDim << "</sub>\"";
+            Tecplot_File << ", \"Resolution_Tensor_" << iDim << jDim << "\"";
       }
 
       if (config->GetWrt_SharpEdges()) {

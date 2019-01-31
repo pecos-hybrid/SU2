@@ -251,6 +251,8 @@ inline su2double CPoint::GetResolutionTensor(unsigned short iDim, unsigned short
 
 inline const su2double* const* CPoint::GetResolutionTensor43(void) const { return ResolutionTensor43; }
 
+inline su2double CPoint::GetResolutionTensor43(unsigned short iDim, unsigned short jDim) const { return ResolutionTensor43[iDim][jDim]; }
+
 inline su2double CPoint::GetResolutionCoeff(void) const { return ResolutionCoeff; }
 
 inline const su2double* const* CPoint::GetResolutionVectors(void)const { return ResolutionVectors; }

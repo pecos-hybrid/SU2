@@ -792,6 +792,15 @@ public:
         const su2double* const* GetResolutionTensor43() const;
 
         /*!
+         * \brief Get a component of the resolution tensor, raised to the 4/3 power.
+         * \param[in] iDim - The first array index
+         * \param[in] jDim - The second array index
+         * \return A component of the resolution tensor, raised to the 4/3 power.
+         */
+        su2double GetResolutionTensor43(unsigned short iDim,
+                                        unsigned short jDim) const;
+
+        /*!
          * \brief Get the resolution coefficent C(M)
          *
          * This coefficient is designed to be used with the M43 SGET model,
