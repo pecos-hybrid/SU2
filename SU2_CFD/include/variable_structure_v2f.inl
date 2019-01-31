@@ -50,11 +50,11 @@ inline void CTurbKEVariable::SetTurbScales(su2double val_turb_T, su2double val_t
   Lm = val_turb_L;
 }
 
-void CTurbKEVariable::SetProduction(su2double val_production) {
+inline void CTurbKEVariable::SetProduction(su2double val_production) {
   Production = val_production;
 }
 
-su2double CTurbKEVariable::GetProduction(void) const {
+inline su2double CTurbKEVariable::GetProduction(void) const {
   return Production;
 }
 
