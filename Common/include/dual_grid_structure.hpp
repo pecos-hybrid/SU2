@@ -181,6 +181,7 @@ private:
   su2double** ResolutionVectors;      /*! < \brief An orthogonal set of "principal directions" for the cell-to-cell spacings.
                                             The first index refers to the vector,
                                             while the second refers to the component of the vector. */
+  su2double MaxLength;                /*!< \brief The maximum cell-center to cell-center length. */
 
 public:
 	
@@ -410,6 +411,12 @@ public:
 	 */
 	su2double GetVolume(void);
 	
+	/*!
+	 * \brief Get the maximum cell-center to cell-center length.
+	 * \return The maximum cell-center to cell-center length.
+	 */
+	su2double GetMaxLength(void);
+
 	/*! 
 	 * \brief Get information about the movement of the node.
 	 * \return <code>TRUE</code> if the point is going to be moved; otherwise <code>FALSE</code>.
@@ -574,7 +581,13 @@ public:
 	 * \param[in] val_Volume - Value of the volume.
 	 */
 	void SetVolume(su2double val_Volume);
-	
+
+  /*!
+   * \brief Set the max cell-center to cell-center length.
+   * \param[in] val_max_length - Value of the max length
+   */
+  void SetMaxLength(su2double val_max_length);
+
 	/*! 
 	 * \brief Set if a element is going to be moved on the deformation process.
 	 * \param[in] val_move - true or false depending if the point will be moved.

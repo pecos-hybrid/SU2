@@ -112,6 +112,7 @@ void CVolumetricMovement::UpdateDualGrid(CGeometry *geometry, CConfig *config) {
 	}
 	geometry->SetControlVolume(config, UPDATE);
 	geometry->SetBoundControlVolume(config, UPDATE);
+  geometry->SetMaxLength(config);
   
 }
 
@@ -9266,6 +9267,7 @@ void CElasticityMovement::UpdateDualGrid(CGeometry *geometry, CConfig *config){
   geometry->SetCoord_CG();
   geometry->SetControlVolume(config, UPDATE);
   geometry->SetBoundControlVolume(config, UPDATE);
+  geometry->SetMaxLength(config);
 
 }
 
