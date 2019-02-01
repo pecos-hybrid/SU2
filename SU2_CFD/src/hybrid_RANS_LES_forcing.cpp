@@ -636,8 +636,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     // ratio of modeled to total TKE
     const su2double alpha = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
 
-    // FIXME: Where is average r_M stored?
-    // I can't find it... looks like it isn't getting averaged?
+    // average of r_M
     const su2double resolution_adequacy =
       solver[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
 
@@ -646,7 +645,10 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
       solver[FLOW_SOL]->node[iPoint]->GetLaminarViscosity() / density;
 
     const su2double Ltot = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-    const su2double Lsgs = alpha*Ltot;
+
+    // NB: This is consistent w/ paper, but maybe not length scale
+    // switches in v2-f... need to check
+    const su2double Lsgs = alpha*std::sqrt(alpha)*Ltot;
 
     // FIXME: I think this is equivalent to repo version of CDP,but
     // not consistent with paper description, except for orthogonal
