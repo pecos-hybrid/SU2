@@ -320,6 +320,23 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
     fluct_stress_model->CalculateEddyViscosity(geometry, config, iPoint,
                                                mean_eddy_visc,
                                                aniso_eddy_viscosity);
+
+    /*--- XXX: This is an ad-hoc correction
+     * Rescale the eddy viscosity to rapidly remove fluctuations where
+     * resolved turbulence has been transported into regions with
+     * insufficient resolution ---*/
+
+    const su2double avg_resolution_adequacy =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
+    assert(avg_resolution_adequacy >= 0);
+    assert(avg_resolution_adequacy == avg_resolution_adequacy);
+    const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+         aniso_eddy_viscosity[iDim][jDim] *= factor;
+      }
+    }
+
     solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
 
   }
