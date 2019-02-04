@@ -634,7 +634,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief MATH_PROBLEM  \n DESCRIPTION: Mathematical problem \n  Options: DIRECT, ADJOINT \ingroup Config*/
   addMathProblemOption("MATH_PROBLEM", ContinuousAdjoint, false, DiscreteAdjoint, false, Restart_Flow, false);
 
-    /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Testing_Map \endlink \n DEFAULT: FULL_HYBRID_RANS_LES \ingroup Config */
+    /*! \brief HYBRID_TESTING_SCHEME \n DESCRIPTION: Use an optional scheme for testing the model-split hybridization. \n Options: see \link Hybrid_Testing_Map \endlink \n DEFAULT: FULL_HYBRID_RANS_LES \ingroup Config */
   addEnumOption("HYBRID_RANS_LES_TESTING", Kind_HybridRANSLES_Testing, Hybrid_Testing_Map, FULL_HYBRID_RANS_LES);
   
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
@@ -656,6 +656,12 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleArrayOption("HYBRID_FORCING_PERIODIC_LENGTH", 3,
                        Hybrid_Forcing_Periodic_Length,
                        default_hybrid_periodic_length);
+
+  /*! \brief SUBGRID_ENERGY_TRANSFER_MODEL \n DESCRIPTION: Specify the subgrid energy transfer model to be used with the model-split hybrid RANS/LES model. \n Options: see \link Hybrid_SGET_Model_Map \endlink \n DEFAULT: M43 \ingroup Config */
+  addEnumOption("SUBGRID_ENERGY_TRANSFER_MODEL", Kind_Hybrid_SGET_Model, SGET_Model_Map, M43_MODEL);
+
+  /*!\brief USE_RESOLVED_TURB_STRESS \n DESCRIPTION: Use the resolved turbulent stress in stead of improved production for hybrid RANS/LES calculations. \ingroup Config*/
+  addBoolOption("USE_RESOLVED_TURB_STRESS", Use_Resolved_Turb_Stress, YES);
 
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);

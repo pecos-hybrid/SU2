@@ -181,6 +181,7 @@ private:
   su2double** ResolutionVectors;      /*! < \brief An orthogonal set of "principal directions" for the cell-to-cell spacings.
                                             The first index refers to the vector,
                                             while the second refers to the component of the vector. */
+  su2double MaxLength;                /*!< \brief The maximum cell-center to cell-center length. */
 
 public:
 	
@@ -410,6 +411,12 @@ public:
 	 */
 	su2double GetVolume(void);
 	
+	/*!
+	 * \brief Get the maximum cell-center to cell-center length.
+	 * \return The maximum cell-center to cell-center length.
+	 */
+	su2double GetMaxLength(void);
+
 	/*! 
 	 * \brief Get information about the movement of the node.
 	 * \return <code>TRUE</code> if the point is going to be moved; otherwise <code>FALSE</code>.
@@ -574,7 +581,13 @@ public:
 	 * \param[in] val_Volume - Value of the volume.
 	 */
 	void SetVolume(su2double val_Volume);
-	
+
+  /*!
+   * \brief Set the max cell-center to cell-center length.
+   * \param[in] val_max_length - Value of the max length
+   */
+  void SetMaxLength(su2double val_max_length);
+
 	/*! 
 	 * \brief Set if a element is going to be moved on the deformation process.
 	 * \param[in] val_move - true or false depending if the point will be moved.
@@ -773,7 +786,7 @@ public:
          * \return A tensor representing the separation distances
          *         across the cell in the global coordinates.
          */
-        su2double** GetResolutionTensor(void) const;
+        const su2double* const* GetResolutionTensor(void) const;
 
         /*!
          * \brief Gets a specific element of the resolution tensor array
@@ -785,11 +798,34 @@ public:
         su2double GetResolutionTensor(unsigned short iDim,
                                       unsigned short jDim) const;
 
-        su2double** GetResolutionTensor43() const;
+        /*!
+         * \brief Get the resolution tensor, raised to the 4/3 power.
+         * \return The resolution tensor, raised to the 4/3 power.
+         */
+        const su2double* const* GetResolutionTensor43() const;
 
+        /*!
+         * \brief Get a component of the resolution tensor, raised to the 4/3 power.
+         * \param[in] iDim - The first array index
+         * \param[in] jDim - The second array index
+         * \return A component of the resolution tensor, raised to the 4/3 power.
+         */
+        su2double GetResolutionTensor43(unsigned short iDim,
+                                        unsigned short jDim) const;
+
+        /*!
+         * \brief Get the resolution coefficent C(M)
+         *
+         * This coefficient is designed to be used with the M43 SGET model,
+         * and is based on the eigenvalues of the resolution tensor.
+         *
+         * \return The resolution coefficient
+         */
         su2double GetResolutionCoeff() const;
 
-        /*---
+        /*!
+         * \brief Setup the powers of the resolution tensor (e.g. 4/3 power)
+         *
          * We're actually computing:
          *
          * M^(power) = V (D^power) V^T
@@ -800,6 +836,9 @@ public:
          */
         void SetResolutionPowers();
 
+        /*!
+         * \brief Calculate the resolution coefficient C(M)
+         */
         void SetResolutionCoeff();
 
         /*!
@@ -823,7 +862,7 @@ public:
          *         distances across the cell in the global coordinates, with
          *         the gradient taken in direction iDim
          */
-        su2double** GetResolutionGradient(unsigned short iDim);
+        const su2double* const* GetResolutionGradient(unsigned short iDim) const;
 
         /*!
          * \brief Gets the gradient of the resolution tensor for the given CV
@@ -831,32 +870,77 @@ public:
          * \return A rank 3 tensor representing the gradient of the separation
          *         distances across the cell in the global coordinates.
          */
-        su2double*** GetResolutionGradient();
+        const su2double* const* const* GetResolutionGradient() const;
 
         /*!
-         * \brief Adds to the existing set of values for the resolution tensor.
+         * \brief Sets the values for the resolution tensor.
          *
          * These values can be thought of as cell-to-cell distances along the
          * "principal directions".
          *
-         * \param[in] iDim - The first array index of the entry to be added.
-         * \param[in] scalar_value - The value to be added.
+         * \param[in] values - An nDim array of the values to be set.
          */
-        void AddResolutionValue(unsigned short iDim, su2double scalar_value);
+        void SetResolutionValues(const su2double* values);
 
         /*!
-         * \brief Adds to the existing set of vectors for the resolution tensor.
+         * \brief Sets the value of a component of the resolution tensor.
+         *
+         * These values can be thought of as cell-to-cell distances along the
+         * "principal directions".
+         *
+         * \param[in] iDim - The component to be set.
+         * \param[in] value - The value to be set.
+         */
+        void SetResolutionValue(unsigned short iDim, su2double value);
+
+        /*!
+         * \brief Adds to one of the values for the resolution tensor.
+         *
+         * These values can be thought of as cell-to-cell distances along the
+         * "principal directions".
+         *
+         * \param[in] iDim - The component to add to.
+         * \param[in] value - The value to be added.
+         */
+        void AddResolutionValue(unsigned short iDim, su2double value);
+
+        /*!
+         * \brief Sets the vectors for the resolution tensor.
          *
          * These vectors can be thought of as "principal directions" for the
          * cell-to-cell separations. They are stored as a matrix, e.g. V,
          * where V[i][j] corresonds to the jth component of the ith vector.
          *
-         * \param[in] iDim - The first array index of the entry to be added.
-         * \param[in] jDim - The second array index of the entry to be added.
-         * \param[in] scalar_value - The value to be added.
+         * \param[in] vectors - A 2D array of the vectors.
+         */
+        void SetResolutionVectors(const su2double* const* vectors);
+
+        /*!
+         * \brief Sets a component of a vector for the resolution tensor.
+         *
+         * These vectors can be thought of as "principal directions" for the
+         * cell-to-cell separations. They are stored as a matrix, e.g. V,
+         * where V[i][j] corresonds to the jth component of the ith vector.
+         *
+         * \param[in] iDim - The vector to be modified.
+         * \param[in] jDim - The component to be set.
+         * \param[in] value - The value to be set.
+         */
+        void SetResolutionVector(unsigned short iDim, unsigned short jDim,
+                                 su2double value);
+        /*!
+         * \brief Adds to a component of a vector for the resolution tensor.
+         *
+         * These vectors can be thought of as "principal directions" for the
+         * cell-to-cell separations. They are stored as a matrix, e.g. V,
+         * where V[i][j] corresonds to the jth component of the ith vector.
+         *
+         * \param[in] iDim - The vector to be modified.
+         * \param[in] jDim - The component to be modified.
+         * \param[in] value - The value to be added.
          */
         void AddResolutionVector(unsigned short iDim, unsigned short jDim,
-                                 su2double scalar_value);
+                                 su2double value);
 
         /*!
          * \brief Gets the set of values for the resolution tensor.
@@ -874,7 +958,7 @@ public:
          * \return Vectors representing the "principal directions" for the
          * cell-to-cell separations.
          */
-        su2double** GetResolutionVectors(void);
+        const su2double* const* GetResolutionVectors(void) const;
 
         /*!
          * \brief Set the adjoint values of the coordinates.

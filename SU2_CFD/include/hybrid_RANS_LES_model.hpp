@@ -58,9 +58,9 @@ using namespace std;
  * \class CAbstract_Hybrid_Mediator
  * \brief Base abstract class for a hybrid model mediator object.
  *
- * In order to decouple the RANS model, the subgrid model, the hybrid parameter,
+ * In order to decouple the RANS model, the energy transfer model,
  * and the resolved flow, a mediator object is necessary.  This allows the
- * RANS, subgrid, hybrid parameter, and resolved flow equations to follow the
+ * RANS, energy transfer model, and resolved flow equations to follow the
  * single responsibility principle, while this class makes sure they
  * have the information they need.
  *
@@ -79,11 +79,9 @@ class CAbstract_Hybrid_Mediator {
   /**
    * \brief Retrieve and pass along all necessary info for the RANS model.
    *
-   * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
    * \param[in] rans_numerics - The source numerics for the turb. solver
    * \param[in] iPoint - The number of the node being evaluated
-   * \param[in] jPoint - The number of the opposite node
    */
   virtual void SetupRANSNumerics(CSolver **solver_container,
                                  CNumerics* rans_numerics,
@@ -92,11 +90,11 @@ class CAbstract_Hybrid_Mediator {
   /**
    * \brief Compute instantaneous resolution adequacy and store with variables
    *
-   * \param[in] geometry - A pointer to the geometry
+   * \param[in] geometry - The grid information
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  virtual void ComputeResolutionAdequacy(CGeometry* geometry,
+  virtual void ComputeResolutionAdequacy(const CGeometry* geometry,
                                          CSolver **solver_container,
                                          unsigned long iPoint) = 0;
 
@@ -113,7 +111,7 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] solver_container - An array of solvers
    * \param[in] iPoint - The number of the node being evaluated
    */
-  virtual void SetupResolvedFlowSolver(CGeometry* geometry,
+  virtual void SetupResolvedFlowSolver(const CGeometry* geometry,
                                        CSolver **solver_container,
                                        unsigned long iPoint) = 0;
 
@@ -126,12 +124,19 @@ class CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    * \param[in] jPoint - The number of the opposite node
    */
-  virtual void SetupResolvedFlowNumerics(CGeometry* geometry,
+  virtual void SetupResolvedFlowNumerics(const CGeometry* geometry,
                                          CSolver **solver_container,
                                          CNumerics* visc_numerics,
                                          unsigned long iPoint,
                                          unsigned long jPoint) = 0;
 
+  /*!
+   * \brief Set the fluctuating stress model to be used.
+   *
+   * This will take ownership of the fluctuating stress model.
+   *
+   * \param[in] fluct_stress - A model for the fluctuating stress
+   */
   virtual void SetFluctuatingStress(CFluctuatingStress* fluct_stress) = 0;
 
   virtual void SetForcingModel(CHybridForcingAbstractBase* forcing_model) = 0;
@@ -141,7 +146,7 @@ class CAbstract_Hybrid_Mediator {
 
 /*!
  * \class CHybrid_Mediator
- * \brief Mediator object for the Q-based hybrid RANS/LES model.
+ * \brief Mediator object for the model-split hybrid RANS/LES model.
  * \author: C. Pederson
  */
 class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
@@ -176,7 +181,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] v2 - The v2 value from Durbin's k-eps-v2-f model
    * \return The resolution inadequacy parameter
    */
-  su2double CalculateRk(su2double** Q, su2double v2);
+  su2double CalculateRk(const su2double* const* Q, su2double v2);
 
   /*!
    * \brief Projects the resolution on a specific vector
@@ -184,8 +189,8 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] direction - The direction vector (assumed to be normalized)
    * \return The magnitude of the resolution tensor projected on the direction.
    */
-  su2double GetProjResolution(su2double** resolution_tensor,
-                              vector<su2double> direction);
+  su2double GetProjResolution(const su2double* const *resolution_tensor,
+                              const vector<su2double>& direction);
 
   /**
    * \brief Uses a resolution tensor and a gradient-gradient tensor to build an
@@ -197,7 +202,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    */
   template <class T>
   void CalculateApproxStructFunc(T val_ResolutionTensor,
-                                 su2double** val_PrimVar_Grad,
+                                 const su2double* const* val_PrimVar_Grad,
                                  su2double** val_Q);
 
   /*!
@@ -205,7 +210,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] filename - The base name for the files (e.g. [filename]0.dat)
    * \return The 3 sets of constants pulled from the files.
    */
-  vector<vector<su2double> > LoadConstants(string filename);
+  vector<vector<su2double> > LoadConstants(const string& filename);
 
   /*!
    * \brief Solve for the eigenvalues of Q, given eigenvalues of M
@@ -217,7 +222,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] eig_values_M - Eigenvalues of the resolution tensor.
    * \return The eigenvalues of the expected value of the approx SF tensor.
    */
-  vector<su2double> GetEigValues_Q(vector<su2double> eig_values_M);
+  vector<su2double> GetEigValues_Q(const vector<su2double>& eig_values_M);
 
   /*!
    * \brief Calculates the eigenvalues of a modified resolution tensor.
@@ -226,7 +231,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    *         differences at grid resolution to the two-point second-order
    *         structure function.
    */
-  vector<su2double> GetEigValues_Zeta(vector<su2double> eig_values_M);
+  vector<su2double> GetEigValues_Zeta(const vector<su2double>& eig_values_M);
 
  public:
   /*!
@@ -235,7 +240,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    *            "directions"
    */
   vector<vector<su2double> > BuildZeta(const su2double* values_M,
-                                       su2double** vectors_M);
+                                       const su2double* const* vectors_M);
 
 
   /**
@@ -243,7 +248,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] nDim - The number of dimensions of the problem
    * \param[in] CConfig - The configuration for the current zone
    */
-  CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename="");
+  CHybrid_Mediator(unsigned short nDim, CConfig* config, const string& filename="");
 
   /**
    * \brief Destructor for the hybrid mediator object.
@@ -258,7 +263,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    */
   void ComputeInvLengthTensor(CVariable* flow_vars,
                               CVariable* turb_vars,
-                              const su2double val_alpha,
+                              su2double val_alpha,
                               int short hybrid_res_ind);
 
   su2double GetInvLengthScale(unsigned short ival, unsigned short jval) {
@@ -267,9 +272,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
 
 
   /**
-   * \brief RANS needs the hybrid parameter (the energy flow parameter).
-   *
-   * This function sets the hybrid parameter from the previous timestep.
+   * \brief Retrieve and pass along all necessary info for the RANS model.
    *
    * \param[in] solver_container - An array of solvers
    * \param[in] rans_numerics - The source numerics for the turb. solver
@@ -279,19 +282,27 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
                          CNumerics* rans_numerics,
                          unsigned long iPoint);
 
-  void ComputeResolutionAdequacy(CGeometry* geometry,
+  void ComputeResolutionAdequacy(const CGeometry* geometry,
                                  CSolver **solver_container,
                                  unsigned long iPoint);
 
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                            CConfig *config);
 
-  void SetupResolvedFlowSolver(CGeometry* geometry,
+  /**
+   * \brief Retrieve and pass along all necessary info to calculate
+   *        variables needed for the flow solver.
+   *
+   * \param[in] geometry - The grid information
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
+  void SetupResolvedFlowSolver(const CGeometry* geometry,
                                CSolver **solver_container,
                                unsigned long iPoint);
 
   /**
-   * \brief
+   * \brief Retrieve and pass along all necessary info for resolved numerics.
    *
    * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
@@ -299,7 +310,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    * \param[in] jPoint - The number of the opposite node
    */
-  void SetupResolvedFlowNumerics(CGeometry* geometry,
+  void SetupResolvedFlowNumerics(const CGeometry* geometry,
                              CSolver **solver_container,
                              CNumerics* visc_numerics,
                              unsigned long iPoint,
@@ -312,13 +323,20 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
   vector<vector<su2double> > GetConstants();
 
 
-  void SolveEigen(su2double** M, vector<su2double> &eigvalues,
+  void SolveEigen(const su2double* const* M, vector<su2double> &eigvalues,
                   vector<vector<su2double> > &eigvectors);
 
-  void SolveGeneralizedEigen(su2double** A, su2double** B,
+  void SolveGeneralizedEigen(const su2double* const* A, const su2double* const* B,
 			     vector<su2double> &eigvalues,
 			     vector<vector<su2double> > &eigvectors);
 
+  /*!
+   * \brief Set the fluctuating stress model to be used.
+   *
+   * This will take ownership of the fluctuating stress model.
+   *
+   * \param[in] fluct_stress - A model for the fluctuating stress
+   */
   void SetFluctuatingStress(CFluctuatingStress* fluct_stress);
 
   void SetForcingModel(CHybridForcingAbstractBase* forcing);
@@ -353,9 +371,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
   ~CHybrid_Dummy_Mediator();
 
   /**
-   * \brief RANS needs the hybrid parameter (the energy flow parameter).
-   *
-   * This function sets the hybrid parameter from the previous timestep.
+   * \brief Retrieve and pass along all necessary info for the RANS model.
    *
    * \param[in] solver_container - An array of solvers
    * \param[in] rans_numerics - The source numerics for the turb. solver
@@ -365,19 +381,27 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
                          CNumerics* rans_numerics,
                          unsigned long iPoint);
 
-  void ComputeResolutionAdequacy(CGeometry* geometry,
+  void ComputeResolutionAdequacy(const CGeometry* geometry,
                                  CSolver **solver_container,
                                  unsigned long iPoint);
 
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                            CConfig *config);
 
-  void SetupResolvedFlowSolver(CGeometry* geometry,
+  /**
+   * \brief Retrieve and pass along all necessary info to calculate
+   *        variables needed for the flow solver.
+   *
+   * \param[in] geometry - The grid information
+   * \param[in] solver_container - An array of solvers
+   * \param[in] iPoint - The number of the node being evaluated
+   */
+  void SetupResolvedFlowSolver(const CGeometry* geometry,
                                CSolver **solver_container,
                                unsigned long iPoint);
 
   /**
-   * \brief
+   * \brief Retrieve and pass along all necessary info for resolved numerics.
    *
    * \param[in] geometry - A pointer to the geometry
    * \param[in] solver_container - An array of solvers
@@ -385,12 +409,19 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] iPoint - The number of the node being evaluated
    * \param[in] jPoint - The number of the opposite node
    */
-  void SetupResolvedFlowNumerics(CGeometry* geometry,
+  void SetupResolvedFlowNumerics(const CGeometry* geometry,
                              CSolver **solver_container,
                              CNumerics* visc_numerics,
                              unsigned long iPoint,
                              unsigned long jPoint);
 
+  /*!
+   * \brief Set the fluctuating stress model to be used.
+   *
+   * This will take ownership of the fluctuating stress model.
+   *
+   * \param[in] fluct_stress - A model for the fluctuating stress
+   */
   void SetFluctuatingStress(CFluctuatingStress* fluct_stress);
 
   void SetForcingModel(CHybridForcingAbstractBase* forcing);
@@ -403,7 +434,7 @@ class CHybrid_Dummy_Mediator : public CAbstract_Hybrid_Mediator {
 
 template <class T>
 void CHybrid_Mediator::CalculateApproxStructFunc(T val_ResolutionTensor,
-                                                 su2double** val_PrimVar_Grad,
+                                                 const su2double* const* val_PrimVar_Grad,
                                                  su2double** val_Q) {
   unsigned int iDim, jDim, kDim, lDim, mDim;
 

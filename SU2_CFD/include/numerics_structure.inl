@@ -335,7 +335,7 @@ inline void CNumerics::SetDestruction(su2double val_destruction) { }
 
 inline void CNumerics::SetCrossProduction(su2double val_crossproduction) { }
 
-inline su2double CNumerics::GetProduction(void) { return 0; }
+inline su2double CNumerics::GetProduction(void) const { return 0; }
 
 inline su2double CNumerics::GetDestruction(void) { return 0; }
 
@@ -550,7 +550,7 @@ inline void CSourcePieceWise_TurbSA::SetDestruction(su2double val_destruction) {
 
 inline void CSourcePieceWise_TurbSA::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA::GetGammaBC(void) { return gamma_BC; }
 
@@ -566,7 +566,7 @@ inline void CSourcePieceWise_TurbSA_E::SetDestruction(su2double val_destruction)
 
 inline void CSourcePieceWise_TurbSA_E::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA_E::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA_E::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_E::GetDestruction(void) { return Destruction; }
 
@@ -580,7 +580,7 @@ inline void CSourcePieceWise_TurbSA_E_COMP::SetDestruction(su2double val_destruc
 
 inline void CSourcePieceWise_TurbSA_E_COMP::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA_E_COMP::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA_E_COMP::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_E_COMP::GetDestruction(void) { return Destruction; }
 
@@ -594,7 +594,7 @@ inline void CSourcePieceWise_TurbSA_COMP::SetDestruction(su2double val_destructi
 
 inline void CSourcePieceWise_TurbSA_COMP::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA_COMP::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA_COMP::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_COMP::GetDestruction(void) { return Destruction; }
 
@@ -608,7 +608,7 @@ inline void CSourcePieceWise_TurbSA_Neg::SetDestruction(su2double val_destructio
 
 inline void CSourcePieceWise_TurbSA_Neg::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA_Neg::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_Neg::GetDestruction(void) { return Destruction; }
 

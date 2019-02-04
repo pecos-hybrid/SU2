@@ -1525,6 +1525,12 @@ inline bool CConfig::isHybrid_Forced(void) { return Hybrid_Forcing; }
 
 inline su2double* CConfig::GetHybrid_Forcing_Periodic_Length(void) { return Hybrid_Forcing_Periodic_Length; }
 
+inline unsigned short CConfig::GetKind_Hybrid_SGET_Model(void) {return Kind_Hybrid_SGET_Model; }
+
+inline bool CConfig::GetUse_Resolved_Turb_Stress(void) const { return Use_Resolved_Turb_Stress; }
+
+inline void CConfig::SetUse_Resolved_Turb_Stress(bool use_stress) { Use_Resolved_Turb_Stress = use_stress; }
+
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
 
 inline unsigned short CConfig::GetKind_Trans_Model(void) { return Kind_Trans_Model; }

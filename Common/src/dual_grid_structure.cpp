@@ -533,28 +533,60 @@ void CPoint::SetResolutionGradient(unsigned short iDim, unsigned short jDim,
     ResolutionTensorGradient[iDim][jDim][kDim] = grad_value;
 };
 
-su2double** CPoint::GetResolutionGradient(unsigned short iDim) {
+const su2double* const* CPoint::GetResolutionGradient(unsigned short iDim) const {
   assert(ResolutionTensorGradient);
   return ResolutionTensorGradient[iDim];
 }
 
-su2double*** CPoint::GetResolutionGradient() {
+const su2double* const* const* CPoint::GetResolutionGradient() const {
   assert(ResolutionTensorGradient);
   return ResolutionTensorGradient;
 }
 
-void CPoint::AddResolutionValue(unsigned short iDim, su2double scalar_value) {
+void CPoint::SetResolutionValues(const su2double* values) {
   assert(ResolutionValues);
-  assert(iDim < nDim);
-  ResolutionValues[iDim] += scalar_value;
+  assert(values);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    ResolutionValues[iDim] = values[iDim];
+  }
 }
 
-void CPoint::AddResolutionVector(unsigned short iDim, unsigned short jDim,
-                                 su2double scalar_value) {
+void CPoint::SetResolutionValue(unsigned short iDim, su2double value) {
+  assert(ResolutionValues);
+  assert(iDim < nDim);
+  ResolutionValues[iDim] = value;
+}
+
+void CPoint::AddResolutionValue(unsigned short iDim, su2double value) {
+  assert(ResolutionValues);
+  assert(iDim < nDim);
+  ResolutionValues[iDim] += value;
+}
+
+void CPoint::SetResolutionVectors(const su2double* const* vectors) {
+  assert(ResolutionValues);
+  assert(vectors);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      ResolutionVectors[iDim][jDim] = vectors[iDim][jDim];
+    }
+  }
+}
+
+void CPoint::SetResolutionVector(unsigned short iDim, unsigned short jDim,
+                                 su2double value) {
   assert(ResolutionVectors);
   assert(iDim < nDim);
   assert(jDim < nDim);
-  ResolutionVectors[iDim][jDim] += scalar_value;
+  ResolutionVectors[iDim][jDim] = value;
+}
+
+void CPoint::AddResolutionVector(unsigned short iDim, unsigned short jDim,
+                                 su2double value) {
+  assert(ResolutionVectors);
+  assert(iDim < nDim);
+  assert(jDim < nDim);
+  ResolutionVectors[iDim][jDim] += value;
 }
 
 void CPoint::SetResolutionPowers() {

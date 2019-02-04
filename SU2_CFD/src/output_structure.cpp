@@ -449,35 +449,43 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetTurbLengthscale, iZone);
         RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbTimescale, iZone);
+        RegisterScalar("Production", "Production", TURB_SOL,
+                       &CVariable::GetProduction, iZone, false);
       }
 
       const bool model_split_hybrid =
           (config[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
       if (model_split_hybrid) {
-          RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
-                         &CVariable::GetKineticEnergyRatio, iZone, true);
-          RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
-                         &CVariable::GetResolvedKineticEnergy, iZone, true);
-          RegisterScalar("r_M", "r<sub>M</sub>", FLOW_SOL,
-                         &CVariable::GetResolutionAdequacy, iZone, false);
-          RegisterScalar("Average_r_M", "avgr<sub>M</sub>", FLOW_SOL,
-                         &CVariable::GetResolutionAdequacy, iZone, true);
-          RegisterVector("hyb_force", "F", FLOW_SOL,
-                         &CVariable::GetForcingVector, iZone, false);
+        RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
+                       &CVariable::GetKineticEnergyRatio, iZone, true);
+        RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
+                       &CVariable::GetResolvedKineticEnergy, iZone, true);
+        RegisterScalar("SGSProduction", "SGSProduction", FLOW_SOL,
+                       &CVariable::GetSGSProduction, iZone, true);
+        RegisterScalar("trace_mu_SGET", "trace_mu_SGET", FLOW_SOL,
+                       &CVariable::GetTraceAnisoEddyViscosity, iZone);
+        RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
+                       &CVariable::GetAnisoEddyViscosity, iZone);
+        RegisterScalar("r_M", "r<sub>M</sub>", FLOW_SOL,
+                       &CVariable::GetResolutionAdequacy, iZone, false);
+        RegisterScalar("Average_r_M", "avgr<sub>M</sub>", FLOW_SOL,
+                       &CVariable::GetResolutionAdequacy, iZone, true);
+        RegisterVector("hyb_force", "F", FLOW_SOL,
+                       &CVariable::GetForcingVector, iZone, false);
+        if (config[iZone]->GetUse_Resolved_Turb_Stress()) {
           RegisterTensor("tau_res", "tau<sup>res</sup>", FLOW_SOL,
                          &CVariable::GetResolvedTurbStress, iZone, true);
-          RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
-                         &CVariable::GetAnisoEddyViscosity, iZone);
-          // TODO: Re-incarnate output associated with forcing
-          // RegisterScalar("Forcing_Production", "P<sub>F</sub>", TURB_SOL,
-          //                &CVariable::GetForcingProduction, iZone);
-          // RegisterScalar("Forcing_Ratio", "P<sub>F</sub>", HYBRID_SOL,
-          //                &CVariable::GetForcingRatio, iZone);
-          // RegisterScalar("S_alpha", "S<sub>a</sub>", HYBRID_SOL,
-          //                &CVariable::GetSAlpha, iZone);
-          // RegisterScalar("S_cf", "S<sub>cf</sub>", HYBRID_SOL,
-          //                &CVariable::GetScf, iZone);
+        }
+        // TODO: Re-incarnate output associated with forcing
+        // RegisterScalar("Forcing_Production", "P<sub>F</sub>", TURB_SOL,
+        //                &CVariable::GetForcingProduction, iZone);
+        // RegisterScalar("Forcing_Ratio", "P<sub>F</sub>", HYBRID_SOL,
+        //                &CVariable::GetForcingRatio, iZone);
+        // RegisterScalar("S_alpha", "S<sub>a</sub>", HYBRID_SOL,
+        //                &CVariable::GetSAlpha, iZone);
+        // RegisterScalar("S_cf", "S<sub>cf</sub>", HYBRID_SOL,
+        //                &CVariable::GetScf, iZone);
       }
     }
   }
@@ -4558,15 +4566,15 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"Resolution_Tensor_32\"";
         restart_file << "\t\"Resolution_Tensor_33\"";
       } else {
-        restart_file << "\t\"M<sub>11</sub>\"";
-        restart_file << "\t\"M<sub>12</sub>\"";
-        restart_file << "\t\"M<sub>13</sub>\"";
-        restart_file << "\t\"M<sub>21</sub>\"";
-        restart_file << "\t\"M<sub>22</sub>\"";
-        restart_file << "\t\"M<sub>23</sub>\"";
-        restart_file << "\t\"M<sub>31</sub>\"";
-        restart_file << "\t\"M<sub>32</sub>\"";
-        restart_file << "\t\"M<sub>33</sub>\"";
+        restart_file << "\t\"Resolution_Tensor_11\"";
+        restart_file << "\t\"Resolution_Tensor_12\"";
+        restart_file << "\t\"Resolution_Tensor_13\"";
+        restart_file << "\t\"Resolution_Tensor_21\"";
+        restart_file << "\t\"Resolution_Tensor_22\"";
+        restart_file << "\t\"Resolution_Tensor_23\"";
+        restart_file << "\t\"Resolution_Tensor_31\"";
+        restart_file << "\t\"Resolution_Tensor_32\"";
+        restart_file << "\t\"Resolution_Tensor_33\"";
       }
     }
 
@@ -13064,6 +13072,18 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           for (unsigned short iDim = 0; iDim < nDim; iDim++) {
             for (unsigned short jDim = 0; jDim < nDim; jDim++) {
               Local_Data[jPoint][iVar] = RetrieveTensorComponent(solver, *it, iPoint, iDim, jDim);
+              iVar++;
+            }
+          }
+        }
+
+        /*--- Load data for the resolution tensors ---*/
+
+
+        if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetResolutionTensor(iDim, jDim);
               iVar++;
             }
           }

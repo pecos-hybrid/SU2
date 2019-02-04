@@ -263,6 +263,8 @@ inline su2double CVariable::GetEddyViscosity(void) { return 0; }
 
 inline su2double** CVariable::GetAnisoEddyViscosity(void) const { return NULL; }
 
+inline su2double CVariable::GetTraceAnisoEddyViscosity(void) const { return 0; }
+
 inline su2double CVariable::GetTurbTimescale(void) const { return 0; }
 
 inline su2double CVariable::GetTurbLengthscale(void) const { return 0; }
@@ -287,6 +289,14 @@ inline su2double CVariable::GetForcingStress(unsigned short iDim,
                                              unsigned short jDim) {
   return 0.0;
 }
+
+inline su2double CVariable::GetProduction(void) const { return 0; }
+
+inline void CVariable::SetProduction(su2double val_production) { }
+
+inline su2double CVariable::GetSGSProduction(void) const { return 0; }
+
+inline void CVariable::SetSGSProduction(su2double val_production) { }
 
 inline void CVariable::SetGammaEff(void) { }
 
@@ -489,6 +499,8 @@ inline void CVariable::SetResolvedTurbStress(unsigned short iDim,
 inline void CVariable::SetResolvedKineticEnergy(void) { }
 
 inline void CVariable::SetForcingStress(su2double** val_tau_F) { }
+
+inline void CVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) { }
 
 inline void CVariable::SetThermalConductivity(su2double thermalConductivity) { }
 
@@ -921,6 +933,14 @@ inline su2double CNSVariable::GetEddyViscosity(void) { return Primitive[nDim+6];
 
 inline su2double** CNSVariable::GetAnisoEddyViscosity(void) const { return AnisoEddyViscosity; }
 
+inline su2double CNSVariable::GetTraceAnisoEddyViscosity(void) const {
+  if (nDim == 2) {
+    return (AnisoEddyViscosity[0][0] + AnisoEddyViscosity[1][1]);
+  } else {
+    return (AnisoEddyViscosity[0][0] + AnisoEddyViscosity[1][1] + AnisoEddyViscosity[2][2]);
+  }
+}
+
 inline su2double CNSVariable::GetKineticEnergyRatio(void) const { return KineticEnergyRatio; }
 
 inline su2double CNSVariable::GetResolvedTurbStress(unsigned short iDim,
@@ -943,6 +963,14 @@ inline su2double CNSVariable::GetResolutionAdequacy(void) const {
 inline su2double* CNSVariable::GetForcingVector() const {
   return ForcingVector;
 }
+
+inline su2double CNSVariable::GetProduction(void) const { return TurbProduction; }
+
+inline void CNSVariable::SetProduction(su2double val_production) { TurbProduction = val_production; }
+
+inline su2double CNSVariable::GetSGSProduction(void) const { return SGSProduction; }
+
+inline void CNSVariable::SetSGSProduction(su2double val_production) { SGSProduction = val_production; }
 
 inline su2double CNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+5]; }
 
@@ -1035,6 +1063,10 @@ inline void CNSVariable::SetForcingVector(const su2double* force) {
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     ForcingVector[iDim] = force[iDim];
   }
+}
+
+inline void CNSVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) {
+  ResolvedKineticEnergy = val_kinetic_energy;
 }
 
 inline void CNSVariable::SetWallTemperature(su2double Temperature_Wall ) { Primitive[0] = Temperature_Wall; }

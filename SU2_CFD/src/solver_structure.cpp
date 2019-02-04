@@ -2991,7 +2991,7 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
       const unsigned short min_number_samples = 5;
       const su2double weight = min(dt/(N_T * timescale), 1.0/min_number_samples);
 
-      UpdateAverage(weight, iPoint, buffer);
+      UpdateAverage(weight, iPoint, buffer, config);
     }
 
     delete [] buffer;
@@ -3007,8 +3007,8 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
 }
 
 
-void CSolver::UpdateAverage(su2double weight, unsigned long iPoint,
-                            su2double* buffer) {
+void CSolver::UpdateAverage(const su2double weight, const unsigned long iPoint,
+                            su2double* buffer, const CConfig* config) {
 
   assert(average_node != NULL);
   const su2double* average = average_node[iPoint]->GetSolution();

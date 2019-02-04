@@ -80,6 +80,8 @@ inline unsigned long CPoint::GetPoint(unsigned short val_point) { return Point[v
 
 inline su2double CPoint::GetVolume (void) { return Volume[0]; }
 
+inline su2double CPoint::GetMaxLength(void) {return MaxLength;}
+
 inline bool CPoint::GetMove (void) { return Move; }
 
 inline bool CPoint::GetBoundary(void) { return Boundary; }
@@ -97,6 +99,8 @@ inline bool CPoint::GetSolidBoundary(void) { return SolidBoundary; }
 inline void CPoint::AddVolume (su2double val_Volume) { Volume[0] += val_Volume; }
 
 inline void CPoint::SetVolume (su2double val_Volume) { Volume[0] = val_Volume; }
+
+inline void CPoint::SetMaxLength(su2double val_max_length) { MaxLength = val_max_length; }
 
 inline void CPoint::SetMove(bool val_move) { Move = val_move; }
 
@@ -245,15 +249,17 @@ inline void CPoint::SetZeroValues(void) { }
 
 inline void CPoint::AddNormal(su2double *val_face_normal) { }
 
-inline su2double** CPoint::GetResolutionTensor(void) const { return ResolutionTensor; }
+inline const su2double* const* CPoint::GetResolutionTensor(void) const { return ResolutionTensor; }
 
 inline su2double CPoint::GetResolutionTensor(unsigned short iDim, unsigned short jDim) const { return ResolutionTensor[iDim][jDim]; }
 
-inline su2double** CPoint::GetResolutionTensor43(void) const { return ResolutionTensor43; }
+inline const su2double* const* CPoint::GetResolutionTensor43(void) const { return ResolutionTensor43; }
+
+inline su2double CPoint::GetResolutionTensor43(unsigned short iDim, unsigned short jDim) const { return ResolutionTensor43[iDim][jDim]; }
 
 inline su2double CPoint::GetResolutionCoeff(void) const { return ResolutionCoeff; }
 
-inline su2double** CPoint::GetResolutionVectors(void) { return ResolutionVectors; }
+inline const su2double* const* CPoint::GetResolutionVectors(void)const { return ResolutionVectors; }
 
 inline const su2double* CPoint::GetResolutionValues(void) const { return ResolutionValues; }
 inline void CPoint::SetAdjointCoord(su2double *adj_coor){

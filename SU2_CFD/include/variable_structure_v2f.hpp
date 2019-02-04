@@ -54,7 +54,8 @@ protected:
   su2double sigma_e, sigma_k, sigma_z, C_e1o, C_e2, C1, C_2p, C_T, C_L, C_eta;
   su2double Tm,		/*!< \brief T_m k-eps. */
     Lm,		        /*!< \brief L_m k-eps */
-    Re_T;
+    Re_T,
+    Production;   /*!< \brief Production of TKE */
 
 public:
   /*!
@@ -107,6 +108,18 @@ public:
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
+
+  /*!
+   * \brief Set the production of turbulent kinetic energy.
+   * \param[in] val_production - Production of turbulent kinetic energy.
+   */
+  void SetProduction(su2double val_production);
+
+  /*!
+   * \brief Get the production of turbulent kinetic energy.
+   * \return Production of turbulent kinetic energy.
+   */
+  su2double GetProduction(void) const;
 };
 
 #include "variable_structure_v2f.inl"

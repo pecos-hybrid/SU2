@@ -35,8 +35,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/numerics_structure_v2f.hpp"
 #include "../include/solver_structure_v2f.hpp"
-
 #include "../include/variable_structure_v2f.hpp"
 
 CTurbKESolver::CTurbKESolver(void) : CTurbSolver() {
@@ -581,6 +581,19 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
 
     /*--- Compute the source term ---*/
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
+
+    if (model_split) {
+      CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
+      const su2double sgs_production = v2f_numerics->GetSGSProduction();
+      solver_container[FLOW_SOL]->average_node[iPoint]->SetSGSProduction(sgs_production);
+      if (config->GetUse_Resolved_Turb_Stress()) {
+        /*--- Production is not passed in, so output it instead ---*/
+        const su2double production = numerics->GetProduction();
+        solver_container[FLOW_SOL]->average_node[iPoint]->SetProduction(production);
+      }
+    }
+    node[iPoint]->SetProduction(numerics->GetProduction());
+    assert(node[iPoint]->GetProduction() == numerics->GetProduction());
 
     /*--- Subtract residual and the Jacobian ---*/
     LinSysRes.SubtractBlock(iPoint, Residual);

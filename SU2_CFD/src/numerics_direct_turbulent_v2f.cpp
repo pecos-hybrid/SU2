@@ -341,30 +341,40 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
 
   // TKE equation...
-  su2double Pk, Pk_rk, Pk_re, Pk_rv2;
+  su2double Pk_rk, Pk_re, Pk_rv2;
   su2double Dk, Dk_rk, Dk_re, Dk_rv2;
 
   //... production
-  // NB: we ignore the jacobian of production here
+  // NB: we ignore the Jacobian of production here
 
-  Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
+  SGSProduction     = muT*S*S - 2.0/3.0*rho*tke*diverg;
 
   /*--- If using a hybrid method, include resolved production ---*/
 
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-    /*--- Limit alpha to protect from imbalance in k_model vs k_resolved ---*/
+    /*--- Limit alpha to protect from imbalance in k_model vs k_resolved. ---*/
     if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
-      // Rescale total production to get subfilter production
-      Pk *= KineticEnergyRatio;
-      // Add in resolved production
-      su2double Pk_resolved = 0;
-      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-          Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+      SGSProduction *= KineticEnergyRatio;
+      if (config->GetUse_Resolved_Turb_Stress()) {
+        su2double Pk_resolved = 0;
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+            Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+          }
         }
+        Pk = SGSProduction + Pk_resolved;
       }
-      Pk += Pk_resolved;
+      /*--- If using production instead of resolved turb. stress,
+       * the production (`Pk`) has been set externally.  So we only need to
+       * make sure that SGSProduction has been properly calculated, since
+       * it will be pulled back out and passed to the averaging routine. ---*/
+    } else {
+      /*--- Don't allow resolved turb. stress to be added if alpha is not
+       * valid, in case the resolved flow data are bad. ---*/
+      Pk = SGSProduction;
     }
+  } else {
+    Pk = SGSProduction;
   }
 
   Pk_rk  = 0.0;

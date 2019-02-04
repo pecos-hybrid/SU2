@@ -921,6 +921,12 @@ public:
   virtual su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
   
   /*!
+   * \brief Get the trace of the anisotropic eddy-viscosity
+   * \return The trace of the anisotropic eddy viscosity of the flow.
+   */
+  virtual su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
    * \brief A virtual member.
    * \return Value of turbulent timescale
    */
@@ -952,11 +958,65 @@ public:
    */
   virtual su2double GetKineticEnergyRatio(void) const;
 
+  /*!
+   * \brief Get a component of the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \return The component of the resolved turbulent stress at iDim, jDim
+   */
   virtual su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
 
+  /*!
+   * \brief Get the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \return An nDim x nDim tensor with the resolved turbulent stress
+   */
   virtual su2double** GetResolvedTurbStress(void) const;
 
+  /*!
+   * \brief Get the resolved turbulent kinetic energy.
+   * \return The resolved turbulent kinetic energy.
+   */
   virtual su2double GetResolvedKineticEnergy(void) const;
+
+  /*!
+   * \brief Get the turbulent production
+   * \return The turbulent production.
+   */
+  virtual su2double GetProduction(void) const;
+
+  /*!
+   * \brief Set the turbulent production
+   * \param[in] val_production - The turbulent production.
+   */
+  virtual void SetProduction(su2double val_production);
+
+  /*!
+   * \brief Get the subgrid production of turbulent kinetic energy.
+   * \return The subgrid production
+   */
+  virtual su2double GetSGSProduction(void) const;
+
+  /*!
+   * \brief Set the subgrid production of turbulent kinetic energy.
+   * \param[in] val_sgs_production - The sgs turbulent production.
+   */
+  virtual void SetSGSProduction(su2double val_sgs_production);
 
   /*!
    * \brief A virtual member.
@@ -1169,11 +1229,36 @@ public:
    */
   virtual void SetKineticEnergyRatio(su2double val_alpha);
 
+  /*!
+   * \brief Add to the value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The amount to be added.
+   */
   virtual void AddResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
 
+  /*!
+   * \brief Set a value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The value of the component of the turbulent stress.
+   */
   virtual void SetResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
 
+  /*!
+   * \brief Calculate the resolved kinetic energy and store it.
+   *
+   * This function accepts no parameters because it uses the resolved
+   * turbulent stress to calculate the resolved kinetic energy.
+   */
   virtual void SetResolvedKineticEnergy(void);
+
+  /*!
+   * \brief Store the resolved kinetic energy;
+   *
+   * \param[in] val_kinetic_energy - The resolved kinetic energy;
+   */
+  virtual void SetResolvedKineticEnergy(su2double val_kinetic_energy);
 
   /*!
    * \brief A virtual member.
@@ -3973,11 +4058,13 @@ private:
   su2double Vortex_Tilting;  /*!< \brief Value of the vortex tilting variable for DES length scale computation. */
   su2double** AnisoEddyViscosity; /*!< \brief Anisotropic eddy viscosity. */
   su2double KineticEnergyRatio; /*!< \brief Ratio of modeled to total turbulent kinetic energy */
-  su2double** ResolvedTurbStress;
-  su2double ResolvedKineticEnergy;
   su2double** Forcing_Stress;
   su2double ResolutionAdequacy;
   su2double* ForcingVector;
+  su2double** ResolvedTurbStress; /*!< \brief The resolved portion of the Reynolds stress tensor */
+  su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
+  su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
+  su2double SGSProduction; /*!< \brief The subgrid portion of the production of TKE */
   
 public:
   
@@ -4055,15 +4142,40 @@ public:
    */
   void SetKineticEnergyRatio(su2double val_alpha);
 
+  /*!
+   * \brief Add to the value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The amount to be added.
+   */
   void AddResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
 
+  /*!
+   * \brief Set a value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The value of the component of the turbulent stress.
+   */
   void SetResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
 
+  /*!
+   * \brief Calculate the resolved kinetic energy and store it.
+   *
+   * This function accepts no parameters because it uses the resolved
+   * turbulent stress to calculate the resolved kinetic energy.
+   */
   void SetResolvedKineticEnergy(void);
 
   void SetResolutionAdequacy(su2double val_r_k);
 
   void SetForcingVector(const su2double* force);
+
+  /*!
+   * \brief Store the resolved kinetic energy;
+   *
+   * \param[in] val_kinetic_energy - The resolved kinetic energy;
+   */
+  void SetResolvedKineticEnergy(su2double val_kinetic_energy);
 
   /*!
    * \brief Get the laminar viscosity of the flow.
@@ -4090,15 +4202,51 @@ public:
   su2double** GetAnisoEddyViscosity(void) const;
 
   /*!
+   * \brief Get the trace of the anisotropic eddy-viscosity
+   * \return The trace of the anisotropic eddy viscosity of the flow.
+   */
+  su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy.
    * \return The ratio of modeled to total turbulent kinetic energy.
    */
   su2double GetKineticEnergyRatio(void) const;
 
+  /*!
+   * \brief Get a component of the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \return The component of the resolved turbulent stress at iDim, jDim
+   */
   su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
 
+  /*!
+   * \brief Get the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \return An nDim x nDim tensor with the resolved turbulent stress
+   */
   su2double** GetResolvedTurbStress(void) const;
 
+  /*!
+   * \brief Get the resolved turbulent kinetic energy.
+   * \return The resolved turbulent kinetic energy.
+   */
   su2double GetResolvedKineticEnergy(void) const;
 
   su2double GetResolutionAdequacy(void) const;
@@ -4110,6 +4258,31 @@ public:
   su2double** GetForcingStress();
 
   su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
+
+  /*!
+   * \brief Get the improved turbulent production term, including
+   *        contributions from the resolved stress.
+   * \return The improved turbulent production.
+   */
+  su2double GetProduction(void) const;
+
+  /*!
+   * \brief Set the turbulent production
+   * \param[in] val_production - The turbulent production.
+   */
+  void SetProduction(su2double val_production);
+
+  /*!
+   * \brief Get the subgrid production of turbulent kinetic energy.
+   * \return The subgrid production
+   */
+  su2double GetSGSProduction(void) const;
+
+  /*!
+   * \brief Set the subgrid production of turbulent kinetic energy.
+   * \param[in] val_sgs_production - The sgs turbulent production.
+   */
+  void SetSGSProduction(su2double val_sgs_production);
 
   /*!
    * \brief Get the specific heat at constant P of the flow.

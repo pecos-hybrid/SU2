@@ -82,11 +82,11 @@ inline void CPrimalGrid::SetGlobalIndex(unsigned long val_globalindex) { GlobalI
 
 inline void CPrimalGrid::SetNode(unsigned short val_node, unsigned long val_point) { }
 
-inline su2double** CPrimalGrid::GetResolutionTensor(void) { return ResolutionTensor; }
+inline const su2double* const* CPrimalGrid::GetResolutionTensor(void) const { return ResolutionTensor; }
 
-inline su2double** CPrimalGrid::GetResolutionVectors(void) { return ResolutionVectors; }
+inline const su2double* const* CPrimalGrid::GetResolutionVectors(void) const { return ResolutionVectors; }
 
-inline su2double* CPrimalGrid::GetResolutionValues(void) { return ResolutionValues; }
+inline const su2double* CPrimalGrid::GetResolutionValues(void) const { return ResolutionValues; }
 
 inline unsigned short CVertexMPI::GetnNodes(void) { return nNodes; }
 

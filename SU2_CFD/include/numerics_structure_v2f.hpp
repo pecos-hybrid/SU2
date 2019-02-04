@@ -163,7 +163,9 @@ private:
   C_e1o,
   C_e2;
 
-  su2double** ResolvedTurbStress;
+  su2double** ResolvedTurbStress; /*!< \brief Resolved portion of the Reynolds stress */
+  su2double SGSProduction; /*!< \brief Production due to the mean turbulent stress, below the filter scale. */
+  su2double Pk; /*!< \brief Total production, including resolved portions. */
 
   bool incompressible;
 
@@ -194,8 +196,32 @@ public:
                        su2double **val_Jacobian_i, su2double **val_Jacobian_j,
                        CConfig *config);
 
+  /*!
+   * \brief Set the resolved turbulent stress
+   * \param[in] val_turb_stress - The turbulent stress to be used
+   */
   void SetResolvedTurbStress(su2double** val_turb_stress) {
     ResolvedTurbStress = val_turb_stress;
   }
+
+  /*!
+   * \brief Set the total production of turbulent kinetic energy.
+   * \param[in] val_production - The total production
+   */
+  void SetProduction(su2double val_production) {
+    Pk = val_production;
+  }
+
+  /*!
+   * \brief Get the SGS production.
+   * \return The SGS production term.
+   */
+  su2double GetSGSProduction(void) const { return SGSProduction; }
+
+  /*!
+   * \brief Get the total production of turbulent kinetic energy.
+   * \return The total production of turbulent kinetic energy.
+   */
+  su2double GetProduction(void) const { return Pk; }
 
 };

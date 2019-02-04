@@ -524,6 +524,8 @@ private:
   bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
   su2double *Hybrid_Forcing_Periodic_Length;  /*!< \brief Domain lengths in periodic directions for hybrid forcing */
   su2double *default_hybrid_periodic_length;  /*!< \brief Default for Hybrid_Forcing_Periodic_Length */
+  unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
+  bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -1002,7 +1004,7 @@ private:
   unsigned short Kind_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
   unsigned short Kind_Averaging_Period;  /*!< \brief Type of period over which runtime averages are to be computed. */
   su2double nAveragingPeriods;  /*!< \brief Number of periods over which to average. */
-  su2double AveragingStartTime; /*!< \brief Number of periods to skip before averaging begins. */
+  su2double AveragingStartTime; /*!< \brief Amount of time to skip before averaging begins. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -3762,8 +3764,13 @@ public:
   void SetKind_SU2(unsigned short val_kind_su2);
 
   /*!
-   * \brief Get the kind of hybrid RANS/LES blending scheme.
-   * \return Kind of blending scheme.
+   * \brief Get the kind of hybrid RANS/LES testing scheme.
+   *
+   * This allows the hybrid scheme to enter special testing
+   * modes where only parts of the hybrid scheme are enabled.
+   * This only works for the model-split hybridization.
+   *
+   * \return Kind of testing scheme.
    */
   unsigned short GetKind_HybridRANSLES_Testing(void);
 
@@ -3784,6 +3791,26 @@ public:
    * \return Pointer to array of length 3
    */
   su2double* GetHybrid_Forcing_Periodic_Length(void);
+
+  /*!
+   * \brief Get the kind of subgrid energy-transfer model for hybrid
+   *        RANS/LES
+   * \return Kind of SGET model
+   */
+  unsigned short GetKind_Hybrid_SGET_Model(void);
+
+  /*!
+   * \brief Check if the full resolved turbulent stress is to be used for
+   *        hybrid RANS/LES.
+   * \return True if the resolved turbulent stress is to be used.
+   */
+  bool GetUse_Resolved_Turb_Stress(void) const;
+
+  /*!
+   * \brief Change whether the resolved turb stress should be used..
+   * \param[in] load_stress - True if the resolved turbulent stress is to be used.
+   */
+  void SetUse_Resolved_Turb_Stress(bool use_stress);
 
   /*!
    * \brief Get the kind of the turbulence model.
@@ -8168,6 +8195,10 @@ public:
    */
   su2double GetnAveragingPeriods(void) const;
 
+  /*!
+   * \brief Get The time at which to start runtime averaging.
+   * \return The time at which to start runtime averaging.
+   */
   su2double GetAveragingStartTime(void) const;
 };
 

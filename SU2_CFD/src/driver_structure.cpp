@@ -705,6 +705,11 @@ void CDriver::Geometrical_Preprocessing() {
     geometry_container[iZone][MESH_0]->SetControlVolume(config_container[iZone], ALLOCATE);
     geometry_container[iZone][MESH_0]->SetBoundControlVolume(config_container[iZone], ALLOCATE);
 
+    /*--- Compute the max length. ---*/
+
+      if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
+      geometry_container[iZone][MESH_0]->SetMaxLength(config_container[iZone]);
+
     /*--- Visualize a dual control volume if requested ---*/
 
     if ((config_container[iZone]->GetVisualize_CV() >= 0) &&
@@ -770,7 +775,9 @@ void CDriver::Geometrical_Preprocessing() {
       geometry_container[iZone][iMGlevel]->SetBoundControlVolume(config_container[iZone], geometry_container[iZone][iMGlevel-1], ALLOCATE);
       geometry_container[iZone][iMGlevel]->SetCoord(geometry_container[iZone][iMGlevel-1]);
 
-      /*--- No multigrid for turbulence, so no need for resolution tensors ---*/
+      /*--- Compute the max length. ---*/
+
+      geometry_container[iZone][iMGlevel]->SetMaxLength(config_container[iZone]);
 
       /*--- Find closest neighbor to a surface point ---*/
 
@@ -895,7 +902,11 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
 
     /*--- Add a fluctuating stress model to the hybrid mediator ---*/
 
-    CFluctuatingStress* fluct_stress = new CM43Model(nDim, config);
+    CFluctuatingStress* fluct_stress;
+    switch (config->GetKind_Hybrid_SGET_Model()) {
+      case NONE: fluct_stress = new CNoStressModel(nDim); break;
+      case M43_MODEL: fluct_stress = new CM43Model(nDim, config); break;
+    }
     hybrid_mediator->SetFluctuatingStress(fluct_stress);
 
     /*--- Add a forcing model to the hybrid mediator ---*/

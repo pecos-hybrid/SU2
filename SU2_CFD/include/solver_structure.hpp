@@ -151,16 +151,18 @@ protected:
    * function if you intend to keep the solution variables. Include
    * this line:
    * \code
-   *   CSolver::UpdateAverage(weight, iPoint, buffer);
+   *   CSolver::UpdateAverage(weight, iPoint, buffer, config);
    * \endcode
    *
-   * \param weight - The amount to weight the update on the average
-   * \param iPoint - The point at which the average will be calculated
-   * \param buffer - An allocated array of size nVar for working calculations
+   * \param[in] weight - The amount to weight the update on the average
+   * \param[in] iPoint - The point at which the average will be calculated
+   * \param[inout] buffer - An allocated array of size nVar for working calculations
+   * \param[in] config - Definition of the particular problem.
    */
-  virtual void UpdateAverage(const su2double weight,
-                             const unsigned long iPoint,
-                             su2double* buffer);
+  virtual void UpdateAverage(su2double weight,
+                             unsigned long iPoint,
+                             su2double* buffer,
+                             const CConfig* config);
 
 public:
   
@@ -4292,8 +4294,16 @@ public:
    */
   virtual void InitAverages(void);
 
+  /*!
+   * \brief Store the timescale used for runtime averaging (i.e. the averaging period)
+   * \param[in] val_timescale - The timescale
+   */
   void SetAveragingTimescale(su2double val_timescale);
 
+  /*!
+   * \brief Get the timescale used for runtime averaging (i.e. the averaging period)
+   * \return The average timescale
+   */
   su2double GetAveragingTimescale(void) const;
 };
 
@@ -6869,10 +6879,26 @@ public:
    * \param[in] inMarkerTP - turboperformance marker.
    */
   void SetNuOut(su2double value, unsigned short inMarkerTP, unsigned short valSpan);
+
+  /*!
+   * \brief Given a vector of field names, find the location of a field
+   * \param[in] name - The name of the field to be found
+   * \param[in] fields - A vector of field names
+   * \param[in] found_index - Set to true if the name is found
+   * \param[in] index - Set to the index of the variable in the vector
+   */
   void FindRestartVariable(const std::string& name,
                            const vector<string>& fields,
                            bool& found_index,
                            unsigned short & index) const;
+
+  /*!
+   * \brief Load the solution from the unpacked restart data into this solver.
+   * \param[in] val_update_geo - Update the geometry
+   * \param[in] restart_filename - The name of the restart file.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
   void LoadSolution(bool val_update_geo,
                     const string& restart_filename,
                     CConfig* config,
@@ -8610,11 +8636,16 @@ public:
    * \param weight - The amount to weight the update on the average
    * \param iPoint - The point at which the average will be calculated
    * \param buffer - An allocated array of size nVar for working calculations
+   * \param[in] config - Definition of the particular problem.
    */
-  void UpdateAverage(const su2double weight,
-                     const unsigned long iPoint,
-                     su2double* buffer);
+  void UpdateAverage(su2double weight,
+                     unsigned long iPoint,
+                     su2double* buffer,
+                     const CConfig* config);
 
+  /*!
+   * \brief Initialize the extra quantities associated with averages.
+   */
   void InitAverages();
 
   /*!
@@ -9932,146 +9963,6 @@ public:
   su2double *LinSysSolReth;    /*!< \brief vector to store iterative solution of implicit linear system. */
   su2double *LinSysResReth;    /*!< \brief vector to store iterative residual of implicit linear system. */
   su2double *rhsReth;    /*!< \brief right hand side of implicit linear system. */
-};
-
-
-/*!
- * \class CHybridSolver
- * \brief Base class for solving the transport equation for the hybrid parameter
- * \ingroup Hybrid_Parameter_Model
- * \author C. Pederson
- */
-class CHybridSolver: public CSolver {
-
- protected:
-   su2double *FlowPrimVar_i,  /*!< \brief Store the flow solution at point i. */
-   *FlowPrimVar_j;         /*!< \brief Store the flow solution at point j. */
-  unsigned long nMarker, /*!< \brief Total number of markers using the grid information. */
-  *nVertex;              /*!< \brief Store nVertex at each marker for deallocation */
-  CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
-
-  /* Sliding meshes variables */
-
-  su2double ****SlidingState;
-  int **SlidingStateNodes;
-
-
- public:
-
-   /*!
-    * \brief Constructor of the class.
-    */
-   CHybridSolver();
-
-   /*!
-    * \brief Destructor of the class.
-    */
-   virtual ~CHybridSolver(void);
-
-   /*!
-    * \brief Constructor of the class.
-    */
-   CHybridSolver(CGeometry *geometry, CConfig *config);
-
-   /*!
-    * \brief Impose the send-receive boundary condition.
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] config - Definition of the particular problem.
-    */
-   void Set_MPI_Solution(CGeometry *geometry, CConfig *config);
-
-   /*!
-    * \brief Impose the send-receive boundary condition.
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] config - Definition of the particular problem.
-    */
-   void Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config);
-
-   /*!
-    * \brief Impose the send-receive boundary condition.
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] config - Definition of the particular problem.
-    */
-   void Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config);
-
-   /*!
-    * \brief Impose the send-receive boundary condition.
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] config - Definition of the particular problem.
-    */
-   void Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *config);
-
-   /*!
-    * \brief Compute the viscous residuals for the hybrid parameter transport
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] solver_container - Container vector with all the solutions.
-    * \param[in] numerics - Description of the numerical method.
-    * \param[in] config - Definition of the particular problem.
-    * \param[in] iMesh - Index of the mesh in multigrid computations.
-    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
-    */
-   void Viscous_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
-                                        CConfig *config, unsigned short iMesh, unsigned short iRKStep);
-   /*!
-    * \brief Compute the spatial integration using a upwind scheme.
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] solver_container - Container vector with all the solutions.
-    * \param[in] numerics - Description of the numerical method.
-    * \param[in] config - Definition of the particular problem.
-    * \param[in] iMesh - Index of the mesh in multigrid computations.
-    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
-    */
-   void Upwind_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                        unsigned short iMesh, unsigned short iRKStep);
-
-   /*!
-    * \brief Impose the Symmetry Plane boundary condition.
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] solver_container - Container vector with all the solutions.
-    * \param[in] conv_numerics - Description of the numerical method.
-    * \param[in] visc_numerics - Description of the numerical method.
-    * \param[in] config - Definition of the particular problem.
-    * \param[in] val_marker - Surface marker where the boundary condition is applied.
-    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
-    */
-   void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
-                     unsigned short val_marker, unsigned short iRKStep);
-
-   /*!
-    * \brief Update the solution using an implicit solver.
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] solver_container - Container vector with all the solutions.
-    * \param[in] config - Definition of the particular problem.
-    */
-   void ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_container, CConfig *config);
-
-   /*!
-    * \brief Set the total residual adding the term that comes from the Dual Time-Stepping Strategy.
-    * \param[in] geometry - Geometric definition of the problem.
-    * \param[in] solver_container - Container vector with all the solutions.
-    * \param[in] config - Definition of the particular problem.
-    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
-    * \param[in] iMesh - Index of the mesh in multigrid computations.
-    * \param[in] RunTime_EqSystem - System of equations which is going to be solved.
-    */
-   void SetResidual_DualTime(CGeometry *geometry, CSolver **solver_container, CConfig *config,
-                             unsigned short iRKStep, unsigned short iMesh, unsigned short RunTime_EqSystem);
-
-   /*!
-    * \brief Load a solution from a restart file.
-    * \param[in] geometry - Geometrical definition of the problem.
-    * \param[in] solver - Container vector with all of the solvers.
-    * \param[in] config - Definition of the particular problem.
-    * \param[in] val_iter - Current external iteration number.
-    * \param[in] val_update_geo - Flag for updating coords and grid velocity.
-    */
-   void LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *config, int val_iter, bool val_update_geo);
-
-   /*!
-   * \brief Add a hybrid mediator object to manage the RANS/LES hybrid model
-   * \param[in] hybrid_mediator - The mediator object
-   */
-  void AddHybridMediator(CAbstract_Hybrid_Mediator *hybrid_mediator);
 };
 
 /*!

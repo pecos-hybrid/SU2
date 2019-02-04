@@ -40,6 +40,11 @@
 #include <iomanip>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_LAPACK
+#include "mkl.h"
+#include "mkl_lapacke.h"
+#endif
+
 /*--- Epsilon definition ---*/
 
 #define EPSILON 0.000001
@@ -1374,6 +1379,7 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
   geometry_container[MESH_0]->SetCoord_CG();
   geometry_container[MESH_0]->SetControlVolume(config, UPDATE);
   geometry_container[MESH_0]->SetBoundControlVolume(config, UPDATE);
+  geometry_container[MESH_0]->SetMaxLength(config);
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
     geometry_container[MESH_0]->SetResolutionTensor();
   }
@@ -11961,27 +11967,19 @@ void CPhysicalGeometry::SetCoord_CG(void) {
 }
 
 void CGeometry::SetResolutionTensor(void) {
-  unsigned long iElem, iElem_global, iPoint;
-  unsigned short iDim, jDim;
-  unsigned short nNode, iNode;
-  unsigned long elem_poin;
-  su2double temp_value;
-  su2double** temp_tensor;
-  su2double* temp_vector;
-  su2double **Coord;
 
   /*--- Compute the resolution tensor for primal mesh elements ---*/
 
-  for (iElem = 0; iElem<nElem; iElem++) {
-    nNode = elem[iElem]->GetnNodes();
-    Coord = new su2double* [nNode];
+  for (unsigned long iElem = 0; iElem<nElem; iElem++) {
+    unsigned short nNode = elem[iElem]->GetnNodes();
+    su2double** Coord = new su2double* [nNode];
 
     /*--- Store the coordinates for all the element nodes ---*/
 
-    for (iNode = 0; iNode < nNode; iNode++) {
-      elem_poin = elem[iElem]->GetNode(iNode);
+    for (unsigned short iNode = 0; iNode < nNode; iNode++) {
+      unsigned long elem_poin = elem[iElem]->GetNode(iNode);
       Coord[iNode] = new su2double [nDim];
-      for (iDim = 0; iDim < nDim; iDim++)
+      for (unsigned short iDim = 0; iDim < nDim; iDim++)
         Coord[iNode][iDim]=node[elem_poin]->GetCoord(iDim);
     }
 
@@ -11989,76 +11987,116 @@ void CGeometry::SetResolutionTensor(void) {
 
     elem[iElem]->SetResolutionTensor(Coord);
 
-    for (iNode = 0; iNode < nNode; iNode++)
+    for (unsigned short iNode = 0; iNode < nNode; iNode++)
       if (Coord[iNode] != NULL) delete[] Coord[iNode];
     if (Coord != NULL) delete[] Coord;
   }
 
   /*--- Use the primal mesh to create the CV Resolution Tensors ---*/
 
-  for (iPoint = 0; iPoint < nPoint; iPoint++) {
-    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
-      iElem_global = node[iPoint]->GetElem(iElem);
-      temp_tensor = elem[iElem_global]->GetResolutionTensor();
-      for (iDim = 0; iDim < nDim; iDim++) {
-        for (jDim = 0; jDim < nDim; jDim++) {
-          temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    /*-- Initialize to zero ---*/
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        node[iPoint]->SetResolutionTensor(iDim, jDim, 0);
+      }
+    }
+    /*--- Compute as component-wise average ---*/
+    for (unsigned long iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
+      unsigned long iElem_global = node[iPoint]->GetElem(iElem);
+      const su2double* const* temp_tensor = elem[iElem_global]->GetResolutionTensor();
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          su2double temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
           if (temp_value > EPS)
-            node[iPoint]->AddResolutionTensor(iDim, jDim, temp_value);
+             node[iPoint]->AddResolutionTensor(iDim, jDim, temp_value);
         }
       }
     }
   }
+
+  /*--- Compute new eigvalues and eigvectors for the dual grid ---*/
 
 #ifdef HAVE_LAPACK
-  /*--- NOTE: Since we're using averages across cells, averages of eigenvalues
-   * are not equal to the eigenvalues of the average tensor. ---*/
-  // TODO: Make this section actually compute eigenvalues and eigenvectors.
-  for (iPoint = 0; iPoint < nPoint; iPoint++) {
-    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
-      iElem_global = node[iPoint]->GetElem(iElem);
-      temp_tensor = elem[iElem_global]->GetResolutionVectors();
-      for (iDim = 0; iDim < nDim; iDim++) {
-        for (jDim = 0; jDim < nDim; jDim++) {
-          temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
-          node[iPoint]->AddResolutionVector(iDim, jDim, temp_value);
-        }
+  su2double* mat = new su2double[nDim*nDim];
+  su2double* eigval = new su2double[nDim];
+  su2double** eigvectors = new su2double*[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    eigvectors[iDim] = new su2double[nDim];
+  }
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    const su2double* const* M = node[iPoint]->GetResolutionTensor();
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim< nDim; jDim++) {
+        mat[iDim*nDim+jDim] = M[iDim][jDim];
       }
     }
-  }
+    int info = LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', nDim, mat, nDim, eigval);
+    if (info != 0) {
+      ostringstream error_msg;
+      error_msg << "The geometry failed to compute eigenvalues." << endl;
+      error_msg << "The info variable was set to: " << info;
+      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+    }
+    node[iPoint]->SetResolutionValues(eigval);
 
-  for (iPoint = 0; iPoint < nPoint; iPoint++) {
-    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
-      iElem_global = node[iPoint]->GetElem(iElem);
-      temp_vector = elem[iElem_global]->GetResolutionValues();
-      for (iDim = 0; iDim < nDim; iDim++) {
-        temp_value = temp_vector[iDim] / (node[iPoint]->GetnElem());
-        node[iPoint]->AddResolutionValue(iDim, temp_value);
+    /*--- Normalize the eigenvectors by the L2 norm of each vector ---*/
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        eigvectors[iDim][jDim] = mat[jDim*nDim+iDim];
       }
     }
+
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      su2double norm = 0.0;
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        norm += eigvectors[iDim][jDim]*eigvectors[iDim][jDim];
+      }
+      norm = sqrt(norm);
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        eigvectors[iDim][jDim] /= norm;
+      }
+    }
+
+    node[iPoint]->SetResolutionVectors(eigvectors);
   }
+  delete [] mat;
+  delete [] eigval;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    delete [] eigvectors[iDim];
+  }
+  delete [] eigvectors;
 #else
-  /*--- Use an approximate average of the eigenvalues and eigenvectors ---*/
-  for (iPoint = 0; iPoint < nPoint; iPoint++) {
-    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
-      iElem_global = node[iPoint]->GetElem(iElem);
-      temp_tensor = elem[iElem_global]->GetResolutionVectors();
-      for (iDim = 0; iDim < nDim; iDim++) {
-        for (jDim = 0; jDim < nDim; jDim++) {
-          temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
-          node[iPoint]->AddResolutionVector(iDim, jDim, temp_value);
-        }
+  if (rank == MASTER_NODE) {
+    cout << "WARNING: Obtaining accurate eigenvalues and eigenvectors of the\n";
+    cout << "         resolution tensor requires LAPACK. Approximate values\n";
+    cout << "         are currently being used.  Please recompile SU2 with\n";
+    cout << "         LAPACK if you want to use the hybrid RANS/LES solver\n.";
+  }
+  /*--- Left in for testing only. ---*/
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    const unsigned short nElem = node[iPoint]->GetnElem();
+    /*-- Initialize to zero ---*/
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      node[iPoint]->SetResolutionValue(iDim, 0);
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        node[iPoint]->SetResolutionVector(iDim, jDim, 0);
       }
     }
-  }
-
-  for (iPoint = 0; iPoint < nPoint; iPoint++) {
-    for (iElem = 0; iElem < node[iPoint]->GetnElem(); iElem++) {
-      iElem_global = node[iPoint]->GetElem(iElem);
-      temp_vector = elem[iElem_global]->GetResolutionValues();
-      for (iDim = 0; iDim < nDim; iDim++) {
-        temp_value = temp_vector[iDim] / (node[iPoint]->GetnElem());
-        node[iPoint]->AddResolutionValue(iDim, temp_value);
+    /*--- Compute as component-wise average ---*/
+    for (unsigned long iElem = 0; iElem < nElem; iElem++) {
+      unsigned long iElem_global = node[iPoint]->GetElem(iElem);
+      const su2double* values = elem[iElem_global]->GetResolutionValues();
+      const su2double* const* vectors = elem[iElem_global]->GetResolutionVectors();
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        su2double temp_value = values[iDim] / nElem;
+        if (temp_value > EPS)
+           node[iPoint]->AddResolutionValue(iDim, temp_value);
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          temp_value = vectors[iDim][jDim] / nElem;
+          if (temp_value > EPS)
+             node[iPoint]->AddResolutionVector(iDim, jDim, temp_value);
+        }
       }
     }
   }
@@ -12071,11 +12109,11 @@ void CGeometry::SetResolutionTensor(void) {
      * and for possible extreme cases) ---*/
     if (rank == MASTER_NODE) {
       cout << "WARNING: Resolution tensor coefficient (aka C_M) has not been implemented for 2D grids." << endl;
-      cout << "The coefficient will be set to 1.0" << endl;
+      cout << "         The coefficient will be set to 1.0" << endl;
     }
   }
 
-  for (iPoint = 0; iPoint < nPoint; iPoint++) {
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     node[iPoint]->SetResolutionPowers();
     node[iPoint]->SetResolutionCoeff();
   }
@@ -12085,7 +12123,7 @@ void CGeometry::SetResolutionGradient(void) {
   unsigned short iDim, jDim, kDim, lDim;
   unsigned short iNeigh;
   unsigned long iPoint, jPoint;
-  su2double** M_temp;
+  const su2double* const* M_temp;
   vector<vector<su2double> > M_i(nDim, vector<su2double>(nDim));
   vector<vector<su2double> > M_j(nDim, vector<su2double>(nDim));
   su2double** Smatrix;
@@ -12347,6 +12385,59 @@ void CPhysicalGeometry::SetBoundControlVolume(CConfig *config, unsigned short ac
       if (Area == 0.0) for (iDim = 0; iDim < nDim; iDim++) NormalFace[iDim] = EPS*EPS;
     }
   
+}
+
+void CPhysicalGeometry::SetMaxLength(CConfig* config) {
+
+  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++){
+    const unsigned short nNeigh = node[iPoint]->GetnPoint();
+    const su2double* Coord_i = node[iPoint]->GetCoord();
+
+    /*--- If using AD, computing the maximum grid length can generate
+     * a lot of unnecessary overhead since we would store all computations
+     * of each grid length, even though we only need the maximum value.
+     * We solve that by finding the neighbor that's furthest away
+     * (corresponding to the maximum distance) using passive calculations,
+     * then set the max using the AD datatype. ---*/
+
+    passivedouble passive_max_delta=0;
+    unsigned short max_neighbor = 0;
+    for (unsigned short iNeigh = 0; iNeigh < nNeigh; iNeigh++) {
+
+      /*-- Calculate the cell-center to cell-center length ---*/
+
+      const unsigned long jPoint  = node[iPoint]->GetPoint(iNeigh);
+      const su2double* Coord_j = node[jPoint]->GetCoord();
+
+      passivedouble delta_aux = 0;
+      for (unsigned short iDim = 0;iDim < nDim; iDim++){
+        delta_aux += pow(SU2_TYPE::GetValue(Coord_j[iDim])-SU2_TYPE::GetValue(Coord_i[iDim]), 2.);
+      }
+
+      /*--- Only keep the maximum length ---*/
+
+      if (delta_aux > passive_max_delta) {
+        passive_max_delta = delta_aux;
+        max_neighbor = iNeigh;
+      }
+    }
+
+    /*--- Now that we know where the maximum distance is, repeat
+     * calculation with the AD-friendly su2double datatype ---*/
+
+    const unsigned long jPoint  = node[iPoint]->GetPoint(max_neighbor);
+    const su2double* Coord_j = node[jPoint]->GetCoord();
+
+    su2double max_delta = 0;
+    for (unsigned short iDim = 0;iDim < nDim; iDim++) {
+      max_delta += pow((Coord_j[iDim]-Coord_i[iDim]), 2.);
+    }
+    max_delta = sqrt(max_delta);
+
+    node[iPoint]->SetMaxLength(max_delta);
+  }
+
+  Set_MPI_MaxLength(config);
 }
 
 void CPhysicalGeometry::MatchInterface(CConfig *config) {
@@ -14843,6 +14934,79 @@ void CPhysicalGeometry::Set_MPI_OldCoord(CConfig *config) {
   }
 
   /*--------------------------------------------------------------------------------------------------*/
+
+}
+
+void CPhysicalGeometry::Set_MPI_MaxLength(CConfig *config) {
+
+  unsigned short iMarker, MarkerS, MarkerR;
+  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS, nBufferR;
+  su2double *Buffer_Receive = NULL, *Buffer_Send = NULL;
+
+#ifdef HAVE_MPI
+  int send_to, receive_from;
+  SU2_MPI::Status status;
+#endif
+
+  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+
+    if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
+        (config->GetMarker_All_SendRecv(iMarker) > 0)) {
+
+      MarkerS = iMarker;  MarkerR = iMarker+1;
+
+#ifdef HAVE_MPI
+      send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
+      receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
+#endif
+
+      nVertexS = nVertex[MarkerS];  nVertexR = nVertex[MarkerR];
+      nBufferS = nVertexS;          nBufferR = nVertexR;
+
+      /*--- Allocate Receive and send buffers  ---*/
+
+      Buffer_Receive = new su2double [nBufferR];
+      Buffer_Send = new su2double[nBufferS];
+
+      /*--- Copy the grid velocity that should be sent ---*/
+
+      for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+        iPoint = vertex[MarkerS][iVertex]->GetNode();
+        const su2double max_length = node[iPoint]->GetMaxLength();
+        Buffer_Send[iVertex] = max_length;
+      }
+
+#ifdef HAVE_MPI
+      /*--- Send/Receive information using Sendrecv ---*/
+      SU2_MPI::Sendrecv(Buffer_Send, nBufferS, MPI_DOUBLE, send_to, 0,
+                        Buffer_Receive, nBufferR, MPI_DOUBLE, receive_from, 0,
+                        MPI_COMM_WORLD, &status);
+#else
+
+      /*--- Receive information without MPI ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+        Buffer_Receive[iVertex] = Buffer_Send[iVertex];
+      }
+
+#endif
+
+      /*--- Deallocate send buffer ---*/
+
+      delete [] Buffer_Send;
+
+
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+        iPoint = vertex[MarkerR][iVertex]->GetNode();
+        node[iPoint]->SetMaxLength(Buffer_Receive[iVertex]);
+      }
+
+      /*--- Deallocate receive buffer ---*/
+
+      delete [] Buffer_Receive;
+
+    }
+
+  }
 
 }
 

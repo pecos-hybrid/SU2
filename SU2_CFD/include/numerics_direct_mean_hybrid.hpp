@@ -51,16 +51,16 @@ private:
   /*--- Temporary variables used in calculation ---*/
   su2double **conductivity;  /*!< \brief Anisotropic thermal conductivity */
   su2double **deviatoric;    /*!< \brief Deviatoric part of the velocity gradient tensor. */
-  su2double* Mean_PrimVar_Average;
-  su2double** Mean_GradPrimVar_Average;
-  su2double** Mean_GradPrimVar_Fluct;
-  su2double** Mean_Aniso_Eddy_Viscosity;  // SGET eddy viscosity
+  su2double* Mean_PrimVar_Average; /*!< \brief The primitive variables computed from average flow variables */
+  su2double** Mean_GradPrimVar_Average; /*!< \brief The gradient of the primitve variables from the average flow */ 
+  su2double** Mean_GradPrimVar_Fluct; /*!< \brief The gradient of the fluctuating primitive variables */
+  su2double** Mean_Aniso_Eddy_Viscosity;  /*!< \brief The anisotropic eddy viscosity from the energy transfer model. */
   /*--- Values to be set externally for residual calculation ---*/
-  su2double* PrimVar_Average_i;
-  su2double* PrimVar_Average_j;
-  su2double **Aniso_Eddy_Viscosity_i, **Aniso_Eddy_Viscosity_j;
-  su2double **PrimVar_Grad_Average_i, **PrimVar_Grad_Average_j;
-  su2double alpha_i, alpha_j;
+  su2double* PrimVar_Average_i; /*!< \brief The primitive variables, computed from average flow variables */
+  su2double* PrimVar_Average_j; /*!< \brief The primitive variables, computed from average flow variables */
+  su2double **Aniso_Eddy_Viscosity_i, **Aniso_Eddy_Viscosity_j; /*!< \brief The anisotropic eddy viscosity from the energy transfer model. */
+  su2double **PrimVar_Grad_Average_i, **PrimVar_Grad_Average_j; /*!< \brief The gradient of the primitve variables from the average flow */
+  su2double alpha_i, alpha_j; /*!< \brief The kinetic energy ratio (of modeled to total turbulent kinetic energy) */
 
 public:
 
@@ -107,28 +107,60 @@ public:
                            const su2double val_dist_ij,
                            const su2double *val_normal);
 
+  /*!
+   * \brief Compute the heat flux due to only molecular viscosity.
+   * \param[in] val_gradprimvar - The resolved gradient of primitive variables
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   */
   void SetLaminarHeatFlux(su2double **val_gradprimvar,
                           const su2double val_laminar_viscosity);
 
+  /*!
+   * \brief Add the SGS heat flux to a previously computed heat flux vector
+   *
+   * SetLaminarHeatFlux must be called before this in order to initialize
+   * the heat flux vector.
+   *
+   * \param[in] val_gradprimvar - The gradient of the average primitive variables
+   * \param[in] val_alpha - The ratio of modeled to total turbulent kinetic energy
+   * \param[in] val_eddy_viscosity - The average (i.e. RANS) eddy viscosity
+   */
   void AddSGSHeatFlux(su2double **val_gradprimvar,
                       const su2double val_alpha,
                       const su2double val_eddy_viscosity);
 
+  /*!
+   * \brief Add the heat flux from the energy transfer model to the heat flux
+   *
+   * SetLaminarHeatFlux must be called before this in order to initialize
+   * the heat flux vector.
+   *
+   * \param[in] val_gradprimvar - The gradient of the fluctuating primitive variables
+   * \param[in] val_eddy_viscosity - An anisotropic, flucutating eddy viscosity
+   */
   void AddSGETHeatFlux(su2double** val_gradprimvar,
                        su2double** val_eddy_viscosity);
 
 
+  /*!
+   * \brief Compute the viscous stress tensor due to only the molecular viscosity.
+   * \param[in] val_gradprimvar - The resolved gradient of primitive variables
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   */
   void SetLaminarStressTensor(su2double **val_gradprimvar,
                               const su2double val_laminar_viscosity);
 
   /*!
    * \brief Compute the mean subfilter stress.
    *
-   * \param val_primvar - The average primitive variables
-   * \param val_gradprimvar - The gradient of the average primitive variables
-   * \param val_alpha - The ratio of subfilter to total turbulent kinetic energy
-   * \param val_turb_ke - The total (not subfilter) turbulent kinetic energy
-   * \param val_eddy_viscosity - The eddy viscosity from the RANS model
+   * SetLaminarSressTensor must be called before this function in order
+   * to initialize the stress tensor.
+   *
+   * \param[in] val_primvar - The average primitive variables
+   * \param[in] val_gradprimvar - The gradient of the average primitive variables
+   * \param[in] val_alpha - The ratio of modeled to total turbulent kinetic energy
+   * \param[in] val_turb_ke - The total (not subfilter) turbulent kinetic energy
+   * \param[in] val_eddy_viscosity - The average (i.e. RANS) eddy viscosity
    */
   void AddTauSGS(const su2double *val_primvar,
                  su2double **val_gradprimvar,
@@ -136,23 +168,54 @@ public:
                  const su2double val_turb_ke,
                  const su2double val_eddy_viscosity);
 
+  /*!
+   * \brief Add the stress tensor from the energy transfer model to the
+   *        viscous stress
+   * \param[in] val_gradprimvar - The gradient of the fluctuating primitive variables
+   * \param[in] val_eddy_viscosity - An anisotropic, flucutating eddy viscosity
+   */
   void AddTauSGET(su2double **val_gradprimvar,
                   su2double **val_eddy_viscosity);
 
+  /*!
+   * \brief Set the anisotropic eddy viscosity from the energy transfer model.
+   * \param[in] aniso_eddy_viscosity_i - The eddy viscosity at point i
+   * \param[in] aniso_eddy_viscosity_j - The eddy viscosity at point j
+   */
   void SetAniso_Eddy_Viscosity(su2double** aniso_eddy_viscosity_i,
                                su2double** aniso_eddy_viscosity_j);
 
+  /*!
+   * \brief Set the average primitive variables.
+   *
+   * This sets the primitive variables from the average flow, which is not
+   * the same as the face values (computed using an average) of the resolved
+   * flow.
+   *
+   * \param[in] val_primvar_average_i - The average primitive variables at point i 
+   * \param[in] val_primvar_average_j - The average primitive variables at point j 
+   */
   void SetPrimitive_Average(su2double* val_primvar_average_i,
                             su2double* val_primvar_average_j);
 
   /*!
    * \brief Set the gradient of the primitive variables for the average.
+   *
+   * This sets the gradient of the primitive variables from the average
+   * flow, which is not the same as the face values (computed using an
+   * average) of the resolved flow.
+   *
    * \param[in] val_primvar_grad_i - Gradient of the primitive variable at point i.
    * \param[in] val_primvar_grad_j - Gradient of the primitive variable at point j.
    */
   void SetPrimVarGradient_Average(su2double **val_primvar_grad_i,
                                   su2double **val_primvar_grad_j);
 
+  /*!
+   * \brief Set the ratio of modeled to total turbulent kinetic energy
+   * \param[in] val_alpha_i - The kinetic energy ratio at point i
+   * \param[in] val_alpha_j - The kinetic energy ratio at point j
+   */
   void SetKineticEnergyRatio(const su2double val_alpha_i,
                              const su2double val_alpha_j);
 };

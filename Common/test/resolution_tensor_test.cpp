@@ -666,7 +666,7 @@ BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
 
   for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
-    su2double** Mij = geometry->node[iPoint]->GetResolutionTensor();
+    const su2double* const* Mij = geometry->node[iPoint]->GetResolutionTensor();
 
     // Check that the values of Mij are correct
     BOOST_CHECK_SMALL(Mij[0][0] - 0.5, machine_eps);
@@ -690,7 +690,7 @@ BOOST_FIXTURE_TEST_CASE(Quads_Test, ResolutionFixture) {
 
   for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
-    su2double** Mij = geometry->node[iPoint]->GetResolutionTensor();
+    const su2double* const* Mij = geometry->node[iPoint]->GetResolutionTensor();
 
     // Check that the values of Mij are correct
     BOOST_CHECK_SMALL(Mij[0][0] - 4.0, machine_eps);
@@ -727,7 +727,7 @@ BOOST_FIXTURE_TEST_CASE(Gradients_Test, ResolutionFixture) {
 
   for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
     for (iDim = 0; iDim < nDim; iDim++) {
-      su2double** dMsqdx = geometry->node[iPoint]->GetResolutionGradient(iDim);
+      const su2double* const* dMsqdx = geometry->node[iPoint]->GetResolutionGradient(iDim);
       su2double* coord;
       coord = geometry->node[iPoint]->GetCoord();
 
@@ -799,7 +799,7 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
 
   for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
-    su2double** Mij = geometry->node[iPoint]->GetResolutionTensor();
+    const su2double* const* Mij = geometry->node[iPoint]->GetResolutionTensor();
 
     // Build the test info
     std::stringstream msg;
@@ -835,7 +835,7 @@ BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
 
   for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
-    su2double** M43 = geometry->node[iPoint]->GetResolutionTensor43();
+    const su2double* const* M43 = geometry->node[iPoint]->GetResolutionTensor43();
 
     // Build the test info
     std::stringstream msg;
