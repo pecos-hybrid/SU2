@@ -17680,7 +17680,8 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
                                 iMesh, iRKStep);
 
   // If hybrid...
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT &&
+      config->isHybrid_Forced()) {
 
     // ... evaluate forcing field...
     HybridMediator->ComputeForcingField(solver_container, geometry, config);
