@@ -50,12 +50,13 @@
 
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
-void WriteCfgFile(unsigned short nDim, const char* filename) {
+void WriteCfgFile(unsigned short nDim, const char* filename,
+                  std::string blending) {
   std::ofstream cfg_file;
 
   cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
-  cfg_file << "ROE_LOW_DISSIPATION= NTS" << std::endl;
+  cfg_file << "ROE_LOW_DISSIPATION= " << blending << std::endl;
 
   cfg_file.close();
 }
@@ -67,7 +68,7 @@ BOOST_AUTO_TEST_CASE(BadSensorsAllowedForNTS) {
   const unsigned short nDim = 3;
 
   char cfg_filename[100] = "convective_blending_test.cfg";
-  WriteCfgFile(nDim, cfg_filename);
+  WriteCfgFile(nDim, cfg_filename, "NTS");
   CConfig* config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
   std::remove(cfg_filename);
 
@@ -90,4 +91,43 @@ BOOST_AUTO_TEST_CASE(BadSensorsAllowedForNTS) {
 
   /*--- Teardown ---*/
   delete config;
+}
+
+BOOST_AUTO_TEST_CASE(NTSAndFDGiveSameAverageDissipation) {
+
+  /*--- Setup ---*/
+
+  const unsigned short nDim = 3;
+
+  char cfg_filename[100] = "convective_blending_test.cfg";
+  WriteCfgFile(nDim, cfg_filename, "NTS");
+  CConfig* nts_config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
+  std::remove(cfg_filename);
+
+  WriteCfgFile(nDim, cfg_filename, "FD");
+  CConfig* fd_config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
+  std::remove(cfg_filename);
+
+  const su2double dissipation_i = 0.2;
+  const su2double dissipation_j = 0.4;
+  const su2double sensor_i = 0;
+  const su2double sensor_j = 0;
+  su2double nts_dissipation, fd_dissipation;
+
+  /*--- Test ---*/
+
+  CNumerics numerics;
+  numerics.SetRoe_Dissipation(dissipation_i, dissipation_j,
+                              sensor_i, sensor_j,
+                              nts_dissipation, nts_config);
+  numerics.SetRoe_Dissipation(dissipation_i, dissipation_j,
+                              sensor_i, sensor_j,
+                              fd_dissipation, fd_config);
+
+  const su2double tolerance = std::numeric_limits<su2double>::epsilon();
+  BOOST_CHECK_CLOSE_FRACTION(fd_dissipation, nts_dissipation, tolerance);
+
+  /*--- Teardown ---*/
+  delete fd_config;
+  delete nts_config;
 }
