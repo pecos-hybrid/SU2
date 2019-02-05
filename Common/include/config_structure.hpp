@@ -8138,6 +8138,12 @@ public:
    * \return Value of Low dissipation approach.
    */
    unsigned short GetKind_RoeLowDiss(void);
+
+   /*!
+    * \brief Check if an upwind/central flux blending scheme should be applied.
+    * \return True if the fluxes should be blended.
+    */
+   bool BlendUpwindCentralFluxes(void) const;
     
   /*!
    * \brief Get the DES Constant.
