@@ -43,6 +43,7 @@ check_PROGRAMS += zeta_unit_cell_test
 check_PROGRAMS += zeta_transform_test
 endif
 if HAVE_BOOST
+check_PROGRAMS += convective_blending_test
 check_PROGRAMS += hybrid_rdelta_test
 check_PROGRAMS += fluctuating_stress_test
 check_PROGRAMS += forcing_test
@@ -82,6 +83,7 @@ zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
 zeta_transform_test_SOURCES            = zeta_transform_test.cpp
 endif
 if HAVE_BOOST
+convective_blending_test_SOURCES       = convective_blending_test.cpp
 hybrid_rdelta_test_SOURCES             = hybrid_rdelta_test.cpp
 fluctuating_stress_test_SOURCES        = fluctuating_stress_test.cpp
 forcing_test_SOURCES                   = forcing_test.cpp
@@ -101,6 +103,7 @@ TESTS += zeta_unit_cell_test
 TESTS += zeta_transform_test
 endif
 if HAVE_BOOST
+TESTS += convective_blending_test
 TESTS += hybrid_rdelta_test
 TESTS += fluctuating_stress_test
 TESTS += forcing_test
