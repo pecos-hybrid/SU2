@@ -4731,7 +4731,7 @@ void CEulerSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container
   bool fixed_cl         = config->GetFixed_CL_Mode();
   bool van_albada       = config->GetKind_SlopeLimit_Flow() == VAN_ALBADA_EDGE;
   unsigned short kind_row_dissipation = config->GetKind_RoeLowDiss();
-  bool roe_low_dissipation  = (kind_row_dissipation != NO_ROELOWDISS) && (config->GetKind_Upwind_Flow() == ROE);
+  const bool roe_low_dissipation  = config->BlendUpwindCentralFluxes();
 
   /*--- Update the angle of attack at the far-field for fixed CL calculations. ---*/
   
@@ -17167,7 +17167,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   bool interface            = (config->GetnMarker_InterfaceBound() != 0);
   bool van_albada           = config->GetKind_SlopeLimit_Flow() == VAN_ALBADA_EDGE;
   unsigned short kind_row_dissipation = config->GetKind_RoeLowDiss();
-  bool roe_low_dissipation  = (kind_row_dissipation != NO_ROELOWDISS) && (config->GetKind_Upwind_Flow() == ROE);
+  const bool roe_low_dissipation  = config->BlendUpwindCentralFluxes();
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   /*--- Update the angle of attack at the far-field for fixed CL calculations. ---*/
@@ -17680,7 +17680,8 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
                                 iMesh, iRKStep);
 
   // If hybrid...
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT &&
+      config->isHybrid_Forced()) {
 
     // ... evaluate forcing field...
     HybridMediator->ComputeForcingField(solver_container, geometry, config);

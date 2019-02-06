@@ -1836,6 +1836,12 @@ inline bool CConfig::isDESBasedModel(void) {
 
 inline unsigned short CConfig::GetKind_RoeLowDiss(void) {return Kind_RoeLowDiss; }
 
+inline bool CConfig::BlendUpwindCentralFluxes(void) const {
+  const bool scheme_supports_blending = (Kind_Upwind_Flow == ROE) ||
+      (Kind_Upwind_Flow == SLAU) || (Kind_Upwind_Flow == SLAU2);
+  return (Kind_RoeLowDiss != NO_ROELOWDISS && scheme_supports_blending);
+}
+
 inline su2double CConfig::GetConst_DES(void) {return Const_DES; }
 
 inline bool CConfig::GetQCR(void) {return QCR;}

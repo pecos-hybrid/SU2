@@ -799,8 +799,9 @@ void CNSVariable::SetRoe_Dissipation_FD(su2double val_wall_dist){
   const su2double nu = GetLaminarViscosity()/GetDensity();
   const su2double nu_t = GetEddyViscosity()/GetDensity();
   const su2double r_d = (nu + nu_t)/(uijuij*k2*pow(val_wall_dist, 2.0));
+  const su2double f_d = 1.0-tanh(pow(8.0*r_d,3.0));
   
-  Roe_Dissipation = 1.0-tanh(pow(8.0*r_d,3.0));
+  Roe_Dissipation = 1.0 - f_d;
   
   AD::SetPreaccOut(Roe_Dissipation);
   AD::EndPreacc();

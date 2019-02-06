@@ -59,6 +59,8 @@ CNumerics::CNumerics(void) {
   Enthalpy_formation = NULL;
   Theta_v = NULL;
 
+  Vector = NULL;
+
   l = NULL;
   m = NULL;
 
@@ -1903,12 +1905,14 @@ void CNumerics::SetRoe_Dissipation(const su2double Dissipation_i,
 
   /*--- Check for valid input ---*/
 
+  const unsigned short roe_low_diss = config->GetKind_RoeLowDiss();
+
   assert((Dissipation_i >= 0) && (Dissipation_i <= 1));
   assert((Dissipation_j >= 0) && (Dissipation_j <= 1));
-  assert((Sensor_i >= 0) && (Sensor_i <= 1));
-  assert((Sensor_j >= 0) && (Sensor_j <= 1));
-
-  unsigned short roe_low_diss = config->GetKind_RoeLowDiss();
+  if (roe_low_diss == FD_DUCROS || roe_low_diss == NTS_DUCROS) {
+    assert((Sensor_i >= 0) && (Sensor_i <= 1));
+    assert((Sensor_j >= 0) && (Sensor_j <= 1));
+  }
 
   /*--- A minimum level of upwinding is used to enhance stability ---*/
 
@@ -1917,28 +1921,19 @@ void CNumerics::SetRoe_Dissipation(const su2double Dissipation_i,
   const su2double Mean_Dissipation = 0.5*(Dissipation_i + Dissipation_j);
   const su2double Mean_Sensor = 0.5*(Sensor_i + Sensor_j);
   
-  if (roe_low_diss == FD || roe_low_diss == FD_DUCROS){
+  if (roe_low_diss == FD || roe_low_diss == NTS) {
 
-    Dissipation_ij = max(0.05,1.0 - (0.5 * (Dissipation_i + Dissipation_j)));
-    
-    if (roe_low_diss == FD_DUCROS){
-      
-      /*--- See Jonhsen et al. JCP 229 (2010) pag. 1234 ---*/
-
-      su2double Ducros_ij;
-      
-      if (0.5*(Sensor_i + Sensor_j) > 0.65)
-        Ducros_ij = 1.0;
-      else
-        Ducros_ij = 0.05;
-      
-      Dissipation_ij = max(Ducros_ij, Dissipation_ij);
-    }
-
-  } else if (roe_low_diss == NTS) {
-    
     Dissipation_ij = max(Min_Dissipation, Mean_Dissipation);
+    
+  } else if (roe_low_diss == FD_DUCROS) {
 
+    /*--- See Jonhsen et al. JCP 229 (2010) pag. 1234 ---*/
+
+    if (Mean_Sensor > 0.65)
+      Dissipation_ij = 1.0;
+    else
+      Dissipation_ij = max(Min_Dissipation, Mean_Dissipation);
+    
   } else if (roe_low_diss == NTS_DUCROS) {
 
     /*--- See Xiao et al. INT J HEAT FLUID FL 51 (2015) pag. 141
