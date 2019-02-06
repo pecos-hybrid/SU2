@@ -262,6 +262,7 @@ class CHybrid_Mediator : public CAbstract_Hybrid_Mediator {
    * \param[in] hybr_vars - Pointer to hybrid model variables
    */
   void ComputeInvLengthTensor(CVariable* flow_vars,
+                              CVariable* flow_avgs,
                               CVariable* turb_vars,
                               su2double val_alpha,
                               int short hybrid_res_ind);

@@ -194,6 +194,7 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     const su2double alpha =
         solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
     ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
+                           solver_container[FLOW_SOL]->average_node[iPoint],
                            solver_container[TURB_SOL]->node[iPoint],
                            alpha,
                            config->GetKind_Hybrid_Resolution_Indicator());
@@ -202,12 +203,23 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     vector<vector<su2double> > eigvectors_iLM;
     SolveGeneralizedEigen(invLengthTensor, ResolutionTensor,
                           eigvalues_iLM, eigvectors_iLM);
-    std::vector<su2double>::iterator iter;
-    iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
-    unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
 
-    const su2double C_r = 3.0;
-    r_k = C_r*eigvalues_iLM[max_index];
+    // std::vector<su2double>::iterator iter;
+    // iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
+    // unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
+
+    // const su2double C_r = 3.0;
+    // r_k = C_r*eigvalues_iLM[max_index];
+
+    r_k = 0.0;
+    for (iDim=0; iDim<3; iDim++) {
+      if( std::abs(eigvalues_iLM[iDim])>r_k ) {
+        r_k = std::abs(eigvalues_iLM[iDim]);
+      }
+    }
+
+    const su2double C_r = 1.0;
+    r_k *= C_r;
 
   }
   else if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
@@ -388,13 +400,14 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
 
 
 void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
+                                              CVariable* flow_avgs,
                                               CVariable* turb_vars,
                                               const su2double val_alpha,
                                               const int short hybrid_res_ind) {
 
   unsigned short iDim, jDim, kDim;
-  su2double Sd[3][3], Om[3][3], delta[3][3], Pij[3][3];
-  su2double div_vel;
+  su2double Sd[3][3], Sd_avg[3][3], Om[3][3], delta[3][3], Pij[3][3];
+  su2double div_vel, div_avg_vel;
 
   // Not intended for use in 2D
   if (nDim == 2) {
@@ -403,6 +416,9 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   // Get primative variables and gradients
   su2double** val_gradprimvar =  flow_vars->GetGradient_Primitive();
+  su2double** val_gradprimavg =  flow_avgs->GetGradient_Primitive();
+
+  const su2double rho =  flow_avgs->GetDensity();
 
   // Get eddy viscosity
   su2double eddy_viscosity = flow_vars->GetEddyViscosity();
@@ -422,15 +438,19 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   }
 
   // Compute divergence
-  div_vel = 0.0;
-  for (iDim = 0 ; iDim < nDim; iDim++)
-    div_vel += val_gradprimvar[iDim+1][iDim];
+  div_vel = div_avg_vel = 0.0;
+  for (iDim = 0 ; iDim < nDim; iDim++) {
+    div_vel     += val_gradprimvar[iDim+1][iDim];
+    div_avg_vel += val_gradprimavg[iDim+1][iDim];
+  }
 
   // The deviatoric part of the strain rate tensor
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
-      Sd[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] + val_gradprimvar[jDim+1][iDim]) -
-                       delta[iDim][jDim]*div_vel/3.0;
+      Sd[iDim][jDim]     = 0.5*(val_gradprimvar[iDim+1][jDim] + val_gradprimvar[jDim+1][iDim]) -
+                           delta[iDim][jDim]*div_vel/3.0;
+      Sd_avg[iDim][jDim] = 0.5*(val_gradprimavg[iDim+1][jDim] + val_gradprimavg[jDim+1][iDim]) -
+                           delta[iDim][jDim]*div_avg_vel/3.0;
     }
   }
 
@@ -440,6 +460,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
       Om[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] - val_gradprimvar[jDim+1][iDim]);
     }
   }
+
+  const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
   // v2 here is *subgrid*, so must multiply by alpha
   su2double v2;
@@ -451,33 +473,30 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
 
-  // NB: Assumes isotropic eddy viscosity
-  // TODO: If/when we go back to anisotropic eddy viscosity, make sure
-  // change propagates to here
-
   // Strain only part
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       Pij[iDim][jDim] = 0.0;
       for (kDim = 0; kDim < nDim; kDim++) {
         // NB: Assumes that eddy_viscosity is *full* eddy
-        // viscosity---i.e., not multiplied by alpha^2---so that
-        // alpha^2 is necessary here
-        Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Sd[kDim][jDim];
+        // viscosity---i.e., not multiplied by alpha---so that
+        // alpha is necessary here
+        Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Sd[kDim][jDim];
       }
     }
   }
 
   switch (hybrid_res_ind) {
   case RDELTA_INDICATOR_STRAIN_ONLY:
-    // nothing to do here
+    // TODO: Add rho*k contribution
     break;
   case RDELTA_INDICATOR_FULLP:
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
         for (kDim = 0; kDim < nDim; kDim++) {
-          Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Om[jDim][kDim];
+          Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Om[jDim][kDim];
         }
+        // TODO: Add rho*k contribution
       }
     }
     break;
@@ -485,8 +504,11 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
         for (kDim = 0; kDim < nDim; kDim++) {
-          Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Om[kDim][jDim];
+          // rotation contribution
+          Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Om[kDim][jDim];
         }
+        // rho*k contribtuion
+        Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
       }
     }
     break;
@@ -497,9 +519,11 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
 
   // set inverse length scale tensor
+  const su2double t0 = 1.5*sqrt(1.5);
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
-      invLengthTensor[iDim][jDim] = 0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (v2*sqrt(v2)) ;
+      invLengthTensor[iDim][jDim] =
+        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2)) ;
     }
   }
 
