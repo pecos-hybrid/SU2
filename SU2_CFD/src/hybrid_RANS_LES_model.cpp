@@ -432,11 +432,26 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     SU2_MPI::Error("The RDELTA resolution adequacy option is not implemented for 2D!", CURRENT_FUNCTION);
   }
 
-  // Get primative variables and gradients
-  su2double** val_gradprimvar =  flow_vars->GetGradient_Primitive();
-  su2double** val_gradprimavg =  flow_avgs->GetGradient_Primitive();
+  // 1) Preliminaries: Extract data, convenience calcs...
+
+  // delta tensor (for convenience)
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      if (iDim==jDim) {
+	delta[iDim][jDim] = 1.0;
+      } else {
+	delta[iDim][jDim] = 0.0;
+      }
+    }
+  }
 
   const su2double rho =  flow_avgs->GetDensity();
+
+  su2double alpha = max(val_alpha, 1e-8);
+
+  // Get primative gradients
+  su2double** val_gradprimvar =  flow_vars->GetGradient_Primitive();
+  su2double** val_gradprimavg =  flow_avgs->GetGradient_Primitive();
 
   // Get eddy viscosities
   su2double eddy_viscosity = flow_vars->GetEddyViscosity();
@@ -450,21 +465,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     }
   }
 
-  // Bound alpha away from zero
-  su2double alpha = max(val_alpha, 1e-8);
-
-  // delta tensor (for convenience)
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      if (iDim==jDim) {
-	delta[iDim][jDim] = 1.0;
-      } else {
-	delta[iDim][jDim] = 0.0;
-      }
-    }
-  }
-
-  // Compute divergence
+  // Compute divergences
   div_vel = div_avg_vel = div_fluct = 0.0;
   for (iDim = 0 ; iDim < nDim; iDim++) {
     div_vel     += val_gradprimvar[iDim+1][iDim];
@@ -478,6 +479,25 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
       Gpd[iDim][jDim] = Gp[iDim][jDim] - delta[iDim][jDim]*div_fluct/3;
     }
   }
+
+  // The deviatoric part of the strain rate tensors (mean and resolved)
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      Sd[iDim][jDim]     = 0.5*(val_gradprimvar[iDim+1][jDim] + val_gradprimvar[jDim+1][iDim]) -
+                           delta[iDim][jDim]*div_vel/3.0;
+      Sd_avg[iDim][jDim] = 0.5*(val_gradprimavg[iDim+1][jDim] + val_gradprimavg[jDim+1][iDim]) -
+                           delta[iDim][jDim]*div_avg_vel/3.0;
+    }
+  }
+
+  // The rotation rate tensor (resolved)
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      Om[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] - val_gradprimvar[jDim+1][iDim]);
+    }
+  }
+
+
   // Evaluate tauSGET
   for (unsigned short iDim =0; iDim < nDim; iDim++) {
     for (unsigned short jDim =0; jDim < nDim; jDim++) {
@@ -493,23 +513,6 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   }
 
 
-  // The deviatoric part of the strain rate tensor
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      Sd[iDim][jDim]     = 0.5*(val_gradprimvar[iDim+1][jDim] + val_gradprimvar[jDim+1][iDim]) -
-                           delta[iDim][jDim]*div_vel/3.0;
-      Sd_avg[iDim][jDim] = 0.5*(val_gradprimavg[iDim+1][jDim] + val_gradprimavg[jDim+1][iDim]) -
-                           delta[iDim][jDim]*div_avg_vel/3.0;
-    }
-  }
-
-  // The rotation rate tensor
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      Om[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] - val_gradprimvar[jDim+1][iDim]);
-    }
-  }
-
   const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
   // v2 here is *subgrid*, so must multiply by alpha
@@ -521,6 +524,9 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   } else {
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
+
+  // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
+  // here.  TODO: Add divergence contribution.
 
   // Strain only part
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -568,7 +574,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     break;
   }
 
-  // tauSGET part
+  // 3) tauSGET contribution
+  
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       for (kDim = 0; kDim < nDim; kDim++) {
@@ -578,7 +585,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   }
 
 
-  // set inverse length scale tensor
+  // 4) Compute inverse length scale tensor from production tensor
+  // NB: Typo in AIAA paper
   const su2double t0 = 1.5*sqrt(1.5);
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
@@ -594,16 +602,18 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     for (jDim = 0; jDim < nDim; jDim++) {
       if (invLengthTensor[iDim][jDim] != invLengthTensor[iDim][jDim]) {
         found_nan = true;
-        //SU2_MPI::Error("invLengthTensor has NaN!", CURRENT_FUNCTION);
       }
     }
   }
   if (found_nan) {
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
-        std::cout << "tauSGET[" << iDim << "][" << jDim << "] = " << tauSGET[iDim][jDim] << std::endl;
-        std::cout << "Gt[" << iDim << "][" << jDim << "] = " << Gt[iDim][jDim] << std::endl;
-        std::cout << "muSGET[" << iDim << "][" << jDim << "] = " << aniso_viscosity[iDim][jDim] << std::endl;
+        std::cout << "tauSGET[" << iDim << "][" << jDim << "] = "
+                  << tauSGET[iDim][jDim] << std::endl;
+        std::cout << "Gt[" << iDim << "][" << jDim << "] = "
+                  << Gt[iDim][jDim] << std::endl;
+        std::cout << "muSGET[" << iDim << "][" << jDim << "] = "
+                  << aniso_viscosity[iDim][jDim] << std::endl;
       }
     }
     SU2_MPI::Error("invLengthTensor has NaN!", CURRENT_FUNCTION);

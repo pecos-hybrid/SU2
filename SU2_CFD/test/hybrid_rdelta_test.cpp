@@ -131,6 +131,7 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
   mock_var_array[0]->SetGradient_PrimitiveZero(7);
   mock_var_array[0]->SetEddyViscosity(0.0);
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
                                         0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
@@ -164,6 +165,7 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 //  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
                                         1.0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
@@ -197,6 +199,7 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 //  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
                                         1.0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
@@ -229,6 +232,7 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 //  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
                                         1.0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
@@ -261,6 +265,7 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
 //  mock_var_array[2]->SetSolution(0, 0.25);  // alpha
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
                                         0.25,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
@@ -307,6 +312,7 @@ BOOST_FIXTURE_TEST_CASE(PureRotation, HybridRdeltaFixture) {
   mock_var_array[1]->SetSolution(2, 1.0);
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
                                         1.0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
