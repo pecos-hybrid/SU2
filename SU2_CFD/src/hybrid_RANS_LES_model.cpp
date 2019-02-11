@@ -211,15 +211,36 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     // const su2double C_r = 3.0;
     // r_k = C_r*eigvalues_iLM[max_index];
 
-    r_k = 0.0;
+    su2double max_eigval = 0.0;
     for (iDim=0; iDim<3; iDim++) {
-      if( std::abs(eigvalues_iLM[iDim])>r_k ) {
-        r_k = std::abs(eigvalues_iLM[iDim]);
+      if( std::abs(eigvalues_iLM[iDim]) > max_eigval) {
+        max_eigval = std::abs(eigvalues_iLM[iDim]);
       }
     }
 
+    su2double rd[3][3];
+    su2double frobenius_norm = 0;
+    for (iDim = 0; iDim < nDim; iDim++) {
+      for (jDim = 0; jDim < nDim; jDim++) {
+        rd[iDim][jDim] = 0.0;
+        for (kDim = 0; kDim < nDim; kDim++) {
+          rd[iDim][jDim] += invLengthTensor[jDim][kDim]*ResolutionTensor[kDim][iDim];
+        }
+        frobenius_norm += pow(rd[iDim][jDim], 2);
+      }
+    }
+    frobenius_norm = sqrt(frobenius_norm);
+
     const su2double C_r = 1.0;
-    r_k *= C_r;
+    
+    // TODO: Clean up these limits. Kept here only to match CDP.
+    const su2double r_k_min = 1.0E-6;
+    const su2double r_k_max = 30/C_r;
+    r_k = max(min(max_eigval, frobenius_norm), r_k_min);
+    r_k = min(r_k, r_k_max); // arbitrary, figure out why we get blow-up spots
+    r_k = C_r*max(r_k, 1.0e-8);
+
+    if (alpha > 1) r_k = min(r_k, 1.0);
 
   }
   else if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
@@ -454,7 +475,13 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   su2double** val_gradprimavg =  flow_avgs->GetGradient_Primitive();
 
   // Get eddy viscosities
-  su2double eddy_viscosity = flow_vars->GetEddyViscosity();
+  /*--- Use the turb_vars (rather than flow_vars) for the eddy viscosity.
+   * When the eddy viscosity is computed, it is immediately stored in the
+   * turbulence solver nodes. It is only copied over to the flow solver
+   * at the start of the next iteration.  So retrieving the eddy viscosity
+   * from the turbulence solver ensures that the most up-to-date value is
+   * used, rather than a time-lagged value. ---*/
+  su2double eddy_viscosity = turb_vars->GetmuT();
   su2double** aniso_viscosity = flow_vars->GetAnisoEddyViscosity();
 
   // Compute the fluctuating velocity gradient tensor
@@ -473,9 +500,14 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     div_fluct   += Gp[iDim][iDim];
   }
 
+  // XXX: Hack to match CDP
+  div_vel = 0;
+  div_avg_vel = 0;
+  div_fluct = 0;
+
   // Evaluate deviatoric part of fluctuating velocity gradient
-  for (unsigned short iDim =0; iDim < nDim; iDim++) {
-    for (unsigned short jDim =0; jDim < nDim; jDim++) {
+  for (iDim =0; iDim < nDim; iDim++) {
+    for (jDim =0; jDim < nDim; jDim++) {
       Gpd[iDim][jDim] = Gp[iDim][jDim] - delta[iDim][jDim]*div_fluct/3;
     }
   }
@@ -499,19 +531,15 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
 
   // Evaluate tauSGET
-  for (unsigned short iDim =0; iDim < nDim; iDim++) {
-    for (unsigned short jDim =0; jDim < nDim; jDim++) {
+  for (iDim =0; iDim < nDim; iDim++) {
+    for (jDim =0; jDim < nDim; jDim++) {
       tauSGET[iDim][jDim] = 0;
-      for (unsigned short kDim =0; kDim < nDim; kDim++) {
+      for (kDim =0; kDim < nDim; kDim++) {
         tauSGET[iDim][jDim] += aniso_viscosity[iDim][kDim]*Gpd[jDim][kDim] +
                                aniso_viscosity[jDim][kDim]*Gpd[iDim][kDim];
-        for (unsigned short lDim = 0; lDim < nDim; lDim++) {
-          tauSGET[iDim][jDim] -= (2./3.)*aniso_viscosity[kDim][lDim]*Gpd[kDim][lDim]*delta[iDim][jDim];
-        }
       }
     }
   }
-
 
   const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
@@ -565,7 +593,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
           Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Om[kDim][jDim];
         }
         // rho*k contribtuion
-        Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
+        // XXX: Hacked to match CDP.  This is **not** correct.
+        Pij[iDim][jDim] += 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
       }
     }
     break;
@@ -927,51 +956,67 @@ void CHybrid_Mediator::SolveGeneralizedEigen(const su2double* const* A,
   eigvectors.resize(nDim, std::vector<su2double>(nDim));
 
 #ifdef HAVE_LAPACK
-  unsigned short iDim, jDim;
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim< nDim; jDim++) {
-      mat[iDim*nDim+jDim]  = A[iDim][jDim];
-      matb[iDim*nDim+jDim] = B[iDim][jDim];
+
+  su2double delta[3][3];
+  su2double r2[3][3];
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      delta[iDim][jDim] = (iDim == jDim) ? 1 : 0;
     }
   }
 
-  /*--- Call LAPACK routines ---*/
-
-  // itype = 2 ==> we're solving A*B*v = \lambda v
-  // when A = L^{-1} and B = M, this is what we want
-  info = LAPACKE_dsygv(LAPACK_ROW_MAJOR, 2, 'V', 'U',
-                       nDim, mat, nDim, matb, nDim, eigval);
-  if (info != 0) {
-    ostringstream error_msg;
-    error_msg << "The generalized eigensolver failed with info = "
-         << info << ".";
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-
-  /*--- Rewrite arrays to eigenvalues output ---*/
-  for (iDim = 0; iDim < nDim; iDim++)
-    eigvalues[iDim] = eigval[iDim];
-
-  /*--- Check the values ---*/
-  // NB: Here, B is SPD and A is assumed symmetric but not necessarily
-  // positive definite.  Thus, don't check positivity of eigenvalues.
-
-  /*--- Normalize the eigenvectors by the L2 norm of each vector ---*/
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      eigvectors[iDim][jDim] = mat[jDim*nDim+iDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      r2[iDim][jDim] = 0.0;
+      for (unsigned short kDim = 0; kDim < nDim; kDim++) {
+        r2[iDim][jDim] += A[jDim][kDim]*B[kDim][iDim];
+      }
     }
   }
 
-  for (iDim = 0; iDim < nDim; iDim++) {
-    su2double norm = 0.0;
-    for (jDim = 0; jDim < nDim; jDim++) {
-      norm += eigvectors[iDim][jDim]*eigvectors[iDim][jDim];
+  const su2double p1 = pow(r2[0][1],2) + pow(r2[0][2], 2) + pow(r2[1][2], 2);
+
+  if (std::abs(p1) < 1E-14) { // A is diagonal
+
+    eigvalues[0] = r2[0][0];
+    eigvalues[1] = r2[1][1];
+    eigvalues[2] = r2[2][2];
+
+  } else {
+
+    const su2double q = (r2[0][0]+r2[1][1]+r2[2][2])/3.0;
+    const su2double p2 = pow((r2[0][0] - q), 2) + pow((r2[1][1] - q), 2) + pow((r2[2][2] - q), 2) + 2.0 * p1;
+    const su2double p = sqrt(max(p2,1.0e-12)/6.0);
+
+    su2double B[3][3];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        B[iDim][jDim] = (1.0/max(p,1.0e-12)) * (r2[iDim][jDim]-q*delta[iDim][jDim]);
+      }
     }
-    norm = sqrt(norm);
-    for (jDim = 0; jDim < nDim; jDim++) {
-      eigvectors[iDim][jDim] /= norm;
+
+    const su2double detB = B[0][0] * (B[1][1]*B[2][2] - B[2][1]*B[1][2]) -
+      B[0][1] * (B[1][0]*B[2][2] - B[2][0]*B[1][2]) +
+      B[0][2] * (B[1][0]*B[2][1] - B[2][0]*B[1][1]);
+    const su2double r = 0.5*detB;
+
+    // In exact arithmetic for a symmetric matrix  -1 <= r <= 1
+    // but computation error can leave it slightly outside this range.
+    su2double phi;
+    if (r < -1.0) {
+      phi = M_PI/3.0;
+    } else if (r > 1.0) {
+      phi = 0.0;
+    } else {
+      phi = acos(r)/3.0;
     }
+
+    // the eigenvalues satisfy eig3 <= eig2 <= eig1
+    eigvalues[0] = q + 2.0 * p * cos(phi);
+    eigvalues[1] = q + 2.0 * p * cos(phi + (2.0*M_PI/3.0));
+    eigvalues[2] = 3.0 * q - eigvalues[0] - eigvalues[2];
+
   }
 #else
   SU2_MPI::Error("Eigensolver without LAPACK not implemented; please use LAPACK.", CURRENT_FUNCTION);
