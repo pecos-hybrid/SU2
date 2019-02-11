@@ -14781,8 +14781,9 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
   }
 
   bool found_resolved_stress = false, found_production = false,
-       found_k_res = false;
-  unsigned short resolved_stress_index, production_index, k_res_index;
+       found_k_res = false, found_r_M = false;
+  unsigned short resolved_stress_index, production_index, k_res_index,
+      r_M_index;
   if (model_split) {
     if (found_average) {
       // Non-tecplot name
@@ -14825,6 +14826,17 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
           if (!found_k_res) {
             SU2_MPI::Error("Could not find resolved kinetic energy in the restart file!", CURRENT_FUNCTION);
           }
+        }
+      }
+      // Non-tecplot name
+      FindRestartVariable("\"Average_r_M\"", config->fields,
+                          found_r_M, r_M_index);
+      if (!found_r_M) {
+        // Tecplot name
+        FindRestartVariable("\"avgr<sub>M</sub>\"", config->fields,
+                            found_r_M, r_M_index);
+        if (!found_r_M) {
+          SU2_MPI::Error("Could not find average resolution adequacy in the restart file!", CURRENT_FUNCTION);
         }
       }
     } else {
@@ -14909,6 +14921,9 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
             index = counter*Restart_Vars[1] + k_res_index;
             average_node[iPoint_Local]->SetResolvedKineticEnergy(Restart_Data[index]);
           }
+          assert(found_r_M);
+          index = counter*Restart_Vars[1] + r_M_index;
+          average_node[iPoint_Local]->SetResolutionAdequacy(Restart_Data[index]);
 
         } else {
           /*--- No averages, so just set resolved turb. stress to 0 ---*/
