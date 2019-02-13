@@ -507,16 +507,14 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
     // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
     const su2double T2     = 0.6/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
     const su2double T3     = C_T*sqrt(nu/tdr_lim);
-    // XXX: Hacked for channel case.
-    su2double T = max(T1, T3);
+    su2double T = max(min(T1,T2),T3);
 
     //--- Model length scale ---//
     const su2double L1     = pow(tke_positive,1.5)/tdr_lim;
     // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
     const su2double L2     = sqrt(tke_positive)/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
     const su2double L3     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
-    // XXX: Hacked for channel case.
-    su2double L = max(L1, L3); //... mult by C_L in source numerics
+    su2double L = max(min(L1,L2),L3); //... mult by C_L in source numerics
 
     /*--- Make sure to store T, L so the hybrid class can access them ---*/
     node[iPoint]->SetTurbScales(T, L);
