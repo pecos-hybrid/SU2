@@ -195,6 +195,14 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         Tecplot_File << ", \"" << it->Tecplot_Name << "\"";
       }
       
+      for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+           it != output_vectors[val_iZone].end(); ++it) {
+        for (iDim = 1; iDim < nDim+1; iDim++) {
+          Tecplot_File << ", \"" << it->Tecplot_Name;
+          Tecplot_File << "<sub>" << iDim << "</sub>\"";
+        }
+      }
+
       for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
            it != output_tensors[val_iZone].end(); ++it) {
         for (iDim = 1; iDim < nDim+1; iDim++) {
@@ -3085,6 +3093,14 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       *NVar += 1;
     }
     
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      for (iDim = 1; iDim < nDim+1; iDim++) {
+          variables << it->Name << "_" << iDim << " ";
+          *NVar += 1;
+      }
+    }
+
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       for (iDim = 1; iDim < nDim+1; iDim++) {

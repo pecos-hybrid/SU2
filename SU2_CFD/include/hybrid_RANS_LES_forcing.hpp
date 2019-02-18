@@ -194,6 +194,11 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
 
   const su2double* GetForcingVector(unsigned long iPoint);
 
+  su2double ComputeLengthscale(su2double alpha,
+                               su2double k_total,
+                               su2double dissipation,
+                               su2double laminar_viscosity) const;
+
  protected:
 
   su2double** node;

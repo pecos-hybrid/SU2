@@ -579,7 +579,9 @@ CHybridForcingTG0::~CHybridForcingTG0() {
 void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometry,
                                             CConfig *config) {
 
-  const su2double TKE_MIN = EPS;
+  const su2double TKE_MIN = 1.0E-8;
+  const su2double V2_MIN = 2.0/3*TKE_MIN;
+  const su2double TDR_MIN = 1.0E-8;
 
   const unsigned short kind_time_marching = config->GetUnsteady_Simulation();
 
@@ -587,9 +589,11 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
          kind_time_marching == DT_STEPPING_1ST ||
          kind_time_marching == DT_STEPPING_2ND );
 
-  // FIXME: Current UnstTime or Total UnstTime???
-  const su2double time = config->GetTotal_UnstTimeND();
-  const su2double dt = config->GetDelta_UnstTimeND();
+  const su2double time = config->GetCurrent_UnstTime();
+  // XXX: Generalize this to both dual-time stepping and normal time-stepping
+  const su2double dt = solver[FLOW_SOL]->node[0]->GetDelta_Time();
+  assert(time >= 0);
+  assert(dt > 0);
 
   /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
   su2double h[nDim]; // Initial TG vortex field.
@@ -618,19 +622,20 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
       x[iDim] = geometry->node[iPoint]->GetCoord(iDim);
       x[iDim] = TransformCoords(x[iDim], prim_mean[iDim+1], time, timescale);
     }
+    // XXX: This is a hack to make the forcing periodic in the y direction
+    x[1] -= 1;
 
     /*--- Setup the TG vortex ---*/
 
     // total k, epsilon, and v2 from model
-    // NB: Assumes k-e-v2-f model for now
     // TODO: Generalize beyond v2-f
-    const su2double ktot = solver[TURB_SOL]->node[iPoint]->GetSolution(0);
-    const su2double tdr  = solver[TURB_SOL]->node[iPoint]->GetSolution(1);
-    const su2double v2 = solver[TURB_SOL]->node[iPoint]->GetSolution(2);
+    if (config->GetKind_Turb_Model() != KE) {
+      SU2_MPI::Error("Hybrid forcing is only compatible with the v2-f model.", CURRENT_FUNCTION);
+    }
 
-    // resolved k, from averages
-    const su2double kres =
-      solver[FLOW_SOL]->average_node[iPoint]->GetResolvedKineticEnergy();
+    const su2double ktot = max(solver[TURB_SOL]->node[iPoint]->GetSolution(0), TKE_MIN);
+    const su2double tdr  = max(solver[TURB_SOL]->node[iPoint]->GetSolution(1), TDR_MIN);
+    const su2double v2 = max(solver[TURB_SOL]->node[iPoint]->GetSolution(2), V2_MIN);
 
 
     // ratio of modeled to total TKE
@@ -640,15 +645,11 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double resolution_adequacy =
       solver[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
 
-    const su2double density = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
+    const su2double density = solver[FLOW_SOL]->average_node[iPoint]->GetSolution(0);
     const su2double nu =
-      solver[FLOW_SOL]->node[iPoint]->GetLaminarViscosity() / density;
+      solver[FLOW_SOL]->average_node[iPoint]->GetLaminarViscosity() / density;
 
-    const su2double Ltot = solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-
-    // NB: This is consistent w/ paper, but maybe not length scale
-    // switches in v2-f... need to check
-    const su2double Lsgs = alpha*std::sqrt(alpha)*Ltot;
+    const su2double Lsgs = ComputeLengthscale(alpha, ktot, tdr, nu);
 
     // FIXME: I think this is equivalent to repo version of CDP,but
     // not consistent with paper description, except for orthogonal
@@ -664,9 +665,12 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     // Compute TG velocity at this point
     this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
 
-    const su2double Ttot = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+    const su2double V2F_CT = 6.0;
+    const su2double T1 = alpha*ktot/tdr;
+    const su2double Tkol = V2F_CT*sqrt(nu/tdr);
+    const su2double Tsgs = max(T1, Tkol);
 
-    const su2double Ftar = this->GetTargetProduction(v2, Ttot, alpha);
+    const su2double Ftar = this->GetTargetProduction(v2, Tsgs, alpha);
 
     // Compute PFtest
     su2double PFtest = 0.0;
@@ -677,7 +681,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     PFtest *= Ftar*dt;
 
     const su2double Cnu = 1.0;
-    const su2double alpha_kol = Cnu*std::sqrt(nu*std::max(tdr,0.0))/std::max(ktot,TKE_MIN);
+    const su2double alpha_kol = min(Cnu*std::sqrt(nu*tdr)/ktot, 1.0);
 
     const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
                                                      alpha, alpha_kol, PFtest);
@@ -692,4 +696,86 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
 const su2double* CHybridForcingTG0::GetForcingVector(unsigned long iPoint) {
   return node[iPoint];
+}
+
+su2double CHybridForcingTG0::ComputeScalingFactor(
+                     const su2double Ftar,
+                     const su2double resolution_adequacy,
+                     const su2double alpha,
+                     const su2double alpha_kol,
+                     const su2double PFtest) {
+
+  su2double eta = 0.0;
+
+  // TODO: Clean this mess up once agreement with CDP is established.
+  if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
+    su2double arg = sqrt(resolution_adequacy) - 1;
+    if (arg < 0) {
+      arg = 1.0 - 1.0/sqrt(resolution_adequacy);
+    }
+    su2double a_sign = std::tanh(arg);
+    su2double Sa = a_sign;
+
+    if (a_sign < 0) {
+      if (alpha <= alpha_kol) {
+        Sa -= (1.0 + alpha_kol - alpha)*a_sign;
+      }
+    } else {
+      if (alpha >= 1.0) {
+        Sa -= alpha*a_sign;
+      }
+    }
+
+    eta = -Ftar*Sa;
+  }
+
+  return eta;
+}
+
+su2double CHybridForcingTG0::ComputeLengthscale(const su2double alpha,
+                                                const su2double k_total,
+                                                const su2double dissipation,
+                                                const su2double laminar_viscosity) const {
+
+  // TODO: Change responsibility of the lengthscale calculation back to
+  // the turbulence solver after agreement with CDP is established.
+  const su2double V2F_CETA = 70;
+  const su2double FORCING_CL = 4;
+
+  su2double Lsgs = FORCING_CL * pow(alpha * k_total, 1.5) / dissipation;
+  const su2double Lkol = V2F_CETA*pow(laminar_viscosity, 0.75)/pow(dissipation, 0.25);
+  return max(Lsgs, Lkol);
+}
+
+void CHybridForcingTG0::SetTGField(
+                const su2double* x, const su2double Lsgs,
+                const su2double* Lmesh, const su2double* D,
+                const su2double dwall, su2double* h) {
+
+  const su2double pi = atan(1.0)*4.0;
+  //const su2double A = 1.0, B = -1./3., C = -2./3.;
+  const su2double A = 1./3., B = -1.0, C = 2./3.; // matches cdp
+  su2double a[3];
+
+  for (unsigned int ii=0; ii<3; ii++) {
+    const su2double ell = std::min(Lsgs, dwall);
+    const su2double elllim = std::max(ell, 2.0*Lmesh[ii]);
+
+    if (D[ii] > 0.0) {
+      const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
+      a[ii] = pi/(D[ii]/denom);
+    } else {
+      a[ii] = pi/elllim;
+    }
+  }
+
+  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
+  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
+  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
+
+  // // CHANNEL HACK
+  // h[0] = A * cos(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-pi/2);
+  // h[1] = B * sin(a[0]*x[0]) * cos(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-pi/2);
+  // h[2] = C * sin(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * cos(a[2]*x[2]-pi/2);
+
 }

@@ -81,66 +81,11 @@ inline su2double CHybridForcingTGSF::GetTargetProduction(const su2double k_sgs,
 }
 
 
-inline void CHybridForcingTG0::SetTGField(
-                const su2double* x, const su2double Lsgs,
-                const su2double* Lmesh, const su2double* D,
-                const su2double dwall, su2double* h) {
-
-  const su2double pi = atan(1.0)*4.0;
-  //const su2double A = 1.0, B = -1./3., C = -2./3.;
-  const su2double A = 1./3., B = -1.0, C = 2./3.; // matches cdp
-  su2double a[3];
-  su2double NL = 4.0; // TODO: Make user setable
-
-  for (unsigned int ii=0; ii<3; ii++) {
-    const su2double ell = std::min(NL*Lsgs, dwall);
-    const su2double elllim = std::max(ell, 2.0*Lmesh[ii]);
-
-    if (D[ii] > 0.0) {
-      const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
-      a[ii] = pi/(D[ii]/denom);
-    } else {
-      a[ii] = pi/elllim;
-    }
-  }
-
-  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
-  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
-  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
-
-  // // CHANNEL HACK
-  // h[0] = A * cos(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-pi/2);
-  // h[1] = B * sin(a[0]*x[0]) * cos(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-pi/2);
-  // h[2] = C * sin(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * cos(a[2]*x[2]-pi/2);
-
-}
-
 
 inline su2double CHybridForcingTG0::GetTargetProduction(const su2double v2,
-                                                        const su2double T,
+                                                        const su2double Tsgs,
                                                         const su2double alpha) {
   const su2double CF=8.0; // TODO: Make user setable
-  return CF*std::sqrt(alpha*v2)/(alpha*T);
-}
-
-inline su2double CHybridForcingTG0::ComputeScalingFactor(
-                     const su2double Ftar,
-                     const su2double resolution_adequacy,
-                     const su2double alpha,
-                     const su2double alpha_kol,
-                     const su2double PFtest) {
-
-  su2double eta = 0.0;
-
-  if ( (PFtest >= 0.0) && (resolution_adequacy<=1.0) ) {
-    // NB: Some (probably minor) differences relative to CDP
-    // here... requires further investigation
-    const su2double Sr = std::tanh(std::log(resolution_adequacy));
-    const su2double Fr = alpha*std::max(Sr,0.0);
-    const su2double Dr = (1.0 + alpha_kol - alpha)*std::min(Sr,0.0);
-    eta = -Ftar*std::min(Sr - Dr - Fr, 0.0);
-  }
-
-  return eta;
+  return CF*std::sqrt(alpha*v2)/Tsgs;
 }
 

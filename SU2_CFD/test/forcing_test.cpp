@@ -35,246 +35,243 @@
 #include "boost/test/included/unit_test.hpp"
 #include "MPI_global_fixture.hpp"
 
+#include <limits>
+
 #include "../include/hybrid_RANS_LES_forcing.hpp"
+#include "../include/solver_structure.hpp"
+#include "../include/variable_structure.hpp"
 
-
-void WriteQuadMeshFile () {
-  /*--- Local variables ---*/
-    int KindElem, KindBound, nDim;
-    int iElem, iDim, jDim;
-    int iNode, jNode, kNode;
-    int iPoint;
-    int num_Nodes;
-    double xSpacing, ySpacing;
-
-    std::ofstream Mesh_File;
-
-    /*--- Set the VTK type for the interior elements and the boundary elements ---*/
-    nDim = 2;
-    KindElem  = 9; // Quadrilateral
-    KindBound = 3; // Line
-
-    /*--- Store the number of nodes in each direction ---*/
-    iDim = 4;
-    jDim = 4;
-
-    /*--- The grid spacing in each direction ---*/
-    xSpacing = 4.0;
-    ySpacing = 2.0;
-
-    /*--- Open .su2 grid file ---*/
-    Mesh_File.open("test.su2", ios::out);
-    Mesh_File << fixed << setprecision(15);
-
-    /*--- Write the dimension of the problem and the number of interior elements ---*/
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "% Problem dimension" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "NDIME= 2" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "% Inner element connectivity" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "NELEM= " <<  (iDim-1)*(jDim-1) << std::endl;
-
-    /*--- Write the element connectivity ---*/
-    iElem = 0;
-      for (jNode = 0; jNode < jDim-1; jNode++) {
-        for (iNode = 0; iNode < iDim-1; iNode++) {
-          Mesh_File << KindElem << "\t";
-          Mesh_File << iNode     + (jNode*jDim)     << "\t";
-          Mesh_File << (iNode+1) + (jNode*jDim)     << "\t";
-          // NOTE: Reverse ordering here is essential
-          Mesh_File << (iNode+1) + ((jNode+1)*jDim) << "\t";
-          Mesh_File << iNode     + ((jNode+1)*jDim) << "\t";
-          Mesh_File << iElem << std::endl;
-          iElem++;
-        }
-      }
-
-
-    /*--- Compute the number of nodes and write the node coordinates ---*/
-    num_Nodes = iDim*jDim;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "% Node coordinates" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "NPOIN= " << num_Nodes << std::endl;
-    iPoint = 0;
-      for (jNode = 0; jNode < jDim; jNode++) {
-        for (iNode = 0; iNode < iDim; iNode++) {
-          Mesh_File << iNode*xSpacing << "\t";
-          Mesh_File << jNode*ySpacing << "\t";
-          Mesh_File << iPoint << std::endl;
-          iPoint++;
-        }
-      }
-
-
-
-    /*--- Write the header information for the boundary markers ---*/
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "% Boundary elements" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "NMARK= 4" << std::endl;
-
-    /*--- Write the boundary information for each marker ---*/
-    Mesh_File << "MARKER_TAG= lower" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (iDim-1) << std::endl;
-    for (iNode = 0; iNode < iDim-1; iNode++) {
-      Mesh_File << KindBound << "\t";
-      Mesh_File << iNode       << "\t";
-      Mesh_File << (iNode + 1) << std::endl;
-    }
-    Mesh_File << "MARKER_TAG= right" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (jDim-1) << std::endl;
-    for (jNode = 0; jNode < jDim-1; jNode++) {
-      Mesh_File << KindBound << "\t";
-      Mesh_File << (jNode+1)*iDim - 1 << "\t";
-      Mesh_File << (jNode+2)*iDim - 1 << std::endl;
-    }
-    Mesh_File << "MARKER_TAG= upper" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (iDim-1) << std::endl;
-    for (iNode = jDim*(iDim-1); iNode < iDim*jDim-1; ++iNode) {
-      Mesh_File << KindBound << "\t";
-      Mesh_File << iNode       << "\t";
-      Mesh_File << (iNode + 1) << std::endl;
-    }
-    Mesh_File << "MARKER_TAG= left" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (jDim-1) << std::endl;
-    for (jNode = 0; jNode < jDim-1; ++jNode) {
-      Mesh_File << KindBound << "\t";
-      Mesh_File << (jNode  )*iDim << "\t";
-      Mesh_File << (jNode+1)*iDim << std::endl;
-    }
-
-    /*--- Close the mesh file and exit ---*/
-    Mesh_File.close();
-}
-
-void WriteCfgFile(const unsigned short& nDim) {
-  std::ofstream cfg_file;
-
-  cfg_file.open("test.cfg", ios::out);
-  cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
-  if (nDim == 2)
-    cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
-  else
-    cfg_file << "MARKER_FAR= ( top bottom back front left right )"  << std::endl;
-  cfg_file << "MESH_FILENAME= test.su2" << std::endl;
-  cfg_file << "MESH_FORMAT= SU2" << std::endl;
-
-  cfg_file.close();
-
-}
-
+// Setup MPI
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
-BOOST_AUTO_TEST_CASE(Shifting_Returns_Original_Coordinates_When_Time_Is_Zero) {
+void WriteCfgFile(const char* filename) {
+  std::ofstream cfg_file;
 
-  const unsigned short nDim = 3;
-
-  CHybridForcingTGSF forcing(nDim, 0, 0);
-
-  su2double time = 0.0;
-  su2double T_m = 1.0;
-  su2double x_original[nDim], x_shifted, x_exact[nDim];
-  su2double velocity[nDim];
-
-  x_original[0] = -1.0; x_original[1] = 1.0; x_original[2] = 2.0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) velocity[iDim] = 1.0;
-
-  su2double tol = std::numeric_limits<su2double>::epsilon();
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    x_shifted =
-        forcing.TransformCoords(x_original[iDim], velocity[iDim], time, T_m);
-    BOOST_CHECK_CLOSE(x_shifted, x_original[iDim], tol);
-  }
+  cfg_file.open(filename, ios::out);
+  cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
+  cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
+  cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
+  cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
+  cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
+  cfg_file << "HYBRID_FORCING_PERIODIC_LENGTH= (";
+  cfg_file << std::setprecision(std::numeric_limits<su2double>::digits10 + 1);
+  cfg_file << M_PI << ", 0.25, 1.1780972451)" << std::endl;
+  cfg_file.close();
 }
 
-BOOST_AUTO_TEST_CASE(Coordinate_Shifting_With_Nonzero_Velocity) {
+/*--- Test Doubles ---*/
 
-  const unsigned short nDim = 3;
-
-  CHybridForcingTGSF forcing(nDim, 0, 0);
-
-  const su2double time = 0.5;
-  const su2double timescale = 2.0;
-  const su2double x_original[nDim] = {-1.0, 1.0, 2.0};
-  const su2double x_exact[nDim] =    {-0.5, 1.5, 2.5};
-  const su2double velocity = 1;
-
-  su2double tol = std::numeric_limits<su2double>::epsilon();
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    const su2double x_shifted =
-        forcing.TransformCoords(x_original[iDim], velocity, time, timescale);
-    BOOST_CHECK_CLOSE(x_shifted, x_exact[iDim], tol);
+class TestGeometry : public CGeometry {
+ public:
+  TestGeometry(CConfig* config) : CGeometry() {
+    nPoint = 1;
+    nPointDomain = nPoint;
+    node = new CPoint*[nPoint];
+    unsigned short iPoint = 0;
+    const su2double coord[3] = {0, 0, 0};
+    node[iPoint] = new CPoint(coord[0], coord[1], coord[2], iPoint, config);
   }
-}
+};
 
-BOOST_AUTO_TEST_CASE(Initial_Taylor_Green_Is_Periodic_In_L) {
+class TestFlowVariable : public CVariable {
+ private:
+  su2double LaminarViscosity;
+  su2double* Primitive;
+ public:
+  TestFlowVariable(unsigned short val_nDim, CConfig *config)
+      : CVariable(val_nDim, 5, config) {
 
-  const unsigned short nDim = 3;
-  const su2double x1[3] = {0.0, 0.0, 0.0};
-  const su2double L[3] = {1.0, 2.0, 3.0};
+    Solution[0] = 1;
+    Solution[1] = 23.0867;
+    Solution[2] = -0.0728996;
+    Solution[3] = -0.311579;
 
-  su2double b_at_x1[3], b_at_x2[3];
-
-  CHybridForcingTGSF forcing(nDim, 0, 0);
-
-  forcing.SetTGField(x1, L, b_at_x1);
-
-  su2double tol = std::numeric_limits<su2double>::epsilon();
-  su2double x2[3];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      x2[jDim] = x1[jDim];
+    nPrimVar = nVar;
+    Primitive = new su2double[nPrimVar];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      Primitive[iDim+1] = Solution[iDim+1]/Solution[0];
     }
-    x2[iDim] += L[iDim];
-    forcing.SetTGField(x2, L, b_at_x2);
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      BOOST_CHECK_SMALL(std::abs(b_at_x2[jDim] - b_at_x1[jDim]), tol);
-    }
+
+    LaminarViscosity = 0.000192831;
+    Delta_Time = 1E-3;
   }
+  ~TestFlowVariable() {
+    delete [] Primitive;
+  }
+
+  su2double GetLaminarViscosity() { return LaminarViscosity; }
+  su2double* GetPrimitive() { return Primitive; }
+};
+
+class TestAvgVariable : public CVariable {
+ private:
+  su2double* Primitive;
+  su2double KineticEnergyRatio, ResolutionAdequacy;
+ public:
+  TestAvgVariable(unsigned short val_nDim, CConfig *config)
+      : CVariable(val_nDim, 5, config) {
+
+    nPrimVar = nVar;
+    Primitive = new su2double[nPrimVar];
+    Primitive[1] = 22.8796;
+    Primitive[2] = -0.266714;
+    Primitive[3] = 0.00357933;
+    ResolutionAdequacy = 0.8;
+    KineticEnergyRatio = 0.598898;
+  }
+  ~TestAvgVariable() {
+    delete [] Primitive;
+  }
+
+  su2double* GetPrimitive() { return Primitive; }
+  su2double GetKineticEnergyRatio() const { return KineticEnergyRatio; }
+  su2double GetResolutionAdequacy() const { return ResolutionAdequacy; }
+};
+
+class TestTurbVariable : public CVariable {
+ private:
+  su2double TurbTimescale, TurbLengthscale;
+ public:
+  TestTurbVariable(unsigned short val_nDim,
+                   CConfig *config)
+      : CVariable(val_nDim, 4, config) {
+
+    Solution[0] = 2.28081;
+    Solution[1] = 9.82732;
+    Solution[2] = 1.22631;
+  }
+};
+
+class TestSolver : public CSolver {
+ public:
+  TestSolver(unsigned short val_nPoint) : CSolver() {
+    nPoint = val_nPoint;
+    node = new CVariable*[nPoint];
+    average_node = new CVariable*[nPoint];
+  }
+};
+
+struct ForcingFixture {
+  ForcingFixture() {
+    nDim = 3;
+    char cfg_filename[100] = "forcing_test.cfg";
+    WriteCfgFile(cfg_filename);
+    const unsigned short iZone = 0;
+    const unsigned short nZone = 1;
+    config = new CConfig(cfg_filename, SU2_CFD, iZone, nZone, nDim, VERB_NONE);
+    std::remove(cfg_filename);
+
+    config->SetCurrent_UnstTime(1.0);
+    // Check that periodic length was set correctly in *.cfg file:
+    su2double* periodic_length = config->GetHybrid_Forcing_Periodic_Length();
+    assert(abs(periodic_length[0] - M_PI) < 1E-8);
+
+    geometry = new TestGeometry(config);
+    geometry->SetnDim(nDim);
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        geometry->node[0]->SetResolutionTensor(iDim, jDim, 0);
+      }
+    }
+    geometry->node[0]->SetResolutionTensor(0, 0, 0.0634665);
+    geometry->node[0]->SetResolutionTensor(1, 1, 0.0146755);
+    geometry->node[0]->SetResolutionTensor(2, 2, 0.0785398);
+    geometry->node[0]->SetWall_Distance(0.171989);
+
+    solver = new CSolver*[MAX_SOLS];
+    solver[FLOW_SOL] = new TestSolver(1);
+    solver[TURB_SOL] = new TestSolver(1);
+    solver[FLOW_SOL]->node[0] = new TestFlowVariable(nDim, config);
+    solver[FLOW_SOL]->average_node[0] = new TestAvgVariable(nDim, config);
+    solver[TURB_SOL]->node[0] = new TestTurbVariable(nDim, config);
+    solver[TURB_SOL]->average_node[0] = new TestTurbVariable(nDim, config);
+  }
+
+  ~ForcingFixture() {
+    delete geometry;
+    delete solver[FLOW_SOL];
+    delete solver[TURB_SOL];
+    delete [] solver;
+    delete config;
+  }
+
+  unsigned short nDim;
+  CGeometry* geometry;
+  CSolver** solver;
+  CConfig* config;
+};
+
+/*--- PINCH POINT 1 ---*/
+BOOST_FIXTURE_TEST_CASE(ForcingTest, ForcingFixture) {
+
+  CHybridForcingTG0 forcing(geometry, config);
+  forcing.ComputeForcingField(solver, geometry, config);
+  const su2double* F = forcing.GetForcingVector(0);
+  // Test values taken from CDP
+  const su2double dt = 1E-3;
+  const su2double true_F[3] = {-2.5810564961917728E-005/dt,
+                               -1.0608578335743336E-004/dt,
+                               -2.2531677802402187E-004/dt};
+
+  const su2double tolerance = 1E-4;
+  BOOST_CHECK_CLOSE_FRACTION(F[0], true_F[0], tolerance);
+  BOOST_CHECK_CLOSE_FRACTION(F[1], true_F[1], tolerance);
+  BOOST_CHECK_CLOSE_FRACTION(F[2], true_F[2], tolerance);
+
 }
 
+/*--- PINCH POINT 2 ---*/
+BOOST_FIXTURE_TEST_CASE(ScalingCoefficient, ForcingFixture) {
 
-BOOST_AUTO_TEST_CASE(Smoke_Test_for_Forcing) {
+  const su2double alpha = 0.598898;
+  const su2double Ftar = 49.324157965434289;
+  const su2double resolution_adequacy = 0.8;
+  const su2double alpha_kol = 1.9086085598731258E-002;
+  const su2double PFtest = 3.8390135906329317E-004;
 
+  CHybridForcingTG0 forcing(geometry, config);
+  forcing.ComputeForcingField(solver, geometry, config);
+  const su2double eta = forcing.ComputeScalingFactor(Ftar, resolution_adequacy,
+                                                     alpha, alpha_kol, PFtest);
+
+  const su2double true_eta = 5.7950398607929117;
+  const su2double tolerance = 1E-4;
+  BOOST_CHECK_CLOSE_FRACTION(eta, true_eta, tolerance);
 }
 
-BOOST_AUTO_TEST_CASE(Compute_Derivatives) {
+/*--- PINCH POINT 3 ---*/
+BOOST_FIXTURE_TEST_CASE(TaylorGreenFields, ForcingFixture) {
 
-  /*--- Arrange ---*/
+  su2double x[3] = {22.879600000000000, -1.2667139999999999, 3.5793299999999999E-003};
+  su2double Lsgs = 0.64981218416406406;
+  su2double Lmesh[3] = {0.0634665, 0.0146755, 0.0785398};
+  su2double D[3] = {M_PI, 0.25, 1.1780972451};
+  su2double dwall = 0.171989;
+  su2double h[3];
 
-  const unsigned short nDim = 3;
-  WriteCfgFile(nDim);
-  CConfig* config = new CConfig("test.cfg", SU2_CFD, 0, 1, 2, VERB_NONE);
+  CHybridForcingTG0 forcing(geometry, config);
+  forcing.SetTGField(x, Lsgs, Lmesh, D, dwall, h);
 
-  // The use of "geometry_aux" is necessary to duplicate a multigrid
-  // configuration
-  CGeometry *geometry_aux = new CPhysicalGeometry(config, 0, 1);
-  CGeometry* geometry = new CPhysicalGeometry(geometry_aux, config);
-  delete geometry_aux;
-
-  // Initialize the geometry
-  geometry->SetBoundaries(config);
-  geometry->SetPoint_Connectivity();
-  geometry->SetElement_Connectivity();
-  geometry->SetBoundVolume();
-  geometry->Check_IntElem_Orientation(config);
-  geometry->Check_BoundElem_Orientation(config);
-  geometry->SetEdges();
-  geometry->SetVertex(config);
-  geometry->SetCoord_CG();
-  geometry->SetControlVolume(config, ALLOCATE);
-  geometry->SetBoundControlVolume(config, ALLOCATE);
-
-  CHybridForcingTGSF forcing(geometry, config);
-
-  /*--- Act ---*/
-
-  forcing.SetForcing_Gradient_LS(geometry, config);
-
-  /*--- Assert ---*/
-
+  su2double true_h[3] = {-4.4539063719893331E-003,  -1.8306307791801466E-002,  -3.8880971216165662E-002};
+  const su2double tolerance = 1E-4;
+  BOOST_CHECK_CLOSE_FRACTION(h[0], true_h[0], tolerance);
+  BOOST_CHECK_CLOSE_FRACTION(h[1], true_h[1], tolerance);
+  BOOST_CHECK_CLOSE_FRACTION(h[2], true_h[2], tolerance);
 }
 
+/*--- PINCH POINT 4 ---*/
+BOOST_FIXTURE_TEST_CASE(TargetForcing, ForcingFixture) {
+
+  su2double v2 = 1.22631;
+  su2double Ttot = 0.23208870780640092;
+  su2double alpha = 0.598898;
+  su2double Tsgs = Ttot*alpha;
+
+  CHybridForcingTG0 forcing(geometry, config);
+  const su2double F_target = forcing.GetTargetProduction(v2, Tsgs, alpha);
+
+  const su2double true_F_target = 49.324157965434289;
+  const su2double tolerance = 1E-4;
+  BOOST_CHECK_CLOSE_FRACTION(F_target, true_F_target, tolerance);
+
+}

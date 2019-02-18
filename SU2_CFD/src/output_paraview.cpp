@@ -750,6 +750,8 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
 
     }
     
+    // TODO: Add vector output here.
+
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       Paraview_File << "\nTENSORS " << it->Name << " float\n";
@@ -1726,6 +1728,8 @@ void COutput::SetParaview_MeshASCII(CConfig *config, CGeometry *geometry, unsign
       
     }
     
+    // TODO: Add vectors here.
+
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       Paraview_File << "\nTENSORS " << it->Name << " float\n";
