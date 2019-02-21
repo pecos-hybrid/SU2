@@ -2,7 +2,7 @@
  * \file variable_structure.inl
  * \brief In-Line subroutines of the <i>variable_structure.hpp</i> file.
  * \author F. Palacios, T. Economon
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -39,7 +39,7 @@
 
 inline bool CVariable::SetDensity(void) { return 0; }
 
-inline void CVariable::SetDensity(su2double val_density){ }
+inline bool CVariable::SetDensity(su2double val_density){ return 0; }
 
 inline void CVariable::SetVelSolutionOldDVector(void) { }
 
@@ -132,8 +132,6 @@ inline su2double *CVariable::GetSolution(void) { return Solution; }
 inline su2double *CVariable::GetSolution_Old(void) { return Solution_Old; }
 
 inline su2double *CVariable::GetSolution_time_n(void) { return Solution_time_n; }
-
-inline su2double *CVariable::Get_femSolution_time_n(void) { return NULL; }
 
 inline su2double *CVariable::GetSolution_time_n1(void) { return Solution_time_n1; }
 
@@ -249,6 +247,8 @@ inline void CVariable::SetSensor(su2double val_sensor, unsigned short val_iSpeci
 
 inline su2double CVariable::GetDensity(void) {  return 0; }
 
+inline su2double CVariable::GetDensity_Old(void) {  return 0; }
+
 inline su2double CVariable::GetDensity(unsigned short val_iSpecies) {  return 0; }
 
 inline su2double CVariable::GetEnergy(void) { return 0; }
@@ -337,6 +337,8 @@ inline su2double* CVariable::GetDiffusionCoeff(void) { return NULL; }
 inline su2double CVariable::GetThermalConductivity(void) { return 0; }
 
 inline su2double CVariable::GetSpecificHeatCp(void) { return 0; }
+
+inline su2double CVariable::GetSpecificHeatCv(void) { return 0; }
 
 inline su2double CVariable::GetThermalConductivity_ve(void) { return 0; }
 
@@ -508,9 +510,15 @@ inline void CVariable::SetThermalConductivity(CConfig *config) { }
 
 inline void CVariable::SetSpecificHeatCp(su2double Cp) { }
 
+inline void CVariable::SetSpecificHeatCv(su2double Cv) { }
+
 inline bool CVariable::SetVorticity(void) { return false; }
 
 inline bool CVariable::SetStrainMag(void) { return false; }
+
+inline void CVariable::SetTauWall(su2double val_tau_wall) { }
+
+inline su2double CVariable::GetTauWall(void) { return 0; }
 
 inline void CVariable::SetGradient_PrimitiveZero(unsigned short val_primvar) { }
 
@@ -652,7 +660,7 @@ inline void CVariable::Set_OldSolution_Accel(void) { }
 
 inline void CVariable::Set_OldSolution_Vel(void) { }
 
-inline su2double CVariable::GetSolution_time_n(unsigned short val_var) { return 0; }
+inline su2double CVariable::GetSolution_time_n(unsigned short val_var) { return Solution_time_n[val_var]; }
 
 inline su2double CVariable::GetSolution_Vel(unsigned short val_var) { return 0; }
 
@@ -1017,6 +1025,9 @@ inline void CNSVariable::Setdktdrho_T(su2double dktdrho_T) {
 inline void CNSVariable::SetdktdT_rho(su2double dktdT_rho) {
   Secondary[7] = dktdT_rho;
 }
+inline void CNSVariable::SetTauWall(su2double val_tau_wall) { Tau_Wall = val_tau_wall; }
+
+inline su2double CNSVariable::GetTauWall(void) { return Tau_Wall; }
 
 inline void CNSVariable::SetEddyViscosity(su2double eddy_visc) { Primitive[nDim+6] = eddy_visc; }
 
@@ -1103,29 +1114,43 @@ inline void CAdjNSVariable::SetVelSolutionOldDVector(void) { for (unsigned short
 
 inline void CAdjNSVariable::SetVelSolutionDVector(void) { for (unsigned short iDim = 0; iDim < nDim; iDim++) Solution[iDim+1] = ForceProj_Vector[iDim]; };
 
-inline su2double CIncEulerVariable::GetDensity(void) { return Primitive[nDim+1]; }
+inline su2double CIncEulerVariable::GetDensity(void) { return Primitive[nDim+2]; }
 
-inline su2double CIncEulerVariable::GetBetaInc2(void) { return Primitive[nDim+2]; }
+inline su2double CIncEulerVariable::GetDensity_Old(void) { return Density_Old; }
+
+inline su2double CIncEulerVariable::GetBetaInc2(void) { return Primitive[nDim+3]; }
 
 inline su2double CIncEulerVariable::GetPressure(void) { return Primitive[0]; }
+
+inline su2double CIncEulerVariable::GetTemperature(void) { return Primitive[nDim+1]; }
 
 inline su2double CIncEulerVariable::GetVelocity(unsigned short val_dim) { return Primitive[val_dim+1]; }
 
 inline su2double CIncEulerVariable::GetVelocity2(void) { return Velocity2; }
 
-inline void CIncEulerVariable::SetDensity(su2double val_density) { Primitive[nDim+1] = val_density; }
+inline bool CIncEulerVariable::SetDensity(su2double val_density) { 
+  Primitive[nDim+2] = val_density; 
+  if (Primitive[nDim+2] > 0.0) return false;
+  else return true;
+}
 
 inline void CIncEulerVariable::SetPressure(void) { Primitive[0] = Solution[0]; }
+
+inline bool CIncEulerVariable::SetTemperature(su2double val_temperature) { 
+  Primitive[nDim+1] = val_temperature;
+  if (Primitive[nDim+1] > 0.0) return false;
+  else return true; 
+}
 
 inline void CIncEulerVariable::SetVelocity(void) {
   Velocity2 = 0.0;
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    Primitive[iDim+1] = Solution[iDim+1] / Primitive[nDim+1];
+    Primitive[iDim+1] = Solution[iDim+1];
     Velocity2 += Primitive[iDim+1]*Primitive[iDim+1];
   }
 }
 
-inline void CIncEulerVariable::SetBetaInc2(su2double val_betainc2) { Primitive[nDim+2] = val_betainc2; }
+inline void CIncEulerVariable::SetBetaInc2(su2double val_betainc2) { Primitive[nDim+3] = val_betainc2; }
 
 inline su2double CIncEulerVariable::GetPrimitive(unsigned short val_var) { return Primitive[val_var]; }
 
@@ -1140,7 +1165,7 @@ inline su2double *CIncEulerVariable::GetPrimitive(void) { return Primitive; }
 
 inline void CIncEulerVariable::SetVelocity_Old(su2double *val_velocity) {
   for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    Solution_Old[iDim+1] = val_velocity[iDim]*Primitive[nDim+1];
+    Solution_Old[iDim+1] = val_velocity[iDim];
 }
 
 inline void CIncEulerVariable::AddGradient_Primitive(unsigned short val_var, unsigned short val_dim, su2double val_value) { Gradient_Primitive[val_var][val_dim] += val_value; }
@@ -1159,61 +1184,42 @@ inline su2double **CIncEulerVariable::GetGradient_Primitive(void) { return Gradi
 
 inline su2double *CIncEulerVariable::GetLimiter_Primitive(void) { return Limiter_Primitive; }
 
-inline void CIncEulerVariable::SetWindGust( su2double* val_WindGust) {
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    WindGust[iDim] = val_WindGust[iDim];}
+inline void CIncEulerVariable::SetSpecificHeatCp(su2double val_Cp) {
+  Primitive[nDim+7] = val_Cp;
+}
 
-inline su2double* CIncEulerVariable::GetWindGust() { return WindGust;}
+inline void CIncEulerVariable::SetSpecificHeatCv(su2double val_Cv) {
+  Primitive[nDim+8] = val_Cv;
+}
 
-inline void CIncEulerVariable::SetWindGustDer( su2double* val_WindGustDer) {
-  for (unsigned short iDim = 0; iDim < nDim+1; iDim++)
-    WindGustDer[iDim] = val_WindGustDer[iDim];}
+inline su2double CIncEulerVariable::GetSpecificHeatCp(void) { return Primitive[nDim+7]; }
 
-inline su2double* CIncEulerVariable::GetWindGustDer() { return WindGustDer;}
+inline su2double CIncEulerVariable::GetSpecificHeatCv(void) { return Primitive[nDim+8]; }
 
 inline su2double CIncEulerVariable::Get_BGSSolution_k(unsigned short iDim) { return Solution_BGS_k[iDim];}
 
-inline void CIncEulerVariable::Set_BGSSolution_k(void) { 
+inline void CIncEulerVariable::Set_BGSSolution_k(void) {
   for (unsigned short iVar = 0; iVar < nVar; iVar++)
     Solution_BGS_k[iVar] = Solution[iVar];
 }
 
+inline su2double CIncNSVariable::GetEddyViscosity(void) { return Primitive[nDim+5]; }
 
-inline su2double CIncNSVariable::GetEddyViscosity(void) { return Primitive[nDim+4]; }
+inline su2double CIncNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+4]; }
 
-inline su2double CIncNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+3]; }
+inline su2double CIncNSVariable::GetThermalConductivity(void) { return Primitive[nDim+6]; }
 
 inline su2double* CIncNSVariable::GetVorticity(void) { return Vorticity; }
 
 inline su2double CIncNSVariable::GetStrainMag(void) { return StrainMag; }
 
-inline void CIncNSVariable::SetLaminarViscosity(su2double val_laminar_viscosity_inc) { Primitive[nDim+3] = val_laminar_viscosity_inc; }
+inline void CIncNSVariable::SetLaminarViscosity(su2double val_laminar_viscosity_inc) { Primitive[nDim+4] = val_laminar_viscosity_inc; }
 
-inline void CIncNSVariable::SetEddyViscosity(su2double eddy_visc) { Primitive[nDim+4] = eddy_visc; }
+inline void CIncNSVariable::SetEddyViscosity(su2double eddy_visc) { Primitive[nDim+5] = eddy_visc; }
 
-inline su2double *CAdjIncEulerVariable::GetForceProj_Vector(void) { return ForceProj_Vector; }
-
-inline su2double *CAdjIncEulerVariable::GetObjFuncSource(void) { return ObjFuncSource; }
-
-inline su2double *CAdjIncEulerVariable::GetIntBoundary_Jump(void) { return IntBoundary_Jump; }
-
-inline void CAdjIncEulerVariable::SetForceProj_Vector(su2double *val_ForceProj_Vector) { for (unsigned short iDim = 0; iDim < nDim; iDim++) ForceProj_Vector[iDim] = val_ForceProj_Vector[iDim]; }
-
-inline void CAdjIncEulerVariable::SetObjFuncSource(su2double *val_ObjFuncSource) { for (unsigned short iVar = 0; iVar < nVar; iVar++) ObjFuncSource[iVar] = val_ObjFuncSource[iVar]; }
-
-inline void CAdjIncEulerVariable::SetIntBoundary_Jump(su2double *val_IntBoundary_Jump) { for (unsigned short iVar = 0; iVar < nVar; iVar++) IntBoundary_Jump[iVar] = val_IntBoundary_Jump[iVar]; }
-
-inline void CAdjIncEulerVariable::SetPhi_Old(su2double *val_phi) { for (unsigned short iDim = 0; iDim < nDim; iDim++) Solution_Old[iDim+1]=val_phi[iDim]; };
-
-inline su2double *CAdjIncNSVariable::GetForceProj_Vector(void) { return ForceProj_Vector; }
-
-inline void CAdjIncNSVariable::SetForceProj_Vector(su2double *val_ForceProj_Vector) {  for (unsigned short iDim = 0; iDim < nDim; iDim++) ForceProj_Vector[iDim] = val_ForceProj_Vector[iDim]; }
-
-inline void CAdjIncNSVariable::SetPhi_Old(su2double *val_phi) { for (unsigned short iDim = 0; iDim < nDim; iDim++) Solution_Old[iDim+1] = val_phi[iDim]; };
-
-inline void CAdjIncNSVariable::SetVelSolutionOldDVector(void) { for (unsigned short iDim = 0; iDim < nDim; iDim++) Solution_Old[iDim+1] = ForceProj_Vector[iDim]; };
-
-inline void CAdjIncNSVariable::SetVelSolutionDVector(void) { for (unsigned short iDim = 0; iDim < nDim; iDim++) Solution[iDim+1] = ForceProj_Vector[iDim]; };
+inline void CIncNSVariable::SetThermalConductivity(su2double val_thermal_conductivity) {
+  Primitive[nDim+6] = val_thermal_conductivity;
+}
 
 inline su2double CTransLMVariable::GetIntermittency() { return Solution[0]; }
 
@@ -1341,11 +1347,6 @@ inline void CFEAVariable::SetSolution_Pred_Old(void) {
   for (unsigned short iVar = 0; iVar < nVar; iVar++) Solution_Pred_Old[iVar] = Solution_Pred[iVar];
 }
 
-
-inline su2double CFEAVariable::GetSolution_time_n(unsigned short val_var) { return Solution_time_n[val_var]; }
-
-inline su2double *CFEAVariable::Get_femSolution_time_n(void) { return Solution_time_n; }
-
 inline su2double *CFEAVariable::GetSolution_Vel(void) { return Solution_Vel; }
 
 inline su2double CFEAVariable::GetSolution_Vel(unsigned short val_var) { return Solution_Vel[val_var]; }
@@ -1439,10 +1440,6 @@ inline void CWaveVariable::SetSolution_Direct(su2double *val_solution_direct) { 
 inline su2double* CPotentialVariable::GetChargeDensity() { return Charge_Density;}
 
 inline void CPotentialVariable::SetChargeDensity(su2double positive_charge, su2double negative_charge) {Charge_Density[0] = positive_charge; Charge_Density[1] = negative_charge;}
-
-inline su2double* CHeatVariable::GetSolution_Direct() { return Solution_Direct;}
-
-inline void CHeatVariable::SetSolution_Direct(su2double *val_solution_direct) { for (unsigned short iVar = 0; iVar < nVar; iVar++) Solution_Direct[iVar] += val_solution_direct[iVar];}
 
 inline void CTurbVariable::SetForcingProduction(su2double val_P_F) {
   Forcing_Production = val_P_F;
@@ -1753,7 +1750,6 @@ inline su2double CDiscAdjFEAVariable::GetSolution_Accel(unsigned short val_var) 
 inline su2double CDiscAdjFEAVariable::GetSolution_Accel_time_n(unsigned short val_var) { return Solution_Accel_time_n[val_var]; }
 inline su2double CDiscAdjFEAVariable::GetSolution_Vel_time_n(unsigned short val_var) { return Solution_Vel_time_n[val_var]; }
 inline su2double CDiscAdjFEAVariable::GetSolution_Vel(unsigned short val_var) { return Solution_Vel[val_var]; }
-inline su2double CDiscAdjFEAVariable::GetSolution_time_n(unsigned short val_var) { return Solution_time_n[val_var]; }
 
 inline void CFEAVariable::SetAdjointSolution_Vel(su2double *adj_sol) {
     for (unsigned short iVar = 0; iVar < nVar; iVar++)

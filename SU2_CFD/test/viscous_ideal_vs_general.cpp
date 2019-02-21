@@ -140,7 +140,7 @@ TestRunner::TestRunner(CConfig* config)
     conductivity_model(config->GetPrandtl_Lam()) {
 
   ideal_gas.SetTDState_rhoT(density, temperature);
-  conductivity_model.SetConductivity(temperature, density, laminar_viscosity,
+  conductivity_model.SetConductivity(temperature, density, laminar_viscosity, 0,
                                      ideal_gas.GetCp());
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {

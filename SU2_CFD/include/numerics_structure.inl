@@ -2,7 +2,7 @@
  * \file numerics_structure.inl
  * \brief In-Line subroutines of the <i>numerics_structure.hpp</i> file.
  * \author F. Palacios, T. Economon
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -151,6 +151,12 @@ inline void CNumerics::Compute_Stress_Tensor(CElement *element_container, CConfi
 inline void CFEAElasticity::Compute_Stress_Tensor(CElement *element_container, CConfig *config) { }
 
 inline void CFEANonlinearElasticity::Compute_Stress_Tensor(CElement *element_container, CConfig *config) { }
+
+inline void CFEAElasticity::Compute_Lame_Parameters(void) {
+  Mu     = E / (2.0*(1.0 + Nu));
+  Lambda = Nu*E/((1.0+Nu)*(1.0-2.0*Nu));
+  Kappa  = Lambda + (2/3)*Mu;
+}
 
 inline void CNumerics::ComputeResidual(su2double *val_residual, CConfig *config) { }
 
@@ -349,7 +355,7 @@ inline void CNumerics::SetForcingRatio(su2double val_forcing_ratio) { }
 
 inline void CNumerics::SetSourceTerms(su2double* val_source_terms) { }
 
-inline void CNumerics::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) { }
+//inline void CNumerics::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) { }
 
 inline void CNumerics::SetTurbKineticEnergy(su2double val_turb_ke_i, su2double val_turb_ke_j) {
   turb_ke_i = val_turb_ke_i;
@@ -522,10 +528,10 @@ inline su2double CNumerics::GetDissipation(){
   return Dissipation_ij;
 }
 
-inline void CAvgGrad_Flow::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) {
-  Forcing_Stress_i = tau_F_i;
-  Forcing_Stress_j = tau_F_j;
-}
+// inline void CAvgGrad_Flow::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) {
+//   Forcing_Stress_i = tau_F_i;
+//   Forcing_Stress_j = tau_F_j;
+// }
 
 inline void CSourcePieceWise_TurbSST::SetF1blending(su2double val_F1_i, su2double val_F1_j) { 
   F1_i = val_F1_i; 
@@ -631,10 +637,12 @@ inline void CAvgGrad_Base::SetTauWall(su2double val_tauwall_i, su2double val_tau
   TauWall_j = val_tauwall_j;
 }
 
-inline su2double CAvgGrad_Base::GetStressTensor(unsigned short iDim, unsigned short jDim) {
+inline su2double CAvgGrad_Base::GetStressTensor(unsigned short iDim, unsigned short jDim) const {
   return tau[iDim][jDim];
 }
 
-inline su2double CAvgGrad_Base::GetHeatFluxVector(unsigned short iDim) {
+inline su2double CAvgGrad_Base::GetHeatFluxVector(unsigned short iDim) const {
   return heat_flux_vector[iDim];
 }
+
+inline void CNumerics::SetUsing_UQ(bool val_using_uq) { using_uq = val_using_uq; }

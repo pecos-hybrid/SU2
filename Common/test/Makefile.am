@@ -48,9 +48,9 @@ AM_CPPFLAGS = -I$(top_srcdir)/Common/include @LAPACK_CXX@
 #AM_LDFLAGS = 
 #LIBS = 
 LDADD = $(top_builddir)/Common/lib/libSU2.a
-LDADD += @LAPACK_LD@
+LDADD += @LAPACK_LDALL@
 if BUILD_LAPACK
-LDFLAGS  += -mkl
+#LDFLAGS  += -mkl
 endif
 
 # always link to built dependencies from ./externals
