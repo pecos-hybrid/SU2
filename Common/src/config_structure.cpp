@@ -57,7 +57,7 @@ vector<double> GEMM_Profile_MaxTime;      /*!< \brief Maximum time spent for thi
 #include "../include/ad_structure.hpp"
 #include "../include/toolboxes/printing_toolbox.hpp"
 
-CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_software, unsigned short val_iZone, unsigned short val_nZone, unsigned short val_nDim, unsigned short verb_level) {
+CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_software, unsigned short val_iZone, unsigned short val_nZone, unsigned short val_nDim, bool verb_high) {
   
   /*--- Store MPI rank and size ---*/ 
   
@@ -86,7 +86,7 @@ CConfig::CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_softwar
 
   /*--- Configuration file output ---*/
 
-  if ((rank == MASTER_NODE) && (verb_level == VERB_HIGH) && (val_iZone == 0))
+  if ((rank == MASTER_NODE) && verb_high && (val_iZone == 0))
     SetOutput(val_software, val_iZone);
 
 }
@@ -373,7 +373,7 @@ bool CConfig::GetPeriodic(string val_mesh_filename,
   /*--- For now, assume that if we have periodic BCs in the config, that
    the user's intent is for there to be periodic BCs in the mesh too. ---*/
 
-  if (config->GetnMarker_Periodic() > 0) isPeriodic = true;
+  //if (config->GetnMarker_Periodic() > 0) isPeriodic = true;
 
   return isPeriodic;
   
@@ -808,6 +808,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief WEAKLY_COUPLED_HEAT_EQUATION \n DESCRIPTION: Enable heat equation for incompressible flows. \ingroup Config*/
   addBoolOption("WEAKLY_COUPLED_HEAT_EQUATION", Weakly_Coupled_Heat, NO);
+
+  addBoolOption("TGV", TaylorGreen, false);
 
   /*\brief AXISYMMETRIC \n DESCRIPTION: Axisymmetric simulation \n DEFAULT: false \ingroup Config */
   addBoolOption("AXISYMMETRIC", Axisymmetric, false);
@@ -1786,9 +1788,13 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief CONSOLE_OUTPUT_VERBOSITY
    *  \n DESCRIPTION: Verbosity level for console output  \ingroup Config*/
   addEnumOption("CONSOLE_OUTPUT_VERBOSITY", Console_Output_Verb, Verb_Map, VERB_HIGH);
+
   /*!\brief CONST_FILENAME \n DESCRIPTION: Input file for the hybrid RANS/LES constants (w/o extension) \n DEFAULT: "" \ingroup Config*/
   addStringOption("CONST_FILENAME", Hybrid_Const_FileName, string(""));
 
+  /*!\brief COMM_LEVEL
+   *  \n DESCRIPTION: Level of MPI communications during runtime  \ingroup Config*/
+  addEnumOption("COMM_LEVEL", Comm_Level, Comm_Map, COMM_FULL);
 
   /*!\par CONFIG_CATEGORY: Dynamic mesh definition \ingroup Config*/
   /*--- Options related to dynamic meshes ---*/
@@ -4526,6 +4532,20 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
     Wrt_Projected_Sensitivity = true;
   }
 
+  /*--- Delay the output until exit for minimal communication mode. ---*/
+  
+  if (Comm_Level != COMM_FULL) {
+    Wrt_Sol_Freq          = nExtIter+1;
+    Wrt_Sol_Freq_DualTime = nExtIter+1;
+    
+    /*--- Write only the restart. ---*/
+    
+    Wrt_Slice   = false;
+    Wrt_Vol_Sol = false;
+    Wrt_Srf_Sol = false;
+    Wrt_Csv_Sol = false;
+  }
+  
   /*--- Check the conductivity model. Deactivate the turbulent component
    if we are not running RANS. ---*/
   
@@ -7621,7 +7641,7 @@ CConfig::~CConfig(void) {
   if (Periodic_Center      != NULL) delete[] Periodic_Center;
   if (Periodic_Rotation    != NULL) delete[] Periodic_Rotation;
   if (Periodic_Translate   != NULL) delete[] Periodic_Translate;
-  
+
   if (MG_CorrecSmooth != NULL) delete[] MG_CorrecSmooth;
   if (PlaneTag != NULL)        delete[] PlaneTag;
   if (CFL != NULL)             delete[] CFL;

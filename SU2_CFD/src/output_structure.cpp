@@ -13154,6 +13154,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   bool transition           = (config->GetKind_Trans_Model() == BC);
   const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   bool grid_movement        = (config->GetGrid_Movement());
+  bool rotating_frame       = config->GetRotating_Frame();
   bool Wrt_Halo             = config->GetWrt_Halo(), isPeriodic;
   
   int *Local_Halo = NULL;
@@ -13494,6 +13495,34 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     
     /*--- New variables get registered here before the end of the loop. ---*/
     
+    if ((Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)) {
+      nVar_Par += 2;
+      Variable_Names.push_back("Vorticity_x");
+      Variable_Names.push_back("Vorticity_y");
+      if (geometry->GetnDim() == 3) {
+        nVar_Par += 1; Variable_Names.push_back("Vorticity_z");
+      }
+      
+      nVar_Par +=1;
+      Variable_Names.push_back("Q_Criterion");
+    }
+    
+    if (rotating_frame) {
+      nVar_Par += 2;
+      Variable_Names.push_back("Relative_Velocity_x");
+      Variable_Names.push_back("Relative_Velocity_y");
+      if (geometry->GetnDim() == 3) {
+        nVar_Par += 1; Variable_Names.push_back("Relative_Velocity_z");
+      }
+      
+      nVar_Par += 2;
+      Variable_Names.push_back("XVelocity_x");
+      Variable_Names.push_back("XVelocity_y");
+      if (geometry->GetnDim() == 3) {
+        nVar_Par += 1; Variable_Names.push_back("XVelocity_z");
+      }
+    }
+    
   }
   
   /*--- Auxiliary vectors for variables defined on surfaces only. ---*/
@@ -13790,6 +13819,61 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         
         /*--- New variables can be loaded to the Local_Data structure here,
          assuming they were registered above correctly. ---*/
+
+        if ((Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)) {
+          Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetVorticity()[0]; iVar++;
+          Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetVorticity()[1]; iVar++;
+          if (geometry->GetnDim() == 3) {
+            Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetVorticity()[2];
+            iVar++;
+          }
+          
+          su2double Grad_Vel[3][3] = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}};
+          su2double Omega[3][3]    = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}};
+          su2double Strain[3][3]   = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}};
+          for (iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0 ; jDim < nDim; jDim++) {
+              Grad_Vel[iDim][jDim] = solver[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(iDim+1, jDim);
+              Strain[iDim][jDim]   = 0.5*(Grad_Vel[iDim][jDim] + Grad_Vel[jDim][iDim]);
+              Omega[iDim][jDim]    = 0.5*(Grad_Vel[iDim][jDim] - Grad_Vel[jDim][iDim]);
+            }
+          }
+          
+          su2double OmegaMag = 0.0, StrainMag = 0.0;
+          for (iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0 ; jDim < nDim; jDim++) {
+              StrainMag += Strain[iDim][jDim]*Strain[iDim][jDim];
+              OmegaMag  += Omega[iDim][jDim]*Omega[iDim][jDim];
+            }
+          }
+          StrainMag = sqrt(StrainMag); OmegaMag = sqrt(OmegaMag);
+          
+          su2double Q = 0.5*(OmegaMag - StrainMag);
+          Local_Data[jPoint][iVar] = Q; iVar++;
+          
+        }
+        
+        /*--- For rotating frame problems, compute the relative velocity. ---*/
+        
+        if (rotating_frame) {
+          Grid_Vel = geometry->node[iPoint]->GetGridVel();
+          su2double *Solution = solver[FLOW_SOL]->node[iPoint]->GetSolution();
+          Local_Data[jPoint][iVar] = Solution[1]/Solution[0] - Grid_Vel[0]; iVar++;
+          Local_Data[jPoint][iVar] = Solution[2]/Solution[0] - Grid_Vel[1]; iVar++;
+          if (geometry->GetnDim() == 3) {
+            Local_Data[jPoint][iVar] = Solution[3]/Solution[0] - Grid_Vel[2];
+            iVar++;
+          }
+          
+          //Grid_Vel = solver[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(1, 1);
+          //su2double *Solution = solver[FLOW_SOL]->node[iPoint]->GetSolution();
+          Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(1, 0); iVar++;
+          Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(1, 1); iVar++;
+          if (geometry->GetnDim() == 3) {
+            Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(1, 2);
+            iVar++;
+          }
+        }
         
       }
       
@@ -14084,6 +14168,30 @@ void COutput::LoadLocalData_IncFlow(CConfig *config, CGeometry *geometry, CSolve
       Variable_Names.push_back("Density");
     }
     
+    if ((Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)) {
+      nVar_Par += 2;
+      Variable_Names.push_back("Vorticity_x");
+      Variable_Names.push_back("Vorticity_y");
+        nVar_Par += 1; Variable_Names.push_back("Vorticity_z");
+      
+      nVar_Par +=1;
+      Variable_Names.push_back("Q_Criterion");
+    }
+
+    if ((config->GetTaylorGreen()) && (geometry->GetnDim() == 2)) {
+      
+      nVar_Par += 3;
+      Variable_Names.push_back("tgv_vel_x");
+      Variable_Names.push_back("tgv_vel_y");
+      Variable_Names.push_back("tgv_pressure");
+      
+      nVar_Par += 3;
+      Variable_Names.push_back("error_vel_x");
+      Variable_Names.push_back("error_vel_y");
+      Variable_Names.push_back("error_pressure");
+      
+    }
+    
     if (wrt_cp) {
       nVar_Par += 1;
       Variable_Names.push_back("Specific_Heat");
@@ -14332,6 +14440,73 @@ void COutput::LoadLocalData_IncFlow(CConfig *config, CGeometry *geometry, CSolve
         
         /*--- New variables can be loaded to the Local_Data structure here,
          assuming they were registered above correctly. ---*/
+
+        if ((Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)) {
+          Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetVorticity()[0]; iVar++;
+          Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetVorticity()[1]; iVar++;
+            Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetVorticity()[2]; iVar++;
+          
+          su2double Grad_Vel[3][3] = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}};
+          su2double Omega[3][3]    = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}};
+          su2double Strain[3][3]   = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}};
+          for (iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0 ; jDim < nDim; jDim++) {
+              Grad_Vel[iDim][jDim] = solver[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(iDim+1, jDim);
+              Strain[iDim][jDim]   = 0.5*(Grad_Vel[iDim][jDim] + Grad_Vel[jDim][iDim]);
+              Omega[iDim][jDim]    = 0.5*(Grad_Vel[iDim][jDim] - Grad_Vel[jDim][iDim]);
+            }
+          }
+          
+          su2double OmegaMag = 0.0, StrainMag = 0.0;
+          for (iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0 ; jDim < nDim; jDim++) {
+              StrainMag += Strain[iDim][jDim]*Strain[iDim][jDim];
+              OmegaMag  += Omega[iDim][jDim]*Omega[iDim][jDim];
+            }
+          }
+          StrainMag = sqrt(StrainMag); OmegaMag = sqrt(OmegaMag);
+          
+          su2double Q = 0.5*(OmegaMag - StrainMag);
+          Local_Data[jPoint][iVar] = Q; iVar++;
+          
+        }
+        
+        if ((config->GetTaylorGreen()) && (geometry->GetnDim() == 2)) {
+          
+          /* Set the pointers to the coordinates and solution of this DOF. */
+          const su2double *coor = geometry->node[iPoint]->GetCoord();
+          su2double *solDOF     = solver[FLOW_SOL]->node[iPoint]->GetSolution();
+          
+          const su2double tgvLength    = 1.0;     // Taylor-Green length scale.
+          const su2double tgvVelocity  = 1.0;     // Taylor-Green velocity.
+          const su2double tgvDensity   = 1.0;     // Taylor-Green density.
+          
+          su2double nu = config->GetViscosity_FreeStreamND();
+          su2double t  = static_cast<su2double>(config->GetExtIter()+1)*config->GetDelta_UnstTimeND();
+          su2double coorZ = 0.0;
+          if (nDim == 3) coorZ = coor[2];
+          
+          /* Compute the primitive variables. */
+          su2double rho = tgvDensity;
+          su2double u   =  tgvVelocity * (sin(coor[0]/tgvLength)*
+                                          cos(coor[1]/tgvLength)*
+                                          cos(coorZ  /tgvLength))*exp(-2.0*nu*t);
+          su2double v   = -tgvVelocity * (cos(coor[0]/tgvLength)*
+                                          sin(coor[1]/tgvLength)*
+                                          cos(coorZ  /tgvLength))*exp(-2.0*nu*t);
+          su2double factorA = 1.0;
+          su2double factorB = cos(2.0*coor[0]/tgvLength) + cos(2.0*coor[1]/tgvLength);
+          su2double p   = (tgvDensity/4.0)*factorA*factorB*exp(-4.0*nu*t);
+          
+          Local_Data[jPoint][iVar] = u; iVar++;
+          Local_Data[jPoint][iVar] = v; iVar++;
+          Local_Data[jPoint][iVar] = p; iVar++;
+
+          Local_Data[jPoint][iVar] = sqrt(pow(u-solDOF[1],2.0)); iVar++;
+          Local_Data[jPoint][iVar] = sqrt(pow(v-solDOF[2],2.0)); iVar++;
+          Local_Data[jPoint][iVar] = sqrt(pow(p-solDOF[0],2.0)); iVar++;
+          
+        }
 
       }
 
@@ -19632,21 +19807,21 @@ void COutput::SpecialOutput_AnalyzeSurface(CSolver *solver, CGeometry *geometry,
   }
   
 #ifdef HAVE_MPI
-  
-  SU2_MPI::Allreduce(Surface_MassFlow_Local, Surface_MassFlow_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_Mach_Local, Surface_Mach_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_Temperature_Local, Surface_Temperature_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_Density_Local, Surface_Density_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_Enthalpy_Local, Surface_Enthalpy_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_NormalVelocity_Local, Surface_NormalVelocity_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_StreamVelocity2_Local, Surface_StreamVelocity2_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_TransvVelocity2_Local, Surface_TransvVelocity2_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_Pressure_Local, Surface_Pressure_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_TotalTemperature_Local, Surface_TotalTemperature_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_TotalPressure_Local, Surface_TotalPressure_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_Area_Local, Surface_Area_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  SU2_MPI::Allreduce(Surface_MassFlow_Abs_Local, Surface_MassFlow_Abs_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
+  if (config->GetComm_Level() == COMM_FULL) {
+    SU2_MPI::Allreduce(Surface_MassFlow_Local, Surface_MassFlow_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_Mach_Local, Surface_Mach_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_Temperature_Local, Surface_Temperature_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_Density_Local, Surface_Density_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_Enthalpy_Local, Surface_Enthalpy_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_NormalVelocity_Local, Surface_NormalVelocity_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_StreamVelocity2_Local, Surface_StreamVelocity2_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_TransvVelocity2_Local, Surface_TransvVelocity2_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_Pressure_Local, Surface_Pressure_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_TotalTemperature_Local, Surface_TotalTemperature_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_TotalPressure_Local, Surface_TotalPressure_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_Area_Local, Surface_Area_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(Surface_MassFlow_Abs_Local, Surface_MassFlow_Abs_Total, nMarker_Analyze, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  }
 #else
   
   for (iMarker_Analyze = 0; iMarker_Analyze < nMarker_Analyze; iMarker_Analyze++) {

@@ -138,7 +138,7 @@ lib_ldadd += @MUTATIONPP_LD@
 
 # if BUILD_LAPACK
 lib_cxxflags += @LAPACK_CXX@
-lib_ldadd += @LAPACK_LDALL@
+lib_ldadd += @LAPACK_LD@
 # endif
 
 if BUILD_NORMAL

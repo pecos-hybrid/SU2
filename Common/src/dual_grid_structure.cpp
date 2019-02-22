@@ -89,7 +89,7 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
   Boundary         = false;
   SolidBoundary    = false;
   PhysicalBoundary = false;
-
+  PeriodicBoundary = false;
 
   /*--- Set the global index in the parallel simulation ---*/
   GlobalIndex = val_globalindex;
@@ -167,6 +167,9 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
     ResolutionTensorGradient = NULL;
   }
 
+  /*--- Intialize the value of the periodic volume. ---*/
+  Periodic_Volume = 0.0;
+
 }
 
 CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_globalindex, CConfig *config) : CDualGrid(2) {
@@ -217,6 +220,7 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
   Boundary         = false;
   SolidBoundary    = false;
   PhysicalBoundary = false;
+  PeriodicBoundary = false;
 
   /*--- Set the color for mesh partitioning ---*/
   color = 0;
@@ -296,6 +300,9 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
     ResolutionTensorGradient = NULL;
   }
 
+  /*--- Intialize the value of the periodic volume. ---*/
+  Periodic_Volume = 0.0;
+
 }
 
 CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord_2, unsigned long val_globalindex, CConfig *config) : CDualGrid(3) {
@@ -346,7 +353,7 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
   Boundary         = false;
   SolidBoundary    = false;
   PhysicalBoundary = false;
-
+  PeriodicBoundary = false;
 
   /*--- Set the color for mesh partitioning ---*/
   color = 0;
@@ -426,6 +433,9 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
     ResolutionVectors = NULL;
     ResolutionTensorGradient = NULL;
   }
+
+  /*--- Intialize the value of the periodic volume. ---*/
+  Periodic_Volume = 0.0;
 
 }
 

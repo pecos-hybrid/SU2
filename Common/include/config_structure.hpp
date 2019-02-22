@@ -144,6 +144,7 @@ private:
   Sens_Remove_Sharp,			/*!< \brief Flag for removing or not the sharp edges from the sensitivity computation. */
   Hold_GridFixed,	/*!< \brief Flag hold fixed some part of the mesh during the deformation. */
   Axisymmetric, /*!< \brief Flag for axisymmetric calculations */
+  TaylorGreen,
   Integrated_HeatFlux, /*!< \brief Flag for heat flux BC whether it deals with integrated values.*/
   Buffet_Monitoring;       /*!< \brief Flag for computing the buffet sensor.*/
   su2double Buffet_k;     /*!< \brief Sharpness coefficient for buffet sensor.*/
@@ -1104,8 +1105,8 @@ private:
   bool Compute_Entropy;                      /*!< \brief Whether or not to compute the entropy in the fluid model. */
   bool Use_Lumped_MassMatrix_DGFEM;          /*!< \brief Whether or not to use the lumped mass matrix for DGFEM. */
   bool Jacobian_Spatial_Discretization_Only; /*!< \brief Flag to know if only the exact Jacobian of the spatial discretization must be computed. */
-  bool Compute_Average; /*!< \brief Whether or not to compute averages for unsteady simulations in FV or DG solver. */
-  
+  bool Compute_Average;                      /*!< \brief Whether or not to compute averages for unsteady simulations in FV or DG solver. */
+  unsigned short Comm_Level;                 /*!< \brief Level of MPI communications to be performed. */
 
   ofstream *ConvHistFile;       /*!< \brief Store the pointer to each history file */
   unsigned short Kind_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
@@ -1432,7 +1433,7 @@ public:
   /*!
    * \brief Constructor of the class which reads the input file.
    */
-  CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_software, unsigned short val_iZone, unsigned short val_nZone, unsigned short val_nDim, unsigned short verb_level);
+  CConfig(char case_filename[MAX_STRING_SIZE], unsigned short val_software, unsigned short val_iZone, unsigned short val_nZone, unsigned short val_nDim, bool verb_high);
   
   /*!
    * \brief Constructor of the class which reads the input file.
@@ -6138,6 +6139,8 @@ public:
    */
   bool GetAxisymmetric(void);
   
+    bool GetTaylorGreen(void);
+  
   /*!
    * \brief Get information about the axisymmetric frame.
    * \return <code>TRUE</code> if there is a rotational frame; otherwise <code>FALSE</code>.
@@ -6712,7 +6715,7 @@ public:
    * \param[in] translate - Pointer to a vector containing the coordinate of the center.
    */
   void SetPeriodicTranslate(unsigned short val_index, su2double* translate);
-  
+
   /*!
    * \brief Get the translation vector for a periodic transformation.
    * \param[in] val_index - Index corresponding to the periodic transformation.
@@ -9328,6 +9331,12 @@ public:
   su2double GetMax_Time(void);
 
   /*!
+   * \brief Get the level of MPI communications to be performed.
+   * \return Level of MPI communications.
+   */
+  unsigned short GetComm_Level(void);
+  
+  /*
    * \brief Check if the mesh read supports multiple zones.
    * \return YES if multiple zones can be contained in the mesh file.
    */
@@ -9356,6 +9365,7 @@ public:
    * \return YES if the forces breakdown file is written.
    */
   bool GetWrt_ForcesBreakdown(void);
+
 };
 
 #include "config_structure.inl"

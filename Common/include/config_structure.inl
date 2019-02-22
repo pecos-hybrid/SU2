@@ -1650,6 +1650,8 @@ inline bool CConfig::GetRotating_Frame(void) { return Rotating_Frame; }
 
 inline bool CConfig::GetAxisymmetric(void) { return Axisymmetric; }
 
+inline bool CConfig::GetTaylorGreen(void) { return TaylorGreen; }
+
 inline bool CConfig::GetAdaptBoundary(void) { return AdaptBoundary; }
 
 inline bool CConfig::GetPoissonSolver(void) { return PoissonSolver; }
@@ -2084,6 +2086,8 @@ inline unsigned short CConfig::GetKind_Averaging_Period(void) const { return Kin
 inline su2double CConfig::GetnAveragingPeriods(void) const { return nAveragingPeriods; }
 
 inline su2double CConfig::GetAveragingStartTime(void) const { return AveragingStartTime; }
+
+inline unsigned short CConfig::GetComm_Level(void) { return Comm_Level; }
 
 inline bool CConfig::GetTopology_Optimization(void) const { return topology_optimization; }
 
