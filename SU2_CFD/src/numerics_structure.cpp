@@ -67,6 +67,7 @@ CNumerics::CNumerics(void) {
   l = NULL;
   m = NULL;
 
+  using_uq = false;
 }
 
 CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
@@ -1899,7 +1900,7 @@ void CNumerics::SetRoe_Dissipation(const su2double Dissipation_i,
   
   const su2double Mean_Dissipation = 0.5*(Dissipation_i + Dissipation_j);
   const su2double Mean_Sensor = 0.5*(Sensor_i + Sensor_j);
-  
+
   if (roe_low_diss == FD || roe_low_diss == NTS) {
 
     Dissipation_ij = max(Min_Dissipation, Mean_Dissipation);
