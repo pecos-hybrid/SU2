@@ -2146,8 +2146,8 @@ void CSolver::CompleteComms(CGeometry *geometry,
     
   }
 
-  if (Restart_Vars != NULL) delete [] Restart_Vars;
-  if (Restart_Data != NULL) delete [] Restart_Data;
+  if (Restart_Vars != NULL) {delete [] Restart_Vars; Restart_Vars = NULL;}
+  if (Restart_Data != NULL) {delete [] Restart_Data; Restart_Data = NULL;}
 
   if (nRowCum_InletFile != NULL) {delete [] nRowCum_InletFile; nRowCum_InletFile = NULL;}
   if (nRow_InletFile    != NULL) {delete [] nRow_InletFile;    nRow_InletFile    = NULL;}

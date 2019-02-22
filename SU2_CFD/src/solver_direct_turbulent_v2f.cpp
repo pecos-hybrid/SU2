@@ -77,6 +77,10 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
   nVarGrad = nVar;
 
+  // are these correct?
+  nPrimVar = nVar;
+  nPrimVarGrad = nVar;
+
   /*--- Define geometry constants in the solver structure ---*/
   nDim = geometry->GetnDim();
   node = new CVariable*[nPoint];
@@ -281,13 +285,16 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   /*--- MPI solution ---*/
 
   //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
-  Set_MPI_Solution(geometry, config);
-  Set_MPI_Solution(geometry, config);
-  if (runtime_averaging) {
-    Set_MPI_Average_Solution(geometry, config);
-    Set_MPI_Average_Solution(geometry, config);
-  }
+  // Set_MPI_Solution(geometry, config);
+  // Set_MPI_Solution(geometry, config);
+  // if (runtime_averaging) {
+  //   Set_MPI_Average_Solution(geometry, config);
+  //   Set_MPI_Average_Solution(geometry, config);
+  // }
 
+  InitiateComms(geometry, config, SOLUTION_EDDY);
+  CompleteComms(geometry, config, SOLUTION_EDDY);
+  
   /*--- Initializate quantities for SlidingMesh Interface ---*/
 
   unsigned long iMarker;
