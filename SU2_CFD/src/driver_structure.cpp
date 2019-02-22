@@ -492,6 +492,11 @@ CDriver::CDriver(char* confFile,
 
   output = new COutput(config_container[ZONE_0]);
 
+  /*--- Register variables for output ---*/
+
+  output->RegisterAllVariables(config_container, nZone);
+
+
   /*--- Open the convergence history file ---*/
   ConvHist_file = NULL;
   ConvHist_file = new ofstream*[nZone];
