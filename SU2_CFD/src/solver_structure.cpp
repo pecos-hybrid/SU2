@@ -2819,17 +2819,28 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 
 		/*--- Total unsteady simulation time ---*/
 
-		if (config->GetDiscard_InFiles() == false) {
-		  if ((abs(config->GetCurrent_UnstTime() - Total_Time_) > EPS) &&
-		      (rank == MASTER_NODE)) {
-          cout << "Initial time set to the unsteady time from the restart file." << endl;
-		  }
-		  config->SetCurrent_UnstTime(Total_Time_);
-		}
-		else {
-			if ((config->GetCurrent_UnstTime() != Total_Time_) &&  (rank == MASTER_NODE))
-				cout <<"WARNING: Discarding the unsteady time in the solution file." << endl;
-		}
+    switch (config->GetUnsteady_Simulation()) {
+      case TIME_STEPPING:
+        if (config->GetDiscard_InFiles() == false) {
+          if ((abs(config->GetCurrent_UnstTime() - Total_Time_) > EPS) &&
+              (rank == MASTER_NODE)) {
+            cout << "Initial time set to the unsteady time from the restart file." << endl;
+          }
+          config->SetCurrent_UnstTime(Total_Time_);
+        } else {
+          if ((config->GetCurrent_UnstTime() != Total_Time_) &&  (rank == MASTER_NODE))
+            cout <<"WARNING: Discarding the unsteady time in the solution file." << endl;
+        }
+        break;
+      case DT_STEPPING_1ST: case DT_STEPPING_2ND:
+        /*-- This should eventually be replaced by the ability to load in custom unsteady times. ---*/
+        if (rank == MASTER_NODE && Total_Time_ > EPS) {
+          cout << "WARNING: Dual time-stepping does not read in the unsteady time from the" << endl;
+          cout << "input file. Dual time-stepping always calculates time as:" << endl;
+          cout << "    time = (external iteration number) * (timestep)" << endl;
+        }
+    }
+
 
 
 		/*--- The adjoint problem needs this information from the direct solution ---*/
@@ -2932,7 +2943,6 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
                           CConfig* config) {
 
-  // TODO: Check the consistency of the nondimensionalization.
   su2double time = config->GetCurrent_UnstTime();
 
   if (time > config->GetAveragingStartTime()) {
@@ -2949,7 +2959,7 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
      * values stored in the "Solution" are good values. ---*/
 
     su2double timescale;
-    const su2double dt = solver[FLOW_SOL]->node[0]->GetDelta_Time();
+    const su2double dt = config->GetDelta_UnstTimeND();
     const su2double N_T = config->GetnAveragingPeriods();
 
     assert(dt > 0);

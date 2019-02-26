@@ -5180,11 +5180,19 @@ public:
   su2double GetCurrent_UnstTime(void);
   
   /*!
+   * \brief If we are performing an unsteady simulation, this is the
+   *  value of current time (nondimensionalized)
+   * \return Value of the physical time in an unsteady simulation.
+   */
+  su2double GetCurrent_UnstTimeND(void);
+
+  /*!
    * \brief If we are performing an unsteady simulation, this adds to the
    * value of the current time.
    * \param[in] Amount of time to be added (usually one time step)
+   *            (in nondimensional units)
    */
-  void AddCurrent_UnstTime(su2double delta_time);
+  void AddCurrent_UnstTimeND(su2double delta_time);
 
   /*!
    * \brief If we are performing an unsteady simulation, set the
@@ -5192,6 +5200,13 @@ public:
    * \param[in] val_time - Value of the physical time in an unsteady simulation.
    */
   void SetCurrent_UnstTime(su2double val_time);
+
+  /*!
+   * \brief If we are performing an unsteady simulation, set the
+   *  value of current time (in nondimensional units);
+   * \param[in] val_time - Value of the nondimensional time in an unsteady simulation
+   */
+  void SetCurrent_UnstTimeND(su2double val_time);
 
   /*!
    * \brief Divide the rectbles and hexahedron.

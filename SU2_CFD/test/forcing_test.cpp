@@ -161,7 +161,9 @@ struct ForcingFixture {
     config = new CConfig(cfg_filename, SU2_CFD, iZone, nZone, nDim, VERB_NONE);
     std::remove(cfg_filename);
 
+    config->SetTime_Ref(1.0);
     config->SetCurrent_UnstTime(1.0);
+    config->SetDelta_UnstTimeND(1E-3);
     // Check that periodic length was set correctly in *.cfg file:
     su2double* periodic_length = config->GetHybrid_Forcing_Periodic_Length();
     assert(abs(periodic_length[0] - M_PI) < 1E-8);
@@ -208,7 +210,7 @@ BOOST_FIXTURE_TEST_CASE(ForcingTest, ForcingFixture) {
   forcing.ComputeForcingField(solver, geometry, config);
   const su2double* F = forcing.GetForcingVector(0);
   // Test values taken from CDP
-  const su2double dt = 1E-3;
+  const su2double dt = config->GetDelta_UnstTimeND();
   const su2double true_F[3] = {-2.5810564961917728E-005/dt,
                                -1.0608578335743336E-004/dt,
                                -2.2531677802402187E-004/dt};

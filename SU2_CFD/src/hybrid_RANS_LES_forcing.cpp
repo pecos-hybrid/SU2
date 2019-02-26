@@ -589,9 +589,8 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
          kind_time_marching == DT_STEPPING_1ST ||
          kind_time_marching == DT_STEPPING_2ND );
 
-  const su2double time = config->GetCurrent_UnstTime();
-  // XXX: Generalize this to both dual-time stepping and normal time-stepping
-  const su2double dt = solver[FLOW_SOL]->node[0]->GetDelta_Time();
+  const su2double time = config->GetCurrent_UnstTimeND();
+  const su2double dt = config->GetDelta_UnstTimeND();
   assert(time >= 0);
   assert(dt > 0);
 

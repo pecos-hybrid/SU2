@@ -380,7 +380,8 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
 
   CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
 
-  // TODO: Check the consistency of the nondimensionalization.
+  /*--- We assume that the averaging start time from the cfg file is
+   * dimensional ---*/
   const su2double time = config->GetCurrent_UnstTime();
 
   if (time > config->GetAveragingStartTime()) {
