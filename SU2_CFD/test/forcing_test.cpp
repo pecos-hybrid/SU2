@@ -161,8 +161,7 @@ struct ForcingFixture {
     config = new CConfig(cfg_filename, SU2_CFD, iZone, nZone, nDim, VERB_NONE);
     std::remove(cfg_filename);
 
-    config->SetTime_Ref(1.0);
-    config->SetCurrent_UnstTime(1.0);
+    config->SetCurrent_UnstTimeND(1.0);
     config->SetDelta_UnstTimeND(1E-3);
     // Check that periodic length was set correctly in *.cfg file:
     su2double* periodic_length = config->GetHybrid_Forcing_Periodic_Length();

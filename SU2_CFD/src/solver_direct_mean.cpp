@@ -17377,17 +17377,11 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
       assert(k_resolved >= 0);
 
-      if (k_total < tke_min) {
-        /*--- If the supposed "total" turbulence is negligible, don't do
-         * anything.  Otherwise, we could get NaNs from dividing by zero
-         * or very large numbers from dividing by very small numbers. ---*/
-        average_node[iPoint]->SetKineticEnergyRatio(1.0);
-      } else {
-        /*--- Allow unbalanced (negative) alpha values to go through ---*/
-        const su2double alpha = 1.0 - k_resolved / k_total;
-        average_node[iPoint]->SetKineticEnergyRatio(alpha);
-        assert(alpha == alpha);  // alpha should not be NaN
-      }
+      const su2double tke_lim = max(k_total, 1.0E-8);
+      const su2double a_kol = 1.0E-2; // XXX: We should actually get the viscous limit here
+      const su2double alpha = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
+      average_node[iPoint]->SetKineticEnergyRatio(alpha);
+      assert(alpha == alpha);  // alpha should not be NaN
     }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }

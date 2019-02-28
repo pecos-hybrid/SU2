@@ -648,7 +648,11 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double nu =
       solver[FLOW_SOL]->average_node[iPoint]->GetLaminarViscosity() / density;
 
-    const su2double Lsgs = ComputeLengthscale(alpha, ktot, tdr, nu);
+    const su2double V2F_CETA = 70;
+    const su2double FORCING_CL = 4;
+    su2double Lsgs = FORCING_CL * pow(alpha * ktot, 1.5) / tdr;
+    const su2double Lkol = V2F_CETA*pow(nu, 0.75)/pow(tdr, 0.25);
+    Lsgs = max(Lsgs, Lkol);
 
     // FIXME: I think this is equivalent to repo version of CDP,but
     // not consistent with paper description, except for orthogonal
@@ -729,21 +733,6 @@ su2double CHybridForcingTG0::ComputeScalingFactor(
   }
 
   return eta;
-}
-
-su2double CHybridForcingTG0::ComputeLengthscale(const su2double alpha,
-                                                const su2double k_total,
-                                                const su2double dissipation,
-                                                const su2double laminar_viscosity) const {
-
-  // TODO: Change responsibility of the lengthscale calculation back to
-  // the turbulence solver after agreement with CDP is established.
-  const su2double V2F_CETA = 70;
-  const su2double FORCING_CL = 4;
-
-  su2double Lsgs = FORCING_CL * pow(alpha * k_total, 1.5) / dissipation;
-  const su2double Lkol = V2F_CETA*pow(laminar_viscosity, 0.75)/pow(dissipation, 0.25);
-  return max(Lsgs, Lkol);
 }
 
 void CHybridForcingTG0::SetTGField(
