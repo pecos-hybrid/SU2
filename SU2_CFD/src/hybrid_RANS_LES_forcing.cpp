@@ -73,478 +73,11 @@ CHybridForcingAbstractBase::~CHybridForcingAbstractBase() {
 
 }
 
-CHybridForcingTGSF::CHybridForcingTGSF(const unsigned short nDim,
-                               const unsigned long nPoint,
-                               const unsigned long nPointDomain)
-  : CHybridForcingAbstractBase(nDim, nPoint, nPointDomain) {
-
-  node = NULL;
-  Gradient = NULL;
-
-  Smatrix = new su2double* [nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    Smatrix[iDim] = new su2double [nDim];
-
-  Cvector = new su2double* [nVarGrad];
-  for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
-    Cvector[iVar] = new su2double [nDim];
-}
-
-
-CHybridForcingTGSF::CHybridForcingTGSF(CGeometry* geometry, CConfig* config)
-  : CHybridForcingAbstractBase(geometry->GetnDim(),
-                               geometry->GetnPoint(),
-                               geometry->GetnPointDomain()) {
-
-  node = new su2double*[nPoint];
-  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-    node[iPoint] = new su2double[nVar];
-  }
-
-  Gradient = new su2double**[nPoint];
-  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-     Gradient[iPoint] = new su2double*[nVar];
-     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-       Gradient[iPoint][iVar] = new su2double[nDim];
-     }
-  }
-
-  Smatrix = new su2double* [nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    Smatrix[iDim] = new su2double [nDim];
-
-  Cvector = new su2double* [nVarGrad];
-  for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
-    Cvector[iVar] = new su2double [nDim];
-
-}
-
-CHybridForcingTGSF::~CHybridForcingTGSF() {
-
-  if (node != NULL) {
-    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-      delete [] node[iPoint];
-    }
-    delete [] node;
-  }
-
-  if (Gradient != NULL) {
-    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-       for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-         delete [] Gradient[iPoint][iVar];
-       }
-       delete [] Gradient[iPoint];
-    }
-    delete [] Gradient;
-  }
-
-  if (Smatrix != NULL) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      delete [] Smatrix[iDim];
-    delete [] Smatrix;
-  }
-
-  if (Cvector != NULL) {
-    for (unsigned short iVar = 0; iVar < nVarGrad; iVar++)
-      delete [] Cvector[iVar];
-    delete [] Cvector;
-  }
-
-}
-
-su2double CHybridForcingTGSF::ComputeScalingFactor(const su2double L,
-                                               const su2double P_F,
-                                               const su2double dt,
-                                               const su2double* b) {
-  const su2double A = 3;
-
-  su2double k_b = 0.0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    k_b += b[iDim]*b[iDim];
-  }
-  k_b /= A*A;
-
-  const su2double C_alpha = -1*min(P_F, 0.0)*k_b; // FIXME: If statements?
-
-  const su2double pi = atan(1.0)*4.0;
-  const su2double ax = 2*pi/L; // TODO: Check differences in ax, ay, az.
-  const su2double ay = 2*pi/L;
-  const su2double az = 2*pi/L;
-
-  const su2double C_P = 1.0; // FIXME: Not defined in model doc.
-  return C_P * sqrt(2*abs(C_alpha)*dt)/max(max(ax, ay), az);
-}
-
-void CHybridForcingTGSF::ComputeForcingField(CSolver** solver, CGeometry *geometry,
-                                         CConfig *config) {
-
-  const unsigned short kind_time_marching = config->GetUnsteady_Simulation();
-
-  if (kind_time_marching == TIME_STEPPING ||
-      kind_time_marching == DT_STEPPING_1ST ||
-      kind_time_marching == DT_STEPPING_2ND) {
-
-    // FIXME: Current UnstTime or Total UnstTime???
-    const su2double time = config->GetTotal_UnstTimeND();
-    const su2double dt = config->GetDelta_UnstTimeND();
-
-    /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
-
-    su2double b[nDim]; // Initial TG vortex field.
-    su2double h[nDim]; // Stream function from initial TG vortex field
-    su2double L[nDim]; // Length scales
-    su2double x[nDim]; // Position
-
-    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-
-      const su2double timescale =
-          solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-      /*--- This velocity retrieval works only for compressible ---*/
-      assert(config->GetKind_Regime() == COMPRESSIBLE);
-      const su2double* prim_vars =
-          solver[FLOW_SOL]->node[iPoint]->GetPrimitive();
-      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        /*--- Copy the values (and not the pointer), since we're changing them. ---*/
-        x[iDim] = geometry->node[iPoint]->GetCoord(iDim);
-        x[iDim] = TransformCoords(x[iDim], prim_vars[iDim+1], time, timescale);
-      }
-
-      /*--- Setup the TG vortex and its stream function ---*/
-
-      // TODO: The length scales are defined in three different places.
-      // Eliminate the repitition.
-      const su2double N_L = 4.0;
-      const su2double L_iso =
-          N_L*solver[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-      L[0] = L_iso; L[1] = L_iso; L[2] = L_iso;
-      SetTGField(x, L, b);
-      SetStreamFunc(x, L, h);
-
-      /*--- Compute the scaling factor for the TG vortex field ---*/
-
-      const su2double k_sgs = solver[TURB_SOL]->node[iPoint]->GetSolution(0);
-      // FIXME: Where is k_total stored?
-      const su2double k_total = k_sgs;
-      const su2double dissipation = solver[TURB_SOL]->node[iPoint]->GetSolution(1);
-      // FIXME: Where is average r_M stored?
-      const su2double resolution_adequacy = 1.0;
-      const su2double alpha = k_sgs / k_total;
-      const su2double density = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
-      const su2double laminar_viscosity =
-          solver[FLOW_SOL]->node[iPoint]->GetLaminarViscosity() / density;
-      const su2double P_F = GetTargetProduction(k_sgs, dissipation,
-                                                resolution_adequacy, alpha,
-                                                laminar_viscosity);
-      const su2double eta = ComputeScalingFactor(L_iso, P_F, dt, b);
-
-      /*--- Store eta*h so we can compute the derivatives ---*/
-
-      for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-        node[iPoint][iVar] = eta*h[iVar];
-      }
-    }
-
-    SetForcing_Gradient_LS(geometry, config);
-
-    // TODO: Decide if this should be passed in or stored in forcing class
-    su2double** g;
-    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        g[iPoint][iDim] = 0.0;
-        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-          for (unsigned short kDim = 0; kDim < nDim; kDim++) {
-            g[iPoint][iDim] +=
-              LeviCivita[iDim][jDim][kDim]*Gradient[iPoint][kDim][jDim];
-          }
-        }
-      }
-    }
-  } else {
-    SU2_MPI::Error("Hybrid forcing has not been set up for steady flows.",
-                   CURRENT_FUNCTION);
-  }
-
-}
-
-void CHybridForcingTGSF::SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config) {
-
-  unsigned short iVar, iDim, jDim, iNeigh;
-  unsigned long iPoint, jPoint;
-  su2double *Coord_i, *Coord_j, r11, r12, r13, r22, r23, r23_a,
-  r23_b, r33, weight, product, z11, z12, z13, z22, z23, z33, detR2;
-  bool singular;
-
-  assert(node != NULL);
-  assert(Gradient != NULL);
-
-  /*--- Loop over points of the grid ---*/
-
-  for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
-
-    /*--- Set the value of the singular ---*/
-    singular = false;
-
-    /*--- Get coordinates ---*/
-
-    Coord_i = geometry->node[iPoint]->GetCoord();
-
-    /*--- Get variables from array ---*/
-
-    su2double* StreamFunc_i = node[iPoint];
-
-    /*--- Inizialization of variables ---*/
-
-    for (iVar = 0; iVar < nVarGrad; iVar++)
-      for (iDim = 0; iDim < nDim; iDim++)
-        Cvector[iVar][iDim] = 0.0;
-
-    r11 = 0.0; r12 = 0.0;   r13 = 0.0;    r22 = 0.0;
-    r23 = 0.0; r23_a = 0.0; r23_b = 0.0;  r33 = 0.0;
-
-//    AD::StartPreacc();
-//    AD::SetPreaccIn(PrimVar_i, nPrimVarGrad);
-//    AD::SetPreaccIn(Coord_i, nDim);
-
-    for (iNeigh = 0; iNeigh < geometry->node[iPoint]->GetnPoint(); iNeigh++) {
-      jPoint = geometry->node[iPoint]->GetPoint(iNeigh);
-      Coord_j = geometry->node[jPoint]->GetCoord();
-
-      su2double* StreamFunc_j = node[jPoint];
-
-//      AD::SetPreaccIn(Coord_j, nDim);
-//      AD::SetPreaccIn(PrimVar_j, nPrimVarGrad);
-
-      weight = 0.0;
-      for (iDim = 0; iDim < nDim; iDim++)
-        weight += (Coord_j[iDim]-Coord_i[iDim])*(Coord_j[iDim]-Coord_i[iDim]);
-
-      /*--- Sumations for entries of upper triangular matrix R ---*/
-
-      if (weight != 0.0) {
-
-        r11 += (Coord_j[0]-Coord_i[0])*(Coord_j[0]-Coord_i[0])/weight;
-        r12 += (Coord_j[0]-Coord_i[0])*(Coord_j[1]-Coord_i[1])/weight;
-        r22 += (Coord_j[1]-Coord_i[1])*(Coord_j[1]-Coord_i[1])/weight;
-
-        if (nDim == 3) {
-          r13 += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
-          r23_a += (Coord_j[1]-Coord_i[1])*(Coord_j[2]-Coord_i[2])/weight;
-          r23_b += (Coord_j[0]-Coord_i[0])*(Coord_j[2]-Coord_i[2])/weight;
-          r33 += (Coord_j[2]-Coord_i[2])*(Coord_j[2]-Coord_i[2])/weight;
-        }
-
-        /*--- Entries of c:= transpose(A)*b ---*/
-
-        for (iVar = 0; iVar < nVarGrad; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Cvector[iVar][iDim] += (Coord_j[iDim]-Coord_i[iDim])*(StreamFunc_j[iVar]-StreamFunc_i[iVar])/weight;
-
-      }
-
-    }
-
-    /*--- Entries of upper triangular matrix R ---*/
-
-    if (r11 >= 0.0) r11 = sqrt(r11); else r11 = 0.0;
-    if (r11 != 0.0) r12 = r12/r11; else r12 = 0.0;
-    if (r22-r12*r12 >= 0.0) r22 = sqrt(r22-r12*r12); else r22 = 0.0;
-
-    if (nDim == 3) {
-      if (r11 != 0.0) r13 = r13/r11; else r13 = 0.0;
-      if ((r22 != 0.0) && (r11*r22 != 0.0)) r23 = r23_a/r22 - r23_b*r12/(r11*r22); else r23 = 0.0;
-      if (r33-r23*r23-r13*r13 >= 0.0) r33 = sqrt(r33-r23*r23-r13*r13); else r33 = 0.0;
-    }
-
-    /*--- Compute determinant ---*/
-
-    if (nDim == 2) detR2 = (r11*r22)*(r11*r22);
-    else detR2 = (r11*r22*r33)*(r11*r22*r33);
-
-    /*--- Detect singular matrices ---*/
-
-    if (abs(detR2) <= EPS) { detR2 = 1.0; singular = true; }
-
-    /*--- S matrix := inv(R)*traspose(inv(R)) ---*/
-
-    if (singular) {
-      for (iDim = 0; iDim < nDim; iDim++)
-        for (jDim = 0; jDim < nDim; jDim++)
-          Smatrix[iDim][jDim] = 0.0;
-    }
-    else {
-      if (nDim == 2) {
-        Smatrix[0][0] = (r12*r12+r22*r22)/detR2;
-        Smatrix[0][1] = -r11*r12/detR2;
-        Smatrix[1][0] = Smatrix[0][1];
-        Smatrix[1][1] = r11*r11/detR2;
-      }
-      else {
-        z11 = r22*r33; z12 = -r12*r33; z13 = r12*r23-r13*r22;
-        z22 = r11*r33; z23 = -r11*r23; z33 = r11*r22;
-        Smatrix[0][0] = (z11*z11+z12*z12+z13*z13)/detR2;
-        Smatrix[0][1] = (z12*z22+z13*z23)/detR2;
-        Smatrix[0][2] = (z13*z33)/detR2;
-        Smatrix[1][0] = Smatrix[0][1];
-        Smatrix[1][1] = (z22*z22+z23*z23)/detR2;
-        Smatrix[1][2] = (z23*z33)/detR2;
-        Smatrix[2][0] = Smatrix[0][2];
-        Smatrix[2][1] = Smatrix[1][2];
-        Smatrix[2][2] = (z33*z33)/detR2;
-      }
-    }
-
-    /*--- Computation of the gradient: S*c ---*/
-    for (iVar = 0; iVar < nVarGrad; iVar++) {
-      for (iDim = 0; iDim < nDim; iDim++) {
-        product = 0.0;
-        for (jDim = 0; jDim < nDim; jDim++) {
-          product += Smatrix[iDim][jDim]*Cvector[iVar][jDim];
-        }
-        Gradient[iPoint][iVar][iDim] = product;
-      }
-    }
-
-//    AD::SetPreaccOut(node[iPoint]->GetGradient_Primitive(), nPrimVarGrad, nDim);
-//    AD::EndPreacc();
-  }
-
-  Set_MPI_Forcing_Gradient(geometry, config);
-
-}
-
-void CHybridForcingTGSF::Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *config) {
-//  unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
-//  unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
-//  su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
-//  *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
-//
-//  su2double **Gradient = new su2double* [nPrimVarGrad];
-//  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-//    Gradient[iVar] = new su2double[nDim];
-//
-//#ifdef HAVE_MPI
-//  int send_to, receive_from;
-//  SU2_MPI::Status status;
-//#endif
-//
-//  for (iMarker = 0; iMarker < nMarker; iMarker++) {
-//
-//    if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
-//        (config->GetMarker_All_SendRecv(iMarker) > 0)) {
-//
-//      MarkerS = iMarker;  MarkerR = iMarker+1;
-//
-//#ifdef HAVE_MPI
-//      send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
-//      receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
-//#endif
-//
-//      nVertexS = geometry->nVertex[MarkerS];  nVertexR = geometry->nVertex[MarkerR];
-//      nBufferS_Vector = nVertexS*nPrimVarGrad*nDim;        nBufferR_Vector = nVertexR*nPrimVarGrad*nDim;
-//
-//      /*--- Allocate Receive and send buffers  ---*/
-//      Buffer_Receive_Gradient = new su2double [nBufferR_Vector];
-//      Buffer_Send_Gradient = new su2double[nBufferS_Vector];
-//
-//      /*--- Copy the solution old that should be sended ---*/
-//      for (iVertex = 0; iVertex < nVertexS; iVertex++) {
-//        iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
-//        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-//          for (iDim = 0; iDim < nDim; iDim++)
-//            Buffer_Send_Gradient[iDim*nPrimVarGrad*nVertexS+iVar*nVertexS+iVertex] = node[iPoint]->GetGradient_Primitive(iVar, iDim);
-//      }
-//
-//#ifdef HAVE_MPI
-//
-//      /*--- Send/Receive information using Sendrecv ---*/
-//      SU2_MPI::Sendrecv(Buffer_Send_Gradient, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
-//                        Buffer_Receive_Gradient, nBufferR_Vector, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
-//
-//#else
-//
-//      /*--- Receive information without MPI ---*/
-//      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
-//        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-//          for (iDim = 0; iDim < nDim; iDim++)
-//            Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] = Buffer_Send_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-//      }
-//
-//#endif
-//
-//      /*--- Deallocate send buffer ---*/
-//      delete [] Buffer_Send_Gradient;
-//
-//      /*--- Do the coordinate transformation ---*/
-//      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
-//
-//        /*--- Find point and its type of transformation ---*/
-//        iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
-//        iPeriodic_Index = geometry->vertex[MarkerR][iVertex]->GetRotation_Type();
-//
-//        /*--- Retrieve the supplied periodic information. ---*/
-//        angles = config->GetPeriodicRotation(iPeriodic_Index);
-//
-//        /*--- Store angles separately for clarity. ---*/
-//        theta    = angles[0];   phi    = angles[1];     psi    = angles[2];
-//        cosTheta = cos(theta);  cosPhi = cos(phi);      cosPsi = cos(psi);
-//        sinTheta = sin(theta);  sinPhi = sin(phi);      sinPsi = sin(psi);
-//
-//        /*--- Compute the rotation matrix. Note that the implicit
-//         ordering is rotation about the x-axis, y-axis,
-//         then z-axis. Note that this is the transpose of the matrix
-//         used during the preprocessing stage. ---*/
-//        rotMatrix[0][0] = cosPhi*cosPsi;    rotMatrix[1][0] = sinTheta*sinPhi*cosPsi - cosTheta*sinPsi;     rotMatrix[2][0] = cosTheta*sinPhi*cosPsi + sinTheta*sinPsi;
-//        rotMatrix[0][1] = cosPhi*sinPsi;    rotMatrix[1][1] = sinTheta*sinPhi*sinPsi + cosTheta*cosPsi;     rotMatrix[2][1] = cosTheta*sinPhi*sinPsi - sinTheta*cosPsi;
-//        rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
-//
-//        /*--- Copy conserved variables before performing transformation. ---*/
-//        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-//          for (iDim = 0; iDim < nDim; iDim++)
-//            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-//
-//        /*--- Need to rotate the gradients for all conserved variables. ---*/
-//        for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-//          if (nDim == 2) {
-//            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-//            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-//          }
-//          else {
-//            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-//            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-//            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-//          }
-//        }
-//
-//        /*--- Store the received information ---*/
-//        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-//          for (iDim = 0; iDim < nDim; iDim++)
-//            node[iPoint]->SetGradient_Primitive(iVar, iDim, Gradient[iVar][iDim]);
-//
-//      }
-//
-//      /*--- Deallocate receive buffer ---*/
-//      delete [] Buffer_Receive_Gradient;
-//
-//    }
-//
-//  }
-//
-//  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-//    delete [] Gradient[iVar];
-//  delete [] Gradient;
-
-}
-
-const su2double* CHybridForcingTGSF::GetForcingVector(unsigned long iPoint) {
-  // FIXME: Have this return valid forcing
-  // Can't b/c valid forcing not stored!
-  return NULL;
-}
-
 CHybridForcingTG0::CHybridForcingTG0(const unsigned short nDim,
                                const unsigned long nPoint,
                                const unsigned long nPointDomain)
-  : CHybridForcingAbstractBase(nDim, nPoint, nPointDomain) {
+    : CHybridForcingAbstractBase(nDim, nPoint, nPointDomain),
+      forcing_scale(4), C_F(8) {
 
   node = new su2double*[nPoint];
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
@@ -555,9 +88,11 @@ CHybridForcingTG0::CHybridForcingTG0(const unsigned short nDim,
 
 
 CHybridForcingTG0::CHybridForcingTG0(CGeometry* geometry, CConfig* config)
-  : CHybridForcingAbstractBase(geometry->GetnDim(),
-                               geometry->GetnPoint(),
-                               geometry->GetnPointDomain()) {
+    : CHybridForcingAbstractBase(geometry->GetnDim(),
+                                 geometry->GetnPoint(),
+                                 geometry->GetnPointDomain()),
+      forcing_scale(config->GetHybrid_Forcing_Vortex_Length()),
+      C_F(config->GetHybrid_Forcing_Strength()) {
 
   node = new su2double*[nPoint];
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
@@ -607,9 +142,6 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
-    const su2double timescale =
-      solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-
     /*--- This velocity retrieval works only for compressible ---*/
     assert(config->GetKind_Regime() == COMPRESSIBLE);
     const su2double* prim_vars = solver[FLOW_SOL]->node[iPoint]->GetPrimitive();
@@ -619,10 +151,8 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       /*--- Copy the values (and not the pointer), since we're changing them. ---*/
       x[iDim] = geometry->node[iPoint]->GetCoord(iDim);
-      x[iDim] = TransformCoords(x[iDim], prim_mean[iDim+1], time, timescale);
+      x[iDim] = TransformCoords(x[iDim], prim_mean[iDim+1], time);
     }
-    // XXX: This is a hack to make the forcing periodic in the y direction
-    x[1] -= 1;
 
     /*--- Setup the TG vortex ---*/
 
@@ -636,7 +166,6 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double tdr  = max(solver[TURB_SOL]->node[iPoint]->GetSolution(1), TDR_MIN);
     const su2double v2 = max(solver[TURB_SOL]->node[iPoint]->GetSolution(2), V2_MIN);
 
-
     // ratio of modeled to total TKE
     const su2double alpha = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
 
@@ -648,9 +177,10 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double nu =
       solver[FLOW_SOL]->average_node[iPoint]->GetLaminarViscosity() / density;
 
+    // TODO: Move length, timescale calculations to CTurbKEVariable class,
+    // and keep track of all three timescales, plus alpha_kol
     const su2double V2F_CETA = 70;
-    const su2double FORCING_CL = 4;
-    su2double Lsgs = FORCING_CL * pow(alpha * ktot, 1.5) / tdr;
+    Lsgs = forcing_scale * pow(alpha * ktot, 1.5) / tdr;
     const su2double Lkol = V2F_CETA*pow(nu, 0.75)/pow(tdr, 0.25);
     Lsgs = max(Lsgs, Lkol);
 
@@ -710,26 +240,15 @@ su2double CHybridForcingTG0::ComputeScalingFactor(
 
   su2double eta = 0.0;
 
-  // TODO: Clean this mess up once agreement with CDP is established.
+  // TODO: Compare this with Sigfried's improved version once channel
+  // validation is successful.
   if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
-    su2double arg = sqrt(resolution_adequacy) - 1;
-    if (arg < 0) {
-      arg = 1.0 - 1.0/sqrt(resolution_adequacy);
-    }
-    su2double a_sign = std::tanh(arg);
-    su2double Sa = a_sign;
-
-    if (a_sign < 0) {
-      if (alpha <= alpha_kol) {
-        Sa -= (1.0 + alpha_kol - alpha)*a_sign;
-      }
+    const su2double Sr = std::tanh(1.0 - 1.0/sqrt(resolution_adequacy));
+    if (alpha <= alpha_kol) {
+      eta = -Ftar * Sr * (alpha - alpha_kol);
     } else {
-      if (alpha >= 1.0) {
-        Sa -= alpha*a_sign;
-      }
+      eta = -Ftar * Sr;
     }
-
-    eta = -Ftar*Sa;
   }
 
   return eta;
@@ -740,9 +259,7 @@ void CHybridForcingTG0::SetTGField(
                 const su2double* Lmesh, const su2double* D,
                 const su2double dwall, su2double* h) {
 
-  const su2double pi = atan(1.0)*4.0;
-  //const su2double A = 1.0, B = -1./3., C = -2./3.;
-  const su2double A = 1./3., B = -1.0, C = 2./3.; // matches cdp
+  const su2double A = 1./3., B = -1.0, C = 2./3.;
   su2double a[3];
 
   for (unsigned int ii=0; ii<3; ii++) {
@@ -751,19 +268,14 @@ void CHybridForcingTG0::SetTGField(
 
     if (D[ii] > 0.0) {
       const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
-      a[ii] = pi/(D[ii]/denom);
+      a[ii] = M_PI/(D[ii]/denom);
     } else {
-      a[ii] = pi/elllim;
+      a[ii] = M_PI/elllim;
     }
   }
 
   h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
   h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
   h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
-
-  // // CHANNEL HACK
-  // h[0] = A * cos(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-pi/2);
-  // h[1] = B * sin(a[0]*x[0]) * cos(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-pi/2);
-  // h[2] = C * sin(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * cos(a[2]*x[2]-pi/2);
 
 }

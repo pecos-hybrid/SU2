@@ -524,6 +524,8 @@ private:
   bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
   su2double *Hybrid_Forcing_Periodic_Length;  /*!< \brief Domain lengths in periodic directions for hybrid forcing */
   su2double *default_hybrid_periodic_length;  /*!< \brief Default for Hybrid_Forcing_Periodic_Length */
+  su2double Hybrid_Forcing_Strength,  /*!< \brief An overall scaling coefficient for the periodic forcing .*/
+            Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
@@ -3791,6 +3793,22 @@ public:
    * \return Pointer to array of length 3
    */
   su2double* GetHybrid_Forcing_Periodic_Length(void);
+
+  /*!
+   * \brief Checks if a hybrid LES/RANS method should be forced.
+   * \return True if the hybrid RANS/LES model is to be forced.
+   */
+  su2double GetHybrid_Forcing_Strength(void) const;
+
+  /*!
+   * \brief Get the size of vortices to be used for forcing.
+   *
+   * The forcing vortices will be of period N*L, where N is the forcing
+   * vortex length and L is the turbulent lengthscale.
+   *
+   * \return A constant representing the size of the forcing vortices.
+   */
+  su2double GetHybrid_Forcing_Vortex_Length(void) const;
 
   /*!
    * \brief Get the kind of subgrid energy-transfer model for hybrid

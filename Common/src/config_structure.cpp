@@ -657,6 +657,12 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
                        Hybrid_Forcing_Periodic_Length,
                        default_hybrid_periodic_length);
 
+  /*!\brief HYBRID_FORCING_STRENGTH  \n DESCRIPTION: An overall scaling coefficient for the periodic forcing \ingroup Config*/
+  addDoubleOption("HYBRID_FORCING_STRENGTH", Hybrid_Forcing_Strength, 8);
+
+  /*!\brief HYBRID_FORCING_VORTEX_LENGTH  \n DESCRIPTION: The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. \ingroup Config*/
+  addDoubleOption("HYBRID_FORCING_VORTEX_LENGTH", Hybrid_Forcing_Vortex_Length, 4);
+
   /*! \brief SUBGRID_ENERGY_TRANSFER_MODEL \n DESCRIPTION: Specify the subgrid energy transfer model to be used with the model-split hybrid RANS/LES model. \n Options: see \link Hybrid_SGET_Model_Map \endlink \n DEFAULT: M43 \ingroup Config */
   addEnumOption("SUBGRID_ENERGY_TRANSFER_MODEL", Kind_Hybrid_SGET_Model, SGET_Model_Map, M43_MODEL);
 

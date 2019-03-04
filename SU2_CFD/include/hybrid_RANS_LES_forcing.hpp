@@ -70,8 +70,8 @@ class CHybridForcingAbstractBase {
    * \param[in] val_time - The current time
    * \return A component of the shifted coordinates.
    */
-  su2double TransformCoords(const su2double x, const su2double mean_velocity,
-                            const su2double time, const su2double timescale);
+  su2double TransformCoords(su2double x, su2double mean_velocity,
+                            su2double time) const;
 
 
   /**
@@ -94,9 +94,9 @@ class CHybridForcingAbstractBase {
 
 
 /*!
- * \class CHybridForcingTGSF
+ * \class CHybridForcingTG0
  * \brief Class for defining the forcing needed in a hybrid RANS/LES model
- * \author C. Pederson
+ * \author T. Oliver, C. Pederson
  * \version 5.0.0 "Raven"
  *
  * This class could inherit from CNumerics or CSolver, but there's a
@@ -106,55 +106,7 @@ class CHybridForcingAbstractBase {
  *
  * Ideally, both would inherit from the same abstract interfaces,
  * but that would require fundamental restructuring of the code.
- *
- * This class implements the Taylor-Green, Stream Function (TGSF)
- * approach, which provides an analytically divergence-free forcing
- * field.
  */
-
-class CHybridForcingTGSF : public CHybridForcingAbstractBase{
- public:
-  CHybridForcingTGSF(const unsigned short nDim, const unsigned long nPoint,
-                     const unsigned long nPointDomain);
-  CHybridForcingTGSF(CGeometry* geometry, CConfig* config);
-  ~CHybridForcingTGSF();
-
-  /**
-   * \brief Evaluate baseline TG field at point.
-   *
-   * This method is only left public for testing purposes. It is usually
-   * not necessary to call it manually.
-   *
-   * \param[in]  x - Forcing coordinates (i.e., result of TransformCoords)
-   * \param[in]  L - Length scales
-   * \param[out] b - TG velocity at point.
-   */
-  void SetTGField(const su2double* x, const su2double* L, su2double* b);
-
-  void SetStreamFunc(const su2double* x, const su2double* L, su2double* h);
-  void SetForcing_Gradient_LS(CGeometry *geometry, CConfig *config);
-  void Set_MPI_Forcing_Gradient(CGeometry *geometry, CConfig *config);
-  su2double GetTargetProduction(const su2double k_sgs,
-                                const su2double dissipation,
-                                const su2double resolution_adequacy,
-                                const su2double alpha,
-                                const su2double laminar_viscosity);
-  su2double ComputeScalingFactor(const su2double L, const su2double P_F,
-                                 const su2double dt, const su2double* b);
-  void ComputeForcingField(CSolver** solver, CGeometry *geometry,
-                           CConfig *config);
-  const su2double* GetForcingVector(unsigned long iPoint);
-
- protected:
-
-  su2double** node;
-  su2double*** Gradient;       /*!< \brief The indexing is Gradient[iPoint][iVar][iDim] */
-
-  su2double **Smatrix,  /*!< \brief Auxiliary structure for computing gradients by least-squares */
-  **Cvector;            /*!< \brief Auxiliary structure for computing gradients by least-squares */
-
-};
-
 class CHybridForcingTG0 : public CHybridForcingAbstractBase{
  public:
   CHybridForcingTG0(const unsigned short nDim, const unsigned long nPoint,
@@ -195,6 +147,9 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
   const su2double* GetForcingVector(unsigned long iPoint);
 
  protected:
+
+  const su2double forcing_scale;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing scale and L is the turbulent length scale. */
+  const su2double C_F;  /*!< \brief The overall strength of the forcing. */
 
   su2double** node;
   su2double*** Gradient;       /*!< \brief The indexing is Gradient[iPoint][iVar][iDim] */

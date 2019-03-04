@@ -34,58 +34,13 @@
 inline su2double CHybridForcingAbstractBase::TransformCoords(
                                                const su2double x,
                                                const su2double mean_velocity,
-                                               const su2double time,
-                                               const su2double timescale) {
-  const su2double N_T = 4.0;
-  //return x + mean_velocity*fmod(time, N_T*timescale);
+                                               const su2double time) const {
   return x + mean_velocity*time;
 }
-
-inline void CHybridForcingTGSF::SetTGField(const su2double* x,
-                                           const su2double* L,
-                                           su2double* b) {
-  const su2double pi = atan(1.0)*4.0;
-  const int A = 3, B = -1, C = -2;
-  const su2double a[3] = {2*pi/L[0], 2*pi/L[1], 2*pi/L[2]};
-
-  b[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
-  b[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
-  b[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
-}
-
-inline void CHybridForcingTGSF::SetStreamFunc(const su2double* x,
-                                              const su2double* L,
-                                              su2double* h) {
-  const su2double pi = atan(1.0)*4.0;
-  const int D = -1, E = 1, F = -2;
-  const su2double a[3] = {2*pi/L[0], 2*pi/L[1], 2*pi/L[2]};
-
-  h[0] = D * sin(a[0]*x[0]) * cos(a[1]*x[1]) * cos(a[2]*x[2]);
-  h[1] = E * cos(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
-  h[2] = F * cos(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
-}
-
-
-inline su2double CHybridForcingTGSF::GetTargetProduction(const su2double k_sgs,
-                                                         const su2double dissipation,
-                                                         const su2double resolution_adequacy,
-                                                         const su2double alpha,
-                                                         const su2double laminar_viscosity) {
-  const su2double C_kol = 10.0;
-  const su2double alpha_kol =
-      C_kol*alpha*sqrt(laminar_viscosity * dissipation)/k_sgs;
-  const su2double S_r = tanh(log(resolution_adequacy));
-  const su2double D_r = (1.0 + alpha_kol - alpha) * min(S_r, 0.0);
-  const su2double F_r = alpha * max(S_r, 0.0);
-  return -dissipation*(S_r - D_r - F_r);
-}
-
-
 
 inline su2double CHybridForcingTG0::GetTargetProduction(const su2double v2,
                                                         const su2double Tsgs,
                                                         const su2double alpha) {
-  const su2double CF=8.0; // TODO: Make user setable
-  return CF*std::sqrt(alpha*v2)/Tsgs;
+  return C_F * std::sqrt(alpha*v2)/Tsgs;
 }
 
