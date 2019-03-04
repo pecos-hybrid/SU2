@@ -40,7 +40,60 @@ inline su2double CHybridForcingAbstractBase::TransformCoords(
 
 inline su2double CHybridForcingTG0::GetTargetProduction(const su2double v2,
                                                         const su2double Tsgs,
-                                                        const su2double alpha) {
+                                                        const su2double alpha) const {
   return C_F * std::sqrt(alpha*v2)/Tsgs;
+}
+
+inline const su2double* CHybridForcingTG0::GetForcingVector(unsigned long iPoint) const {
+  return node[iPoint];
+}
+
+inline su2double CHybridForcingTG0::ComputeScalingFactor(
+                     const su2double Ftar,
+                     const su2double resolution_adequacy,
+                     const su2double alpha,
+                     const su2double alpha_kol,
+                     const su2double PFtest) const {
+
+  su2double eta = 0.0;
+
+  // TODO: Compare this with Sigfried's improved version once channel
+  // validation is successful.
+  if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
+    const su2double Sr = std::tanh(1.0 - 1.0/sqrt(resolution_adequacy));
+    if (alpha <= alpha_kol) {
+      eta = -Ftar * Sr * (alpha - alpha_kol);
+    } else {
+      eta = -Ftar * Sr;
+    }
+  }
+
+  return eta;
+}
+
+inline void CHybridForcingTG0::SetTGField(
+                const su2double* x, const su2double Lsgs,
+                const su2double* Lmesh, const su2double* D,
+                const su2double dwall, su2double* h) const {
+
+  const su2double A = 1./3., B = -1.0, C = 2./3.;
+  su2double a[3];
+
+  for (unsigned int ii=0; ii<3; ii++) {
+    const su2double ell = std::min(Lsgs, dwall);
+    const su2double elllim = std::max(ell, 2.0*Lmesh[ii]);
+
+    if (D[ii] > 0.0) {
+      const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
+      a[ii] = M_PI/(D[ii]/denom);
+    } else {
+      a[ii] = M_PI/elllim;
+    }
+  }
+
+  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
+  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
+  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
+
 }
 

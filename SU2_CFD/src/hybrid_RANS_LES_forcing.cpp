@@ -40,37 +40,9 @@ CHybridForcingAbstractBase::CHybridForcingAbstractBase(
                               const unsigned long nPointDomain)
   : nDim(nDim), nVar(nDim), nVarGrad(nDim),
     nPoint(nPoint), nPointDomain(nPointDomain) {
-
-  LeviCivita = new int**[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    LeviCivita[iDim] = new int*[nDim];
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      LeviCivita[iDim][jDim] = new int[nDim];
-      for (unsigned short kDim = 0; kDim < nDim; kDim++) {
-        LeviCivita[iDim][jDim][kDim] = 0;
-      }
-    }
-  }
-  /*--- These could be assigned programmatically, but the straightforward
-   * way is less error-prone. ---*/
-  LeviCivita[0][1][2] = 1;
-  LeviCivita[1][2][0] = 1;
-  LeviCivita[2][0][1] = 1;
-  LeviCivita[0][2][1] = -1;
-  LeviCivita[2][1][0] = -1;
-  LeviCivita[1][0][2] = -1;
 }
 
 CHybridForcingAbstractBase::~CHybridForcingAbstractBase() {
-
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      delete [] LeviCivita[iDim][jDim];
-    }
-    delete [] LeviCivita[iDim];
-  }
-  delete [] LeviCivita;
-
 }
 
 CHybridForcingTG0::CHybridForcingTG0(const unsigned short nDim,
@@ -87,7 +59,7 @@ CHybridForcingTG0::CHybridForcingTG0(const unsigned short nDim,
 }
 
 
-CHybridForcingTG0::CHybridForcingTG0(CGeometry* geometry, CConfig* config)
+CHybridForcingTG0::CHybridForcingTG0(CGeometry* geometry, const CConfig* config)
     : CHybridForcingAbstractBase(geometry->GetnDim(),
                                  geometry->GetnPoint(),
                                  geometry->GetnPointDomain()),
@@ -225,57 +197,4 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     }
 
   } // end loop over points
-}
-
-const su2double* CHybridForcingTG0::GetForcingVector(unsigned long iPoint) {
-  return node[iPoint];
-}
-
-su2double CHybridForcingTG0::ComputeScalingFactor(
-                     const su2double Ftar,
-                     const su2double resolution_adequacy,
-                     const su2double alpha,
-                     const su2double alpha_kol,
-                     const su2double PFtest) {
-
-  su2double eta = 0.0;
-
-  // TODO: Compare this with Sigfried's improved version once channel
-  // validation is successful.
-  if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
-    const su2double Sr = std::tanh(1.0 - 1.0/sqrt(resolution_adequacy));
-    if (alpha <= alpha_kol) {
-      eta = -Ftar * Sr * (alpha - alpha_kol);
-    } else {
-      eta = -Ftar * Sr;
-    }
-  }
-
-  return eta;
-}
-
-void CHybridForcingTG0::SetTGField(
-                const su2double* x, const su2double Lsgs,
-                const su2double* Lmesh, const su2double* D,
-                const su2double dwall, su2double* h) {
-
-  const su2double A = 1./3., B = -1.0, C = 2./3.;
-  su2double a[3];
-
-  for (unsigned int ii=0; ii<3; ii++) {
-    const su2double ell = std::min(Lsgs, dwall);
-    const su2double elllim = std::max(ell, 2.0*Lmesh[ii]);
-
-    if (D[ii] > 0.0) {
-      const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
-      a[ii] = M_PI/(D[ii]/denom);
-    } else {
-      a[ii] = M_PI/elllim;
-    }
-  }
-
-  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
-  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
-  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
-
 }

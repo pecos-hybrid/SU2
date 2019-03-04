@@ -54,9 +54,9 @@ class CSolver;
  */
 class CHybridForcingAbstractBase {
  public:
-  CHybridForcingAbstractBase(const unsigned short nDim,
-                             const unsigned long nPoint,
-                             const unsigned long nPointDomain);
+  CHybridForcingAbstractBase(unsigned short nDim,
+                             unsigned long nPoint,
+                             unsigned long nPointDomain);
   virtual ~CHybridForcingAbstractBase();
 
   /**
@@ -80,7 +80,7 @@ class CHybridForcingAbstractBase {
   virtual void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                                    CConfig *config) = 0;
 
-  virtual const su2double* GetForcingVector(unsigned long iPoint) = 0;
+  virtual const su2double* GetForcingVector(unsigned long iPoint) const = 0;
 
  protected:
   const unsigned short nDim,   /*!< \brief Number of dimensions of the problem. */
@@ -88,8 +88,6 @@ class CHybridForcingAbstractBase {
   nVarGrad;                    /*!< \brief Number of variables for deallocating the LS Cvector. */
   const unsigned long nPoint,  /*!< \brief Number of points of the computational grid. */
   nPointDomain;                /*!< \brief Number of points of the computational grid. */
-
-  int*** LeviCivita;    /*!< \brief The alternating or permutation tensor. */
 };
 
 
@@ -109,9 +107,9 @@ class CHybridForcingAbstractBase {
  */
 class CHybridForcingTG0 : public CHybridForcingAbstractBase{
  public:
-  CHybridForcingTG0(const unsigned short nDim, const unsigned long nPoint,
-                     const unsigned long nPointDomain);
-  CHybridForcingTG0(CGeometry* geometry, CConfig* config);
+  CHybridForcingTG0(unsigned short nDim, unsigned long nPoint,
+                    unsigned long nPointDomain);
+  CHybridForcingTG0(CGeometry* geometry, const CConfig* config);
   ~CHybridForcingTG0();
 
   /**
@@ -127,24 +125,24 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
    * \param[in]  dwall - Distance to nearest wall
    * \param[out] b - TG velocity at point.
    */
-  void SetTGField(const su2double* x, const su2double Lsgs,
+  void SetTGField(const su2double* x, su2double Lsgs,
                   const su2double* Lmesh, const su2double* D,
-                  const su2double dwall, su2double* h);
+                  su2double dwall, su2double* h) const;
 
-  su2double GetTargetProduction(const su2double v2,
-                                const su2double T,
-                                const su2double alpha);
+  su2double GetTargetProduction(su2double v2,
+                                su2double T,
+                                su2double alpha) const;
 
-  su2double ComputeScalingFactor(const su2double Ftar,
-                                 const su2double resolution_adequacy,
-                                 const su2double alpha,
-                                 const su2double alpha_kol,
-                                 const su2double PFtest);
+  su2double ComputeScalingFactor(su2double Ftar,
+                                 su2double resolution_adequacy,
+                                 su2double alpha,
+                                 su2double alpha_kol,
+                                 su2double PFtest) const;
 
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                            CConfig *config);
 
-  const su2double* GetForcingVector(unsigned long iPoint);
+  const su2double* GetForcingVector(unsigned long iPoint) const;
 
  protected:
 
@@ -152,11 +150,6 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
   const su2double C_F;  /*!< \brief The overall strength of the forcing. */
 
   su2double** node;
-  su2double*** Gradient;       /*!< \brief The indexing is Gradient[iPoint][iVar][iDim] */
-
-  su2double **Smatrix,  /*!< \brief Auxiliary structure for computing gradients by least-squares */
-  **Cvector;            /*!< \brief Auxiliary structure for computing gradients by least-squares */
-
 };
 
 #include "hybrid_RANS_LES_forcing.inl"
