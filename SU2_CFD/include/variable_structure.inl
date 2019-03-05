@@ -269,6 +269,16 @@ inline su2double CVariable::GetTurbTimescale(void) const { return 0; }
 
 inline su2double CVariable::GetTurbLengthscale(void) const { return 0; }
 
+inline su2double CVariable::GetTypicalLengthscale(void) const { return 0; };
+
+inline su2double CVariable::GetTypicalTimescale(void) const { return 0; };
+
+inline su2double CVariable::GetKolLengthscale(void) const { return 0; };
+
+inline su2double CVariable::GetKolTimescale(void) const { return 0; };
+
+inline su2double CVariable::GetKolKineticEnergyRatio(void) const { return 0; };
+
 inline su2double CVariable::GetAnisoRatio(void) {return 1; }
 
 inline su2double CVariable::GetResolutionAdequacy(void) const { return 1; }

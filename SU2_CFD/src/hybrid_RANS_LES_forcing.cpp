@@ -33,6 +33,7 @@
 
 #include "../include/hybrid_RANS_LES_forcing.hpp"
 #include "../include/solver_structure.hpp"
+#include "../include/variable_structure_v2f.hpp"
 
 CHybridForcingAbstractBase::CHybridForcingAbstractBase(
                               const unsigned short nDim,
@@ -88,7 +89,6 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
   const su2double TKE_MIN = 1.0E-8;
   const su2double V2_MIN = 2.0/3*TKE_MIN;
-  const su2double TDR_MIN = 1.0E-8;
 
   const unsigned short kind_time_marching = config->GetUnsteady_Simulation();
 
@@ -97,13 +97,12 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
          kind_time_marching == DT_STEPPING_2ND );
 
   const su2double time = config->GetCurrent_UnstTimeND();
-  const su2double dt = config->GetDelta_UnstTimeND();
   assert(time >= 0);
-  assert(dt > 0);
 
   /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
   su2double h[nDim]; // Initial TG vortex field.
   su2double Lsgs; // SGS length scale
+  su2double Tsgs; // SGS time scale
   su2double x[nDim]; // Position
   su2double Lmesh[nDim]; // Mesh length scales in coord direction (computed from res tensor)
   su2double dwall; // distance to the wall
@@ -133,9 +132,6 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     if (config->GetKind_Turb_Model() != KE) {
       SU2_MPI::Error("Hybrid forcing is only compatible with the v2-f model.", CURRENT_FUNCTION);
     }
-
-    const su2double ktot = max(solver[TURB_SOL]->node[iPoint]->GetSolution(0), TKE_MIN);
-    const su2double tdr  = max(solver[TURB_SOL]->node[iPoint]->GetSolution(1), TDR_MIN);
     const su2double v2 = max(solver[TURB_SOL]->node[iPoint]->GetSolution(2), V2_MIN);
 
     // ratio of modeled to total TKE
@@ -145,16 +141,19 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double resolution_adequacy =
       solver[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
 
-    const su2double density = solver[FLOW_SOL]->average_node[iPoint]->GetSolution(0);
-    const su2double nu =
-      solver[FLOW_SOL]->average_node[iPoint]->GetLaminarViscosity() / density;
+    const su2double L_typical = solver[TURB_SOL]->node[iPoint]->GetTypicalLengthscale();
+    const su2double L_kol = solver[TURB_SOL]->node[iPoint]->GetKolLengthscale();
+    const su2double T_typical = solver[TURB_SOL]->node[iPoint]->GetTypicalTimescale();
+    const su2double T_kol = solver[TURB_SOL]->node[iPoint]->GetKolTimescale();
+    assert(L_typical >= 0);
+    assert(L_kol > 0);
+    assert(T_typical >= 0);
+    assert(T_kol > 0);
 
-    // TODO: Move length, timescale calculations to CTurbKEVariable class,
-    // and keep track of all three timescales, plus alpha_kol
-    const su2double V2F_CETA = 70;
-    Lsgs = forcing_scale * pow(alpha * ktot, 1.5) / tdr;
-    const su2double Lkol = V2F_CETA*pow(nu, 0.75)/pow(tdr, 0.25);
-    Lsgs = max(Lsgs, Lkol);
+    Lsgs = max(forcing_scale * pow(alpha, 1.5) * L_typical, L_kol);
+    Lsgs = max(Lsgs, L_kol);
+    Tsgs = alpha * T_typical;
+    Tsgs = max(Tsgs, T_kol);
 
     // FIXME: I think this is equivalent to repo version of CDP,but
     // not consistent with paper description, except for orthogonal
@@ -170,11 +169,6 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     // Compute TG velocity at this point
     this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
 
-    const su2double V2F_CT = 6.0;
-    const su2double T1 = alpha*ktot/tdr;
-    const su2double Tkol = V2F_CT*sqrt(nu/tdr);
-    const su2double Tsgs = max(T1, Tkol);
-
     const su2double Ftar = this->GetTargetProduction(v2, Tsgs, alpha);
 
     // Compute PFtest
@@ -183,10 +177,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
       uf[iDim] = prim_vars[iDim+1] - prim_mean[iDim+1];
       PFtest += uf[iDim]*h[iDim];
     }
-    PFtest *= Ftar*dt;
+    PFtest *= Ftar;
 
-    const su2double Cnu = 1.0;
-    const su2double alpha_kol = min(Cnu*std::sqrt(nu*tdr)/ktot, 1.0);
+    const su2double alpha_kol = solver[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
 
     const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
                                                      alpha, alpha_kol, PFtest);

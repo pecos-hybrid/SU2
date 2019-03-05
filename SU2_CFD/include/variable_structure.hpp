@@ -938,6 +938,16 @@ public:
    */
   virtual su2double GetTurbLengthscale(void) const;
 
+  virtual su2double GetTypicalLengthscale(void) const;
+
+  virtual su2double GetTypicalTimescale(void) const;
+
+  virtual su2double GetKolLengthscale(void) const;
+
+  virtual su2double GetKolTimescale(void) const;
+
+  virtual su2double GetKolKineticEnergyRatio(void) const;
+
   /*!
    * \brief A virtual member.
    * \return The Reynolds stress component anisotropy ratio (max-to-min)

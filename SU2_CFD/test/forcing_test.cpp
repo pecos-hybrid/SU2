@@ -130,7 +130,7 @@ class TestAvgVariable : public CVariable {
 
 class TestTurbVariable : public CVariable {
  private:
-  su2double TurbTimescale, TurbLengthscale;
+  su2double nu;
  public:
   TestTurbVariable(unsigned short val_nDim,
                    CConfig *config)
@@ -139,6 +139,30 @@ class TestTurbVariable : public CVariable {
     Solution[0] = 2.28081;
     Solution[1] = 9.82732;
     Solution[2] = 1.22631;
+    nu = 0.000192831;
+  }
+
+  su2double GetTypicalLengthscale(void) const {
+    return pow(Solution[0], 1.5)/Solution[1];
+  }
+
+  su2double GetKolLengthscale(void) const {
+    const su2double C_eta = 70;
+    return C_eta*pow(pow(nu,3.0)/Solution[1],0.25);
+  }
+
+  su2double GetTypicalTimescale(void) const {
+    return Solution[0] / Solution[1];
+  }
+
+  su2double GetKolTimescale(void) const {
+    const su2double C_T = 6.0;
+    return C_T*sqrt(nu/Solution[1]);
+  }
+
+  su2double GetKolKineticEnergyRatio(void) const {
+    const su2double Cnu = 1.0;
+    return min(Cnu*sqrt(nu*Solution[1])/Solution[0], 1.0);
   }
 };
 
