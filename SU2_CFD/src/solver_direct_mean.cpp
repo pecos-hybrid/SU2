@@ -17714,12 +17714,12 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
 
       // momentum
       for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Residual[iDim+1] = 0; // -Volume * U[0] * Force[iDim];
+        Residual[iDim+1] = -Volume * U[0] * Force[iDim];
 
       // energy
       Residual[nDim+1] = 0.0;
-//      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-//        Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++)
+        Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
 
       // update residual
       LinSysRes.AddBlock(iPoint, Residual);
