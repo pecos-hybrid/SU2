@@ -38,16 +38,11 @@
 #pragma once
 
 inline su2double CTurbKEVariable::GetTurbTimescale() const{
-  return Tm;
+  return timescale;
 }
 
 inline su2double CTurbKEVariable::GetTurbLengthscale() const {
- return Lm;
-}
-
-inline void CTurbKEVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) {
-  Tm = val_turb_T;
-  Lm = val_turb_L;
+ return lengthscale;
 }
 
 inline void CTurbKEVariable::SetProduction(su2double val_production) {
@@ -56,5 +51,45 @@ inline void CTurbKEVariable::SetProduction(su2double val_production) {
 
 inline su2double CTurbKEVariable::GetProduction(void) const {
   return Production;
+}
+
+inline void CTurbKEVariable::SetKolKineticEnergyRatio(const su2double nu) {
+  const su2double TKE_MIN = 1.0E-8;
+  const su2double ktot = max(Solution[0], TKE_MIN);
+  const su2double tdr = Solution[1];
+  const su2double Cnu = 1.0;
+  alpha_kol = min(Cnu*std::sqrt(nu*tdr)/ktot, 1.0);
+}
+
+inline su2double CTurbKEVariable::GetAnisoRatio(void) {
+  // XXX: This floor is arbitrary.
+  const su2double TKE_MIN = EPS;
+  return TWO3*Solution[0]/max(TKE_MIN, Solution[2]);
+}
+
+inline su2double CTurbKEVariable::GetTypicalLengthscale(void) const {
+  return typical_length;
+}
+
+inline su2double CTurbKEVariable::GetTypicalTimescale(void) const {
+  return typical_time;
+}
+
+inline su2double CTurbKEVariable::GetKolLengthscale(void) const {
+  return kol_length;
+}
+
+inline su2double CTurbKEVariable::GetKolTimescale(void) const {
+  return kol_time;
+}
+
+inline su2double CTurbKEVariable::GetKolKineticEnergyRatio(void) const {
+  return alpha_kol;
+}
+
+inline void CTurbKEVariable::SetConstants(const su2double* constants)  {
+  C_mu    = constants[0];
+  C_T     = constants[8];
+  C_eta   = constants[10];
 }
 

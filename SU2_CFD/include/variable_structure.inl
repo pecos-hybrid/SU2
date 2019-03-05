@@ -482,6 +482,13 @@ inline void CVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) { }
 
 inline void CVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) { }
 
+inline void CVariable::SetTurbScales(su2double nu,
+                                     su2double S,
+                                     su2double VelMag,
+                                     su2double L_inf) { }
+
+inline void CVariable::SetKolKineticEnergyRatio(su2double nu) { }
+
 inline void CVariable::SetResolutionAdequacy(su2double val_r_k) { }
 
 inline void CVariable::SetForcingVector(const su2double* force) { }

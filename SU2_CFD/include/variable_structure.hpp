@@ -1215,6 +1215,13 @@ public:
    */
   virtual void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
+  virtual void SetTurbScales(su2double nu,
+                     su2double S,
+                     su2double VelMag,
+                     su2double L_inf);
+
+  virtual void SetKolKineticEnergyRatio(su2double nu);
+
   /*!
    * \brief A virtual member.
    * \param[in] val_r_k - The resolution adequacy parameter for hybrid RANS/LES

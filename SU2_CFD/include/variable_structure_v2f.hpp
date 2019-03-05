@@ -45,17 +45,26 @@
  * \class CTurbKEVariable
  * \brief Main class for defining the variables of the turbulence model.
  * \ingroup Turbulence_Model
- * \author S. Haering
+ * \author S. Haering, C. Pederson
  * \version 4.3.x "Cardinal"
  */
 class CTurbKEVariable : public CTurbVariable {
 
 protected:
-  su2double sigma_e, sigma_k, sigma_z, C_e1o, C_e2, C1, C_2p, C_T, C_L, C_eta;
-  su2double Tm,		/*!< \brief T_m k-eps. */
-    Lm,		        /*!< \brief L_m k-eps */
-    Re_T,
-    Production;   /*!< \brief Production of TKE */
+  su2double timescale,		/*!< \brief T_m k-eps. */
+            lengthscale,	/*!< \brief L_m k-eps */
+            typical_time,
+            typical_length,
+            kol_time,
+            kol_length,
+            stag_time,
+            stag_length;
+  su2double alpha_kol;
+  su2double Production;   /*!< \brief Production of TKE */
+
+  /*--- Constants are static to avoid storing values at every node ---*/
+
+  static su2double C_mu, C_T, C_eta, C_nu;
 
 public:
   /*!
@@ -77,7 +86,7 @@ public:
                   su2double val_zeta, su2double val_f,
                   su2double val_muT, su2double val_Tm, su2double val_Lm,
                   unsigned short val_nDim, unsigned short val_nvar,
-                  su2double *constants, CConfig *config);
+                  CConfig *config);
 
   /*!
    * \brief Destructor of the class.
@@ -102,13 +111,6 @@ public:
    */
   su2double GetAnisoRatio(void);
 
-  /**
-   * \brief Sets the large-eddy lengthscale and the large-eddy timescale
-   * \param[in] val_turb_T - Large eddy timescale of the turbulence
-   * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
-   */
-  void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
-
   /*!
    * \brief Set the production of turbulent kinetic energy.
    * \param[in] val_production - Production of turbulent kinetic energy.
@@ -120,6 +122,28 @@ public:
    * \return Production of turbulent kinetic energy.
    */
   su2double GetProduction(void) const;
+
+  /**
+   * \brief Sets the turbulent length and timescales
+   */
+  void SetTurbScales(su2double nu,
+                     su2double S,
+                     su2double VelMag,
+                     su2double L_inf);
+
+  su2double GetTypicalLengthscale(void) const;
+
+  su2double GetTypicalTimescale(void) const;
+
+  su2double GetKolLengthscale(void) const;
+
+  su2double GetKolTimescale(void) const;
+
+  void SetKolKineticEnergyRatio(su2double nu);
+
+  su2double GetKolKineticEnergyRatio(void) const;
+
+  static void SetConstants(const su2double* constants);
 };
 
 #include "variable_structure_v2f.inl"

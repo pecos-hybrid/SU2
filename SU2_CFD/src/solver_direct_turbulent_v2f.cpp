@@ -35,6 +35,7 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/solver_structure.hpp"
 #include "../include/numerics_structure_v2f.hpp"
 #include "../include/solver_structure_v2f.hpp"
 #include "../include/variable_structure_v2f.hpp"
@@ -264,17 +265,18 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
 
   /*--- Initialize the solution to the far-field state everywhere. ---*/
+  CTurbKEVariable::SetConstants(constants);
 
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CTurbKEVariable(kine_Inf, epsi_Inf, zeta_Inf, f_Inf,
                                        muT_Inf, Tm_Inf, Lm_Inf,
-                                       nDim, nVar, constants, config);
+                                       nDim, nVar, config);
 
   if (runtime_averaging) {
     for (iPoint = 0; iPoint < nPoint; iPoint++) {
       average_node[iPoint] =
           new CTurbKEVariable(kine_Inf, epsi_Inf, zeta_Inf, f_Inf, muT_Inf,
-                              Tm_Inf, Lm_Inf, nDim, nVar, constants, config);
+                              Tm_Inf, Lm_Inf, nDim, nVar, config);
     }
   }
 
@@ -393,11 +395,11 @@ void CTurbKESolver::Preprocessing(CGeometry *geometry,
 }
 
 void CTurbKESolver::Postprocessing(CGeometry *geometry,
-                                   CSolver **solver_container, CConfig *config, unsigned short iMesh) {
+                                   CSolver **solver_container,
+                                   CConfig *config, unsigned short iMesh) {
 
-  su2double rho;
-  su2double kine, v2, zeta, muT, *VelInf;
-  su2double VelMag;
+  su2double rho, nu, S;
+  su2double kine, v2, zeta, muT;
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
   /*--- Compute mean flow and turbulence gradients ---*/
@@ -409,33 +411,43 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
-  /*--- Recompute turbulence scales to ensure they're up to date ---*/
-  CalculateTurbScales(solver_container, config);
+  su2double scale = EPS;
+  su2double* VelInf = config->GetVelocity_FreeStreamND();
+  su2double VelMag = 0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    VelMag += VelInf[iDim]*VelInf[iDim];
+  VelMag = sqrt(VelMag);
+  const su2double L_inf = config->GetLength_Reynolds();
+
+  CVariable** flow_node;
+  if (model_split) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
 
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint ++) {
 
     /*--- Compute turbulence scales ---*/
-    if (model_split) {
-      rho  = solver_container[FLOW_SOL]->average_node[iPoint]->GetDensity();
-    } else {
-      rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-    }
+
+    rho = flow_node[iPoint]->GetDensity();
+    nu  = flow_node[iPoint]->GetLaminarViscosity() / rho;
+    S   = flow_node[iPoint]->GetStrainMag();
 
     /*--- Scalars ---*/
     kine = node[iPoint]->GetSolution(0);
     v2   = node[iPoint]->GetSolution(2);
 
     /*--- T & L ---*/
-    su2double scale = EPS;
-    VelInf = config->GetVelocity_FreeStreamND();
-    VelMag = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      VelMag += VelInf[iDim]*VelInf[iDim];
-    VelMag = sqrt(VelMag);
+
     kine = max(kine, scale*VelMag*VelMag);
     zeta = max(v2/kine, scale);
 
-    su2double Tm = node[iPoint]->GetTurbTimescale();
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
+    node[iPoint]->SetKolKineticEnergyRatio(nu);
+
+    const su2double Tm = node[iPoint]->GetTurbTimescale();
 
     /*--- Compute the eddy viscosity ---*/
 
@@ -463,61 +475,20 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
     flow_node = solver_container[FLOW_SOL]->node;
   }
 
+  su2double* VelInf = config->GetVelocity_FreeStreamND();
+  su2double VelMag = 0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    VelMag += VelInf[iDim]*VelInf[iDim];
+  VelMag = sqrt(VelMag);
+  const su2double L_inf = config->GetLength_Reynolds();
 
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
-    const su2double rho = flow_node[iPoint]->GetDensity();
-    const su2double mu = flow_node[iPoint]->GetLaminarViscosity();
+    const su2double nu  = flow_node[iPoint]->GetLaminarViscosity() /
+                          flow_node[iPoint]->GetDensity();
+    const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    /*--- Scalars ---*/
-    su2double kine = node[iPoint]->GetSolution(0);
-    su2double epsi = node[iPoint]->GetSolution(1);
-    su2double v2   = node[iPoint]->GetSolution(2);
-
-    /*--- Relevant scales ---*/
-    su2double scale = EPS;
-    su2double L_inf = config->GetLength_Reynolds();
-    su2double* VelInf = config->GetVelocity_FreeStreamND();
-    su2double VelMag = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      VelMag += VelInf[iDim]*VelInf[iDim];
-    VelMag = sqrt(VelMag);
-
-    /*--- Clipping to avoid nonphysical quantities
-     * We keep "tke_positive" in order to allow tke=0 but clip negative
-     * values.  If tke is some small nonphysical quantity (but not zero),
-     * then it is possible for L1 > L3 and T1 > T3 when the viscous
-     * scales are smaller than this nonphysical limit. ---*/
-    
-    const su2double tke_lim = max(kine, scale*VelMag*VelMag);
-    const su2double tke_positive = max(kine, 0.0);
-    const su2double tdr_lim = max(epsi, scale*VelMag*VelMag*VelMag/L_inf);
-    const su2double zeta_lim = max(v2/tke_lim, scale);
-    const su2double S_FLOOR = scale;
-
-    // Grab other quantities for convenience/readability
-    const su2double C_mu    = constants[0];
-    const su2double C_T     = constants[8];
-    const su2double C_eta   = constants[10];
-    const su2double nu      = mu/rho;
-    const su2double S       = flow_node[iPoint]->GetStrainMag();; //*sqrt(2.0) already included
-
-    //--- Model time scale ---//
-    const su2double T1     = tke_positive/tdr_lim;
-    // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
-    const su2double T2     = 0.6/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
-    const su2double T3     = C_T*sqrt(nu/tdr_lim);
-    su2double T = max(min(T1,T2),T3);
-
-    //--- Model length scale ---//
-    const su2double L1     = pow(tke_positive,1.5)/tdr_lim;
-    // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
-    const su2double L2     = sqrt(tke_positive)/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
-    const su2double L3     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
-    su2double L = max(min(L1,L2),L3); //... mult by C_L in source numerics
-
-    /*--- Make sure to store T, L so the hybrid class can access them ---*/
-    node[iPoint]->SetTurbScales(T, L);
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
   }
 }
 
@@ -525,16 +496,6 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
         CSolver **solver_container, CNumerics *numerics,
         CNumerics *second_numerics, CConfig *config, unsigned short iMesh,
         unsigned short iRKStep) {
-
-  /*--- Compute turbulence scales ---
-   * This calculation is best left here.  In the end, we want to set
-   * T and L for each node.  The Numerics class doesn't have access to the
-   * nodes, so we calculate the turbulence scales here, and pass them into
-   * the numerics class. If this was moved post/pre-processing, it would
-   * only be executed once per timestep, despite inner iterations of implicit
-   * solvers ---*/
-
-  CalculateTurbScales(solver_container, config);
 
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
@@ -545,6 +506,10 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
   } else {
     flow_node = solver_container[FLOW_SOL]->node;
   }
+
+  /*--- Update turb scales ---*/
+  // TODO: Evaluate if this should be left in.
+  CalculateTurbScales(solver_container, config);
 
   for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 

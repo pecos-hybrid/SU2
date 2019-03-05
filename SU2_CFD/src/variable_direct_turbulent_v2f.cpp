@@ -35,7 +35,14 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/variable_structure.hpp"
 #include "../include/variable_structure_v2f.hpp"
+
+/*--- Default values of static members
+ * These can be changed by calling CTurbKEVariable::SetConstants() ---*/
+su2double CTurbKEVariable::C_mu    = 0.22;
+su2double CTurbKEVariable::C_T     = 6.0;
+su2double CTurbKEVariable::C_eta   = 70.0;
 
 CTurbKEVariable::CTurbKEVariable(void) : CTurbVariable() { }
 
@@ -43,10 +50,8 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
                                  su2double val_zeta, su2double val_f,
                                  su2double val_muT, su2double val_Tm,
                                  su2double val_Lm, unsigned short val_nDim,
-                                 unsigned short val_nvar,
-                                 su2double *constants, CConfig *config)
-  :
-  CTurbVariable(val_nDim, val_nvar, config) {
+                                 unsigned short val_nvar, CConfig *config)
+    : CTurbVariable(val_nDim, val_nvar, config) {
 
   bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
@@ -56,8 +61,8 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
   Solution[1] = val_epsi;	Solution_Old[1] = val_epsi;
   Solution[2] = val_zeta; Solution_Old[2] = val_zeta;
   Solution[3] = val_f;	Solution_Old[3] = val_f;
-  Tm  = val_Tm;
-  Lm  = val_Lm;
+  timescale  = val_Tm;
+  lengthscale  = val_Lm;
 
   /*--- Initialization of eddy viscosity ---*/  
   muT = val_muT;
@@ -75,8 +80,43 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
 CTurbKEVariable::~CTurbKEVariable(void) {
 }
 
-su2double CTurbKEVariable::GetAnisoRatio(void) {
-  // XXX: This floor is arbitrary.
-  const su2double TKE_MIN = EPS;
-  return TWO3*Solution[0]/max(TKE_MIN, Solution[2]);
+ void CTurbKEVariable::SetTurbScales(const su2double nu,
+                                     const su2double S,
+                                     const su2double VelMag,
+                                     const su2double L_inf) {
+  /*--- Scalars ---*/
+  const su2double kine = Solution[0];
+  const su2double epsi = Solution[1];
+  const su2double v2   = Solution[2];
+
+  /*--- Relevant scales ---*/
+  const su2double scale = EPS;
+
+  /*--- Clipping to avoid nonphysical quantities
+   * We keep "tke_positive" in order to allow tke=0 but clip negative
+   * values.  If tke is some small nonphysical quantity (but not zero),
+   * then it is possible for L1 > L3 and T1 > T3 when the viscous
+   * scales are smaller than this nonphysical limit. ---*/
+
+  const su2double tke_lim = max(kine, scale*VelMag*VelMag);
+  const su2double tke_positive = max(kine, 0.0);
+  const su2double tdr_lim = max(epsi, scale*VelMag*VelMag*VelMag/L_inf);
+  const su2double zeta_lim = max(v2/tke_lim, scale);
+  const su2double S_FLOOR = scale;
+
+  //--- Model time scale ---//
+
+  typical_time = tke_positive/tdr_lim;
+  // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
+  stag_time    = 0.6/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
+  kol_time     = C_T*sqrt(nu/tdr_lim);
+  timescale = max(min(typical_time, stag_time), kol_time);
+
+  //--- Model length scale ---//
+  typical_length = pow(tke_positive,1.5)/tdr_lim;
+  // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
+  stag_length    = sqrt(tke_positive)/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
+  kol_length     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
+  //... multiply by C_L in source numerics
+  lengthscale = max(min(typical_length, stag_length), kol_length);
 }

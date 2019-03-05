@@ -98,7 +98,7 @@ struct HybridRdeltaFixture {
     mock_var_array[1] = new CTurbKEVariable(0.0, 0.0, 0.0, 0.0, // k, eps, v2, f
                                             0.0, 0.0, 0.0,      // muT, Tm, Lm
                                             3, 4,               // ndim, nvar
-                                            NULL, mock_config); // constants, config
+                                            mock_config); // constants, config
 
     mock_var_array[2] = NULL;
 
