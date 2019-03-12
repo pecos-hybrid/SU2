@@ -238,10 +238,14 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
       }
     } else {
       const su2double dist_ij = sqrt(dist_ij_2);
-      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
+      // SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
+      //                dist_ij, UnitNormal);
+      // SetHeatFluxJacobian(Mean_PrimVar, Mean_Laminar_Viscosity,
+      //                     Mean_Eddy_Viscosity, dist_ij, UnitNormal);
+      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, 0,
                      dist_ij, UnitNormal);
       SetHeatFluxJacobian(Mean_PrimVar, Mean_Laminar_Viscosity,
-                          Mean_Eddy_Viscosity, dist_ij, UnitNormal);
+                          0, dist_ij, UnitNormal);
       GetViscousProjJacs(Mean_PrimVar, Area, Proj_Flux_Tensor,
                          val_Jacobian_i, val_Jacobian_j);
     }

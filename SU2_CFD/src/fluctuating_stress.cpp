@@ -111,6 +111,8 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   assert(eddy_viscosity != NULL);
   assert(C_M > 0);
 
+  const su2double damping = ComputeDamping(geometry, config, iPoint);
+
   /*--- C_M0 is an overall coefficient used to calibrate the model to match
    * isotropic resolution ---*/
   const su2double C_M0 = 0.13;
@@ -118,7 +120,7 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       eddy_viscosity[iDim][jDim] =
-          density * C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
+          density * damping*C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
     }
   }
 
@@ -146,6 +148,35 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
 //      }
 //    }
 //  }
+}
+
+su2double CM43Model::ComputeDamping(const CGeometry* geometry,
+                                    CConfig* config,
+                                    unsigned long iPoint) const {
+
+  /*--- Calculate the maximum aspect ratio ---*/
+  // TODO: Move this to the dual grid structure class.
+  const su2double* resolution_values = geometry->node[iPoint]->GetResolutionValues();
+  su2double min_distance = resolution_values[0];
+  su2double max_distance = resolution_values[0];
+  for (unsigned short iDim = 1; iDim < nDim; iDim++) {
+    min_distance = min(min_distance, resolution_values[iDim]);
+    max_distance = max(max_distance, resolution_values[iDim]);
+  }
+  const su2double aspect_ratio = max_distance / min_distance;
+  assert(aspect_ratio >= 1.00);
+
+  /*--- Model parameters for blending in boundary layers ---*/
+
+  const su2double BL_AR_min = 32;
+  const su2double BL_AR = 128;
+
+  if (aspect_ratio < BL_AR_min) {
+    return 1.0;
+  } else {
+    return max(su2double(0), 1 - pow(aspect_ratio/BL_AR, 2));
+  }
+
 }
 
 CNoStressModel::CNoStressModel(unsigned short val_nDim)

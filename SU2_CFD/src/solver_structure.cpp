@@ -2988,7 +2988,8 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
     for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
       if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
-        timescale = solver[TURB_SOL]->average_node[iPoint]->GetTurbTimescale();
+        //timescale = solver[TURB_SOL]->average_node[iPoint]->GetTurbTimescale();
+	timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
         assert(timescale > 0);
       }
 
@@ -3025,7 +3026,9 @@ void CSolver::UpdateAverage(const su2double weight, const unsigned long iPoint,
   const su2double* current = node[iPoint]->GetSolution();
 
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    const su2double new_average = (current[iVar] - average[iVar])*weight + average[iVar];
+    //const su2double new_average = (current[iVar] - average[iVar])*weight + average[iVar];
+    // BE for everything
+    const su2double new_average = (current[iVar]*weight + average[iVar])/(1.0 + weight);
     average_node[iPoint]->SetSolution(iVar, new_average);
   }
 }

@@ -77,3 +77,8 @@ ___bin_SU2_MSH_LDADD += @MUTATIONPP_LD@
 ___bin_SU2_MSH_CXXFLAGS += @JSONCPP_CXX@
 ___bin_SU2_MSH_LDADD += @JSONCPP_LD@
 # endif
+
+# if BUILD_LAPACK
+___bin_SU2_MSH_CXXFLAGS += @LAPACK_CXX@
+___bin_SU2_MSH_LDADD += @LAPACK_LDALL@
+# endif

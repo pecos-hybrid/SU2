@@ -10088,13 +10088,13 @@ void CPhysicalGeometry::SetRCM_Ordering(CConfig *config) {
   for (iMarker = 0; iMarker < nMarker; iMarker++) {
     for (iElem = 0; iElem < nElem_Bound[iMarker]; iElem++) {
       
-      string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
-      if (Marker_Tag == "SEND_RECEIVE") {
-        for (unsigned long iElem_Bound = 0; iElem_Bound < nElem_Bound[iMarker]; iElem_Bound++) {
-          if (config->GetMarker_All_SendRecv(iMarker) < 0)
-            node[bound[iMarker][iElem_Bound]->GetNode(0)]->SetDomain(false);
-        }
-      }
+      // string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
+      // if (Marker_Tag == "SEND_RECEIVE") {
+      //   for (unsigned long iElem_Bound = 0; iElem_Bound < nElem_Bound[iMarker]; iElem_Bound++) {
+      //     if (config->GetMarker_All_SendRecv(iMarker) < 0)
+      //       node[bound[iMarker][iElem_Bound]->GetNode(0)]->SetDomain(false);
+      //   }
+      // }
       
       for (iNode = 0; iNode < bound[iMarker][iElem]->GetnNodes(); iNode++) {
         iPoint = bound[iMarker][iElem]->GetNode(iNode);
@@ -10112,7 +10112,17 @@ void CPhysicalGeometry::SetRCM_Ordering(CConfig *config) {
             config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL)
           node[InvResult[iPoint]]->SetSolidBoundary(true);
       }
+    
     }
+
+    string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
+    if (Marker_Tag == "SEND_RECEIVE") {
+      for (unsigned long iElem_Bound = 0; iElem_Bound < nElem_Bound[iMarker]; iElem_Bound++) {
+        if (config->GetMarker_All_SendRecv(iMarker) < 0)
+          node[bound[iMarker][iElem_Bound]->GetNode(0)]->SetDomain(false);
+      }
+    }
+
   }
   
   

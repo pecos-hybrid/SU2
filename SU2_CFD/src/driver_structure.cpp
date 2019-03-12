@@ -664,10 +664,18 @@ void CDriver::Geometrical_Preprocessing() {
     if (rank == MASTER_NODE) cout << "Setting point connectivity." << endl;
     geometry_container[iZone][MESH_0]->SetPoint_Connectivity();
 
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+
     /*--- Renumbering points using Reverse Cuthill McKee ordering ---*/
 
     if (rank == MASTER_NODE) cout << "Renumbering points (Reverse Cuthill McKee Ordering)." << endl;
     geometry_container[iZone][MESH_0]->SetRCM_Ordering(config_container[iZone]);
+
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
 
     /*--- recompute elements surrounding points, points surrounding points ---*/
 
@@ -688,6 +696,10 @@ void CDriver::Geometrical_Preprocessing() {
       geometry_container[iZone][MESH_0]->Check_BoundElem_Orientation(config_container[iZone]);
     }
 
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+
     /*--- Create the edge structure ---*/
 
     if (rank == MASTER_NODE) cout << "Identifying edges and vertices." << endl;
@@ -706,15 +718,27 @@ void CDriver::Geometrical_Preprocessing() {
     geometry_container[iZone][MESH_0]->SetBoundControlVolume(config_container[iZone], ALLOCATE);
 
     /*--- Compute the max length. ---*/
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
 
-      if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
-      geometry_container[iZone][MESH_0]->SetMaxLength(config_container[iZone]);
+    if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
+    geometry_container[iZone][MESH_0]->SetMaxLength(config_container[iZone]);
 
     /*--- Visualize a dual control volume if requested ---*/
 
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+
+    if ((rank == MASTER_NODE) && (!fea)) cout << "Visualize control volume???." << endl;
     if ((config_container[iZone]->GetVisualize_CV() >= 0) &&
         (config_container[iZone]->GetVisualize_CV() < (long)geometry_container[iZone][MESH_0]->GetnPointDomain()))
       geometry_container[iZone][MESH_0]->VisualizeControlVolume(config_container[iZone], UPDATE);
+
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
 
     /*--- Compute cell resolution tensors ---*/
 
@@ -724,14 +748,24 @@ void CDriver::Geometrical_Preprocessing() {
     }
 
     /*--- Identify closest normal neighbor ---*/
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
 
     if (rank == MASTER_NODE) cout << "Searching for the closest normal neighbors to the surfaces." << endl;
     geometry_container[iZone][MESH_0]->FindNormal_Neighbor(config_container[iZone]);
 
     /*--- Store the global to local mapping. ---*/
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
 
     if (rank == MASTER_NODE) cout << "Storing a mapping from global to local point index." << endl;
     geometry_container[iZone][MESH_0]->SetGlobal_to_Local_Point();
+
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
 
     /*--- Compute the surface curvature ---*/
 
@@ -1025,7 +1059,7 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
   bool update_geo = true;
   if (config->GetFSI_Simulation()) update_geo = false;
 
-  Solver_Restart(solver_container, geometry, config, update_geo);
+  //Solver_Restart(solver_container, geometry, config, update_geo);
 
   /*--- Initialize the averages ---*/
 
@@ -1039,6 +1073,17 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
     }
   }
 
+  Solver_Restart(solver_container, geometry, config, update_geo);
+
+  // FIXME: This is a hack!
+  if (model_split_hybrid) {
+    unsigned long iPoint;
+    for(iPoint=0; iPoint<geometry[0]->GetnPoint();iPoint++) {
+      hybrid_mediator->ComputeResolutionAdequacy(geometry[0],solver_container[0],iPoint);
+      const su2double rk = solver_container[0][FLOW_SOL]->node[iPoint]->GetResolutionAdequacy();
+      solver_container[0][FLOW_SOL]->average_node[iPoint]->SetResolutionAdequacy(rk);
+    }
+  }
 
 }
 

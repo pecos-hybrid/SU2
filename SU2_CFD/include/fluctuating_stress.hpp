@@ -134,6 +134,11 @@ class CM43Model : public CFluctuatingStress {
                               unsigned long iPoint,
                               su2double mean_eddy_visc,
                               su2double** eddy_viscosity) const;
+
+  su2double ComputeDamping(const CGeometry* geometry,
+                           CConfig* config,
+                           unsigned long iPoint) const;
+
  private:
   su2double** delta; /*!< \brief The Kroneckor delta. */
 };

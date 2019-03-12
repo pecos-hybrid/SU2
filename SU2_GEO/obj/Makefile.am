@@ -77,3 +77,8 @@ ___bin_SU2_GEO_LDADD += @MUTATIONPP_LD@
 ___bin_SU2_GEO_CXXFLAGS += @JSONCPP_CXX@
 ___bin_SU2_GEO_LDADD += @JSONCPP_LD@
 # endif
+
+# if BUILD_LAPACK
+___bin_SU2_GEO_CXXFLAGS += @LAPACK_CXX@
+___bin_SU2_GEO_LDADD += @LAPACK_LDALL@
+# endif
