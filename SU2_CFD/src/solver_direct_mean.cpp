@@ -19115,13 +19115,28 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
   assert(average_node != NULL);
 
-  const su2double* resolved_prim_vars = node[iPoint]->GetPrimitive();
-  const su2double* average_prim_vars = average_node[iPoint]->GetPrimitive();
+  // QUESTION: When are primitive variables updated?  Are they valid for use here???
+
+  // const su2double* resolved_prim_vars = node[iPoint]->GetPrimitive();
+  // const su2double* average_prim_vars = average_node[iPoint]->GetPrimitive();
+  // su2double fluct_velocity[nDim];
+  // for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+  //   fluct_velocity[iDim] = resolved_prim_vars[iDim+1] - average_prim_vars[iDim+1];
+  // }
+  // const su2double resolved_rho = resolved_prim_vars[nDim+2];
+
+  // Call base first, to update averages of conserved variables
+  CSolver::UpdateAverage(weight, iPoint, buffer, config);
+
+  const su2double* resolved_vars = node[iPoint]->GetSolution();
+  const su2double* average_vars = average_node[iPoint]->GetSolution();
   su2double fluct_velocity[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    fluct_velocity[iDim] = resolved_prim_vars[iDim+1] - average_prim_vars[iDim+1];
+    fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
   }
-  const su2double resolved_rho = resolved_prim_vars[nDim+2];
+  const su2double resolved_rho = resolved_vars[0];
+
+
 
   if (config->GetUse_Resolved_Turb_Stress()) {
 
@@ -19183,5 +19198,5 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
   /*--- Make sure the average of the solution variables is updated too --*/
 
-  CSolver::UpdateAverage(weight, iPoint, buffer, config);
+  //CSolver::UpdateAverage(weight, iPoint, buffer, config);
 }
