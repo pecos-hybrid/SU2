@@ -232,6 +232,7 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     frobenius_norm = sqrt(frobenius_norm);
 
     const su2double C_r = 1.0;
+    //const su2double C_r = 3.0; // Just to see what happens!
     const su2double r_k_min = 1.0E-8;
     const su2double r_k_max = 30;
     r_k = C_r*min(max_eigval, frobenius_norm);
@@ -609,11 +610,21 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   // 4) Compute inverse length scale tensor from production tensor
   // NB: Typo in AIAA paper
-  const su2double t0 = 1.5*sqrt(1.5);
+  //const su2double t0 = 1.5*sqrt(1.5);
+  // for (iDim = 0; iDim < nDim; iDim++) {
+  //   for (jDim = 0; jDim < nDim; jDim++) {
+  //     invLengthTensor[iDim][jDim] =
+  //       0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2));
+  //   }
+  // }
+
+  // NB: v2 is pre-multiplied by alpha and ktot is not
+  const su2double fac0 = 1.5*sqrt(1.5)*v2*sqrt(v2);
+  const su2double fac1 = ktot / (1.5*v2);
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       invLengthTensor[iDim][jDim] =
-        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2));
+        0.5*fac1*(Pij[iDim][jDim] + Pij[jDim][iDim])/fac0;
     }
   }
 
