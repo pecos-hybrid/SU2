@@ -1249,11 +1249,6 @@ CHybridConvSolver::CHybridConvSolver(CGeometry *geometry, CConfig *config,
 
     }
   }
-
-  /*--- Set up inlet profiles, if necessary ---*/
-
-  SetInlet(config);
-
 }
 
 CHybridConvSolver::~CHybridConvSolver(void) {

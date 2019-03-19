@@ -36,11 +36,6 @@
 check_PROGRAMS  =
 TESTS  =
 
-check_PROGRAMS += aniso_viscous_flux_inc
-check_PROGRAMS += aniso_viscous_flux
-check_PROGRAMS += aniso_viscous_jacobian
-check_PROGRAMS += aniso_viscous_jacobian_compare
-check_PROGRAMS += aniso_viscous_residual_test
 check_PROGRAMS += load_hybrid_constants_test
 if BUILD_LAPACK
 check_PROGRAMS += eigensolver_test
@@ -70,11 +65,6 @@ LDFLAGS  += -mkl
 endif
 
 # Test sources
-aniso_viscous_flux_inc_SOURCES         = aniso_viscous_flux_inc.cpp
-aniso_viscous_flux_SOURCES             = aniso_viscous_flux.cpp
-aniso_viscous_jacobian_SOURCES         = aniso_viscous_jacobian.cpp
-aniso_viscous_jacobian_compare_SOURCES = aniso_viscous_jacobian_compare.cpp
-aniso_viscous_residual_test_SOURCES    = aniso_viscous_residual_test.cpp
 load_hybrid_constants_test_SOURCES     = load_hybrid_constants_test.cpp
 if BUILD_LAPACK
 eigensolver_test_SOURCES               = eigensolver_test.cpp
@@ -86,11 +76,6 @@ hybrid_rdelta_test_SOURCES             = hybrid_rdelta_test.cpp
 endif
 
 # Tests to be run
-TESTS += aniso_viscous_flux_inc
-TESTS += aniso_viscous_flux
-TESTS += aniso_viscous_jacobian
-TESTS += aniso_viscous_jacobian_compare
-TESTS += aniso_viscous_residual_test
 TESTS += load_hybrid_constants_test
 if BUILD_LAPACK
 TESTS += eigensolver_test

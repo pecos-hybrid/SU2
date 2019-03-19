@@ -17,10 +17,8 @@ notifications:
 branches:
     only:
         - pecos-dev
-        - pecos-improve-unit-tests
 
 python:
-    # TODO: Re-include python 3 after testing is complete
     - 2.7
 
 matrix:
@@ -73,9 +71,15 @@ matrix:
                 - libopenmpi-dev
                 - libboost-test-dev
 
+<<<<<<< HEAD
 env:
     global:
         CXXFLAGS="-O1 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
+=======
+        # Parallel build and test for AD:
+        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-autodiff --enable-direct-diff --disable-tecio"
+          TEST_SCRIPT=parallel_regression_AD.py
+>>>>>>> v6.2.0
 
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
@@ -100,6 +104,7 @@ install:
     - echo $TRAVIS_BUILD_DIR
     - echo $CONFIGURE_COMMAND
     - ./bootstrap
+    - autoreconf -f -i
     - $CONFIGURE_COMMAND
     - make -j 4
     - make install
@@ -113,7 +118,7 @@ install:
 before_script:
     # Get the test cases
     - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
-      git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData &&
+      git clone -b v6.2.0 https://github.com/su2code/TestCases.git ./TestData &&
       cp -R ./TestData/* ./TestCases/ &&
       cd TestCases/;
       fi
@@ -121,7 +126,7 @@ before_script:
 script:
     # Run the tests via the Python scripts
     - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
-      travis_wait 90 python $TEST_SCRIPT;
+      python $TEST_SCRIPT;
       fi
     # Run the unit tests
     - if [[ "${UNIT_TESTS}" == "ON" ]]; then

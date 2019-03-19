@@ -3,7 +3,7 @@
  * \brief Headers of the main subroutines for creating the geometrical structure.
  *        The subroutines and functions are in the <i>geometry_structure.cpp</i> file.
  * \author F. Palacios, T. Economon
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -19,7 +19,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -49,7 +49,7 @@ extern "C" {
 }
 #endif
 #ifdef HAVE_CGNS
-  #include "cgnslib.h"
+  #include "fem_cgns_elements.hpp"
 #endif
 #include <string>
 #include <fstream>
@@ -59,14 +59,201 @@ extern "C" {
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <climits>
 
 #include "primal_grid_structure.hpp"
 #include "dual_grid_structure.hpp"
 #include "config_structure.hpp"
+#include "fem_standard_element.hpp"
 
 using namespace std;
 
-/*! 
+/*!
+ * \class CUnsignedLong2T
+ * \brief Help class used to store two unsigned longs as one entity.
+ */
+class CUnsignedLong2T {
+public:
+  unsigned long long0;  /*!< \brief First long to store in this class. */
+  unsigned long long1;  /*!< \brief Second long to store in this class. */
+
+  /* Constructors and destructors. */
+  CUnsignedLong2T();
+  ~CUnsignedLong2T();
+
+  CUnsignedLong2T(const unsigned long a, const unsigned long b);
+
+  CUnsignedLong2T(const CUnsignedLong2T &other);
+
+  /* Operators. */
+  CUnsignedLong2T& operator=(const CUnsignedLong2T &other);
+
+  bool operator<(const CUnsignedLong2T &other) const;
+
+  bool operator==(const CUnsignedLong2T &other) const;
+
+private:
+  /* Copy function. */
+  void Copy(const CUnsignedLong2T &other);
+};
+
+/*!
+ * \class CUnsignedShort2T
+ * \brief Help class used to store two unsigned shorts as one entity.
+ */
+class CUnsignedShort2T {
+public:
+  unsigned short short0;  /*!< \brief First short to store in this class. */
+  unsigned short short1;  /*!< \brief Second short to store in this class. */
+
+  /* Constructors and destructors. */
+  CUnsignedShort2T();
+  ~CUnsignedShort2T();
+
+  CUnsignedShort2T(const unsigned short a, const unsigned short b);
+
+  CUnsignedShort2T(const CUnsignedShort2T &other);
+
+  /* Operators. */
+  CUnsignedShort2T& operator=(const CUnsignedShort2T &other);
+
+  bool operator<(const CUnsignedShort2T &other) const;
+
+  bool operator==(const CUnsignedShort2T &other) const;
+
+private:
+  /* Copy function. */
+  void Copy(const CUnsignedShort2T &other);
+};
+
+/*!
+ * \class CFaceOfElement
+ * \brief Class used in the partitioning of the FEM grid as well as the building of
+          the faces of DG. It stores a face of an element.
+ */
+class CFaceOfElement {
+public:
+  unsigned short nCornerPoints;          /*!< \brief Number of corner points of the face. */
+  unsigned long  cornerPoints[4];        /*!< \brief Global ID's of ther corner points. */
+  unsigned long  elemID0, elemID1;       /*!< \brief Element ID's to the left and right. */
+  unsigned short nPolyGrid0, nPolyGrid1; /*!< \brief Polynomial degrees of the grid of the elements
+                                                     to the left and right. */
+  unsigned short nPolySol0,  nPolySol1;  /*!< \brief Polynomial degrees of the solution of the elements
+                                                     to the left and right. */
+  unsigned short nDOFsElem0, nDOFsElem1; /*!< \brief Number of DOFs of the elements to the left and right. */
+  unsigned short elemType0,  elemType1;  /*!< \brief Type of the elements to the left and right. */
+  unsigned short faceID0, faceID1;       /*!< \brief The local face ID in the corresponding elements
+                                                     to the left and right of the face. */
+  unsigned short periodicIndex;          /*!< \brief Periodic indicator of the face. A value of 0 means no
+                                                     periodic face. A value larger than 0 gives the index of
+                                                     the periodic boundary + 1. */
+  short faceIndicator;                   /*!< \brief The corresponding boundary marker if this face is on a
+                                                     boundary. For an internal face the value is -1,
+                                                     while an invalidated face has the value -2. */
+  bool JacFaceIsConsideredConstant;      /*!< \brief Whether or not the Jacobian of the transformation
+                                                     to the standard element is considered constant. */
+  bool elem0IsOwner;                     /*!< \brief Whether or not the neighboring element 0 is the owner
+                                                     of the face. If false, element 1 is the owner. */
+
+  /* Standard constructor and destructor. */
+  CFaceOfElement();
+  ~CFaceOfElement(){}
+
+  /* Alternative constructor to set the corner points. */
+  CFaceOfElement(const unsigned short VTK_Type,
+                 const unsigned short nPoly,
+                 const unsigned long  *Nodes);
+
+  /* Copy constructor and assignment operator. */
+  CFaceOfElement(const CFaceOfElement &other);
+
+  CFaceOfElement& operator=(const CFaceOfElement &other);
+
+  /* Less than operator. Needed for the sorting and searching. */
+  bool operator<(const CFaceOfElement &other) const;
+
+  /* Equal operator. Needed for removing double entities. */
+  bool operator ==(const CFaceOfElement &other) const;
+
+  /*--- Member function, which creates a unique numbering for the corner points.
+        A sort in increasing order is OK for this purpose.                       ---*/
+  void CreateUniqueNumbering(void);
+
+  /*--- Member function, which creates a unique numbering for the corner points
+        while the orientation is taken into account. ---*/
+  void CreateUniqueNumberingWithOrientation(void);
+
+private:
+  /*--- Copy function, which copies the data of the given object into the current object. ---*/
+  void Copy(const CFaceOfElement &other);
+};
+
+/*!
+ * \class CBoundaryFace
+ * \brief Help class used in the partitioning of the FEM grid.
+          It stores a boundary element.
+ */
+class CBoundaryFace {
+ public:
+  unsigned short VTK_Type, nPolyGrid, nDOFsGrid;
+  unsigned long  globalBoundElemID, domainElementID;
+  vector<unsigned long>  Nodes;
+
+  /* Standard constructor and destructor. Nothing to be done. */
+  CBoundaryFace(){}
+  ~CBoundaryFace(){}
+
+  /* Copy constructor and assignment operator. */
+  CBoundaryFace(const CBoundaryFace &other);
+
+  CBoundaryFace& operator=(const CBoundaryFace &other);
+
+  /* Less than operator. Needed for the sorting. */
+  bool operator<(const CBoundaryFace &other) const;
+
+private:
+  /*--- Copy function, which copies the data of the given object into the current object. ---*/
+  void Copy(const CBoundaryFace &other);
+};
+
+/*!
+ * \class CMatchingFace
+ * \brief Help class used to determine whether or not (periodic) faces match.
+ */
+class CMatchingFace {
+public:
+  unsigned short nCornerPoints;          /*!< \brief Number of corner points of the face. */
+  unsigned short nDim;                   /*!< \brief Number of spatial dimensions. */
+  unsigned short nPoly;                  /*!< \brief Polynomial degree of the face. */
+  unsigned short nDOFsElem;              /*!< \brief Number of DOFs of the relevant adjacent element. */
+  unsigned short elemType;               /*!< \brief Type of the adjacent element. */
+  unsigned long  elemID;                 /*!< \brief The relevant adjacent element ID. */
+  su2double cornerCoor[4][3];            /*!< \brief Coordinates of the corner points of the face. */
+  su2double tolForMatching;              /*!< \brief Tolerance for this face for matching points. */
+
+  /* Standard constructor. */
+  CMatchingFace();
+
+  /* Destructor, nothing to be done. */
+  ~CMatchingFace(){}
+
+  /* Copy constructor and assignment operator. */
+  CMatchingFace(const CMatchingFace &other);
+
+  CMatchingFace& operator=(const CMatchingFace &other);
+
+  /* Less than operator. Needed for the sorting and searching. */
+  bool operator<(const CMatchingFace &other) const;
+
+  /*--- Member function, which sorts the coordinates of the face. ---*/
+  void SortFaceCoordinates(void);
+
+private:
+  /*--- Copy function, which copies the data of the given object into the current object. ---*/
+  void Copy(const CMatchingFace &other);
+};
+
+/*!
  * \class CGeometry
  * \brief Parent class for defining the geometry of the problem (complete geometry, 
  *        multigrid agglomerated geometry, only boundary geometry, etc..)
@@ -176,6 +363,7 @@ public:
   unsigned long *starting_node;
   unsigned long *ending_node;
   unsigned long *npoint_procs;
+  unsigned long *nPoint_Linear;
 #ifdef HAVE_MPI
 #ifdef HAVE_PARMETIS
   idx_t * adjacency;
@@ -436,9 +624,9 @@ public:
 	/*! 
 	 * \brief A virtual member.
 	 */
-	void SetFaces(void);
+	virtual void SetFaces(void);
 
-	/*! 
+	/*!
 	 * \brief A virtual member.
 	 */
 	virtual void SetBoundVolume(void);
@@ -541,15 +729,6 @@ public:
 	/*! 
 	 * \brief A virtual member.
 	 * \param[in] config - Definition of the particular problem.
-	 * \param[in] geometry_donor - Geometry of the donor zone.
-	 * \param[in] config_donor - Definition of the donor problem.
-	 */
-	virtual void MatchZone(CConfig *config, CGeometry *geometry_donor, CConfig *config_donor, 
-			unsigned short val_iZone, unsigned short val_nZone);
-
-	/*! 
-	 * \brief A virtual member.
-	 * \param[in] config - Definition of the particular problem.
 	 * \param[in] action - Allocate or not the new elements.		 
 	 */
 	virtual void SetBoundControlVolume(CConfig *config, unsigned short action);
@@ -591,7 +770,13 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   virtual void SetColorGrid_Parallel(CConfig *config);
-  
+
+  /*!
+   * \brief A virtual member.
+   * \param[in] config - Definition of the particular problem.
+   */
+  virtual void SetColorFEMGrid_Parallel(CConfig *config);
+
   /*!
 	 * \brief A virtual member.
 	 * \param[in] config - Definition of the particular problem.
@@ -927,7 +1112,13 @@ public:
 	 * \returns Total number of nodes in a simulation across all processors (excluding halos).
 	 */
 	virtual unsigned long GetGlobal_nPointDomain();
-  
+
+  /*!
+   * \brief A virtual member.
+	 * \param[in] val_global_npoint - Global number of points in the mesh (excluding halos).
+   */
+  virtual void SetGlobal_nPointDomain(unsigned long val_global_npoint);
+
   /*!
 	 * \brief A virtual member.
 	 * \returns Total number of elements in a simulation across all processors.
@@ -1135,6 +1326,12 @@ public:
    * \param config - Config
    */
   virtual void SetSensitivity(CConfig *config);
+
+  /*!
+   * \brief A virtual member.
+   * \param config - Config
+   */
+  virtual void ReadUnorderedSensitivity(CConfig *config);
 
   /*!
    * \brief A virtual member.
@@ -1346,13 +1543,51 @@ public:
    */
   void SetCustomBoundaryHeatFlux(unsigned short val_marker, unsigned long val_vertex, su2double val_customBoundaryHeatFlux);
   
+  /*!
+   * \brief Filter values given at the element CG by performing a weighted average over a radial neighbourhood.
+   * \param[in] filter_radius - Parameter defining the size of the neighbourhood.
+   * \param[in] kernels - Kernel types and respective parameter, size of vector defines number of filter recursions.
+   * \param[in] input_values - "Raw" values.
+   * \param[out] output_values - Filtered values.
+   */
+  void FilterValuesAtElementCG(const vector<su2double> filter_radius, const vector<pair<unsigned short,su2double> > &kernels,
+                               const su2double *input_values, su2double *output_values) const;
+  
+  /*!
+   * \brief Build the global (entire mesh!) adjacency matrix for the elements in compressed format.
+   *        Used by FilterValuesAtElementCG to search for geometrically close neighbours.
+   * \param[out] neighbour_start - i'th position stores the start position in "neighbour_idx" for the immediate
+   *             neighbours of global element "i". Size nElemDomain+1
+   * \param[out] neighbour_idx - Global index of the neighbours, mush be NULL on entry and free'd by calling function.
+   */
+  void GetGlobalElementAdjacencyMatrix(vector<unsigned long> &neighbour_start, long *&neighbour_idx) const;
+  
+  /*!
+   * \brief Get the neighbours of the global element in the first position of "neighbours" that are within "radius" of it.
+   * \param[in] iElem_global - Element of interest.
+   * \param[in] radius - Parameter defining the size of the neighbourhood.
+   * \param[in] neighbour_start - See GetGlobalElementAdjacencyMatrix.
+   * \param[in] neighbour_idx - See GetGlobalElementAdjacencyMatrix.
+   * \param[in] cg_elem - Global element centroid coordinates in row major format {x0,y0,x1,y1,...}. Size nDim*nElemDomain.
+   * \param[in,out] neighbours - The neighbours of iElem_global.
+   */
+  void GetRadialNeighbourhood(const unsigned long iElem_global, const passivedouble radius,
+                              const vector<unsigned long> &neighbour_start, const long *neighbour_idx,
+                              const su2double *cg_elem, vector<long> &neighbours) const;
+
+  /*!
+   * \brief Compute and store the volume of the elements.
+   * \param[in] config - Problem configuration.
+   */
+  void SetElemVolume(CConfig *config);
+
 };
 
 /*!
  * \class CPhysicalGeometry
- * \brief Class for reading a defining the primal grid which is read from the 
- *        grid file in .su2 format.
- * \author F. Palacios
+ * \brief Class for reading a defining the primal grid which is read from the
+ *        grid file in .su2 or .cgns format.
+ * \author F. Palacios, T. Economon, J. Alonso
  */
 class CPhysicalGeometry : public CGeometry {
 
@@ -1363,6 +1598,64 @@ class CPhysicalGeometry : public CGeometry {
   unsigned long *adj_counter; /*!< \brief Adjacency counter. */
   unsigned long **adjacent_elem; /*!< \brief Adjacency element list. */
   su2double* Sensitivity; /*! <\brief Vector holding the sensitivities at each point. */
+
+  vector<vector<unsigned long> > Neighbors;
+  map<unsigned long, unsigned long> Color_List;
+  vector<string> Marker_Tags;
+  unsigned long nLocal_Point,
+  nLocal_PointDomain,
+  nLocal_PointGhost,
+  nLocal_PointPeriodic,
+  nLocal_Elem,
+  nLocal_Bound_Elem,
+  nGlobal_Elem,
+  nGlobal_Bound_Elem,
+  nLocal_Line,
+  nLocal_BoundTria,
+  nLocal_BoundQuad,
+  nLinear_Line,
+  nLinear_BoundTria,
+  nLinear_BoundQuad,
+  nLocal_Tria,
+  nLocal_Quad,
+  nLocal_Tetr,
+  nLocal_Hexa,
+  nLocal_Pris,
+  nLocal_Pyra;
+  unsigned long nMarker_Global;
+  su2double *Local_Coords;
+  unsigned long *Local_Points;
+  unsigned long *Local_Colors;
+  unsigned long *Conn_Line;
+  unsigned long *Conn_BoundTria;
+  unsigned long *Conn_BoundQuad;
+  unsigned long *Conn_Line_Linear;
+  unsigned long *Conn_BoundTria_Linear;
+  unsigned long *Conn_BoundQuad_Linear;
+  unsigned long *Conn_Tria;
+  unsigned long *Conn_Quad;
+  unsigned long *Conn_Tetr;
+  unsigned long *Conn_Hexa;
+  unsigned long *Conn_Pris;
+  unsigned long *Conn_Pyra;
+  unsigned long *ID_Line;
+  unsigned long *ID_BoundTria;
+  unsigned long *ID_BoundQuad;
+  unsigned long *ID_Line_Linear;
+  unsigned long *ID_BoundTria_Linear;
+  unsigned long *ID_BoundQuad_Linear;
+  unsigned long *ID_Tria;
+  unsigned long *ID_Quad;
+  unsigned long *ID_Tetr;
+  unsigned long *ID_Hexa;
+  unsigned long *ID_Pris;
+  unsigned long *ID_Pyra;
+  unsigned long *Elem_ID_Line;
+  unsigned long *Elem_ID_BoundTria;
+  unsigned long *Elem_ID_BoundQuad;
+  unsigned long *Elem_ID_Line_Linear;
+  unsigned long *Elem_ID_BoundTria_Linear;
+  unsigned long *Elem_ID_BoundQuad_Linear;
 
 public:
   
@@ -1393,11 +1686,118 @@ public:
 	 */
   CPhysicalGeometry(CGeometry *geometry, CConfig *config);
 
+  /*!
+   * \overload
+   * \brief Accepts a geometry container holding a linearly partitioned grid
+   *        with coloring performed by ParMETIS, and this routine distributes
+   *        the points and cells to all partitions based on the coloring.
+   * \param[in] geometry - Definition of the geometry container holding the initial linear partitions of the grid + coloring.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CPhysicalGeometry(CGeometry *geometry, CConfig *config, bool val_flag);
+
 	/*!
 	 * \brief Destructor of the class.
 	 */
 	~CPhysicalGeometry(void);
-  
+
+  /*!
+   * \brief Distributes the coloring from ParMETIS so that each rank has complete information about the local grid points.
+   * \param[in] geometry - Definition of the geometry container holding the initial linear partitions of the grid + coloring.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void DistributeColoring(CConfig *config, CGeometry *geometry);
+
+  /*!
+   * \brief Distribute the grid points, including ghost points, across all ranks based on a ParMETIS coloring.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
+  void DistributePoints(CConfig *config, CGeometry *geometry);
+
+  /*!
+   * \brief Distribute the connectivity for a single volume element type across all ranks based on a ParMETIS coloring.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] Elem_Type - VTK index of the element type being distributed.
+   */
+  void DistributeVolumeConnectivity(CConfig *config, CGeometry *geometry, unsigned short Elem_Type);
+
+  /*!
+   * \brief Distribute the connectivity for a single surface element type in all markers across all ranks based on a ParMETIS coloring.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] Elem_Type - VTK index of the element type being distributed.
+   */
+  void DistributeSurfaceConnectivity(CConfig *config, CGeometry *geometry, unsigned short Elem_Type);
+
+  /*!
+   * \brief Broadcast the marker tags for all boundaries from the master rank to all other ranks.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
+  void DistributeMarkerTags(CConfig *config, CGeometry *geometry);
+
+  /*!
+   * \brief Partition the marker connectivity held on the master rank according to a linear partitioning.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] Elem_Type - VTK index of the element type being distributed.
+   */
+  void PartitionSurfaceConnectivity(CConfig *config, CGeometry *geometry, unsigned short Elem_Type);
+
+  /*!
+   * \brief Load the local grid points after partitioning (owned and ghost) into the geometry class objects.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
+  void LoadPoints(CConfig *config, CGeometry *geometry);
+
+  /*!
+   * \brief Load the local volume elements after partitioning (owned and ghost) into the geometry class objects.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
+  void LoadVolumeElements(CConfig *config, CGeometry *geometry);
+
+  /*!
+   * \brief Load the local surface elements after partitioning (owned and ghost) into the geometry class objects.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
+  void LoadSurfaceElements(CConfig *config, CGeometry *geometry);
+
+  /*!
+   * \brief Routine to launch non-blocking sends and recvs amongst all processors.
+   * \param[in] bufSend - Buffer of data to be sent.
+   * \param[in] nElemSend - Array containing the number of elements to send to other processors in cumulative storage format.
+   * \param[in] sendReq - Array of MPI send requests.
+   * \param[in] bufRecv - Buffer of data to be received.
+   * \param[in] nElemSend - Array containing the number of elements to receive from other processors in cumulative storage format.
+   * \param[in] sendReq - Array of MPI recv requests.
+   * \param[in] countPerElem - Pieces of data per element communicated.
+   */
+  void InitiateComms(void *bufSend,
+                     int *nElemSend,
+                     SU2_MPI::Request *sendReq,
+                     void *bufRecv,
+                     int *nElemRecv,
+                     SU2_MPI::Request *recvReq,
+                     unsigned short countPerElem,
+                     unsigned short commType);
+
+  /*!
+   * \brief Routine to complete the set of non-blocking communications launched with InitiateComms() with MPI_Waitany().
+   * \param[in] nSends - Number of sends to be completed.
+   * \param[in] sendReq - Array of MPI send requests.
+   * \param[in] nRecvs - Number of receives to be completed.
+   * \param[in] sendReq - Array of MPI recv requests.
+   */
+  void CompleteComms(int nSends,
+                     SU2_MPI::Request *sendReq,
+                     int nRecvs,
+                     SU2_MPI::Request *recvReq);
+
   /*!
 	 * \brief Set the send receive boundaries of the grid.
 	 * \param[in] geometry - Geometrical definition of the problem.
@@ -1443,7 +1843,6 @@ public:
    * \param[in] val_nZone - Total number of domains in the grid file.
    */
   void Read_SU2_Format_Parallel(CConfig *config, string val_mesh_filename, unsigned short val_iZone, unsigned short val_nZone);
-    
 
   /*!
    * \brief Reads the geometry of the grid and adjust the boundary
@@ -1456,7 +1855,27 @@ public:
    */
   void Read_CGNS_Format_Parallel(CConfig *config, string val_mesh_filename, unsigned short val_iZone, unsigned short val_nZone);
 
-	/*! 
+  /*!
+   * \brief Reads for the FEM solver the geometry of the grid and adjust the boundary
+   *        conditions with the configuration file in parallel (for parmetis).
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_mesh_filename - Name of the file with the grid information.
+   * \param[in] val_iZone - Domain to be read from the grid file.
+   * \param[in] val_nZone - Total number of domains in the grid file.
+   */
+  void Read_SU2_Format_Parallel_FEM(CConfig *config, string val_mesh_filename, unsigned short val_iZone, unsigned short val_nZone);
+
+  /*!
+   * \brief Reads for the FEM solver the geometry of the grid and adjust the boundary
+   *        conditions with the configuration file in parallel (for parmetis).
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] val_mesh_filename - Name of the file with the grid information.
+   * \param[in] val_iZone - Domain to be read from the grid file.
+   * \param[in] val_nZone - Total number of domains in the grid file.
+   */
+  void Read_CGNS_Format_Parallel_FEM(CConfig *config, string val_mesh_filename, unsigned short val_iZone, unsigned short val_nZone);
+
+	/*!
 	 * \brief Find repeated nodes between two elements to identify the common face.
 	 * \param[in] first_elem - Identification of the first element.
 	 * \param[in] second_elem - Identification of the second element.
@@ -1580,15 +1999,6 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
 	void MatchInterface(CConfig *config);
 
 	/*! 
-	 * \brief Mach the interface boundary condition.
-	 * \param[in] config - Definition of the particular problem.
-	 * \param[in] geometry_donor - Geometry of the donor zone.
-	 * \param[in] config_donor - Definition of the donor problem.
-	 */
-	void MatchZone(CConfig *config, CGeometry *geometry_donor, CConfig *config_donor, 
-			unsigned short val_iZone, unsigned short val_nZone);
-
-	/*! 
 	 * \brief Set boundary vertex structure of the control volume.
 	 * \param[in] config - Definition of the particular problem.
 	 * \param[in] action - Allocate or not the new elements.
@@ -1641,7 +2051,66 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
    * \param[in] config - Definition of the particular problem.
    */
   void SetColorGrid_Parallel(CConfig *config);
-  
+
+  /*!
+   * \brief Set the domains for FEM grid partitioning using ParMETIS.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void SetColorFEMGrid_Parallel(CConfig *config);
+
+  /*!
+   * \brief Compute the weights of the FEM graph for ParMETIS.
+   * \param[in]  config                       - Definition of the particular problem.
+   * \param[in]  localFaces                   - Vector, which contains the element faces of this rank.
+   * \param[in]  adjacency                    - Neighbors of the element.
+   * \param[in]  mapExternalElemIDToTimeLevel - Map from the external element ID's to their time level
+                                                and number of DOFs.
+   * \param[out] vwgt                         - Weights of the vertices of the graph, i.e. the elements.
+   * \param[out] adjwgt                       - Weights of the edges of the graph.
+   */
+  void ComputeFEMGraphWeights(
+              CConfig                                    *config,
+              const vector<CFaceOfElement>               &localFaces,
+              const vector<vector<unsigned long> >       &adjacency,
+              const map<unsigned long, CUnsignedShort2T> &mapExternalElemIDToTimeLevel,
+                    vector<su2double>                    &vwgt,
+                    vector<vector<su2double> >           &adjwgt);
+
+  /*!
+   * \brief Determine the donor elements for the boundary elements on viscous
+            wall boundaries when wall functions are used.
+   * \param[in]  config - Definition of the particular problem.
+   */
+  void DetermineDonorElementsWallFunctions(CConfig *config);
+
+  /*!
+   * \brief Determine whether or not the Jacobians of the elements and faces
+            are constant and a length scale of the elements.
+   * \param[in]  config - Definition of the particular problem.
+   */
+  void DetermineFEMConstantJacobiansAndLenScale(CConfig *config);
+
+  /*!
+   * \brief Determine the neighboring information for periodic faces of a FEM grid.
+   * \param[in]     config      - Definition of the particular problem.
+   * \param[in,out] localFaces  - Vector, which contains the element faces of this rank.
+   */
+  void DeterminePeriodicFacesFEMGrid(CConfig                *config,
+                                     vector<CFaceOfElement> &localFaces);
+
+  /*!
+   * \brief Determine the time level of the elements when time accurate
+            local time stepping is employed.
+   * \param[in]  config                       - Definition of the particular problem.
+   * \param[in]  localFaces                   - Vector, which contains the element
+                                                faces of this rank.
+   * \param[out] mapExternalElemIDToTimeLevel - Map from the external element ID's to
+                                                their time level and number of DOFs.
+   */
+  void DetermineTimeLevelElements(CConfig                              *config,
+                                  const vector<CFaceOfElement>         &localFaces,
+                                  map<unsigned long, CUnsignedShort2T> &mapExternalElemIDToTimeLevel);
+
   /*!
    * \brief Set the rotational velocity at each node.
    * \param[in] config - Definition of the particular problem.
@@ -1997,6 +2466,12 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
   void SetSensitivity(CConfig *config);
 
   /*!
+   * \brief Read the sensitivity from unordered ASCII adjoint solution file and store it.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ReadUnorderedSensitivity(CConfig *config);
+
+  /*!
    * \brief Get the Sensitivity at a specific point.
    * \param[in] iPoint - The point where to get the sensitivity.
    * \param[in] iDim - The component of the dim. vector.
@@ -2202,7 +2677,7 @@ public:
 	 * \param[in] iMesh - Level of the multigrid.
 	 * \param[in] iZone - Current zone in the mesh.
 	 */	
-	CMultiGridGeometry(CGeometry ***geometry, CConfig **config_container, unsigned short iMesh, unsigned short iZone);
+	CMultiGridGeometry(CGeometry ****geometry, CConfig **config_container, unsigned short iMesh, unsigned short iZone, unsigned short iInst);
 
 	/*! 
 	 * \brief Destructor of the class.
@@ -2348,7 +2823,7 @@ void SetTranslationalVelocity(CConfig *config, unsigned short val_iZone, bool pr
 	 * \param[in] config - Definition of the particular problem.
 	 */
 	void FindNormal_Neighbor(CConfig *config);
-
+  
 	/*!
 	 * \brief Indentify geometrical planes in the mesh
 	 */
