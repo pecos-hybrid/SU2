@@ -307,9 +307,6 @@ void CAvgGrad_Hybrid::AddTauSGET(su2double **val_gradprimvar,
       for (unsigned short kDim =0; kDim < nDim; kDim++) {
         tau[iDim][jDim] += val_eddy_viscosity[iDim][kDim]*deviatoric[jDim][kDim] +
                            val_eddy_viscosity[jDim][kDim]*deviatoric[iDim][kDim];
-        for (unsigned short lDim = 0; lDim < nDim; lDim++) {
-          tau[iDim][jDim] -= TWO3*val_eddy_viscosity[kDim][lDim]*deviatoric[kDim][lDim]*delta[iDim][jDim];
-        }
       }
     }
   }
