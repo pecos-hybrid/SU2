@@ -412,7 +412,6 @@ private:
   su2double *TimeIntegrationADER_DG;            /*!< \brief The location of the ADER-DG time integration points on the interval [-1,1]. */
   su2double *WeightsIntegrationADER_DG;         /*!< \brief The weights of the ADER-DG time integration points on the interval [-1,1]. */
   unsigned short nRKStep;			/*!< \brief Number of steps of the explicit Runge-Kutta method. */
-  su2double *RK_Alpha_Step;			/*!< \brief Runge-Kutta beta coefficients. */
   unsigned short nRKAmat;       /*!< \brief Number of coeffs in lower triangular part of A matrix for explicit Runge-Kutta method. */
   unsigned short nRKBvec;	/*!< \brief Number of coeffs in b vector for explicit Runge-Kutta method. */
   unsigned short nRKCvec;	/*!< \brief Number of coeffs in c vector for explicit Runge-Kutta method. */
@@ -3322,13 +3321,6 @@ public:
    * \return <code>TRUE</code> means that sectional force files will be written for specified markers.
    */
   bool GetPlot_Section_Forces(void);
-  
-  /*!
-   * \brief Get the alpha (convective) coefficients for the Runge-Kutta integration scheme.
-   * \param[in] val_step - Index of the step.
-   * \return Alpha coefficient for the Runge-Kutta integration scheme.
-   */
-  su2double Get_Alpha_RKStep(unsigned short val_step);
 
   /*!
    * \brief Get a row of the a matrix coefficients for the Runge-Kutta integration scheme.

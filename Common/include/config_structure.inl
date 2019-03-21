@@ -826,8 +826,6 @@ inline su2double *CConfig::GetTimeIntegrationADER_DG(void) { return TimeIntegrat
 
 inline su2double *CConfig::GetWeightsIntegrationADER_DG(void) { return WeightsIntegrationADER_DG; }
 
-inline su2double CConfig::Get_Alpha_RKStep(unsigned short val_step) { return RK_Alpha_Step[val_step]; }
-
 inline su2double CConfig::GetLocationStations(unsigned short val_section) { return LocationStations[val_section]; }
 
 inline su2double CConfig::GetNacelleLocation(unsigned short val_index) { return NacelleLocation[val_index]; }

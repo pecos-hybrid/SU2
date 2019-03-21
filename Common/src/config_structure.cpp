@@ -535,7 +535,6 @@ void CConfig::SetPointersNull(void) {
   TimeDOFsADER_DG           = NULL;
   TimeIntegrationADER_DG    = NULL;
   WeightsIntegrationADER_DG = NULL;
-  RK_Alpha_Step             = NULL;
 
   RK_aMat             = NULL;
   RK_aMat_read        = NULL;
@@ -1286,9 +1285,6 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addUnsignedLongOption("EXT_ITER", nExtIter, 999999);
   /* DESCRIPTION: External iteration offset due to restart */
   addUnsignedLongOption("EXT_ITER_OFFSET", ExtIter_OffSet, 0);
-  // these options share nRKStep as their size, which is not a good idea in general
-  /* DESCRIPTION: Runge-Kutta alpha coefficients */
-  addDoubleListOption("RK_ALPHA_COEFF", nRKStep, RK_Alpha_Step);
   /* DESCRIPTION: Number of Runge-Kutta stages */
   addUnsignedShortOption("N_RK_STEP", nRKStep, 0);
   /* DESCRIPTION: Runge-Kutta coefficients */
@@ -3807,10 +3803,42 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 
   for (iCFL = 1; iCFL < nCFL; iCFL++)
     CFL[iCFL] = CFL[iCFL-1];
-  
-  if (nRKStep == 0) {
-    nRKStep = 1;
-    RK_Alpha_Step = new su2double[1]; RK_Alpha_Step[0] = 1.0;
+
+  // If set number of RK steps or any of coefficient vectors, check
+  // for consistency and put Butcher tableau coefficients into matrix
+  if (nRKStep != 0 || nRKBvec != 0 || nRKCvec != 0 || nRKAmat != 0) {
+    // check for consistency
+    if (nRKStep != nRKBvec) {
+      cout << "Number of RK steps inconsistent with RK_BVEC entry." << endl;
+      cout << "nRKStep = " << nRKStep << ", nRKBvec = " << nRKBvec << endl;
+      exit(EXIT_FAILURE);
+    }
+    if (nRKStep != nRKCvec) {
+      cout << "Number of RK steps inconsistent with RK_CVEC entry." << endl;
+      exit(EXIT_FAILURE);
+    }
+
+    unsigned short namat_expected = (nRKStep*nRKStep - nRKStep)/2;
+    if (nRKAmat != namat_expected) {
+      cout << "Number of RK steps inconsistent with RK_AMAT_LOWER entry." << endl;
+      exit(EXIT_FAILURE);
+    }
+
+    // If consistent, translate A mat input to full matrix
+    unsigned short count = 0;
+    RK_aMat = new su2double* [nRKStep];
+    for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
+      RK_aMat[iRKStep] = new su2double [nRKStep];
+      for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
+        if (iRKStep>jRKStep) {
+          RK_aMat[iRKStep][jRKStep] = RK_aMat_read[count];
+          count++;
+        } else {
+          RK_aMat[iRKStep][jRKStep] = 0.0;
+        }
+      }
+    }
+
   }
 
   // If set any of implicit coefficient vectors, check
@@ -6197,13 +6225,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
        Kind_Solver == FEM_RANS  || Kind_Solver == FEM_LES) {
       switch (Kind_TimeIntScheme_FEM_Flow) {
         case RUNGE_KUTTA_EXPLICIT:
-          cout << "Runge-Kutta explicit method for the flow equations." << endl;
-          cout << "Number of steps: " << nRKStep << endl;
-          cout << "Alpha coefficients: ";
-          for (unsigned short iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
-            cout << "\t" << RK_Alpha_Step[iRKStep];
-          }
-          cout << endl;
+          // XXX: Not working
           break;
         case CLASSICAL_RK4_EXPLICIT:
           cout << "Classical RK4 explicit method for the flow equations." << endl;
@@ -7154,7 +7176,6 @@ CConfig::~CConfig(void) {
     delete [] RK_aMat_imp;
   }
 
-  if (RK_Alpha_Step             != NULL) delete [] RK_Alpha_Step;
   if (MG_PreSmooth              != NULL) delete [] MG_PreSmooth;
   if (MG_PostSmooth             != NULL) delete [] MG_PostSmooth;
  

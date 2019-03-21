@@ -4169,48 +4169,9 @@ void CIncEulerSolver::Momentum_Forces(CGeometry *geometry, CConfig *config) {
 void CIncEulerSolver::ExplicitRK_Iteration(CGeometry *geometry, CSolver **solver_container,
                                         CConfig *config, unsigned short iRKStep) {
 
-  su2double *Residual, *Res_TruncError, Vol, Delta, Res;
-  unsigned short iVar, jVar;
-  unsigned long iPoint;
-  
-  su2double RK_AlphaCoeff = config->Get_Alpha_RKStep(iRKStep);
-  bool adjoint = config->GetContinuous_Adjoint();
-  
-  for (iVar = 0; iVar < nVar; iVar++) {
-    SetRes_RMS(iVar, 0.0);
-    SetRes_Max(iVar, 0.0, 0);
-  }
-  
-  /*--- Update the solution ---*/
-  
-  for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
-    Vol = geometry->node[iPoint]->GetVolume();
-    Delta = node[iPoint]->GetDelta_Time() / Vol;
-
-    Res_TruncError = node[iPoint]->GetResTruncError();
-    Residual = LinSysRes.GetBlock(iPoint);
-
-    if (!adjoint) {
-      SetPreconditioner(config, iPoint);
-      for (iVar = 0; iVar < nVar; iVar ++ ) {
-        Res = 0.0;
-        for (jVar = 0; jVar < nVar; jVar ++ )
-          Res += Preconditioner[iVar][jVar]*(Residual[jVar] + Res_TruncError[jVar]);
-        node[iPoint]->AddSolution(iVar, -Res*Delta*RK_AlphaCoeff);
-        AddRes_RMS(iVar, Res*Res);
-        AddRes_Max(iVar, fabs(Res), geometry->node[iPoint]->GetGlobalIndex(), geometry->node[iPoint]->GetCoord());
-      }
-    }
-  }
-  
-  /*--- MPI solution ---*/
-  
-  Set_MPI_Solution(geometry, config);
-  
-  /*--- Compute the root mean square residual ---*/
-  
-  SetResidual_RMS(geometry, config);
-  
+  /*--- XXX: Due to our own overhaul of the explicit RK configuation and
+   * methods, this doesn't work.  ---*/
+  SU2_MPI::Error("Explicit RK is not currently implemented for the incompressible solver!", CURRENT_FUNCTION);
 }
 
 void CIncEulerSolver::ExplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_container, CConfig *config) {
