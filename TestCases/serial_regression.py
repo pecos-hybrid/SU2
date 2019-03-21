@@ -449,17 +449,6 @@ def main():
     test_list.append(contadj_rans_rae2822)
 
 
-    # Adjoint Incompressible Viscous Cylinder
-    contadj_incomp_cylinder           = TestCase('contadj_incomp_cylinder')
-    contadj_incomp_cylinder.cfg_dir   = "cont_adj_incomp_navierstokes/cylinder"
-    contadj_incomp_cylinder.cfg_file  = "lam_incomp_cylinder.cfg"
-    contadj_incomp_cylinder.test_iter = 25
-    contadj_incomp_cylinder.test_vals = [-5.720871, -6.995398, 2.932100, 0.000000] #last 4 columns
-    contadj_incomp_cylinder.su2_exec  = "SU2_CFD"
-    contadj_incomp_cylinder.timeout   = 1600
-    contadj_incomp_cylinder.tol       = 0.00001
-    test_list.append(contadj_incomp_cylinder)
-
     ######################################
     ### Moving Wall                    ###
     ######################################
@@ -525,6 +514,18 @@ def main():
     aeroelastic.tol       = 0.000001
     aeroelastic.unsteady  = True
     test_list.append(aeroelastic) 
+
+    # Delayed Detached Eddy Simulation
+    ddes_flatplate        = TestCase('ddes_flatplate')
+    ddes_flatplate.cfg_dir   = "ddes/flatplate"
+    ddes_flatplate.cfg_file  = "ddes_flatplate.cfg"
+    ddes_flatplate.test_iter = 10
+    ddes_flatplate.test_vals = [-2.714721, -5.883008, -0.214968, 0.023783] #last 4 columns
+    ddes_flatplate.su2_exec  = "SU2_CFD"
+    ddes_flatplate.timeout   = 1600
+    ddes_flatplate.tol       = 0.00001
+    ddes_flatplate.unsteady  = True
+    test_list.append(ddes_flatplate)    
 
     ######################################
     ### RUN TESTS                      ###

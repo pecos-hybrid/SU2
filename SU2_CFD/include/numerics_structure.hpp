@@ -959,7 +959,6 @@ public:
                           su2double **val_Proj_Jac_tensor);
   
   /*!
-  /*!
    * \brief TSL-Approximation of Viscous NS Jacobians for anisotropic eddy viscosity.
    * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
    * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
