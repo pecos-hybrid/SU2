@@ -909,8 +909,12 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   if (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) euler_implicit = true;
   else euler_implicit = false;
 
-  if (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) rk_implicit = true;
-  else rk_implicit = false;
+  if( (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+      (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) ){
+    rk_implicit = true;
+  } else {
+    rk_implicit = false;
+  }
   
   if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) least_squares = true;
   else least_squares = false;
@@ -17378,7 +17382,8 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       assert(k_resolved >= 0);
 
       const su2double tke_lim = max(k_total, 1.0E-8);
-      const su2double a_kol = 1.0E-2; // XXX: We should actually get the viscous limit here
+      //const su2double a_kol = 1.0E-2; // XXX: We should actually get the viscous limit here
+      const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
       const su2double alpha = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
       average_node[iPoint]->SetKineticEnergyRatio(alpha);
       assert(alpha == alpha);  // alpha should not be NaN
@@ -17705,21 +17710,27 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
       const su2double* U = node[iPoint]->GetSolution();
 
       const su2double* Force = HybridMediator->GetForcingVector(iPoint);
+      const su2double* MeanForce = average_node[iPoint]->GetForce();
 
       // Set forcing in variable class (for output purposes)
       node[iPoint]->SetForcingVector(Force);
+      average_node[iPoint]->SetForcingVector(MeanForce);
 
       // mass (no forcing)
       Residual[0] = 0.0;
 
       // momentum
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Residual[iDim+1] = -Volume * U[0] * Force[iDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        //Residual[iDim+1] = -Volume * U[0] * Force[iDim];
+	Residual[iDim+1] = -Volume * U[0] * (Force[iDim] - MeanForce[iDim]);
+      }
 
       // energy
       Residual[nDim+1] = 0.0;
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        //Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
+	Residual[nDim+1] += -Volume * U[iDim+1] * (Force[iDim] - MeanForce[iDim]);
+      }
 
       // update residual
       LinSysRes.AddBlock(iPoint, Residual);
@@ -19195,6 +19206,16 @@ void CNSSolver::UpdateAverage(const su2double weight,
   const su2double inst_r_k = node[iPoint]->GetResolutionAdequacy();
   const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
   average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
+
+  /*--- Update the average of the forcing ---*/
+  const su2double* mean_F = average_node[iPoint]->GetForce();
+  const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
+  //const su2double* inst_F = node[iPoint]->GetResolutionAdequacy();
+  su2double update_mean_F[3];
+  update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
+  update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
+  update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
+  average_node[iPoint]->SetForce(update_mean_F);
 
   /*--- Make sure the average of the solution variables is updated too --*/
 
