@@ -2758,7 +2758,10 @@ void UgpWithCvCompFlow::calcJacobianA(su2double (*A)[5], const su2double *vel, s
 CUpwRoe_Flow::CUpwRoe_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config, bool val_low_dissipation) :
                              CNumerics(val_nDim, val_nVar, config) {
   
-  implicit = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
+  implicit = ( (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+               (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+               (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
+
   grid_movement = config->GetGrid_Movement();
   kappa = config->GetRoe_Kappa(); // 1 is unstable
 
@@ -3009,7 +3012,9 @@ void CUpwRoe_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jaco
 
 CUpwGeneralRoe_Flow::CUpwGeneralRoe_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
 
-  implicit = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
+  implicit = ( (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+               (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+               (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   grid_movement = config->GetGrid_Movement();
   kappa = config->GetRoe_Kappa(); // 1 is unstable
 
@@ -4395,7 +4400,10 @@ CAvgGrad_Base::CAvgGrad_Base(unsigned short val_nDim,
 
   unsigned short iVar, iDim;
 
-  implicit = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
+  implicit = ( (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+               (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+               (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
+
 
   TauWall_i = 0; TauWall_j = 0;
 
