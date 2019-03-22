@@ -3513,7 +3513,9 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
     for (iMesh = 0; iMesh <= config->GetnMGLevels(); iMesh++) {
       for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+        if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW) {
           solver[iMesh][KIND_SOLVER]->SetUniformInlet(config, iMarker);
+        }
       }
     }
 

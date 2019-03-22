@@ -50,7 +50,7 @@ CTurbSolver::CTurbSolver(void) : CSolver() {
 }
 
 CTurbSolver::CTurbSolver(CGeometry* geometry, CConfig *config) : CSolver() {
-
+  
   Gamma = config->GetGamma();
   Gamma_Minus_One = Gamma - 1.0;
   
@@ -64,7 +64,7 @@ CTurbSolver::CTurbSolver(CGeometry* geometry, CConfig *config) : CSolver() {
   nVertex = new unsigned long[nMarker];
   for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++)
     nVertex[iMarker] = geometry->nVertex[iMarker];
-
+  
 }
 
 CTurbSolver::~CTurbSolver(void) {
@@ -477,13 +477,13 @@ void CTurbSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_containe
     V_j = solver_container[FLOW_SOL]->node[jPoint]->GetPrimitive();
     numerics->SetPrimitive(V_i, V_j);
     
-    /*--- Turbulent variables w/o reconstruction ---*/
+    /*--- Turbulent variables w/o reconstruction ---*/    
     
     Turb_i = node[iPoint]->GetSolution();
     Turb_j = node[jPoint]->GetSolution();
     numerics->SetTurbVar(Turb_i, Turb_j);
     
-    /*--- Grid Movement ---*/
+    /*--- Grid Movement ---*/    
     
     if (grid_movement)
       numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(), geometry->node[jPoint]->GetGridVel());
@@ -495,7 +495,7 @@ void CTurbSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_containe
         Vector_j[iDim] = 0.5*(geometry->node[iPoint]->GetCoord(iDim) - geometry->node[jPoint]->GetCoord(iDim));
       }
       
-      /*--- Mean flow primitive variables using gradient reconstruction and limiters ---*/
+      /*--- Mean flow primitive variables using gradient reconstruction and limiters ---*/      
       
       Gradient_i = solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
       Gradient_j = solver_container[FLOW_SOL]->node[jPoint]->GetGradient_Primitive();
@@ -522,7 +522,7 @@ void CTurbSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_containe
       
       numerics->SetPrimitive(FlowPrimVar_i, FlowPrimVar_j);
       
-      /*--- Turbulent variables using gradient reconstruction and limiters ---*/
+      /*--- Turbulent variables using gradient reconstruction and limiters ---*/      
       
       Gradient_i = node[iPoint]->GetGradient();
       Gradient_j = node[jPoint]->GetGradient();
@@ -551,14 +551,13 @@ void CTurbSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_containe
       
     }
     
-    /*--- Add and subtract residual ---*/
+    /*--- Add and subtract residual ---*/    
     
-    numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-    
+    numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);    
     LinSysRes.AddBlock(iPoint, Residual);
     LinSysRes.SubtractBlock(jPoint, Residual);
     
-    /*--- Implicit part ---*/
+    /*--- Implicit part ---*/    
     
     Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
     Jacobian.AddBlock(iPoint, jPoint, Jacobian_j);
@@ -585,7 +584,9 @@ void CTurbSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_contain
     numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
                        geometry->node[jPoint]->GetCoord());
     numerics->SetNormal(geometry->edge[iEdge]->GetNormal());
-    
+
+    numerics->SetVolume(geometry->node[iPoint]->GetVolume());
+
     /*--- Conservative variables w/o reconstruction ---*/
     
     numerics->SetPrimitive(solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive(),
@@ -697,14 +698,15 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
   bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
   
-  /*--- Set maximum residual to zero ---*/
+
+  /*--- Set maximum residual to zero ---*/  
   
   for (iVar = 0; iVar < nVar; iVar++) {
     SetRes_RMS(iVar, 0.0);
     SetRes_Max(iVar, 0.0, 0);
   }
   
-  /*--- Build implicit system ---*/
+  /*--- Build implicit system ---*/  
   
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
     
@@ -736,7 +738,7 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
     }
   }
   
-  /*--- Initialize residual and solution at the ghost points ---*/
+  /*--- Initialize residual and solution at the ghost points ---*/  
   
   for (iPoint = nPointDomain; iPoint < nPoint; iPoint++) {
     for (iVar = 0; iVar < nVar; iVar++) {
@@ -746,10 +748,10 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
     }
   }
   
-  /*--- Solve or smooth the linear system ---*/
-  
+  /*--- Solve or smooth the linear system ---*/  
   CSysSolve system;
   system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+
   
   /*--- Update solution (system written in terms of increments) ---*/
   
@@ -1058,6 +1060,7 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
         for (iVar = 0; iVar < nVar; iVar++)
           Residual[iVar] = U_time_n[iVar]*Residual_GCL;
       }
+
       LinSysRes.SubtractBlock(jPoint, Residual);
       
     }
