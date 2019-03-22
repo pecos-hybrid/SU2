@@ -358,10 +358,11 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
     //  * insufficient resolution ---*/
 
     // const su2double avg_resolution_adequacy =
-    //     solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
+    //   solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
     // assert(avg_resolution_adequacy >= 0);
     // assert(avg_resolution_adequacy == avg_resolution_adequacy);
-    // const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
+    // //const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
+    // const su2double factor = max(min(avg_resolution_adequacy, 10.0), 1.0);
     // for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     //   for (unsigned short jDim = 0; jDim < nDim; jDim++) {
     //      aniso_eddy_viscosity[iDim][jDim] *= factor;
@@ -533,6 +534,15 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
                                aniso_viscosity[jDim][kDim]*Gpd[iDim][kDim];
       }
     }
+  }
+
+  // Make tauSGET trace = 0
+  su2double traceTauSGET = 0;
+  for (iDim =0; iDim < nDim; iDim++) {
+    traceTauSGET += tauSGET[iDim][iDim];
+  }
+  for (iDim = 0; iDim < nDim; iDim++) {
+    tauSGET[iDim][iDim] -= traceTauSGET/3;
   }
 
 
