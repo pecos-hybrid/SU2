@@ -49,7 +49,7 @@ CTurbKESolver::CTurbKESolver(void) : CTurbSolver() {
 
 CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
                              unsigned short iMesh)
-      : CTurbSolver() {
+    : CTurbSolver(geometry, config) {
 
   unsigned short iVar, iDim, nLineLets;
   unsigned long iPoint;
@@ -121,7 +121,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
     Vector_i = new su2double[nDim]; Vector_j = new su2double[nDim];
 
     /*--- Define some auxiliary vector related with the flow solution ---*/
-    FlowPrimVar_i = new su2double [nDim+7]; FlowPrimVar_j = new su2double [nDim+7];
+    FlowPrimVar_i = new su2double [nDim+9]; FlowPrimVar_j = new su2double [nDim+9];
 
     /*--- Jacobians and vector structures for implicit computations ---*/
     Jacobian_i = new su2double* [nVar];
@@ -318,9 +318,25 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
     }
   }
 
-  /*--- Set up inlet profiles, if necessary ---*/
+  /*-- Allocation of inlets has to happen in derived classes (not CTurbSolver),
+   * due to arbitrary number of turbulence variables ---*/
 
-  SetInlet(config);
+  Inlet_TurbVars = new su2double**[nMarker];
+  for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++) {
+    if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW) {
+      Inlet_TurbVars[iMarker] = new su2double*[nVertex[iMarker]];
+      for(unsigned long iVertex=0; iVertex < nVertex[iMarker]; iVertex++){
+        Inlet_TurbVars[iMarker][iVertex] = new su2double[nVar];
+        Inlet_TurbVars[iMarker][iVertex][0] = kine_Inf;
+        Inlet_TurbVars[iMarker][iVertex][1] = epsi_Inf;
+        Inlet_TurbVars[iMarker][iVertex][2] = zeta_Inf;
+        Inlet_TurbVars[iMarker][iVertex][3] = f_Inf;
+      }
+    } else {
+      Inlet_TurbVars[iMarker] = NULL;
+    }
+  }
+
 }
 
 CTurbKESolver::~CTurbKESolver(void) {
@@ -875,7 +891,9 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
   unsigned short iVar, iDim;
   unsigned long iVertex, iPoint, Point_Normal;
   su2double *V_inlet, *V_domain, *Normal;
-  bool isCustomizable = config->GetMarker_All_PyCustom(val_marker);
+
+  /*--- Check that the inlet has been set up correctly ---*/
+  assert(Inlet_TurbVars[val_marker] != NULL);
 
   Normal = new su2double[nDim];
 
@@ -920,18 +938,10 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
       for (iVar = 0; iVar < nVar; iVar++)
         Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
 
-      if (isCustomizable) {
-        /*--- Only use the array version of the inlet BC when necessary ---*/
-        Solution_j[0] = Inlet_TurbVars[val_marker][iVertex][0];
-        Solution_j[1] = Inlet_TurbVars[val_marker][iVertex][1];
-        Solution_j[2] = Inlet_TurbVars[val_marker][iVertex][2];
-        Solution_j[3] = Inlet_TurbVars[val_marker][iVertex][3];
-      } else {
-        Solution_j[0] = kine_Inf;
-        Solution_j[1] = epsi_Inf;
-        Solution_j[2] = zeta_Inf;
-        Solution_j[3] = f_Inf;
-      }
+      Solution_j[0] = Inlet_TurbVars[val_marker][iVertex][0];
+      Solution_j[1] = Inlet_TurbVars[val_marker][iVertex][1];
+      Solution_j[2] = Inlet_TurbVars[val_marker][iVertex][2];
+      Solution_j[3] = Inlet_TurbVars[val_marker][iVertex][3];
 
       conv_numerics->SetTurbVar(Solution_i, Solution_j);
 
@@ -1084,29 +1094,85 @@ su2double* CTurbKESolver::GetConstants() {
   return constants;
 }
 
-void CTurbKESolver::SetInlet(CConfig* config) {
+void CTurbKESolver::SetInletAtVertex(su2double *val_inlet,
+                                     unsigned short iMarker,
+                                     unsigned long iVertex) {
+  for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+    Inlet_TurbVars[iMarker][iVertex][iVar] = val_inlet[nDim+2+nDim + iVar];
+  }
+}
 
-  /*-- Allocation has to happen in derived classes (not CTurbSolver),
-   * due to arbitrary number of turbulence variables ---*/
-  Inlet_TurbVars = new su2double**[nMarker];
-  for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++) {
-    bool isCustomizable = config->GetMarker_All_PyCustom(iMarker);
-    bool isInlet = (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW);
-    if (isCustomizable && isInlet) {
-      Inlet_TurbVars[iMarker] = new su2double*[nVertex[iMarker]];
-      for(unsigned long iVertex=0; iVertex < nVertex[iMarker]; iVertex++){
-        Inlet_TurbVars[iMarker][iVertex] = new su2double[nVar];
-        /*--- The default values for these custom BCs are initialized with
-         * the freestream values to avoid nonphysical values at unspecified
-         * points ---*/
-        Inlet_TurbVars[iMarker][iVertex][0] = kine_Inf;
-        Inlet_TurbVars[iMarker][iVertex][1] = epsi_Inf;
-        Inlet_TurbVars[iMarker][iVertex][2] = zeta_Inf;
-        Inlet_TurbVars[iMarker][iVertex][3] = f_Inf;
+su2double CTurbKESolver::GetInletAtVertex(su2double *val_inlet,
+                                           unsigned long val_inlet_point,
+                                           unsigned short val_kind_marker,
+                                           string val_marker,
+                                           CGeometry *geometry,
+                                           CConfig *config) {
+
+  /*--- Local variables ---*/
+
+  unsigned short iMarker, iDim;
+  unsigned long iPoint, iVertex;
+  su2double Area = 0.0;
+  su2double Normal[3] = {0.0,0.0,0.0};
+
+  /*--- Alias positions within inlet file for readability ---*/
+
+  if (val_kind_marker == INLET_FLOW) {
+
+    // Offset for the coordinates + flow variables
+    const unsigned short offset = nDim + 2 + nDim;
+
+    for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+      if ((config->GetMarker_All_KindBC(iMarker) == INLET_FLOW) &&
+          (config->GetMarker_All_TagBound(iMarker) == val_marker)) {
+        
+        for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++){
+
+          iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+
+          if (iPoint == val_inlet_point) {
+
+            /*-- Compute boundary face area for this vertex. ---*/
+
+            geometry->vertex[iMarker][iVertex]->GetNormal(Normal);
+            Area = 0.0;
+            for (iDim = 0; iDim < nDim; iDim++)
+              Area += Normal[iDim]*Normal[iDim];
+            Area = sqrt(Area);
+
+            /*--- Access and store the inlet variables for this vertex. ---*/
+
+            for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+              val_inlet[offset + iVar] = Inlet_TurbVars[iMarker][iVertex][iVar];
+            }
+
+            /*--- Exit once we find the point. ---*/
+
+            return Area;
+
+          }
+        }
       }
-    } else {
-      Inlet_TurbVars[iMarker] = NULL;
     }
+
   }
 
+  /*--- If we don't find a match, then the child point is not on the
+   current inlet boundary marker. Return zero area so this point does
+   not contribute to the restriction operator and continue. ---*/
+  
+  return Area;
+  
+}
+
+void CTurbKESolver::SetUniformInlet(CConfig* config, unsigned short iMarker) {
+
+  assert(nVertex != NULL);
+  for(unsigned long iVertex=0; iVertex < nVertex[iMarker]; iVertex++){
+    Inlet_TurbVars[iMarker][iVertex][0] = kine_Inf;
+    Inlet_TurbVars[iMarker][iVertex][1] = epsi_Inf;
+    Inlet_TurbVars[iMarker][iVertex][2] = zeta_Inf;
+    Inlet_TurbVars[iMarker][iVertex][3] = f_Inf;
+  }
 }

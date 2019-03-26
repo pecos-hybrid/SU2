@@ -2,7 +2,7 @@
  * \file transport_model.hpp
  * \brief Headers of the main transport properties subroutines of the SU2 solvers.
  * \author S. Vitale, M. Pini, G. Gori, A. Guardone, P. Colonna
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -107,7 +107,6 @@ public:
 
 };
 
-
 /*!
  * \class CConstantViscosity
  * \brief this class defines a constant viscosity
@@ -136,7 +135,6 @@ public:
   
   
 };
-
 
 /*!
  * \class CSutherland
@@ -180,6 +178,39 @@ public:
   
 };
 
+/*!
+ * \class CPolynomialViscosity
+ * \brief Defines viscosity as a polynomial function of temperature.
+ * \author T. Economon
+ */
+class CPolynomialViscosity : public CViscosityModel {
+protected:
+  unsigned short nPolyCoeffs; /*!< \brief Number of coefficients in the temperature polynomial. */
+  su2double *b;               /*!< \brief Polynomial coefficients for viscosity as a function of temperature. */
+
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CPolynomialViscosity(void);
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CPolynomialViscosity(unsigned short val_nCoeffs, su2double* val_b);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  virtual ~CPolynomialViscosity(void);
+  
+  /*!
+   * \brief Set Viscosity.
+   */
+  void SetViscosity(su2double T, su2double rho);
+  
+};
 
 /*!
  * \class CThermalConductivityModel
@@ -223,19 +254,18 @@ public:
     /*!
      * \brief Set Thermal conductivity.
      */
-    virtual   void SetConductivity(su2double T, su2double rho, su2double mu, su2double cp);
+    virtual void SetConductivity(su2double T, su2double rho, su2double mu_lam, su2double mu_turb, su2double cp);
 
     /*!
      * \brief Set Thermal conductivity derivatives.
      */
-    virtual   void SetDerConductivity(su2double T, su2double rho, su2double dmudrho_T, su2double dmudT_rho, su2double cp);
+    virtual void SetDerConductivity(su2double T, su2double rho, su2double dmudrho_T, su2double dmudT_rho, su2double cp);
 
 };
 
-
 /*!
- * \class CConstantPrandtl
- * \brief this class defines a constant thermal conductivity using a constant Prandtl's number
+ * \class CConstantConductivity
+ * \brief this class defines a constant thermal conductivity.
  * \author S.Vitale, M.Pini
  * \version 1.0
  */
@@ -260,6 +290,41 @@ public:
 
 };
 
+/*!
+ * \class CConstantConductivityRANS
+ * \brief this class defines a constant thermal conductivity with a turbulent Prandtl number for including effects of turbulent heat transfer.
+ * \author T. Economon
+ * \version 1.0
+ */
+class CConstantConductivityRANS : public CConductivityModel {
+  
+protected:
+  su2double Kt_Lam;         /*!< \brief Constant laminar conductivity. */
+  su2double Prandtl_Turb;   /*!< \brief Turbulent Prandtl number. */
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CConstantConductivityRANS(void);
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CConstantConductivityRANS(su2double kt_const, su2double pr_turb);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  virtual ~CConstantConductivityRANS(void);
+  
+  /*!
+   * \brief Set effective thermal conductivity.
+   */
+  void SetConductivity(su2double T, su2double rho, su2double mu_lam, su2double mu_turb, su2double cp);
+  
+};
 
 /*!
  * \class CConstantPrandtl
@@ -293,7 +358,7 @@ public:
      * \brief par1 -> Cp.
      * \brief par2 -> Mu.
      */
-    void SetConductivity(su2double T, su2double rho, su2double mu, su2double cp);
+    void SetConductivity(su2double T, su2double rho, su2double mu_lam, su2double mu_turb, su2double cp);
 
     /*!
      * \brief Set Thermal conductivity derivatives.
@@ -302,5 +367,109 @@ public:
 
 };
 
+/*!
+ * \class CConstantPrandtlRANS
+ * \brief Defines a non-constant effective thermal conductivity for RANS problems using Prandtl numbers.
+ * \author T. Economon
+ * \version 1.0
+ */
+class CConstantPrandtlRANS : public CConductivityModel {
+
+protected:
+  su2double Prandtl_Lam;    /*!< \brief Laminar Prandtl number. */
+  su2double Prandtl_Turb;   /*!< \brief Turbulent Prandtl number. */
+
+public:
+
+    /*!
+     * \brief Constructor of the class.
+     */
+    CConstantPrandtlRANS(void);
+
+    /*!
+     * \brief Destructor of the class.
+     */
+    virtual ~CConstantPrandtlRANS(void);
+
+    /*!
+     * \brief Constructor of the class.
+     */
+    CConstantPrandtlRANS(su2double pr_lam, su2double pr_turb);
+
+    /*!
+     * \brief Set effective thermal conductivity.
+     */
+    void SetConductivity(su2double T, su2double rho, su2double mu_lam, su2double mu_turb, su2double cp);
+
+};
+
+/*!
+ * \class CPolynomialConductivity
+ * \brief Defines a non-constant thermal conductivity using polynomial function of temperature.
+ * \author T. Economon
+ */
+class CPolynomialConductivity : public CConductivityModel {
+protected:
+  unsigned short nPolyCoeffs; /*!< \brief Number of coefficients in the temperature polynomial. */
+  su2double *b;               /*!< \brief Polynomial coefficients for thermal conductivity as a function of temperature. */
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CPolynomialConductivity(void);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  virtual ~CPolynomialConductivity(void);
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CPolynomialConductivity(unsigned short val_nCoeffs, su2double* val_b);
+  
+  /*!
+   * \brief Set Thermal conductivity.
+   */
+  void SetConductivity(su2double T, su2double rho, su2double mu_lam, su2double mu_turb, su2double cp);
+  
+};
+
+/*!
+ * \class CPolynomialConductivityRANS
+ * \brief Defines a non-constant thermal conductivity using polynomial function of temperature for RANS problems wioth the addition of a turbulent component based on a turbulent Prandtl number.
+ * \author T. Economon
+ */
+class CPolynomialConductivityRANS : public CConductivityModel {
+protected:
+  unsigned short nPolyCoeffs; /*!< \brief Number of coefficients in the temperature polynomial. */
+  su2double *b;               /*!< \brief Polynomial coefficients for thermal conductivity as a function of temperature. */
+  su2double Prandtl_Turb;     /*!< \brief Turbulent Prandtl number. */
+
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CPolynomialConductivityRANS(void);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  virtual ~CPolynomialConductivityRANS(void);
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CPolynomialConductivityRANS(unsigned short val_nCoeffs, su2double* val_b, su2double pr_turb);
+  
+  /*!
+   * \brief Set Thermal conductivity.
+   */
+  void SetConductivity(su2double T, su2double rho, su2double mu_lam, su2double mu_turb, su2double cp);
+  
+};
 
 #include "transport_model.inl"

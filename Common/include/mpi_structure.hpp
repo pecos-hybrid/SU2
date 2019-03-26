@@ -3,7 +3,7 @@
  * \brief Headers of the mpi interface for generalized datatypes.
  *        The subroutines and functions are in the <i>mpi_structure.cpp</i> file.
  * \author T. Albring
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -19,7 +19,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -45,6 +45,7 @@
 
 #include "./datatype_structure.hpp"
 #include <stdlib.h>
+#include <unistd.h>
 
 #ifdef HAVE_MPI
 
@@ -92,11 +93,14 @@ public:
   typedef MPI_Datatype Datatype;
   typedef MPI_Op       Op;
   typedef MPI_Comm     Comm;
+  typedef MPI_Win      Win;
   
 protected:
   
-  static int Rank, Size;
+  static int Rank, Size, MinRankError;
   static Comm currentComm;
+  static bool winMinRankErrorInUse;
+  static Win  winMinRankError;
   
 public:
   
@@ -184,6 +188,9 @@ public:
                        int dest, int sendtag, void *recvbuf, int recvcnt,
                        Datatype recvtype,int source, int recvtag,
                        Comm comm, Status *status);
+
+  static void Reduce_scatter(void *sendbuf, void *recvbuf, int *recvcounts,
+                             Datatype datatype, Op op, Comm comm);
 };
 
 typedef MPI_Comm SU2_Comm;
@@ -284,6 +291,9 @@ public:
                        int dest, int sendtag, void *recvbuf, int recvcnt,
                        Datatype recvtype,int source, int recvtag,
                        Comm comm, Status *status);
+
+  static void Reduce_scatter(void *sendbuf, void *recvbuf, int *recvcounts,
+                             Datatype datatype, Op op, Comm comm);
 
 };
 #endif
@@ -402,6 +412,9 @@ public:
   static void Alltoall(void *sendbuf, int sendcount, Datatype sendtype,
                            void *recvbuf, int recvcount, Datatype recvtype,
                            Comm comm);
+
+  static void Reduce_scatter(void *sendbuf, void *recvbuf, int *recvcounts,
+                             Datatype datatype, Op op, Comm comm);
     
   static void CopyData(void *sendbuf, void *recvbuf, int size, Datatype datatype);
   
