@@ -1004,7 +1004,6 @@ public:
                           su2double **val_Proj_Jac_Tensor_j);
   
   /*!
->>>>>>> pecos_release_6.2.0_merge
    * \brief Mapping between primitives variables P and conservatives variables C.
    * \param[in] val_Mean_PrimVar - Mean value of the primitive variables.
    * \param[in] val_Mean_PrimVar - Mean Value of the secondary variables.

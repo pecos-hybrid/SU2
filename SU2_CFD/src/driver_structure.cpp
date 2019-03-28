@@ -1342,17 +1342,20 @@ void CDriver::Solver_Preprocessing(CSolver ****solver_container, CGeometry ***ge
     if (turbulent) {
       if (spalart_allmaras || e_spalart_allmaras || comp_spalart_allmaras || e_comp_spalart_allmaras || neg_spalart_allmaras) {
         solver_container[val_iInst][iMGlevel][TURB_SOL] = new CTurbSASolver(geometry[val_iInst][iMGlevel], config, iMGlevel, solver_container[val_iInst][iMGlevel][FLOW_SOL]->GetFluidModel() );
+        solver_container[val_iInst][iMGlevel][TURB_SOL]->AddHybridMediator(hybrid_mediator);
         solver_container[val_iInst][iMGlevel][FLOW_SOL]->Preprocessing(geometry[val_iInst][iMGlevel], solver_container[val_iInst][iMGlevel], config, iMGlevel, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
         solver_container[val_iInst][iMGlevel][TURB_SOL]->Postprocessing(geometry[val_iInst][iMGlevel], solver_container[val_iInst][iMGlevel], config, iMGlevel);
       }
       else if (menter_sst) {
         solver_container[val_iInst][iMGlevel][TURB_SOL] = new CTurbSSTSolver(geometry[val_iInst][iMGlevel], config, iMGlevel);
+        solver_container[val_iInst][iMGlevel][TURB_SOL]->AddHybridMediator(hybrid_mediator);
         solver_container[val_iInst][iMGlevel][FLOW_SOL]->Preprocessing(geometry[val_iInst][iMGlevel], solver_container[val_iInst][iMGlevel], config, iMGlevel, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
         solver_container[val_iInst][iMGlevel][TURB_SOL]->Postprocessing(geometry[val_iInst][iMGlevel], solver_container[val_iInst][iMGlevel], config, iMGlevel);
         solver_container[val_iInst][iMGlevel][FLOW_SOL]->Preprocessing(geometry[val_iInst][iMGlevel], solver_container[val_iInst][iMGlevel], config, iMGlevel, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
       }
       else if (zetaf_ke) {
         solver_container[val_iInst][iMGlevel][TURB_SOL] = new CTurbKESolver(geometry[val_iInst][iMGlevel], config, iMGlevel);
+        solver_container[val_iInst][iMGlevel][TURB_SOL]->AddHybridMediator(hybrid_mediator);
         solver_container[val_iInst][iMGlevel][FLOW_SOL]->Preprocessing(geometry[val_iInst][iMGlevel], solver_container[val_iInst][iMGlevel], config, iMGlevel, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
         solver_container[val_iInst][iMGlevel][TURB_SOL]->Postprocessing(geometry[val_iInst][iMGlevel], solver_container[val_iInst][iMGlevel], config, iMGlevel);
         solver_container[val_iInst][iMGlevel][FLOW_SOL]->Preprocessing(geometry[val_iInst][iMGlevel], solver_container[val_iInst][iMGlevel], config, iMGlevel, NO_RK_ITER, RUNTIME_FLOW_SYS, false);

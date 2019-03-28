@@ -10256,9 +10256,6 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
   
   adjac_vec.clear();
   adj_nodes.clear();
-
-  delete [] xadj;
-  delete [] adjacency;
   
 #endif
 #endif
