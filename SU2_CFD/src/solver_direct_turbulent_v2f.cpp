@@ -323,7 +323,8 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
   Inlet_TurbVars = new su2double**[nMarker];
   for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++) {
-    if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW) {
+    if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW ||
+        config->GetMarker_All_KindBC(iMarker) == SUPERSONIC_INLET) {
       Inlet_TurbVars[iMarker] = new su2double*[nVertex[iMarker]];
       for(unsigned long iVertex=0; iVertex < nVertex[iMarker]; iVertex++){
         Inlet_TurbVars[iMarker][iVertex] = new su2double[nVar];
@@ -959,25 +960,25 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
       /*--- Jacobian contribution for implicit integration ---*/
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
 
-      /*--- Viscous contribution ---*/
-      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
-                              geometry->node[Point_Normal]->GetCoord());
-
-      visc_numerics->SetNormal(Normal);
-
-      /*--- Conservative variables w/o reconstruction ---*/
-      visc_numerics->SetPrimitive(V_domain, V_inlet);
-
-      /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
-      visc_numerics->SetTurbVar(Solution_i, Solution_j);
-      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(), node[iPoint]->GetGradient());
-
-      /*--- Compute residual, and Jacobians ---*/
-      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-
-      /*--- Subtract residual, and update Jacobians ---*/
-      LinSysRes.SubtractBlock(iPoint, Residual);
-      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+//      /*--- Viscous contribution, commented out because serious convergence problems  ---*/
+//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
+//                              geometry->node[Point_Normal]->GetCoord());
+//
+//      visc_numerics->SetNormal(Normal);
+//
+//      /*--- Conservative variables w/o reconstruction ---*/
+//      visc_numerics->SetPrimitive(V_domain, V_inlet);
+//
+//      /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
+//      visc_numerics->SetTurbVar(Solution_i, Solution_j);
+//      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(), node[iPoint]->GetGradient());
+//
+//      /*--- Compute residual, and Jacobians ---*/
+//      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+//
+//      /*--- Subtract residual, and update Jacobians ---*/
+//      LinSysRes.SubtractBlock(iPoint, Residual);
+//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
 
       // Set f residual correctly to get right update
       LinSysRes.SetBlock(iPoint, 3, Solution_i[3] - f_Inf);
@@ -1061,26 +1062,26 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_j); // since soln_j = soln_i
 
-      /*--- Viscous contribution ---*/
-      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
-                              geometry->node[Point_Normal]->GetCoord());
-      visc_numerics->SetNormal(Normal);
-
-      /*--- Conservative variables w/o reconstruction ---*/
-      visc_numerics->SetPrimitive(V_domain, V_outlet);
-
-      /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
-      visc_numerics->SetTurbVar(Solution_i, Solution_j);
-      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(),
-                                        node[iPoint]->GetGradient());
-
-      /*--- Compute residual, and Jacobians ---*/
-      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-
-      /*--- Subtract residual, and update Jacobians ---*/
-      LinSysRes.SubtractBlock(iPoint, Residual);
-      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
-      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_j); // since soln_j = soln_i
+//      /*--- Viscous contribution, commented out because serious convergence problems  ---*/
+//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
+//                              geometry->node[Point_Normal]->GetCoord());
+//      visc_numerics->SetNormal(Normal);
+//
+//      /*--- Conservative variables w/o reconstruction ---*/
+//      visc_numerics->SetPrimitive(V_domain, V_outlet);
+//
+//      /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
+//      visc_numerics->SetTurbVar(Solution_i, Solution_j);
+//      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(),
+//                                        node[iPoint]->GetGradient());
+//
+//      /*--- Compute residual, and Jacobians ---*/
+//      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+//
+//      /*--- Subtract residual, and update Jacobians ---*/
+//      LinSysRes.SubtractBlock(iPoint, Residual);
+//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_j); // since soln_j = soln_i
 
     }
   }
@@ -1118,13 +1119,14 @@ su2double CTurbKESolver::GetInletAtVertex(su2double *val_inlet,
 
   /*--- Alias positions within inlet file for readability ---*/
 
-  if (val_kind_marker == INLET_FLOW) {
+  if (val_kind_marker == INLET_FLOW || val_kind_marker == SUPERSONIC_INLET) {
 
     // Offset for the coordinates + flow variables
     const unsigned short offset = nDim + 2 + nDim;
 
     for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
-      if ((config->GetMarker_All_KindBC(iMarker) == INLET_FLOW) &&
+      if ((config->GetMarker_All_KindBC(iMarker) == INLET_FLOW ||
+           config->GetMarker_All_KindBC(iMarker) == SUPERSONIC_INLET) &&
           (config->GetMarker_All_TagBound(iMarker) == val_marker)) {
         
         for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++){
@@ -1175,4 +1177,26 @@ void CTurbKESolver::SetUniformInlet(CConfig* config, unsigned short iMarker) {
     Inlet_TurbVars[iMarker][iVertex][2] = zeta_Inf;
     Inlet_TurbVars[iMarker][iVertex][3] = f_Inf;
   }
+}
+
+void CTurbKESolver::BC_Supersonic_Inlet(CGeometry *geometry,
+                                       CSolver **solver_container,
+                                       CNumerics *conv_numerics,
+                                       CNumerics *visc_numerics,
+                                       CConfig *config,
+                                       unsigned short val_marker,
+                                       unsigned short iRKStep) {
+  BC_Inlet(geometry, solver_container, conv_numerics, visc_numerics,
+           config, val_marker, iRKStep);
+}
+
+void CTurbKESolver::BC_Supersonic_Outlet(CGeometry *geometry,
+                                        CSolver **solver_container,
+                                        CNumerics *conv_numerics,
+                                        CNumerics *visc_numerics,
+                                        CConfig *config,
+                                        unsigned short val_marker,
+                                        unsigned short iRKStep) {
+  BC_Outlet(geometry, solver_container, conv_numerics, visc_numerics,
+            config, val_marker, iRKStep);
 }
