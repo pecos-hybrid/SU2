@@ -453,13 +453,10 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     S   = flow_node[iPoint]->GetStrainMag();
 
     /*--- Scalars ---*/
-    kine = node[iPoint]->GetSolution(0);
-    v2   = node[iPoint]->GetSolution(2);
+
+    v2   = max(node[iPoint]->GetSolution(2), scale*VelMag*VelMag);
 
     /*--- T & L ---*/
-
-    kine = max(kine, scale*VelMag*VelMag);
-    zeta = max(v2/kine, scale);
 
     node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
     node[iPoint]->SetKolKineticEnergyRatio(nu);
@@ -468,7 +465,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     /*--- Compute the eddy viscosity ---*/
 
-    muT = constants[0]*rho*zeta*kine*Tm;
+    muT = constants[0]*rho*v2*Tm;
 
     node[iPoint]->SetmuT(muT);
 
@@ -747,70 +744,9 @@ void CTurbKESolver::BC_Isothermal_Wall(CGeometry *geometry,
        CNumerics *visc_numerics, CConfig *config, unsigned short val_marker,
        unsigned short iRKStep) {
 
-  unsigned long iPoint, jPoint, iVertex, total_index;
-  unsigned short iDim, iVar;
-  su2double distance, wall_k;
-  su2double density = 0.0, laminar_viscosity = 0.0;
+  BC_HeatFlux_Wall(geometry, solver_container, conv_numerics,
+                   visc_numerics, config, val_marker, iRKStep);
 
-  bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
-  bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
-  CVariable** flow_node;
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-    /*--- Use explicit average values instead of fluctuating values ---*/
-    flow_node = solver_container[FLOW_SOL]->average_node;
-  } else {
-    flow_node = solver_container[FLOW_SOL]->node;
-  }
-
-  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-
-    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
-    if (geometry->node[iPoint]->GetDomain()) {
-
-      /*--- distance to closest neighbor ---*/
-      jPoint = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
-      distance = 0.0;
-      for (iDim = 0; iDim < nDim; iDim++) {
-        const su2double dx = (geometry->node[iPoint]->GetCoord(iDim) -
-                              geometry->node[jPoint]->GetCoord(iDim));
-        distance += dx*dx;
-      }
-      distance = sqrt(distance);
-
-      /*--- Set wall values ---*/
-      if (compressible) {
-        density = flow_node[jPoint]->GetDensity();
-        laminar_viscosity = flow_node[jPoint]->GetLaminarViscosity();
-      }
-      if (incompressible) {
-        density = flow_node[jPoint]->GetDensity();
-        laminar_viscosity = flow_node[jPoint]->GetLaminarViscosity();
-      }
-
-      wall_k = node[jPoint]->GetSolution(0);
-
-      // wall boundary conditions (https://turbmodels.larc.nasa.gov/k-e-zeta-f.html)
-      Solution[0] = 0.0;
-      Solution[1] = 2.0*laminar_viscosity*wall_k/(density*distance*distance);
-      Solution[2] = 0.0;
-      Solution[3] = 0.0;
-
-      /*--- Set the solution values and zero the residual ---*/
-      node[iPoint]->SetSolution_Old(Solution);
-      node[iPoint]->SetSolution(Solution);
-      LinSysRes.SetBlock_Zero(iPoint);
-
-      /*--- Change rows of the Jacobian (includes 1 in the diagonal) ---*/
-      for (iVar = 0; iVar < nVar; iVar++) {
-        total_index = iPoint*nVar+iVar;
-        Jacobian.DeleteValsRowi(total_index);
-      }
-
-      // FIXME: See HeatFlux method for f-eqn procedure
-
-    }
-  }
 }
 
 void CTurbKESolver::BC_Far_Field(CGeometry *geometry,
