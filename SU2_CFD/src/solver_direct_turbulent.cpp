@@ -710,10 +710,208 @@ void CTurbSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_contain
   
 }
 
-void CTurbSolver::BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
-  
-  /*--- Convective fluxes across symmetry plane are equal to zero. ---*/
+void CTurbSolver::BC_Sym_Plane(CGeometry *geometry,
+                                  CSolver **solver_container,
+                                  CNumerics *conv_numerics,
+                                  CNumerics *visc_numerics,
+                                  CConfig *config,
+                                  unsigned short val_marker,
+                                  unsigned short iRKStep) {
 
+  unsigned short iDim, iVar;
+  unsigned long iVertex, iPoint;
+
+  bool implicit = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
+  const unsigned short nPrimVar_Flow = nDim + 9;
+
+  /*--- Allocation of variables necessary for convective fluxes. ---*/
+  su2double Area, ProjVelocity_i;
+  su2double *V_reflected, *V_domain;
+  su2double *Normal     = new su2double[nDim];
+  su2double *UnitNormal = new su2double[nDim];
+
+  /*--- Allocation of variables necessary for viscous fluxes. ---*/
+  su2double ProjGradient, ProjNormVelGrad, ProjTangVelGrad;
+  su2double *Tangential      = new su2double[nDim];
+  su2double *GradNormVel     = new su2double[nDim];
+  su2double *GradTangVel     = new su2double[nDim];
+
+  /*--- Allocation of primitive gradient arrays for viscous fluxes. ---*/
+  su2double **TurbVarGrad_Reflected = new su2double*[nVar];
+  for (iVar = 0; iVar < nVar; iVar++)
+    TurbVarGrad_Reflected[iVar] = new su2double[nDim];
+
+  /*---------------------------------------------------------------------------------------------*/
+  /*--- Preprocessing: On a symmetry-plane, the Unit-Normal is constant. Therefore a constant ---*/
+  /*---                Unit-Tangential to that Unit-Normal can be prescribed. The computation ---*/
+  /*---                of these vectors is done outside the loop (over all Marker-vertices).  ---*/
+  /*---                The "Normal" in SU2 isan Area-Normal and is most likely not constant   ---*/
+  /*---                on the symmetry-plane.                                                 ---*/
+  /*---------------------------------------------------------------------------------------------*/
+
+  /*--- Normal vector for a random vertex (zero) on this marker (negate for outward convention). ---*/
+  geometry->vertex[val_marker][0]->GetNormal(Normal);
+  for (iDim = 0; iDim < nDim; iDim++)
+    Normal[iDim] = -Normal[iDim];
+
+  /*--- Compute unit normal, to be used for unit tangential, projected velocity and velocity component gradients. ---*/
+  Area = 0.0;
+  for (iDim = 0; iDim < nDim; iDim++)
+    Area += Normal[iDim]*Normal[iDim];
+  Area = sqrt (Area);
+
+  for (iDim = 0; iDim < nDim; iDim++)
+    UnitNormal[iDim] = -Normal[iDim]/Area;
+
+  /*--- Preprocessing: Compute unit tangential, the direction is arbitrary as long as t*n=0 ---*/
+  switch( nDim ) {
+    case 2: {
+      Tangential[0] = -UnitNormal[1];
+      Tangential[1] =  UnitNormal[0];
+      break;
+    }
+    case 3: {
+      /*--- Find the largest entry index of the UnitNormal, and create Tangential vector based on that. ---*/
+      unsigned short Largest, Arbitrary, Zero;
+      if     (abs(UnitNormal[0]) >= abs(UnitNormal[1]) &&
+              abs(UnitNormal[0]) >= abs(UnitNormal[2])) {Largest=0;Arbitrary=1;Zero=2;}
+      else if(abs(UnitNormal[1]) >= abs(UnitNormal[0]) &&
+              abs(UnitNormal[1]) >= abs(UnitNormal[2])) {Largest=1;Arbitrary=0;Zero=2;}
+      else                                              {Largest=2;Arbitrary=1;Zero=0;}
+
+      Tangential[Largest] = -UnitNormal[Arbitrary]/sqrt(pow(UnitNormal[Largest],2) + pow(UnitNormal[Arbitrary],2));
+      Tangential[Arbitrary] =  UnitNormal[Largest]/sqrt(pow(UnitNormal[Largest],2) + pow(UnitNormal[Arbitrary],2));
+      Tangential[Zero] =  0.0;
+      break;
+    }
+  }
+
+  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+
+    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+    /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
+    if (geometry->node[iPoint]->GetDomain()) {
+
+      /*-------------------------------------------------------------------------------*/
+      /*--- Step 1: For the convective fluxes, create a reflected state of the      ---*/
+      /*---         Primitive variables by copying all interior values to the       ---*/
+      /*---         reflected. Only the velocity is mirrored along the symmetry     ---*/
+      /*---         axis. Based on the Upwind_Residual routine.                     ---*/
+      /*-------------------------------------------------------------------------------*/
+
+      /*--- Get the reflected state at the symmetry boundary. ---*/
+      V_reflected = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
+
+      /*--- Grid movement ---*/
+      if (config->GetGrid_Movement())
+        conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(), geometry->node[iPoint]->GetGridVel());
+
+      geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
+      for (iDim = 0; iDim < nDim; iDim++)
+        Normal[iDim] = -Normal[iDim];
+      conv_numerics->SetNormal(Normal);
+
+      V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+
+      /*--- Set the reflected state based on the boundary node. Scalars
+       * are copied and the velocity is mirrored along the symmetry
+       * boundary, i.e. the velocity in normal direction is subtracted
+       * twice. ---*/
+      for(iVar = 0; iVar < nPrimVar_Flow; iVar++)
+        V_reflected[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive(iVar);
+
+      /*--- Compute velocity in normal direction (ProjVelcity_i=(v*n))
+       * und substract twice from velocity in normal direction:
+       * v_r = v - 2 (v*n)n ---*/
+      ProjVelocity_i = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++)
+        ProjVelocity_i +=
+            solver_container[FLOW_SOL]->node[iPoint]->GetVelocity(iDim)*UnitNormal[iDim];
+
+      for (iDim = 0; iDim < nDim; iDim++)
+        V_reflected[iDim+1] =
+            solver_container[FLOW_SOL]->node[iPoint]->GetVelocity(iDim) -
+            2.0 * ProjVelocity_i*UnitNormal[iDim];
+
+      /*--- Set Primitive and Secondary for numerics class. ---*/
+      conv_numerics->SetPrimitive(V_domain, V_reflected);
+
+      /*--- Set turbulence variables ---*/
+      for (iVar = 0; iVar < nVar; iVar++) {
+        Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
+        Solution_j[iVar] = node[iPoint]->GetSolution(iVar);
+      }
+      conv_numerics->SetTurbVar(Solution_i, Solution_j);
+
+      conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+      LinSysRes.AddBlock(iPoint, Residual);
+      if (implicit) {
+        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
+      }
+
+      /*-------------------------------------------------------------------------------*/
+      /*--- Step 2: The viscous fluxes of the Navier-Stokes equations depend on the ---*/
+      /*---         Primitive variables and their gradients. The viscous numerics   ---*/
+      /*---         container is filled just as the convective numerics container,  ---*/
+      /*---         but the primitive gradients of the reflected state have to be   ---*/
+      /*---         determined additionally such that symmetry at the boundary is   ---*/
+      /*---         enforced. Based on the Viscous_Residual routine.                ---*/
+      /*-------------------------------------------------------------------------------*/
+
+      /*--- Set the normal vector and the coordinates. ---*/
+      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
+      visc_numerics->SetNormal(Normal);
+
+      /*--- Set the primitive and Secondary variables. ---*/
+      visc_numerics->SetPrimitive(V_domain, V_reflected);
+
+      /*--- For viscous Fluxes also the gradients of the primitives need to
+       * be determined. The gradients of scalars are mirrored along the
+       * symmetry plane just as velocity for the primitives ---*/
+
+      /*--- Get gradients of primitives of boundary cell ---*/
+      for (iVar = 0; iVar < nVar; iVar++)
+        for (iDim = 0; iDim < nDim; iDim++)
+          TurbVarGrad_Reflected[iVar][iDim] = node[iPoint]->GetGradient_Primitive(iVar, iDim);
+
+      /*--- Reflect the gradients for all scalars:
+       * grad(V)_r = grad(V) - 2 [grad(V)*n]n, V being any scalar ---*/
+      for (iVar = 0; iVar < nVar; iVar++) {
+
+          /*--- Compute projected part of the gradient in a dot product ---*/
+          ProjGradient = 0.0;
+          for (iDim = 0; iDim < nDim; iDim++)
+            ProjGradient +=
+                TurbVarGrad_Reflected[iVar][iDim]*UnitNormal[iDim];
+
+          for (iDim = 0; iDim < nDim; iDim++)
+            TurbVarGrad_Reflected[iVar][iDim] =
+                TurbVarGrad_Reflected[iVar][iDim] -
+                2.0 * ProjGradient*UnitNormal[iDim];
+      }
+
+      visc_numerics->SetTurbVar(Solution_i, Solution_j);
+      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(), TurbVarGrad_Reflected);
+
+      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+      LinSysRes.SubtractBlock(iPoint, Residual);
+      if (implicit) {
+        Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+      }
+    }
+  }
+
+  /*--- Free locally allocated memory ---*/
+  delete [] Normal;
+  delete [] UnitNormal;
+  delete [] Tangential;
+  delete [] GradNormVel;
+  delete [] GradTangVel;
+
+  for (iVar = 0; iVar < nVar; iVar++)
+    delete [] TurbVarGrad_Reflected[iVar];
+  delete [] TurbVarGrad_Reflected;
 }
 
 void CTurbSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container,
