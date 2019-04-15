@@ -6847,7 +6847,6 @@ void COutput::SetCFL_Number(CSolver *****solver_container, CConfig **config, uns
 
   bool energy = config[val_iZone]->GetEnergy_Equation();
   bool weakly_coupled_heat = config[val_iZone]->GetWeakly_Coupled_Heat();
-  bool v2f = config[val_iZone]->GetKind_Turb_Model() == KE;
 
   switch( config[val_iZone]->GetKind_Solver()) {
     case EULER : case NAVIER_STOKES : case RANS:
@@ -6857,9 +6856,6 @@ void COutput::SetCFL_Number(CSolver *****solver_container, CConfig **config, uns
       }
       else if (weakly_coupled_heat) {
         RhoRes_New = solver_container[val_iZone][INST_0][FinestMesh][HEAT_SOL]->GetRes_RMS(0);
-      } else if (v2f) {
-        // Use dissipation residual
-        RhoRes_New = solver_container[val_iZone][INST_0][MESH_0][TURB_SOL]->GetRes_RMS(1);
       }
       else {
         RhoRes_New = solver_container[val_iZone][INST_0][FinestMesh][FLOW_SOL]->GetRes_RMS(0);
