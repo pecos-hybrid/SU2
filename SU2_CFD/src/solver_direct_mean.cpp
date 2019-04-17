@@ -17230,7 +17230,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   
   /*--- Roe Low Dissipation Sensor ---*/
   
-  if (roe_low_dissipation){
+  if (roe_low_dissipation && iRKStep==0){
     SetRoe_Dissipation(geometry, config);
     if (kind_row_dissipation == FD_DUCROS || kind_row_dissipation == NTS_DUCROS){
       SetUpwind_Ducros_Sensor(geometry, config);
@@ -17348,29 +17348,6 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
     /*--- Retrieve the value of the kinetic energy (if need it) ---*/
-    
-    if (turb_model != NONE) {
-      eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
-      if (tkeNeeded)
-        turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-      
-      if (config->isDESBasedModel()){
-        DES_LengthScale = solver_container[TURB_SOL]->node[iPoint]->GetDES_LengthScale();
-      }
-    }
-    
-    /*--- Initialize the non-physical points vector ---*/
-    
-    node[iPoint]->SetNon_Physical(false);
-    
-    /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
-    
-    RightSol = node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
-    node[iPoint]->SetSecondaryVar(FluidModel);
-    if (runtime_averaging) {
-      average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
-      // We don't need the secondary variables
-    }
 
     if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
 
@@ -17388,6 +17365,37 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       average_node[iPoint]->SetKineticEnergyRatio(alpha);
       assert(alpha == alpha);  // alpha should not be NaN
     }
+
+    su2double alpha = 1.0;
+    if (turb_model != NONE) {
+      eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
+      if (tkeNeeded) {
+        turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+
+	// account for resolved portion
+	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+	  alpha = average_node[iPoint]->GetKineticEnergyRatio();
+	}
+      }
+      
+      if (config->isDESBasedModel()){
+        DES_LengthScale = solver_container[TURB_SOL]->node[iPoint]->GetDES_LengthScale();
+      }
+    }
+    
+    /*--- Initialize the non-physical points vector ---*/
+    
+    node[iPoint]->SetNon_Physical(false);
+    
+    /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
+    
+    RightSol = node[iPoint]->SetPrimVar(eddy_visc, alpha*turb_ke, FluidModel);
+    node[iPoint]->SetSecondaryVar(FluidModel);
+    if (runtime_averaging) {
+      average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      // We don't need the secondary variables
+    }
+
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
         
@@ -17707,7 +17715,11 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
     for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
       const su2double Volume = geometry->node[iPoint]->GetVolume();
-      const su2double* U = node[iPoint]->GetSolution();
+      //const su2double* U = node[iPoint]->GetSolution();
+
+      // Use mean density in forcing, to eliminate (as much as
+      // possible) effect of correlation between rho and Force
+      const su2double* U = average_node[iPoint]->GetSolution();
 
       const su2double* Force = HybridMediator->GetForcingVector(iPoint);
       const su2double* MeanForce = average_node[iPoint]->GetForce();
@@ -17723,13 +17735,16 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         //Residual[iDim+1] = -Volume * U[0] * Force[iDim];
 	Residual[iDim+1] = -Volume * U[0] * (Force[iDim] - MeanForce[iDim]);
+	//Residual[iDim+1] = -Volume * (Force[iDim] - MeanForce[iDim]);
       }
 
       // energy
       Residual[nDim+1] = 0.0;
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         //Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
-	Residual[nDim+1] += -Volume * U[iDim+1] * (Force[iDim] - MeanForce[iDim]);
+	//Residual[nDim+1] += -Volume * U[iDim+1] * (Force[iDim] - MeanForce[iDim]);
+	Residual[nDim+1] += 0.0; // no source in energy?
+	//Residual[nDim+1] += -Volume * (U[iDim+1]/U[0]) * (Force[iDim] - MeanForce[iDim]);
       }
 
       // update residual
@@ -19181,7 +19196,8 @@ void CNSSolver::UpdateAverage(const su2double weight,
         current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
       }
     }
-    const su2double new_Pk = production + (current_production - production)*weight;
+    //const su2double new_Pk = production + (current_production - production)*weight;
+    const su2double new_Pk = production + (current_production - production)*weight*0.25;
     average_node[iPoint]->SetProduction(new_Pk);
 
     /*--- Update resolved kinetic energy ---*/
