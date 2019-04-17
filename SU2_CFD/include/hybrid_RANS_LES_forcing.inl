@@ -76,11 +76,13 @@ inline void CHybridForcingTG0::SetTGField(
                 const su2double* Lmesh, const su2double* D,
                 const su2double dwall, su2double* h) const {
 
-  const su2double A = 1./3., B = -1.0, C = 2./3.;
+  //const su2double A = 1./3., B = -1.0, C = 2./3.;
+  const su2double A = 1./3., B = 2./3., C = -1.0;
   su2double a[3];
 
   for (unsigned int ii=0; ii<3; ii++) {
-    const su2double ell = std::min(Lsgs, dwall);
+    //const su2double ell = std::min(Lsgs, dwall);
+    const su2double ell = Lsgs;
     const su2double elllim = std::max(ell, 2.0*Lmesh[ii]);
 
     if (D[ii] > 0.0) {
@@ -99,9 +101,14 @@ inline void CHybridForcingTG0::SetTGField(
   //h[0] = A * cos(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-M_PI/2);
   //h[1] = B * sin(a[0]*x[0]) * cos(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-M_PI/2);
   //h[2] = C * sin(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * cos(a[2]*x[2]-M_PI/2);
+  // // CHANNEL HACK
+  // h[0] = A * cos(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]);
+  // h[1] = B * sin(a[0]*x[0]) * cos(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]);
+  // h[2] = C * sin(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * cos(a[2]*x[2]);
+
   // CHANNEL HACK
-  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]);
-  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]);
-  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * cos(a[2]*x[2]);
+  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*(x[2]-1.0));
+  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*(x[2]-1.0));
+  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*(x[2]-1.0));
 }
 
