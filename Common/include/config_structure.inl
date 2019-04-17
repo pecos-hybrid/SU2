@@ -1689,6 +1689,8 @@ inline unsigned short CConfig::GetKind_Hybrid_SGET_Model(void) {return Kind_Hybr
 
 inline bool CConfig::GetUse_Resolved_Turb_Stress(void) const { return Use_Resolved_Turb_Stress; }
 
+inline bool CConfig::GetUse_v2f_Timescale_Limit(void) const { return Use_v2f_Timescale_Limit; }
+
 inline void CConfig::SetUse_Resolved_Turb_Stress(bool use_stress) { Use_Resolved_Turb_Stress = use_stress; }
 
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }

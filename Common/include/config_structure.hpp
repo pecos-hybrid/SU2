@@ -563,6 +563,7 @@ private:
             Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
+  bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
   unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
@@ -4342,6 +4343,13 @@ public:
    * \param[in] load_stress - True if the resolved turbulent stress is to be used.
    */
   void SetUse_Resolved_Turb_Stress(bool use_stress);
+
+  /*!
+   * \brief Check if the timescale limit should be used in the v2-f
+   *        RANS model.
+   * \return True if the timescale limit should be used.
+   */
+  bool GetUse_v2f_Timescale_Limit(void) const;
 
   /*!
    * \brief Get the kind of the turbulence model.
