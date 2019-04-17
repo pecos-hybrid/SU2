@@ -561,6 +561,10 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
   // here.  TODO: Add divergence contribution.
 
+  su2double alpha_fac = alpha*(2.0 - alpha);
+  alpha_fac = max(alpha_fac, 1e-8);
+  alpha_fac = min(alpha_fac, 1.0);
+
   // Strain only part
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
@@ -569,7 +573,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
         // NB: Assumes that eddy_viscosity is *full* eddy
         // viscosity---i.e., not multiplied by alpha---so that
         // alpha is necessary here
-        Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Sd[kDim][jDim];
+        Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][kDim]*Sd[kDim][jDim];
       }
     }
   }
@@ -584,7 +588,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
         for (kDim = 0; kDim < nDim; kDim++) {
-          Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Om[jDim][kDim];
+          Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][kDim]*Om[jDim][kDim];
         }
         // TODO: Add rho*k contribution
       }
@@ -595,10 +599,12 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
       for (jDim = 0; jDim < nDim; jDim++) {
         for (kDim = 0; kDim < nDim; kDim++) {
           // rotation contribution
-          Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Om[kDim][jDim];
+          Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][kDim]*Om[kDim][jDim];
         }
         // rho*k contribtuion
-        Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
+	// should this part be just alpha scaling?
+        //Pij[iDim][jDim] -= 2.0*alpha_fac*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
+	Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
       }
     }
     break;
@@ -620,23 +626,24 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   // 4) Compute inverse length scale tensor from production tensor
   // NB: Typo in AIAA paper
-  //const su2double t0 = 1.5*sqrt(1.5);
-  // for (iDim = 0; iDim < nDim; iDim++) {
-  //   for (jDim = 0; jDim < nDim; jDim++) {
-  //     invLengthTensor[iDim][jDim] =
-  //       0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2));
-  //   }
-  // }
-
-  // NB: v2 is pre-multiplied by alpha and ktot is not
-  const su2double fac0 = 1.5*sqrt(1.5)*v2*sqrt(v2);
-  const su2double fac1 = ktot / (1.5*v2);
+  const su2double t0 = 1.5*sqrt(1.5);
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       invLengthTensor[iDim][jDim] =
-        0.5*fac1*(Pij[iDim][jDim] + Pij[jDim][iDim])/fac0;
+        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2));
     }
   }
+
+  // No extra zeta here when using alpha*(2-alpha) in stress
+  // // NB: v2 is pre-multiplied by alpha and ktot is not
+  // const su2double fac0 = 1.5*sqrt(1.5)*v2*sqrt(v2);
+  // const su2double fac1 = ktot / (1.5*v2);
+  // for (iDim = 0; iDim < nDim; iDim++) {
+  //   for (jDim = 0; jDim < nDim; jDim++) {
+  //     invLengthTensor[iDim][jDim] =
+  //       0.5*fac1*(Pij[iDim][jDim] + Pij[jDim][iDim])/fac0;
+  //   }
+  // }
 
 #ifndef NDEBUG
   // check for nans
@@ -649,6 +656,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     }
   }
   if (found_nan) {
+    std::cout << "alpha = " << alpha << std::endl;
+    std::cout << "alpha_fac = " << alpha_fac << std::endl;
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
         std::cout << "tauSGET[" << iDim << "][" << jDim << "] = "

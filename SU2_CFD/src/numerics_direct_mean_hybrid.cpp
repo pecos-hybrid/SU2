@@ -164,8 +164,14 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
 
   /*--- Limit alpha to protect from imbalance in k_model vs k_resolved ---*/
+  //const su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j), 0.0), 1.0);
+  su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j), 0.0), 1.0);
 
-  const su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j), 0.0), 1.0);
+  // use more complex scaling
+  //su2double Mean_Alpha_Fcn = Mean_Alpha*(2.0 - Mean_Alpha);
+
+  // const su2double Alpha0 = 0.1; // offset alpha
+  // const su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j)+Alpha0, 0.0), 1.0);
 
   /*--- Mean gradient approximation ---*/
 
@@ -282,15 +288,21 @@ void CAvgGrad_Hybrid::AddTauSGS(const su2double *val_primvar,
   unsigned short iDim, jDim;
   const su2double Density = val_primvar[nDim+2];
 
+  const su2double alpha_fac = val_alpha*(2.0 - val_alpha);
+  const su2double mut_sgs = alpha_fac*val_eddy_viscosity;
+
   su2double div_vel = 0.0;
   for (iDim = 0 ; iDim < nDim; iDim++)
     div_vel += val_gradprimvar[iDim+1][iDim];
 
   for (iDim = 0 ; iDim < nDim; iDim++) {
     for (jDim = 0 ; jDim < nDim; jDim++) {
-      tau[iDim][jDim] += val_alpha*val_eddy_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
-                        - TWO3*val_alpha*val_eddy_viscosity*div_vel*delta[iDim][jDim]
-                        - TWO3*Density*val_alpha*val_turb_ke*delta[iDim][jDim];
+      // tau[iDim][jDim] += val_alpha*val_eddy_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
+      //                   - TWO3*val_alpha*val_eddy_viscosity*div_vel*delta[iDim][jDim]
+      //                   - TWO3*Density*val_alpha*val_turb_ke*delta[iDim][jDim];
+       tau[iDim][jDim] += mut_sgs*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
+                         - TWO3*mut_sgs*div_vel*delta[iDim][jDim]
+                         - TWO3*Density*val_alpha*val_turb_ke*delta[iDim][jDim];
     }
   }
 }
@@ -311,9 +323,9 @@ void CAvgGrad_Hybrid::AddTauSGET(su2double **val_gradprimvar,
       for (unsigned short kDim =0; kDim < nDim; kDim++) {
         tau[iDim][jDim] += val_eddy_viscosity[iDim][kDim]*deviatoric[jDim][kDim] +
                            val_eddy_viscosity[jDim][kDim]*deviatoric[iDim][kDim];
-        for (unsigned short lDim = 0; lDim < nDim; lDim++) {
-          tau[iDim][jDim] -= TWO3*val_eddy_viscosity[kDim][lDim]*deviatoric[kDim][lDim]*delta[iDim][jDim];
-        }
+        // for (unsigned short lDim = 0; lDim < nDim; lDim++) {
+        //   tau[iDim][jDim] -= TWO3*val_eddy_viscosity[kDim][lDim]*deviatoric[kDim][lDim]*delta[iDim][jDim];
+        // }
       }
     }
   }
