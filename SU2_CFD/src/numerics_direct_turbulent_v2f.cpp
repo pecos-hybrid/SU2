@@ -30,8 +30,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
+ * * You should have received a copy of the GNU Lesser General Public
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -417,7 +416,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   // ... production
   // Limit production of v2 based on max zeta = 2/3
-  Pv2 = rho * min( tke*f, 2.0*Pk/3.0 + 5.0*v2/T1 );
+  Pv2 = rho * min( tke*f, 2.0*Pk/3.0/rho + 5.0*v2/T1 );
 
   Pv2_rk  = 0.0;
   Pv2_re  = 0.0;
@@ -448,7 +447,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   } else {
     Rf = 1.0/TurbT;
   }
-  Pf = (C_2f*Pk/tke_lim - Rf*(C1m6*zeta - ttC1m1)) / Lsq;
+  Pf = (C_2f*Pk/(rho*tke_lim) - Rf*(C1m6*zeta - ttC1m1)) / Lsq;
 
   // not keeping any derivatives of Pf
 
