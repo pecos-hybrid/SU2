@@ -3507,6 +3507,9 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 
   }
 
+  if (nRKStep==0 && Kind_TimeIntScheme_Flow==RUNGE_KUTTA_LIMEX_SMR91) { 
+    nRKStep = 3;
+  }
 
 
   if (nIntCoeffs == 0) {
@@ -5365,6 +5368,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           cout << "]" << endl;
           break;
         case RUNGE_KUTTA_LIMEX_SMR91:
+	  nRKStep = 3;
           cout << "Linearized IMEX w/ SMR91 for the flow equations." << endl;
           break;
         case EULER_EXPLICIT:
