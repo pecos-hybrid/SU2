@@ -111,7 +111,7 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   assert(eddy_viscosity != NULL);
   assert(C_M > 0);
 
-  //const su2double damping = ComputeDamping(geometry, config, iPoint);
+  const su2double damping = ComputeDamping(geometry, config, iPoint);
 
   /*--- C_M0 is an overall coefficient used to calibrate the model to match
    * isotropic resolution ---*/
@@ -119,8 +119,10 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      eddy_viscosity[iDim][jDim] =
-	density * C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
+      eddy_viscosity[iDim][jDim] = density * C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
+      //C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
+	//C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
+	//density * C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
 	//density * damping*C_M0*C_M * pow(dissipation, 1.0/3) * M43[iDim][jDim];
     }
   }
@@ -140,14 +142,15 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   assert(aspect_ratio >= 1.00);
 
   //const su2double AR_switch = 50;
-  //const su2double AR_switch = 32;
-  const su2double AR_switch = 128;
+  const su2double AR_switch = 32;
+  //const su2double AR_switch = 128;
   if (aspect_ratio > AR_switch) {
-    const su2double blending = tanh((aspect_ratio - AR_switch)/10.0);
+    //const su2double blending = tanh((aspect_ratio - AR_switch)/10.0);
+    const su2double blending = tanh((aspect_ratio - AR_switch)/128.0);
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
         eddy_viscosity[iDim][jDim] *= (1 - blending);
-        eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
+        //eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
       }
     }
   }
