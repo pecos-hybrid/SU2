@@ -399,7 +399,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
                                    CConfig *config, unsigned short iMesh) {
 
   su2double rho, nu, S;
-  su2double kine, v2, zeta, muT;
+  su2double tke, v2, zeta, muT;
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
   /*--- Compute mean flow and turbulence gradients ---*/
@@ -427,6 +427,8 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     flow_node = solver_container[FLOW_SOL]->node;
   }
 
+  const unsigned short realizability_limit = config->GetKind_v2f_Limit();
+  const bool limit_scales = (realizability_limit == T_L_LIMIT);
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint ++) {
 
     /*--- Compute turbulence scales ---*/
@@ -436,22 +438,34 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     S   = flow_node[iPoint]->GetStrainMag();
 
     /*--- Scalars ---*/
-    kine = node[iPoint]->GetSolution(0);
-    v2   = node[iPoint]->GetSolution(2);
+    // kine = node[iPoint]->GetSolution(0);
+    // v2   = node[iPoint]->GetSolution(2);
+
+    // /*--- T & L ---*/
+
+    // kine = max(kine, scale*VelMag*VelMag);
+    // zeta = max(v2/kine, scale);
+
+    // node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
+
+    tke = max(node[iPoint]->GetSolution(0), 0.0);
+    v2  = max(node[iPoint]->GetSolution(2), scale*VelMag*VelMag);
 
     /*--- T & L ---*/
 
-    kine = max(kine, scale*VelMag*VelMag);
-    zeta = max(v2/kine, scale);
-
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, limit_scales);
     node[iPoint]->SetKolKineticEnergyRatio(nu);
 
     const su2double Tm = node[iPoint]->GetTurbTimescale();
 
     /*--- Compute the eddy viscosity ---*/
 
-    muT = constants[0]*rho*zeta*kine*Tm;
+    //muT = constants[0]*rho*zeta*kine*Tm;
+    muT = constants[0]*rho*v2*Tm;
+    if (realizability_limit == EDDY_VISC_LIMIT) {
+      const su2double C_lim = 1.0;
+      muT = min(muT, C_lim*rho*tke/(sqrt(3)*S));
+    }
 
     node[iPoint]->SetmuT(muT);
 
@@ -482,13 +496,15 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
   VelMag = sqrt(VelMag);
   const su2double L_inf = config->GetLength_Reynolds();
 
+  const bool limit_scales =
+    (config->GetKind_v2f_Limit() == T_L_LIMIT);
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
     const su2double nu  = flow_node[iPoint]->GetLaminarViscosity() /
                           flow_node[iPoint]->GetDensity();
     const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, limit_scales);
   }
 }
 

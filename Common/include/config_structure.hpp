@@ -529,6 +529,11 @@ private:
             Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
+
+  bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
+  unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
+  unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
+
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -3838,6 +3843,23 @@ public:
   void SetUse_Resolved_Turb_Stress(bool use_stress);
 
   /*!
+<<<<<<< HEAD
+=======
+   * \brief Check if the timescale limit should be used in the v2-f
+   *        RANS model.
+   * \return True if the timescale limit should be used.
+   */
+  bool GetUse_v2f_Timescale_Limit(void) const;
+
+  /*!
+   * \brief Get the kind of realizability limit to be used in the v2-f
+   *        RANS model.
+   * \return Kind of realizability limit to be used.
+   */
+  bool GetKind_v2f_Limit(void) const;
+
+  /*!
+>>>>>>> 84323017f... Add a switch to change the v2f realizability limit
    * \brief Get the kind of the turbulence model.
    * \return Kind of the turbulence model.
    */
