@@ -709,7 +709,8 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
       // Jacobian_j[0][3] = 0.0;
 
 
-      LinSysRes.SetBlock(iPoint, 1, node[iPoint]->GetSolution(1) - 2.0*laminar_viscosity*wall_k/(density*distance*distance));
+      const su2double wall_diss = 2.0*laminar_viscosity*wall_k/(density*distance*distance);
+      LinSysRes.SetBlock(iPoint, 1, density*(node[iPoint]->GetSolution(1) - wall_diss));
       Jacobian.DeleteValsRowi(iPoint*nVar+1); // zeros this row and puts 1 on diagonal
 
       // WARNING: Begin hackery...
