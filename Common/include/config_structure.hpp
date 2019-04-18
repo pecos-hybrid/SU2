@@ -1002,6 +1002,7 @@ private:
   su2double nAveragingPeriods;  /*!< \brief Number of periods over which to average. */
 
   bool DivU_inTKEProduction;
+  bool Use_v2f_Rf_mod;
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -4421,6 +4422,12 @@ public:
    * \return boolean
    */
   bool GetBoolDivU_inTKEProduction(void);
+
+  /*!
+   * \brief Verify time scale mod in f-equation is being used (for v2-f only)
+   * \return boolean
+   */
+  bool GetBoolUse_v2f_Rf_mod(void);
 
   /*!
    * \brief number Turbomachinery performance option specified from config file.

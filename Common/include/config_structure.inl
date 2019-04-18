@@ -1144,6 +1144,8 @@ inline bool CConfig::GetBoolRiemann(void) { return (nMarker_Riemann!=0);}
 
 inline bool CConfig::GetBoolDivU_inTKEProduction(void) { return DivU_inTKEProduction; }
 
+inline bool CConfig::GetBoolUse_v2f_Rf_mod(void) { return Use_v2f_Rf_mod; }
+
 inline unsigned short CConfig::GetnMarker_MixingPlaneInterface(void) { return nMarker_MixingPlaneInterface;}
 
 inline unsigned short CConfig::GetnMarker_Turbomachinery(void) { return nMarker_Turbomachinery;}
