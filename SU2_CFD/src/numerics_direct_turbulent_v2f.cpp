@@ -345,7 +345,11 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   //... production
   // NB: we ignore the jacobian of production here
 
-  Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
+  //Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
+  Pk     = muT*S*S;
+  if (config->GetBoolDivU_inTKEProduction()) {
+    Pk -= (2.0/3.0)*rho*tke*diverg;
+  }
 
   Pk_rk  = 0.0;
   Pk_re  = 0.0;

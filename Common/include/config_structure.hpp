@@ -1001,6 +1001,8 @@ private:
   unsigned short Kind_Averaging_Period;  /*!< \brief Type of period over which runtime averages are to be computed. */
   su2double nAveragingPeriods;  /*!< \brief Number of periods over which to average. */
 
+  bool DivU_inTKEProduction;
+
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
    there would be no list of all the config file options. ---*/
@@ -4413,6 +4415,12 @@ public:
    * \return boolean.
    */
   bool GetBoolRiemann(void);
+
+  /*!
+   * \brief Verify if rho*tke*div(u) term should be included in tke production
+   * \return boolean
+   */
+  bool GetBoolDivU_inTKEProduction(void);
 
   /*!
    * \brief number Turbomachinery performance option specified from config file.

@@ -1142,6 +1142,8 @@ inline bool CConfig::GetBoolGiles(void) { return (nMarker_Giles!=0);}
 
 inline bool CConfig::GetBoolRiemann(void) { return (nMarker_Riemann!=0);}
 
+inline bool CConfig::GetBoolDivU_inTKEProduction(void) { return DivU_inTKEProduction; }
+
 inline unsigned short CConfig::GetnMarker_MixingPlaneInterface(void) { return nMarker_MixingPlaneInterface;}
 
 inline unsigned short CConfig::GetnMarker_Turbomachinery(void) { return nMarker_Turbomachinery;}
