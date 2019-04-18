@@ -851,6 +851,22 @@ static const map<string, ENUM_TURB_MODEL> Turb_Model_Map = CCreateMap<string, EN
 ("KE", KE);
 
 /*!
+ * \brief Kind of realizability limit used in the v2-f RANS model.
+ *
+ * For more information, see:
+ * Sveningsson, A., & Davidson, L. (2004). Assessment of realizability
+ * constraints in v2–f turbulence models. International journal of heat and
+ * fluid flow, 25(5), 785-794.
+ */
+enum ENUM_KIND_V2F_LIMIT {
+  EDDY_VISC_LIMIT, /*!< \brief Limit the eddy-viscosity */
+  T_L_LIMIT /*!< \brief Limit the time and length-scales. */
+};
+static const map<string, ENUM_KIND_V2F_LIMIT> v2f_Limit_Map = CCreateMap<string, ENUM_KIND_V2F_LIMIT>
+("EDDY_VISC_LIMIT", EDDY_VISC_LIMIT)
+("T_L_LIMIT", T_L_LIMIT);
+
+/*!
  * \brief Type of hybrid RANS/LES testing scheme
  *
  * If the hybrid method is set to "RANS only", then the hybrid numerics

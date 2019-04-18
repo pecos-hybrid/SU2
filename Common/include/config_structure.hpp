@@ -564,6 +564,7 @@ private:
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
   bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
+  unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
   unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
@@ -4350,6 +4351,13 @@ public:
    * \return True if the timescale limit should be used.
    */
   bool GetUse_v2f_Timescale_Limit(void) const;
+
+  /*!
+   * \brief Get the kind of realizability limit to be used in the v2-f
+   *        RANS model.
+   * \return Kind of realizability limit to be used.
+   */
+  bool GetKind_v2f_Limit(void) const;
 
   /*!
    * \brief Get the kind of the turbulence model.

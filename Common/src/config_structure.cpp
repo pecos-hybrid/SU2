@@ -804,6 +804,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief V2F_TIMESCALE_LIMIT \n DESCRITPTION: For the v2-f RANS model, limit the timescale in the f-equation to 3/S, where S is the Frobenius norm of the mean rate-of-strain tensor. \ingroup Config */
   addBoolOption("V2F_TIMESCALE_LIMIT", Use_v2f_Timescale_Limit, NO);
 
+  /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
+  addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
+
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
   /*!\brief KIND_TRANS_MODEL \n DESCRIPTION: Specify transition model OPTIONS: see \link Trans_Model_Map \endlink \n DEFAULT: NO_TRANS_MODEL \ingroup Config*/

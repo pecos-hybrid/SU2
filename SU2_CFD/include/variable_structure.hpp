@@ -1231,10 +1231,22 @@ public:
    */
   virtual void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
+  /**
+   * \brief Sets the turbulent length and timescales
+   *
+   * \param[in] nu - The kinematic viscosity
+   * \param[in] S - The magnitude of the deviatoric rate-of-strain
+   * \param[in] VelMag - The magntidue of the freestream velocity
+   * \param[in] L_inf - The freestream (or problem) lengthscale
+   * \param[in] use_realizability - Limit the time and lengthscales based
+   *     on realizability limits on the Reynolds stress tensor.
+   */
   virtual void SetTurbScales(su2double nu,
-                     su2double S,
-                     su2double VelMag,
-                     su2double L_inf);
+                             su2double S,
+                             su2double VelMag,
+                             su2double L_inf,
+                             bool use_realizability);
+
 
   virtual void SetKolKineticEnergyRatio(su2double nu);
 
