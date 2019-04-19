@@ -922,6 +922,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   addBoolOption("DIVU_IN_TKE_PRODUCTION", DivU_inTKEProduction, true);
   addBoolOption("USE_V2F_RF_MOD", Use_v2f_Rf_mod, false);
+  addBoolOption("USE_V2F_EXPLICIT_WALLBC", Use_v2f_Explicit_WallBC, true);
   
   /*!\brief SPATIAL_FOURIER \n DESCRIPTION: Option to compute the spatial fourier trasformation for the Giles BC. */
   addBoolOption("SPATIAL_FOURIER", SpatialFourier, false);

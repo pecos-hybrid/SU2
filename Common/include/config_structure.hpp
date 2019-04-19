@@ -1003,6 +1003,7 @@ private:
 
   bool DivU_inTKEProduction;
   bool Use_v2f_Rf_mod;
+  bool Use_v2f_Explicit_WallBC;
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -4428,6 +4429,12 @@ public:
    * \return boolean
    */
   bool GetBoolUse_v2f_Rf_mod(void);
+
+  /*!
+   * \brief Verify whether to use explicit or implicit wall BC for turb model (v-f only)
+   * \return boolean
+   */
+  bool GetBoolUse_v2f_Explicit_WallBC(void);
 
   /*!
    * \brief number Turbomachinery performance option specified from config file.
