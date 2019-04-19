@@ -697,64 +697,6 @@ void CTurbKESolver::BC_Isothermal_Wall(CGeometry *geometry,
   BC_HeatFlux_Wall(geometry, solver_container, conv_numerics,
                    visc_numerics, config, val_marker, iRKStep);
 
-
-  // unsigned long iPoint, jPoint, iVertex, total_index;
-  // unsigned short iDim, iVar;
-  // su2double distance, wall_k;
-  // su2double density = 0.0, laminar_viscosity = 0.0;
-
-  // bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
-  // bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
-
-  // for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-  //   iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-
-  //   /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
-  //   if (geometry->node[iPoint]->GetDomain()) {
-
-  //     /*--- distance to closest neighbor ---*/
-  //     jPoint = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
-  //     distance = 0.0;
-  //     for (iDim = 0; iDim < nDim; iDim++) {
-  //       const su2double dx = (geometry->node[iPoint]->GetCoord(iDim) -
-  //                             geometry->node[jPoint]->GetCoord(iDim));
-  //       distance += dx*dx;
-  //     }
-  //     distance = sqrt(distance);
-
-  //     /*--- Set wall values ---*/
-  //     if (compressible) {
-  //       density = solver_container[FLOW_SOL]->node[jPoint]->GetDensity();
-  //       laminar_viscosity = solver_container[FLOW_SOL]->node[jPoint]->GetLaminarViscosity();
-  //     }
-  //     if (incompressible) {
-  //       density = solver_container[FLOW_SOL]->node[jPoint]->GetDensity();
-  //       laminar_viscosity = solver_container[FLOW_SOL]->node[jPoint]->GetLaminarViscosity();
-  //     }
-
-  //     wall_k = node[jPoint]->GetSolution(0);
-
-  //     // wall boundary conditions (https://turbmodels.larc.nasa.gov/k-e-zeta-f.html)
-  //     Solution[0] = 0.0;
-  //     Solution[1] = 2.0*laminar_viscosity*wall_k/(density*distance*distance);
-  //     Solution[2] = 0.0;
-  //     Solution[3] = 0.0;
-
-  //     /*--- Set the solution values and zero the residual ---*/
-  //     node[iPoint]->SetSolution_Old(Solution);
-  //     node[iPoint]->SetSolution(Solution);
-  //     LinSysRes.SetBlock_Zero(iPoint);
-
-  //     /*--- Change rows of the Jacobian (includes 1 in the diagonal) ---*/
-  //     for (iVar = 0; iVar < nVar; iVar++) {
-  //       total_index = iPoint*nVar+iVar;
-  //       Jacobian.DeleteValsRowi(total_index);
-  //     }
-
-  //     // FIXME: See HeatFlux method for f-eqn procedure
-
-  //   }
-  // }
 }
 
 void CTurbKESolver::BC_Far_Field(CGeometry *geometry,
