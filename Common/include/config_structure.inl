@@ -1291,6 +1291,14 @@ inline bool CConfig::GetBoolGiles(void) { return (nMarker_Giles!=0);}
 
 inline bool CConfig::GetBoolRiemann(void) { return (nMarker_Riemann!=0);}
 
+inline bool CConfig::GetBoolDivU_inTKEProduction(void) { return DivU_inTKEProduction; }
+
+inline bool CConfig::GetBoolUse_v2f_Rf_mod(void) { return Use_v2f_Rf_mod; }
+
+inline bool CConfig::GetBoolUse_v2f_Explicit_WallBC(void) { return Use_v2f_Explicit_WallBC; }
+
+inline bool CConfig::GetKind_v2f_Limit(void) const { return Kind_v2f_Limit; }
+
 inline unsigned short CConfig::GetnMarker_MixingPlaneInterface(void) { return nMarker_MixingPlaneInterface;}
 
 inline unsigned short CConfig::GetnMarker_Turbomachinery(void) { return nMarker_Turbomachinery;}
@@ -1688,10 +1696,6 @@ inline su2double CConfig::GetHybrid_Forcing_Vortex_Length(void) const { return H
 inline unsigned short CConfig::GetKind_Hybrid_SGET_Model(void) {return Kind_Hybrid_SGET_Model; }
 
 inline bool CConfig::GetUse_Resolved_Turb_Stress(void) const { return Use_Resolved_Turb_Stress; }
-
-inline bool CConfig::GetUse_v2f_Timescale_Limit(void) const { return Use_v2f_Timescale_Limit; }
-
-inline bool CConfig::GetKind_v2f_Limit(void) const { return Kind_v2f_Limit; }
 
 inline void CConfig::SetUse_Resolved_Turb_Stress(bool use_stress) { Use_Resolved_Turb_Stress = use_stress; }
 

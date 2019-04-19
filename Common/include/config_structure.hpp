@@ -563,8 +563,6 @@ private:
             Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
-  bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
-  unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
   unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
@@ -1132,6 +1130,11 @@ private:
   unsigned short eig_val_comp;  /*!< \brief Parameter used to determine type of eigenvalue perturbation */
   su2double uq_urlx;            /*!< \brief Under-relaxation factor */
   bool uq_permute;              /*!< \brief Permutation of eigenvectors */
+
+  bool DivU_inTKEProduction;
+  bool Use_v2f_Rf_mod;
+  bool Use_v2f_Explicit_WallBC;
+  unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -4346,20 +4349,6 @@ public:
   void SetUse_Resolved_Turb_Stress(bool use_stress);
 
   /*!
-   * \brief Check if the timescale limit should be used in the v2-f
-   *        RANS model.
-   * \return True if the timescale limit should be used.
-   */
-  bool GetUse_v2f_Timescale_Limit(void) const;
-
-  /*!
-   * \brief Get the kind of realizability limit to be used in the v2-f
-   *        RANS model.
-   * \return Kind of realizability limit to be used.
-   */
-  bool GetKind_v2f_Limit(void) const;
-
-  /*!
    * \brief Get the kind of the turbulence model.
    * \return Kind of the turbulence model.
    */
@@ -5069,6 +5058,31 @@ public:
    * \return boolean.
    */
   bool GetBoolRiemann(void);
+
+  /*!
+   * \brief Verify if rho*tke*div(u) term should be included in tke production
+   * \return boolean
+   */
+  bool GetBoolDivU_inTKEProduction(void);
+
+  /*!
+   * \brief Verify time scale mod in f-equation is being used (for v2-f only)
+   * \return boolean
+   */
+  bool GetBoolUse_v2f_Rf_mod(void);
+
+  /*!
+   * \brief Verify whether to use explicit or implicit wall BC for turb model (v-f only)
+   * \return boolean
+   */
+  bool GetBoolUse_v2f_Explicit_WallBC(void);
+
+  /*!
+   * \brief Get the kind of realizability limit to be used in the v2-f
+   *        RANS model.
+   * \return Kind of realizability limit to be used.
+   */
+  bool GetKind_v2f_Limit(void) const;
 
   /*!
    * \brief number Turbomachinery performance option specified from config file.

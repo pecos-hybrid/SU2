@@ -1235,14 +1235,14 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
      SetReynoldsStressMatrix(TurbVar_i[0]);
      SetPerturbedRSM(TurbVar_i[0], config);
      SetPerturbedStrainMag(TurbVar_i[0]);
-     pk = Eddy_Viscosity_i*PerturbedStrainMag*PerturbedStrainMag
-     - 2.0/3.0*Density_i*TurbVar_i[0]*diverg;
+     pk = Eddy_Viscosity_i*PerturbedStrainMag*PerturbedStrainMag;
    }
    else {
-     pk = Eddy_Viscosity_i*StrainMag_i*StrainMag_i - 2.0/3.0*Density_i*TurbVar_i[0]*diverg;
+    pk = Eddy_Viscosity_i*StrainMag_i*StrainMag_i;
    }
-
-
+   if (config->GetBoolDivU_inTKEProduction()) {
+     pk -= 2.0/3.0*Density_i*TurbVar_i[0]*diverg;
+   }
    pk = min(pk,20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
    pk = max(pk,0.0);
 

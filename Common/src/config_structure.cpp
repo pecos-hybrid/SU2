@@ -801,12 +801,6 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief USE_RESOLVED_TURB_STRESS \n DESCRIPTION: Use the resolved turbulent stress in stead of improved production for hybrid RANS/LES calculations. \ingroup Config*/
   addBoolOption("USE_RESOLVED_TURB_STRESS", Use_Resolved_Turb_Stress, YES);
 
-  /*!\brief V2F_TIMESCALE_LIMIT \n DESCRITPTION: For the v2-f RANS model, limit the timescale in the f-equation to 3/S, where S is the Frobenius norm of the mean rate-of-strain tensor. \ingroup Config */
-  addBoolOption("V2F_TIMESCALE_LIMIT", Use_v2f_Timescale_Limit, NO);
-
-  /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
-  addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
-
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
   /*!\brief KIND_TRANS_MODEL \n DESCRIPTION: Specify transition model OPTIONS: see \link Trans_Model_Map \endlink \n DEFAULT: NO_TRANS_MODEL \ingroup Config*/
@@ -1153,6 +1147,13 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief MARKER_GILES \n DESCRIPTION: Giles boundary marker(s) with the following formats, a unit vector. */
   /* \n OPTIONS: See \link Giles_Map \endlink. The variables indicated by the option and the flow direction unit vector must be specified. \ingroup Config*/
   addGilesOption("MARKER_GILES", nMarker_Giles, Marker_Giles, Kind_Data_Giles, Giles_Map, Giles_Var1, Giles_Var2, Giles_FlowDir, RelaxFactorAverage, RelaxFactorFourier);
+
+  addBoolOption("DIVU_IN_TKE_PRODUCTION", DivU_inTKEProduction, true);
+  addBoolOption("USE_V2F_RF_MOD", Use_v2f_Rf_mod, false);
+  addBoolOption("USE_V2F_EXPLICIT_WALLBC", Use_v2f_Explicit_WallBC, true);
+  /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
+  addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
+  
   /*!\brief SPATIAL_FOURIER \n DESCRIPTION: Option to compute the spatial fourier trasformation for the Giles BC. */
   addBoolOption("SPATIAL_FOURIER", SpatialFourier, false);
   /*!\brief GILES_EXTRA_RELAXFACTOR \n DESCRIPTION: the 1st coeff the value of the under relaxation factor to apply to the shroud and hub,
