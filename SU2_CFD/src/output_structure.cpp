@@ -19282,6 +19282,7 @@ void COutput::Write_InletFile_Flow(CConfig *config, CGeometry *geometry, CSolver
         turb_val[1] = 0;
         turb_val[2] = 0;
         turb_val[3] = 0;
+        break;
       default:
         SU2_MPI::Error("Specified turbulence model unavailable or none selected", CURRENT_FUNCTION);
         break;

@@ -3858,6 +3858,9 @@ void CDriver::StartSolver(){
 #endif
 
   /*--- Main external loop of the solver. Within this loop, each iteration ---*/
+  if (config_container[ZONE_0]->GetWrt_InletFile()) {
+    Output(ExtIter);
+  }
 
   if (rank == MASTER_NODE)
     cout << endl <<"------------------------------ Begin Solver -----------------------------" << endl;
