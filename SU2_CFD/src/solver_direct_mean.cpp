@@ -17418,13 +17418,13 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 
   su2double tke_min;
   if (model_split) {
-    su2double scale = 1.0e-8;  // XXX: This value is somewhat arbitrary.
+    su2double scale = 1.0e-14; // XXX: This value is somewhat arbitrary.
     su2double* VelInf = config->GetVelocity_FreeStreamND();
     su2double VelMag = 0;
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
       VelMag += VelInf[iDim]*VelInf[iDim];
     VelMag = sqrt(VelMag);
-    if (VelMag == 0) {
+    if (VelMag <= scale) {
       SU2_MPI::Error("The model split method assumes the use of a nonzero freestream velocity.", CURRENT_FUNCTION);
     }
     tke_min = scale*0.5*VelMag*VelMag;
@@ -17466,7 +17466,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
       assert(k_resolved >= 0);
 
-      const su2double tke_lim = max(k_total, 1.0E-8);
+      const su2double tke_lim = max(k_total, tke_min);
       const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
       const su2double alpha = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
       average_node[iPoint]->SetKineticEnergyRatio(alpha);

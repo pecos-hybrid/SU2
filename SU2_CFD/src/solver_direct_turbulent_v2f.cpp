@@ -223,7 +223,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   VelMag = sqrt(VelMag);
 
   su2double L_Inf = config->GetLength_Reynolds();
-  su2double scale = 1.0e-8;
+  su2double scale = 1.0e-14;
   su2double scalar_min = scale/(VelMag*VelMag);
   su2double tke_min = scalar_min*VelMag*VelMag;
   su2double tdr_min = scalar_min*pow(VelMag,3.0)/L_Inf;
@@ -428,7 +428,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
-  su2double scale = EPS;
+  su2double scale = 1.0e-14;
   su2double* VelInf = config->GetVelocity_FreeStreamND();
   su2double VelMag = 0;
   for (unsigned short iDim = 0; iDim < nDim; iDim++)
@@ -457,7 +457,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     /*--- Scalars ---*/
 
     tke = max(node[iPoint]->GetSolution(0), 0.0);
-    v2  = max(node[iPoint]->GetSolution(2), scale*VelMag*VelMag);
+    v2  = max(node[iPoint]->GetSolution(2), 0.0);
 
     /*--- T & L ---*/
 
@@ -481,7 +481,6 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
       HybridMediator->ComputeResolutionAdequacy(geometry, solver_container,
                                                 iPoint);
     }
-
   }
 }
 

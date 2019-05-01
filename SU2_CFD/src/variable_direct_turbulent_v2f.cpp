@@ -99,7 +99,7 @@ void CTurbKEVariable::SetTurbScales(const su2double nu,
   const su2double v2   = Solution[2];
 
   /*--- Relevant scales ---*/
-  const su2double scale = EPS;
+  const su2double scale = 1.0e-14;
 
   /*--- Clipping to avoid nonphysical quantities
    * We keep "tke_positive" in order to allow tke=0 but clip negative
