@@ -3026,9 +3026,9 @@ void CSolver::UpdateAverage(const su2double weight, const unsigned long iPoint,
   const su2double* current = node[iPoint]->GetSolution();
 
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    const su2double new_average = (current[iVar] - average[iVar])*weight + average[iVar];
+    //const su2double new_average = (current[iVar] - average[iVar])*weight + average[iVar];
     // BE for everything
-    //const su2double new_average = (current[iVar]*weight + average[iVar])/(1.0 + weight);
+    const su2double new_average = (current[iVar]*weight + average[iVar])/(1.0 + weight);
     average_node[iPoint]->SetSolution(iVar, new_average);
   }
 }

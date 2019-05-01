@@ -81,8 +81,8 @@ inline void CHybridForcingTG0::SetTGField(
   su2double a[3];
 
   for (unsigned int ii=0; ii<3; ii++) {
-    //const su2double ell = std::min(Lsgs, dwall);
-    const su2double ell = Lsgs;
+    const su2double ell = std::min(Lsgs, dwall);
+    //const su2double ell = Lsgs;
     const su2double elllim = std::max(ell, 2.0*Lmesh[ii]);
 
     if (D[ii] > 0.0) {
