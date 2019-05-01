@@ -141,19 +141,31 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   const su2double aspect_ratio = max_distance / min_distance;
   assert(aspect_ratio >= 1.00);
 
+  // //const su2double AR_switch = 50;
+  // //const su2double AR_switch = 32;
+  // const su2double AR_switch = 128;
+  // if (aspect_ratio > AR_switch) {
+  //   //const su2double blending = tanh((aspect_ratio - AR_switch)/10.0);
+  //   const su2double blending = tanh((aspect_ratio - AR_switch)/128.0);
+  //   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+  //     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+  //       eddy_viscosity[iDim][jDim] *= (1 - blending);
+  //       //eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
+  //     }
+  //   }
+  // }
+
   //const su2double AR_switch = 50;
   const su2double AR_switch = 32;
   //const su2double AR_switch = 128;
-  if (aspect_ratio > AR_switch) {
-    //const su2double blending = tanh((aspect_ratio - AR_switch)/10.0);
-    const su2double blending = tanh((aspect_ratio - AR_switch)/128.0);
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        eddy_viscosity[iDim][jDim] *= (1 - blending);
-        //eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
-      }
+  const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/16.0) + 1.0);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      eddy_viscosity[iDim][jDim] *= (1 - blending);
+      //eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
     }
   }
+
 }
 
 su2double CM43Model::ComputeDamping(const CGeometry* geometry,
