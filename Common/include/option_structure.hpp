@@ -859,10 +859,12 @@ static const map<string, ENUM_TURB_MODEL> Turb_Model_Map = CCreateMap<string, EN
  * fluid flow, 25(5), 785-794.
  */
 enum ENUM_KIND_V2F_LIMIT {
+  NO_REALIZABILITY_LIMIT, /*!< \brief No realizability limit */
   EDDY_VISC_LIMIT, /*!< \brief Limit the eddy-viscosity */
   T_L_LIMIT /*!< \brief Limit the time and length-scales. */
 };
 static const map<string, ENUM_KIND_V2F_LIMIT> v2f_Limit_Map = CCreateMap<string, ENUM_KIND_V2F_LIMIT>
+("NONE", NO_REALIZABILITY_LIMIT)
 ("EDDY_VISC_LIMIT", EDDY_VISC_LIMIT)
 ("T_L_LIMIT", T_L_LIMIT);
 
