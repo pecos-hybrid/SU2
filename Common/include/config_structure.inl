@@ -1299,6 +1299,8 @@ inline bool CConfig::GetBoolUse_v2f_Explicit_WallBC(void) { return Use_v2f_Expli
 
 inline bool CConfig::GetKind_v2f_Limit(void) const { return Kind_v2f_Limit; }
 
+inline su2double CConfig::Getv2f_Realizability_Constant(void) const { return v2f_Realizability_Constant; }
+
 inline unsigned short CConfig::GetnMarker_MixingPlaneInterface(void) { return nMarker_MixingPlaneInterface;}
 
 inline unsigned short CConfig::GetnMarker_Turbomachinery(void) { return nMarker_Turbomachinery;}

@@ -130,14 +130,13 @@ public:
    * \param[in] S - The magnitude of the deviatoric rate-of-strain
    * \param[in] VelMag - The magntidue of the freestream velocity
    * \param[in] L_inf - The freestream (or problem) lengthscale
-   * \param[in] use_realizability - Limit the time and lengthscales based
-   *     on realizability limits on the Reynolds stress tensor.
+   * \param[in] config - Configuration settings
    */
   void SetTurbScales(su2double nu,
                      su2double S,
                      su2double VelMag,
                      su2double L_inf,
-                     bool use_realizability);
+                     const CConfig* config);
 
   su2double GetTypicalLengthscale(void) const;
 

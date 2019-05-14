@@ -1135,6 +1135,7 @@ private:
   bool Use_v2f_Rf_mod;
   bool Use_v2f_Explicit_WallBC;
   unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
+  su2double v2f_Realizability_Constant; /*!< \brief The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -5083,6 +5084,15 @@ public:
    * \return Kind of realizability limit to be used.
    */
   bool GetKind_v2f_Limit(void) const;
+
+  /*!
+   * \brief Get the model constant used for the realizability limit.
+   *
+   * This is `C_lim` from Sveningsson and Davidson.
+   *
+   * \return The realizability model constant
+   */
+  su2double Getv2f_Realizability_Constant(void) const;
 
   /*!
    * \brief number Turbomachinery performance option specified from config file.

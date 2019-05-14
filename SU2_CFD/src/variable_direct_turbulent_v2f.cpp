@@ -92,7 +92,7 @@ void CTurbKEVariable::SetTurbScales(const su2double nu,
                                     const su2double S,
                                     const su2double VelMag,
                                     const su2double L_inf,
-                                    const bool use_realizability) {
+                                    const CConfig* config) {
   /*--- Scalars ---*/
   const su2double kine = Solution[0];
   const su2double epsi = Solution[1];
@@ -117,9 +117,10 @@ void CTurbKEVariable::SetTurbScales(const su2double nu,
 
   typical_time = tke_positive/tdr_lim;
   kol_time     = C_T*sqrt(nu/tdr_lim);
-  if (use_realizability) {
+  if (config->GetKind_v2f_Limit() == T_L_LIMIT) {
+    const su2double C_lim = config->Getv2f_Realizability_Constant();
     // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
-    stag_time    = 0.6/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
+    stag_time    = C_lim/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
     timescale = max(min(typical_time, stag_time), kol_time);
   } else {
     timescale = max(typical_time, kol_time);
@@ -129,7 +130,7 @@ void CTurbKEVariable::SetTurbScales(const su2double nu,
 
   typical_length = pow(tke_positive,1.5)/tdr_lim;
   kol_length     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
-  if (use_realizability) {
+  if (config->GetKind_v2f_Limit() == T_L_LIMIT) {
     // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
     stag_length = sqrt(tke_positive)/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
     lengthscale = max(min(typical_length, stag_length), kol_length);

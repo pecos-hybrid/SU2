@@ -498,7 +498,7 @@ inline void CVariable::SetTurbScales(su2double nu,
                                      su2double S,
                                      su2double VelMag,
                                      su2double L_inf,
-                                     bool use_realizability) { }
+                                     const CConfig* config) { }
 
 inline void CVariable::SetKolKineticEnergyRatio(su2double nu) { }
 

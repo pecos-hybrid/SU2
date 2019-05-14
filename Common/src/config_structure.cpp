@@ -1153,6 +1153,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("USE_V2F_EXPLICIT_WALLBC", Use_v2f_Explicit_WallBC, true);
   /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
   addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
+  /*!\brief V2F_REALIZABILITY_CONSTANT \n DESCRIPTION: The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. \n DEFAULT: 0.6 \ingroup Config */
+  addDoubleOption("V2F_REALIZABILITY_CONSTANT", v2f_Realizability_Constant, 0.6);
   
   /*!\brief SPATIAL_FOURIER \n DESCRIPTION: Option to compute the spatial fourier trasformation for the Giles BC. */
   addBoolOption("SPATIAL_FOURIER", SpatialFourier, false);
