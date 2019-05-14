@@ -4932,7 +4932,8 @@ void CIncEulerSolver::SetFarfield_AoA(CGeometry *geometry, CSolver **solver_cont
 
 void CIncEulerSolver::SetInletAtVertex(su2double *val_inlet,
                                        unsigned short iMarker,
-                                       unsigned long iVertex) {
+                                       unsigned long iVertex,
+                                       CConfig* config) {
   
   /*--- Alias positions within inlet file for readability ---*/
   

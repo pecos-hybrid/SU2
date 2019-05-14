@@ -554,6 +554,8 @@ inline su2double CSolver::GetInlet_Ptotal(unsigned short val_marker, unsigned lo
 
 inline su2double CSolver::GetInlet_FlowDir(unsigned short val_marker, unsigned long val_vertex, unsigned short val_dim) { return 0; }
 
+inline su2double CSolver::GetInlet_TurbVar(unsigned short val_marker, unsigned long val_vertex, unsigned short val_var) { return 0; }
+
 inline void CSolver::SetInlet_Ttotal(unsigned short val_marker, unsigned long val_vertex, su2double val_ttotal) { }
 
 inline void CSolver::SetInlet_Ptotal(unsigned short val_marker, unsigned long val_vertex, su2double val_ptotal) { }
@@ -564,7 +566,7 @@ inline void CSolver::SetInlet_TurbVar(unsigned short val_marker, unsigned long v
 
 inline void CSolver::SetUniformInlet(CConfig* config, unsigned short iMarker) {};
 
-inline void CSolver::SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex) { };
+inline void CSolver::SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex, CConfig* config) { };
 
 inline su2double CSolver::GetInletAtVertex(su2double *val_inlet, unsigned long val_inlet_point, unsigned short val_kind_marker, string val_marker, CGeometry *geometry, CConfig *config) { return 0; }
 
@@ -2481,6 +2483,10 @@ inline void CTurbSolver::SetSlidingStateStructure(unsigned short val_marker, uns
 inline void CTurbSolver::SetnSlidingStates(unsigned short val_marker, unsigned long val_vertex, int value){ SlidingStateNodes[val_marker][val_vertex] = value; }
 
 inline su2double CTurbSolver::GetSlidingState(unsigned short val_marker, unsigned long val_vertex, unsigned short val_state, unsigned long donor_index) { return SlidingState[val_marker][val_vertex][val_state][donor_index]; }
+
+inline su2double CTurbSolver::GetInlet_TurbVar(unsigned short val_marker, unsigned long val_vertex, unsigned short val_var) {
+  return Inlet_TurbVars[val_marker][val_vertex][val_var];
+}
 
 inline void CTurbSolver::SetInlet_TurbVar(unsigned short val_marker, unsigned long val_vertex, unsigned short val_dim, su2double val_turb_var) {
   /*--- Since this call can be accessed indirectly using python, do some error

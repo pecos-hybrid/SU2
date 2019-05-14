@@ -253,8 +253,10 @@ public:
    * \param[in] val_inlet - vector containing the inlet values for the current vertex.
    * \param[in] iMarker - Surface marker where the coefficient is computed.
    * \param[in] iVertex - Vertex of the marker <i>iMarker</i> where the inlet is being set.
+   * \param[in] config - Definition of the particular problem.
    */
-  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex);
+  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker,
+                        unsigned long iVertex, CConfig* config);
 
   /*!
    * \brief Get the set of value imposed at an inlet.

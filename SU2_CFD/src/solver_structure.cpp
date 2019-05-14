@@ -3348,8 +3348,14 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
   /*--- Modify file name for an unsteady restart ---*/
 
-  if (dual_time || time_stepping)
-    profile_filename = config->GetUnsteady_FileName(profile_filename, val_iter);
+  if (dual_time || time_stepping) {
+    if (config->GetRestart()) {
+      profile_filename = config->GetUnsteady_FileName(profile_filename, val_iter);
+    } else {
+      // Force the iteration passed to prevent a "negative iteration" error
+      profile_filename = config->GetUnsteady_FileName(profile_filename, 1);
+    }
+  }
 
   /*--- Open the file and check for problems. If a file can not be found,
    then a warning will be printed, but the calculation will continue
@@ -3434,7 +3440,7 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
               if (min_dist < tolerance) {
 
-                solver[MESH_0][KIND_SOLVER]->SetInletAtVertex(Inlet_Values, iMarker, iVertex);
+                solver[MESH_0][KIND_SOLVER]->SetInletAtVertex(Inlet_Values, iMarker, iVertex, config);
 
               } else {
 
@@ -3516,7 +3522,7 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
             /*--- Set the boundary area-averaged inlet values for the coarse point. ---*/
 
-            solver[iMesh][KIND_SOLVER]->SetInletAtVertex(Inlet_Values, iMarker, iVertex);
+            solver[iMesh][KIND_SOLVER]->SetInletAtVertex(Inlet_Values, iMarker, iVertex, config);
 
           }
         }

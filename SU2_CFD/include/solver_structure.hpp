@@ -3055,6 +3055,15 @@ public:
    * \return Component of a unit vector representing the flow direction.
    */
   virtual su2double GetInlet_FlowDir(unsigned short val_marker, unsigned long val_vertex, unsigned short val_dim);
+
+  /*!
+   * \brief A virtual member
+   * \param[in] val_marker - Surface marker where the flow direction is evaluated
+   * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the flow direction is evaluated
+   * \param[in] val_var - The variable to be used (i.e. 0 is k in SST)
+   * \return Turbulence variable at an inlet
+   */
+  virtual su2double GetInlet_TurbVar(unsigned short val_marker, unsigned long val_vertex, unsigned short val_var);
   
   /*!
    * \brief A virtual member
@@ -3102,8 +3111,10 @@ public:
    * \param[in] val_inlet - vector containing the inlet values for the current vertex.
    * \param[in] iMarker - Surface marker where the coefficient is computed.
    * \param[in] iVertex - Vertex of the marker <i>iMarker</i> where the inlet is being set.
+   * \param[in] config - Definition of the particular problem.
    */
-  virtual void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex);
+  virtual void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker,
+                                unsigned long iVertex, CConfig* config);
 
   /*!
    * \brief A virtual member
@@ -4773,6 +4784,7 @@ protected:
   **ActDisk_DeltaT;    /*!< \brief Value of the Delta T. */
   su2double **Inlet_Ptotal,    /*!< \brief Value of the Total P. */
   **Inlet_Ttotal,    /*!< \brief Value of the Total T. */
+  **Inlet_Mach_Number,      /*!< \brief Value of the Mach number at an inlet. */
   ***Inlet_FlowDir;    /*!< \brief Value of the Flow Direction. */
   
   su2double
@@ -6728,8 +6740,10 @@ public:
    * \param[in] val_inlet - vector containing the inlet values for the current vertex.
    * \param[in] iMarker - Surface marker where the coefficient is computed.
    * \param[in] iVertex - Vertex of the marker <i>iMarker</i> where the inlet is being set.
+   * \param[in] config - Definition of the particular problem.
    */
-  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex);
+  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker,
+                        unsigned long iVertex, CConfig* config);
 
   /*!
    * \brief Get the set of value imposed at an inlet.
@@ -8594,8 +8608,10 @@ public:
    * \param[in] val_inlet - vector containing the inlet values for the current vertex.
    * \param[in] iMarker - Surface marker where the coefficient is computed.
    * \param[in] iVertex - Vertex of the marker <i>iMarker</i> where the inlet is being set.
+   * \param[in] config - Definition of the particular problem.
    */
-  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex);
+  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker,
+                        unsigned long iVertex, CConfig* config);
   
   /*!
    * \brief Get the set of value imposed at an inlet.
@@ -9907,6 +9923,15 @@ public:
   int GetnSlidingStates(unsigned short val_marker, unsigned long val_vertex);
 
   /*!
+   * \brief A virtual member
+   * \param[in] val_marker - Surface marker where the flow direction is evaluated
+   * \param[in] val_vertex - Vertex of the marker <i>val_marker</i> where the flow direction is evaluated
+   * \param[in] val_var - The variable to be used (i.e. 0 is k in SST)
+   * \return Turbulence variable at an inlet
+   */
+  su2double GetInlet_TurbVar(unsigned short val_marker, unsigned long val_vertex, unsigned short val_var);
+
+  /*!
    * \brief Set custom turbulence variables at the vertex of an inlet.
    * \param[in] iMarker - Marker identifier.
    * \param[in] iVertex - Vertex identifier.
@@ -10210,8 +10235,10 @@ public:
    * \param[in] val_inlet - vector containing the inlet values for the current vertex.
    * \param[in] iMarker - Surface marker where the coefficient is computed.
    * \param[in] iVertex - Vertex of the marker <i>iMarker</i> where the inlet is being set.
+   * \param[in] config - Definition of the particular problem.
    */
-  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex);
+  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker,
+                        unsigned long iVertex, CConfig* config);
 
   /*!
    * \brief Get the set of value imposed at an inlet.
@@ -10462,8 +10489,10 @@ public:
    * \param[in] val_inlet - vector containing the inlet values for the current vertex.
    * \param[in] iMarker - Surface marker where the coefficient is computed.
    * \param[in] iVertex - Vertex of the marker <i>iMarker</i> where the inlet is being set.
+   * \param[in] config - Definition of the particular problem.
    */
-  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex);
+  void SetInletAtVertex(su2double *val_inlet, unsigned short iMarker,
+                        unsigned long iVertex, CConfig* config);
 
   /*!
    * \brief Get the set of value imposed at an inlet.

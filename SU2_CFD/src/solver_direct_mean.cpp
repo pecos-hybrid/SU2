@@ -100,12 +100,10 @@ CEulerSolver::CEulerSolver(void) : CSolver() {
   ActDisk_DeltaP = NULL; ActDisk_DeltaT = NULL;
 
   Inlet_Ttotal = NULL; Inlet_Ptotal = NULL; Inlet_FlowDir = NULL;
+  Inlet_Mach_Number = NULL;
   nVertex = NULL;
 
   LinSysKexp = NULL; LinSysKimp = NULL;
-
-  Inlet_Ttotal = NULL; Inlet_Ptotal = NULL; Inlet_FlowDir = NULL;
-  nVertex = NULL;
 
   Smatrix = NULL; Cvector = NULL;
  
@@ -624,6 +622,16 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
       }
   }
 
+  /*--- Store the value of the Mach number at the inlet BC ---*/
+
+  Inlet_Mach_Number = new su2double* [nMarker];
+  for (iMarker = 0; iMarker < nMarker; iMarker++) {
+      Inlet_Mach_Number[iMarker] = new su2double [geometry->nVertex[iMarker]];
+      for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
+        Inlet_Mach_Number[iMarker][iVertex] = 0;
+      }
+  }
+
   /*--- Force definition and coefficient arrays for all of the markers ---*/
   
   CPressure = new su2double* [nMarker];
@@ -1113,6 +1121,13 @@ CEulerSolver::~CEulerSolver(void) {
       }
     }
     delete [] Inlet_FlowDir;
+  }
+
+  if (Inlet_Mach_Number != NULL) {
+    for (iMarker = 0; iMarker < nMarker; iMarker++)
+      if (Inlet_Mach_Number[iMarker] != NULL)
+        delete [] Inlet_Mach_Number[iMarker];
+    delete [] Inlet_Mach_Number;
   }
 
   if (nVertex != NULL)  delete [] nVertex;
@@ -9630,49 +9645,90 @@ void CEulerSolver::SetFarfield_AoA(CGeometry *geometry, CSolver **solver_contain
 
 void CEulerSolver::SetInletAtVertex(su2double *val_inlet,
                                     unsigned short iMarker,
-                                    unsigned long iVertex) {
+                                    unsigned long iVertex,
+                                    CConfig* config) {
+
+  /*--- The calculations below assume an ideal gas ---*/
+
+  if (!(config->GetKind_FluidModel() == STANDARD_AIR ||
+        config->GetKind_FluidModel() == IDEAL_GAS)) {
+    SU2_MPI::Error("Custom inlet profiles have not been set up for non-ideal gases!", CURRENT_FUNCTION);
+  }
 
   /*--- Alias positions within inlet file for readability ---*/
 
-  unsigned short T_position       = nDim;
-  unsigned short P_position       = nDim+1;
-  unsigned short FlowDir_position = nDim+2;
+  const unsigned short T_position = nDim;
+  const unsigned short P_position = nDim+1;
+  const unsigned short V_position = nDim+2;
 
-  /*--- Check that the norm of the flow unit vector is actually 1 ---*/
+  /*--- For some flows (e.g. a supersonic wall-bounded inlet), the
+   * inlet will contain both sub- and supersonic flow.  These require
+   * different boundary treatments. We store and use the Mach number
+   * to distinguish between the two types of boundary conditions. ---*/
 
-  su2double norm = 0.0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    norm += pow(val_inlet[FlowDir_position + iDim], 2);
+  // XXX: This assumes x is the normal direction
+
+  const su2double Gas_Constant = config->GetGas_Constant();
+  const su2double V_normal = val_inlet[V_position];
+  const su2double SoundSpeed = sqrt(Gamma*Gas_Constant*val_inlet[T_position]);
+  Inlet_Mach_Number[iMarker][iVertex] = V_normal / SoundSpeed;
+
+  if (Inlet_Mach_Number[iMarker][iVertex] >= 1) {
+
+    /*--- Supersonic inlet point.  No outgoing characteristics, so
+     * all 5 variables can be imposed at the boundary. ---*/
+
+    /*--- We store the supersonic inlet variables in the (poorly
+     * named) subsonic inlet variable locations. ---*/
+    Inlet_Ttotal[iMarker][iVertex] = val_inlet[T_position];
+    Inlet_Ptotal[iMarker][iVertex] = val_inlet[P_position];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      Inlet_FlowDir[iMarker][iVertex][iDim] =
+          val_inlet[V_position + iDim];
+    }
+
+  } else {
+
+    /*--- Subsonic inlet point.  One outgoing characteristic, so we
+     * can only define 4 variables.  We choose velocity and
+     * density, for convenience. ---*/
+
+    switch (config->GetKind_Inlet()) {
+      case TOTAL_CONDITIONS: {
+        /*--- Total properties have been specified at the inlet. ---*/
+        SU2_MPI::Error("Total conditions have not been set up for custom inlets.", CURRENT_FUNCTION);
+        break;
+      }
+      case MASS_FLOW: {
+
+        /*--- Mass flow will be specified at the inlet. ---*/
+
+        su2double vel_mag = 0.0;
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          vel_mag += pow(val_inlet[V_position + iDim], 2);
+        }
+        vel_mag = sqrt(vel_mag);
+
+        const su2double temperature = val_inlet[T_position];
+        const su2double pressure = val_inlet[P_position];
+        const su2double density = pressure/(Gas_Constant*temperature);
+
+        Inlet_Ttotal[iMarker][iVertex] = density;
+        Inlet_Ptotal[iMarker][iVertex] = vel_mag;
+        if (vel_mag > 0) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            Inlet_FlowDir[iMarker][iVertex][iDim] =
+                val_inlet[V_position + iDim] / vel_mag;
+          }
+        } else {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            Inlet_FlowDir[iMarker][iVertex][iDim] = 0.0;
+          }
+        }
+        break;
+      }
+    }
   }
-  norm = sqrt(norm);
-
-  /*--- The tolerance here needs to be loose.  When adding a very
-   * small number (1e-10 or smaller) to a number close to 1.0, floating
-   * point roundoff errors can occur. ---*/
-
-  if (abs(norm - 1.0) > 1e-6) {
-    ostringstream error_msg;
-    error_msg << "ERROR: Found these values in columns ";
-    error_msg << FlowDir_position << " - ";
-    error_msg << FlowDir_position + nDim - 1 << endl;
-    error_msg << std::scientific;
-    error_msg << "  [" << val_inlet[FlowDir_position];
-    error_msg << ", " << val_inlet[FlowDir_position + 1];
-    if (nDim == 3) error_msg << ", " << val_inlet[FlowDir_position + 2];
-    error_msg << "]" << endl;
-    error_msg << "  These values should be components of a unit vector for direction," << endl;
-    error_msg << "  but their magnitude is: " << norm << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-
-  /*--- Store the values in our inlet data structures. ---*/
-
-  Inlet_Ttotal[iMarker][iVertex] = val_inlet[T_position];
-  Inlet_Ptotal[iMarker][iVertex] = val_inlet[P_position];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    Inlet_FlowDir[iMarker][iVertex][iDim] =  val_inlet[FlowDir_position + iDim];
-  }
-
 }
 
 su2double CEulerSolver::GetInletAtVertex(su2double *val_inlet,
@@ -12358,185 +12414,232 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
       /*--- Retrieve solution at this boundary node ---*/
       
       V_domain = node[iPoint]->GetPrimitive();
-      
-      /*--- Build the fictitious intlet state based on characteristics ---*/
-      
 
-      /*--- Subsonic inflow: there is one outgoing characteristic (u-c),
-         therefore we can specify all but one state variable at the inlet.
-         The outgoing Riemann invariant provides the final piece of info.
-         Adapted from an original implementation in the Stanford University
-         multi-block (SUmb) solver in the routine bcSubsonicInflow.f90
-         written by Edwin van der Weide, last modified 04-20-2009. ---*/
+      if (Inlet_Mach_Number[val_marker][iVertex] >= 1) {
 
-      switch (Kind_Inlet) {
+        /*--- Supersonic inlet flow: there are no outgoing characteristics,
+         so all flow variables can be imposed at the inlet.
+         First, retrieve the specified values for the primitive variables. ---*/
 
-        /*--- Total properties have been specified at the inlet. ---*/
+        su2double* Vel;
 
-        case TOTAL_CONDITIONS:
+        Temperature = Inlet_Ttotal[val_marker][iVertex];
+        Pressure    = Inlet_Ptotal[val_marker][iVertex];
+        Vel = Inlet_FlowDir[val_marker][iVertex];
 
-          /*--- Retrieve the specified total conditions for this inlet. ---*/
+        /*--- Non-dim. the inputs if necessary. ---*/
 
-          P_Total  = Inlet_Ptotal[val_marker][iVertex];
-          T_Total  = Inlet_Ttotal[val_marker][iVertex];
-          Flow_Dir = Inlet_FlowDir[val_marker][iVertex];
-          
-          /*--- Non-dim. the inputs if necessary. ---*/
+        Temperature /= config->GetTemperature_Ref();
+        Pressure    /= config->GetPressure_Ref();
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel[iDim] / config->GetVelocity_Ref();
 
-          P_Total /= config->GetPressure_Ref();
-          T_Total /= config->GetTemperature_Ref();
+        /*--- Density at the inlet from the gas law ---*/
 
-          /*--- Store primitives and set some variables for clarity. ---*/
+        Density = Pressure/(Gas_Constant*Temperature);
 
-          Density = V_domain[nDim+2];
-          Velocity2 = 0.0;
-          for (iDim = 0; iDim < nDim; iDim++) {
-            Velocity[iDim] = V_domain[iDim+1];
-            Velocity2 += Velocity[iDim]*Velocity[iDim];
-          }
-          Energy      = V_domain[nDim+3] - V_domain[nDim+1]/V_domain[nDim+2];
-          Pressure    = V_domain[nDim+1];
-          H_Total     = (Gamma*Gas_Constant/Gamma_Minus_One)*T_Total;
-          SoundSpeed2 = Gamma*Pressure/Density;
+        /*--- Compute the energy from the specified state ---*/
 
-          /*--- Compute the acoustic Riemann invariant that is extrapolated
-             from the domain interior. ---*/
+        Velocity2 = 0.0;
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity2 += Velocity[iDim]*Velocity[iDim];
+        Energy = Pressure/(Density*Gamma_Minus_One)+0.5*Velocity2;
+        if (tkeNeeded) Energy += GetTke_Inf();
 
-          Riemann   = 2.0*sqrt(SoundSpeed2)/Gamma_Minus_One;
-          for (iDim = 0; iDim < nDim; iDim++)
-            Riemann += Velocity[iDim]*UnitNormal[iDim];
+        /*--- Primitive variables, using the derived quantities ---*/
 
-          /*--- Total speed of sound ---*/
+        V_inlet[0] = Temperature;
+        for (iDim = 0; iDim < nDim; iDim++)
+          V_inlet[iDim+1] = Velocity[iDim];
+        V_inlet[nDim+1] = Pressure;
+        V_inlet[nDim+2] = Density;
+        V_inlet[nDim+3] = Energy + Pressure/Density;
 
-          SoundSpeed_Total2 = Gamma_Minus_One*(H_Total - (Energy + Pressure/Density)+0.5*Velocity2) + SoundSpeed2;
+      } else {
 
-          /*--- Dot product of normal and flow direction. This should
-             be negative due to outward facing boundary normal convention. ---*/
+        /*--- Build the fictitious intlet state based on characteristics ---*/
 
-          alpha = 0.0;
-          for (iDim = 0; iDim < nDim; iDim++)
-            alpha += UnitNormal[iDim]*Flow_Dir[iDim];
+        /*--- Subsonic inflow: there is one outgoing characteristic (u-c),
+           therefore we can specify all but one state variable at the inlet.
+           The outgoing Riemann invariant provides the final piece of info.
+           Adapted from an original implementation in the Stanford University
+           multi-block (SUmb) solver in the routine bcSubsonicInflow.f90
+           written by Edwin van der Weide, last modified 04-20-2009. ---*/
 
-          /*--- Coefficients in the quadratic equation for the velocity ---*/
+        switch (Kind_Inlet) {
 
-          aa =  1.0 + 0.5*Gamma_Minus_One*alpha*alpha;
-          bb = -1.0*Gamma_Minus_One*alpha*Riemann;
-          cc =  0.5*Gamma_Minus_One*Riemann*Riemann
-              -2.0*SoundSpeed_Total2/Gamma_Minus_One;
+          /*--- Total properties have been specified at the inlet. ---*/
 
-          /*--- Solve quadratic equation for velocity magnitude. Value must
-             be positive, so the choice of root is clear. ---*/
+          case TOTAL_CONDITIONS:
 
-          dd = bb*bb - 4.0*aa*cc;
-          dd = sqrt(max(0.0, dd));
-          Vel_Mag   = (-bb + dd)/(2.0*aa);
-          Vel_Mag   = max(0.0, Vel_Mag);
-          Velocity2 = Vel_Mag*Vel_Mag;
+            /*--- Retrieve the specified total conditions for this inlet. ---*/
 
-          /*--- Compute speed of sound from total speed of sound eqn. ---*/
+            P_Total  = Inlet_Ptotal[val_marker][iVertex];
+            T_Total  = Inlet_Ttotal[val_marker][iVertex];
+            Flow_Dir = Inlet_FlowDir[val_marker][iVertex];
 
-          SoundSpeed2 = SoundSpeed_Total2 - 0.5*Gamma_Minus_One*Velocity2;
+            /*--- Non-dim. the inputs if necessary. ---*/
 
-          /*--- Mach squared (cut between 0-1), use to adapt velocity ---*/
+            P_Total /= config->GetPressure_Ref();
+            T_Total /= config->GetTemperature_Ref();
 
-          Mach2 = Velocity2/SoundSpeed2;
-          Mach2 = min(1.0, Mach2);
-          Velocity2   = Mach2*SoundSpeed2;
-          Vel_Mag     = sqrt(Velocity2);
-          SoundSpeed2 = SoundSpeed_Total2 - 0.5*Gamma_Minus_One*Velocity2;
+            /*--- Store primitives and set some variables for clarity. ---*/
 
-          /*--- Compute new velocity vector at the inlet ---*/
+            Density = V_domain[nDim+2];
+            Velocity2 = 0.0;
+            for (iDim = 0; iDim < nDim; iDim++) {
+              Velocity[iDim] = V_domain[iDim+1];
+              Velocity2 += Velocity[iDim]*Velocity[iDim];
+            }
+            Energy      = V_domain[nDim+3] - V_domain[nDim+1]/V_domain[nDim+2];
+            Pressure    = V_domain[nDim+1];
+            H_Total     = (Gamma*Gas_Constant/Gamma_Minus_One)*T_Total;
+            SoundSpeed2 = Gamma*Pressure/Density;
 
-          for (iDim = 0; iDim < nDim; iDim++)
-            Velocity[iDim] = Vel_Mag*Flow_Dir[iDim];
+            /*--- Compute the acoustic Riemann invariant that is extrapolated
+                     from the domain interior. ---*/
 
-          /*--- Static temperature from the speed of sound relation ---*/
+            Riemann   = 2.0*sqrt(SoundSpeed2)/Gamma_Minus_One;
+            for (iDim = 0; iDim < nDim; iDim++)
+              Riemann += Velocity[iDim]*UnitNormal[iDim];
 
-          Temperature = SoundSpeed2/(Gamma*Gas_Constant);
+            /*--- Total speed of sound ---*/
 
-          /*--- Static pressure using isentropic relation at a point ---*/
+            SoundSpeed_Total2 = Gamma_Minus_One*(H_Total - (Energy + Pressure/Density)+0.5*Velocity2) + SoundSpeed2;
 
-          Pressure = P_Total*pow((Temperature/T_Total), Gamma/Gamma_Minus_One);
+            /*--- Dot product of normal and flow direction. This should
+                     be negative due to outward facing boundary normal convention. ---*/
 
-          /*--- Density at the inlet from the gas law ---*/
+            alpha = 0.0;
+            for (iDim = 0; iDim < nDim; iDim++)
+              alpha += UnitNormal[iDim]*Flow_Dir[iDim];
 
-          Density = Pressure/(Gas_Constant*Temperature);
+            /*--- Coefficients in the quadratic equation for the velocity ---*/
 
-          /*--- Using pressure, density, & velocity, compute the energy ---*/
+            aa =  1.0 + 0.5*Gamma_Minus_One*alpha*alpha;
+            bb = -1.0*Gamma_Minus_One*alpha*Riemann;
+            cc =  0.5*Gamma_Minus_One*Riemann*Riemann
+                -2.0*SoundSpeed_Total2/Gamma_Minus_One;
 
-          Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Velocity2;
-          if (tkeNeeded) Energy += GetTke_Inf();
+            /*--- Solve quadratic equation for velocity magnitude. Value must
+                     be positive, so the choice of root is clear. ---*/
 
-          /*--- Primitive variables, using the derived quantities ---*/
+            dd = bb*bb - 4.0*aa*cc;
+            dd = sqrt(max(0.0, dd));
+            Vel_Mag   = (-bb + dd)/(2.0*aa);
+            Vel_Mag   = max(0.0, Vel_Mag);
+            Velocity2 = Vel_Mag*Vel_Mag;
 
-          V_inlet[0] = Temperature;
-          for (iDim = 0; iDim < nDim; iDim++)
-            V_inlet[iDim+1] = Velocity[iDim];
-          V_inlet[nDim+1] = Pressure;
-          V_inlet[nDim+2] = Density;
-          V_inlet[nDim+3] = Energy + Pressure/Density;
+            /*--- Compute speed of sound from total speed of sound eqn. ---*/
 
-          break;
+            SoundSpeed2 = SoundSpeed_Total2 - 0.5*Gamma_Minus_One*Velocity2;
 
-          /*--- Mass flow has been specified at the inlet. ---*/
+            /*--- Mach squared (cut between 0-1), use to adapt velocity ---*/
 
-        case MASS_FLOW:
+            Mach2 = Velocity2/SoundSpeed2;
+            Mach2 = min(1.0, Mach2);
+            Velocity2   = Mach2*SoundSpeed2;
+            Vel_Mag     = sqrt(Velocity2);
+            SoundSpeed2 = SoundSpeed_Total2 - 0.5*Gamma_Minus_One*Velocity2;
 
-          /*--- Retrieve the specified mass flow for the inlet. ---*/
+            /*--- Compute new velocity vector at the inlet ---*/
 
-          Density  = Inlet_Ttotal[val_marker][iVertex];
-          Vel_Mag  = Inlet_Ptotal[val_marker][iVertex];
-          Flow_Dir = Inlet_FlowDir[val_marker][iVertex];
+            for (iDim = 0; iDim < nDim; iDim++)
+              Velocity[iDim] = Vel_Mag*Flow_Dir[iDim];
 
-          /*--- Non-dim. the inputs if necessary. ---*/
+            /*--- Static temperature from the speed of sound relation ---*/
 
-          Density /= config->GetDensity_Ref();
-          Vel_Mag /= config->GetVelocity_Ref();
+            Temperature = SoundSpeed2/(Gamma*Gas_Constant);
 
-          /*--- Get primitives from current inlet state. ---*/
+            /*--- Static pressure using isentropic relation at a point ---*/
 
-          for (iDim = 0; iDim < nDim; iDim++)
-            Velocity[iDim] = node[iPoint]->GetVelocity(iDim);
-          Pressure    = node[iPoint]->GetPressure();
-          SoundSpeed2 = Gamma*Pressure/V_domain[nDim+2];
+            Pressure = P_Total*pow((Temperature/T_Total), Gamma/Gamma_Minus_One);
 
-          /*--- Compute the acoustic Riemann invariant that is extrapolated
-             from the domain interior. ---*/
+            /*--- Density at the inlet from the gas law ---*/
 
-          Riemann = Two_Gamma_M1*sqrt(SoundSpeed2);
-          for (iDim = 0; iDim < nDim; iDim++)
-            Riemann += Velocity[iDim]*UnitNormal[iDim];
+            Density = Pressure/(Gas_Constant*Temperature);
 
-          /*--- Speed of sound squared for fictitious inlet state ---*/
+            /*--- Using pressure, density, & velocity, compute the energy ---*/
 
-          SoundSpeed2 = Riemann;
-          for (iDim = 0; iDim < nDim; iDim++)
-            SoundSpeed2 -= Vel_Mag*Flow_Dir[iDim]*UnitNormal[iDim];
+            Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Velocity2;
+            if (tkeNeeded) {
+              Energy += solver_container[TURB_SOL]->GetInlet_TurbVar(val_marker, iVertex, 0);
+            }
 
-          SoundSpeed2 = max(0.0,0.5*Gamma_Minus_One*SoundSpeed2);
-          SoundSpeed2 = SoundSpeed2*SoundSpeed2;
+            /*--- Primitive variables, using the derived quantities ---*/
 
-          /*--- Pressure for the fictitious inlet state ---*/
+            V_inlet[0] = Temperature;
+            for (iDim = 0; iDim < nDim; iDim++)
+              V_inlet[iDim+1] = Velocity[iDim];
+            V_inlet[nDim+1] = Pressure;
+            V_inlet[nDim+2] = Density;
+            V_inlet[nDim+3] = Energy + Pressure/Density;
 
-          Pressure = SoundSpeed2*Density/Gamma;
+            break;
 
-          /*--- Energy for the fictitious inlet state ---*/
+            /*--- Mass flow has been specified at the inlet. ---*/
 
-          Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Vel_Mag*Vel_Mag;
-          if (tkeNeeded) Energy += GetTke_Inf();
+          case MASS_FLOW:
 
-          /*--- Primitive variables, using the derived quantities ---*/
+            /*--- Retrieve the specified mass flow for the inlet. ---*/
 
-          V_inlet[0] = Pressure / ( Gas_Constant * Density);
-          for (iDim = 0; iDim < nDim; iDim++)
-            V_inlet[iDim+1] = Vel_Mag*Flow_Dir[iDim];
-          V_inlet[nDim+1] = Pressure;
-          V_inlet[nDim+2] = Density;
-          V_inlet[nDim+3] = Energy + Pressure/Density;
+            Density  = Inlet_Ttotal[val_marker][iVertex];
+            Vel_Mag  = Inlet_Ptotal[val_marker][iVertex];
+            Flow_Dir = Inlet_FlowDir[val_marker][iVertex];
 
-          break;
+            /*--- Non-dim. the inputs if necessary. ---*/
+
+            Density /= config->GetDensity_Ref();
+            Vel_Mag /= config->GetVelocity_Ref();
+
+            /*--- Get primitives from current inlet state. ---*/
+
+            for (iDim = 0; iDim < nDim; iDim++)
+              Velocity[iDim] = node[iPoint]->GetVelocity(iDim);
+            Pressure    = node[iPoint]->GetPressure();
+            SoundSpeed2 = Gamma*Pressure/V_domain[nDim+2];
+
+            /*--- Compute the acoustic Riemann invariant that is extrapolated
+                     from the domain interior. ---*/
+
+            Riemann = Two_Gamma_M1*sqrt(SoundSpeed2);
+            for (iDim = 0; iDim < nDim; iDim++)
+              Riemann += Velocity[iDim]*UnitNormal[iDim];
+
+            /*--- Speed of sound squared for fictitious inlet state ---*/
+
+            SoundSpeed2 = Riemann;
+            for (iDim = 0; iDim < nDim; iDim++)
+              SoundSpeed2 -= Vel_Mag*Flow_Dir[iDim]*UnitNormal[iDim];
+
+            SoundSpeed2 = max(0.0,0.5*Gamma_Minus_One*SoundSpeed2);
+            SoundSpeed2 = SoundSpeed2*SoundSpeed2;
+
+            /*--- Pressure for the fictitious inlet state ---*/
+
+            Pressure = SoundSpeed2*Density/Gamma;
+
+            /*--- Energy for the fictitious inlet state ---*/
+
+            Energy = Pressure/(Density*Gamma_Minus_One) + 0.5*Vel_Mag*Vel_Mag;
+            if (tkeNeeded) {
+              Energy += solver_container[TURB_SOL]->GetInlet_TurbVar(val_marker, iVertex, 0);
+            }
+
+            /*--- Primitive variables, using the derived quantities ---*/
+
+            V_inlet[0] = Pressure / ( Gas_Constant * Density);
+            for (iDim = 0; iDim < nDim; iDim++)
+              V_inlet[iDim+1] = Vel_Mag*Flow_Dir[iDim];
+            V_inlet[nDim+1] = Pressure;
+            V_inlet[nDim+2] = Density;
+            V_inlet[nDim+3] = Energy + Pressure/Density;
+
+            break;
+        }
       }
       
+
       /*--- Set various quantities in the solver class ---*/
       
       conv_numerics->SetPrimitive(V_domain, V_inlet);
@@ -12556,51 +12659,14 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
       
       if (implicit)
         Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-      
       /*--- Roe Turkel preconditioning, set the value of beta ---*/
       
       if (config->GetKind_Upwind() == TURKEL)
         node[iPoint]->SetPreconditioner_Beta(conv_numerics->GetPrecond_Beta());
       
-//      /*--- Viscous contribution, commented out because serious convergence problems ---*/
-//
-//      if (viscous) {
-//
-//        /*--- Set laminar and eddy viscosity at the infinity ---*/
-//
-//        V_inlet[nDim+5] = node[iPoint]->GetLaminarViscosity();
-//        V_inlet[nDim+6] = node[iPoint]->GetEddyViscosity();
-//
-//        /*--- Set the normal vector and the coordinates ---*/
-//
-//        visc_numerics->SetNormal(Normal);
-//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
-//
-//        /*--- Primitive variables, and gradient ---*/
-//
-//        visc_numerics->SetPrimitive(V_domain, V_inlet);
-//        visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
-//
-//        /*--- Turbulent kinetic energy ---*/
-//
-//        if (config->GetKind_Turb_Model() == SST)
-//          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
-//
-//        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-//
-//        visc_numerics->SetTauWall(-1.0, -1.0);
-//
-//        /*--- Compute and update residual ---*/
-//
-//        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-//        LinSysRes.SubtractBlock(iPoint, Residual);
-//
-//        /*--- Jacobian contribution for implicit integration ---*/
-//
-//        if (implicit)
-//          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
-//
-//      }
+      
+      /*--- Viscous contribution, commented out because of serious
+       * convergence problems ---*/
       
     }
   }
@@ -12608,7 +12674,7 @@ void CEulerSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
   /*--- Free locally allocated memory ---*/
   
   delete [] Normal;
-  
+
 }
 
 void CEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container,
@@ -12898,44 +12964,8 @@ void CEulerSolver::BC_Supersonic_Inlet(CGeometry *geometry,
       if (implicit)
         Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       
-//      /*--- Viscous contribution, commented out because serious convergence problems ---*/
-//
-//      if (viscous) {
-//
-//        /*--- Set laminar and eddy viscosity at the infinity ---*/
-//
-//        V_inlet[nDim+5] = node[iPoint]->GetLaminarViscosity();
-//        V_inlet[nDim+6] = node[iPoint]->GetEddyViscosity();
-//
-//        /*--- Set the normal vector and the coordinates ---*/
-//
-//        visc_numerics->SetNormal(Normal);
-//        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[Point_Normal]->GetCoord());
-//
-//        /*--- Primitive variables, and gradient ---*/
-//
-//        visc_numerics->SetPrimitive(V_domain, V_inlet);
-//        visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), node[iPoint]->GetGradient_Primitive());
-//
-//        /*--- Turbulent kinetic energy ---*/
-//
-//        if (config->GetKind_Turb_Model() == SST)
-//          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
-//
-//        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-//
-//        visc_numerics->SetTauWall(-1.0, -1.0);
-//
-//        /*--- Compute and update residual ---*/
-//
-//        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-//        LinSysRes.SubtractBlock(iPoint, Residual);
-//
-//        /*--- Jacobian contribution for implicit integration ---*/
-//
-//        if (implicit)
-//          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
-//      }
+      /*--- Viscous contribution, commented out because of serious
+       * convergence problems ---*/
       
     }
   }
@@ -16375,6 +16405,7 @@ CNSSolver::CNSSolver(void) : CEulerSolver() {
   Inlet_Ttotal = NULL;
   Inlet_Ptotal = NULL;
   Inlet_FlowDir = NULL;
+  Inlet_Mach_Number = NULL;
   
   SlidingState      = NULL;
   SlidingStateNodes = NULL;
@@ -16784,6 +16815,16 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
       for (iDim = 0; iDim < nDim; iDim++) {
         Inlet_FlowDir[iMarker][iVertex][iDim] = 0;
       }
+    }
+  }
+
+  /*--- Store the value of the Mach number at the inlet BC ---*/
+
+  Inlet_Mach_Number = new su2double* [nMarker];
+  for (iMarker = 0; iMarker < nMarker; iMarker++) {
+    Inlet_Mach_Number[iMarker] = new su2double [geometry->nVertex[iMarker]];
+    for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
+      Inlet_Mach_Number[iMarker][iVertex] = 0;
     }
   }
 
