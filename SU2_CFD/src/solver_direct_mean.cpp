@@ -10398,7 +10398,8 @@ void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container,
         
         /*--- Turbulent kinetic energy ---*/
         
-        if (config->GetKind_Turb_Model() == SST)
+        if (config->GetKind_Turb_Model() == SST ||
+            config->GetKind_Turb_Model() == KE)
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                               solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
 
