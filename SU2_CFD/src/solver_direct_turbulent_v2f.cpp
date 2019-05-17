@@ -428,7 +428,6 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
-  su2double scale = 1.0e-14;
   su2double* VelInf = config->GetVelocity_FreeStreamND();
   su2double VelMag = 0;
   for (unsigned short iDim = 0; iDim < nDim; iDim++)
@@ -470,7 +469,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     muT = constants[0]*rho*v2*Tm;
     if (realizability_limit == EDDY_VISC_LIMIT) {
       const su2double C_lim = config->Getv2f_Realizability_Constant();
-      muT = min(muT, C_lim*rho*tke/(sqrt(3)*S));
+      muT = min(muT, C_lim*rho*tke/(sqrt(3)*max(S, 1E-16)));
     }
 
     node[iPoint]->SetmuT(muT);

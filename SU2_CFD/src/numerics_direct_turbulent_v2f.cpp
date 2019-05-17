@@ -441,7 +441,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   Pv2_f   = 0.0;
 
   // ... dissipation
-  Dv2     =  6.0*rho*zeta*tdr_lim;
+  Dv2     =  6.0*rho*v2/T1;
 
   Dv2_rk  = 0.0;
   Dv2_re  = 0.0;
