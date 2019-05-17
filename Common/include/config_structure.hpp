@@ -5083,7 +5083,7 @@ public:
    *        RANS model.
    * \return Kind of realizability limit to be used.
    */
-  bool GetKind_v2f_Limit(void) const;
+  unsigned short GetKind_v2f_Limit(void) const;
 
   /*!
    * \brief Get the model constant used for the realizability limit.
