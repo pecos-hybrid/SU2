@@ -8473,6 +8473,10 @@ public:
                                   CConfig *config, unsigned short val_marker,
                                   unsigned short iRKStep);
 
+  void BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+		    unsigned short val_marker, unsigned short iRKStep);
+  
+
   /*!
    * \brief Set the conjugate heat variables.
    * \param[in] val_marker        - marker index

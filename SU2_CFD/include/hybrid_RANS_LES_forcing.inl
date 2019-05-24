@@ -112,3 +112,54 @@ inline void CHybridForcingTG0::SetTGField(
   h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*(x[2]-1.0));
 }
 
+inline void CHybridForcingTG0::SetAxiTGField(
+                const su2double* x, const su2double Lsgs,
+                const su2double* Lmesh, const su2double* D,
+                const su2double dwall, su2double* h) const {
+
+  // Convert incoming coords and lengths to cylindrical coords...
+  // In these vectors, 0 corresponds to x, 1 corresponds to r, and 2
+  // corresponds to theta
+  // NB: Assume that user-specified D comes in in x,r,theta
+  su2double r[3];
+  r[0] = x[0]; r[1] = sqrt(x[1]*x[1] + x[2]*x[2]); r[2] = atan(x[2]/x[1]);
+
+  su2double Rsgs[3]; // assume Lsgs in each direction
+  Rsgs[0] = Lsgs;
+  Rsgs[1] = cos(r[2])*Lsgs + sin(r[2])*Lsgs;
+  Rsgs[2] = (-sin(r[2])*Lsgs + cos(r[2])*Lsgs)/r[1];
+
+  su2double Rmesh[3];
+  Rmesh[0] = Lmesh[0];
+  Rmesh[1] = cos(r[2])*Lmesh[1] + sin(r[2])*Lmesh[2];
+  Rmesh[2] = (-sin(r[2])*Lmesh[1] + cos(r[2])*Lmesh[2])/r[1];
+
+
+  // Set forcing velocity field in x,r,theta coords
+
+  const su2double A = 1./3., B = 2./3., C = -1.0;
+  su2double a[3];
+
+  for (unsigned int ii=0; ii<3; ii++) {
+    //const su2double ell = std::min(Rsgs[ii], dwall);
+    const su2double ell = Rsgs[ii];
+    const su2double elllim = std::max(ell, 2.0*Rmesh[ii]);
+
+    if (D[ii] > 0.0) {
+      const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
+      a[ii] = M_PI/(D[ii]/denom);
+    } else {
+      a[ii] = M_PI/elllim;
+    }
+  }
+
+  su2double htmp[3];
+  htmp[0] = A * cos(a[0]*r[0]) * sin(a[1]*r[1]) * sin(a[2]*r[2]) / r[1];
+  htmp[1] = B * sin(a[0]*r[0]) * cos(a[1]*r[1]) * sin(a[2]*r[2]) / r[1];
+  htmp[2] = C * sin(a[0]*r[0]) * sin(a[1]*r[1]) * cos(a[2]*r[2]);
+
+  h[0] = htmp[0];
+  h[1] = htmp[1]*cos(r[2]) - htmp[2]*sin(r[2]);
+  h[2] = htmp[1]*sin(r[2]) + htmp[2]*cos(r[2]);
+}
+

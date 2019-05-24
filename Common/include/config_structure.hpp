@@ -522,6 +522,7 @@ private:
   unsigned short Kind_HybridRANSLES_Testing; /*!< \brief Hybrid RANS/LES blending definition */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
+  bool Hybrid_Forcing_Axi; /*!< \brief If true, the hybrid RANS/LES model will use 'axisymmetric' version of forcing. */
   su2double *Hybrid_Forcing_Periodic_Length;  /*!< \brief Domain lengths in periodic directions for hybrid forcing */
   su2double *default_hybrid_periodic_length;  /*!< \brief Default for Hybrid_Forcing_Periodic_Length */
   su2double Hybrid_Forcing_Strength,  /*!< \brief An overall scaling coefficient for the periodic forcing .*/
@@ -3791,6 +3792,8 @@ public:
    * \return True if the hybrid RANS/LES model is to be forced.
    */
   bool isHybrid_Forced(void);
+
+  bool isHybrid_Forced_Axi(void);
 
   /*!
    * \brief Get the array of domain lengths for use in hybrid forcing.

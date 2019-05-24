@@ -10024,7 +10024,7 @@ void CEulerSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container
 
 void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
-  
+
   unsigned short iDim;
   unsigned long iVertex, iPoint, Point_Normal;
   
@@ -17390,9 +17390,11 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
     
     RightSol = node[iPoint]->SetPrimVar(eddy_visc, alpha*turb_ke, FluidModel);
+    if (!RightSol) std::cout << "alpha = " << alpha << std::endl;
     node[iPoint]->SetSecondaryVar(FluidModel);
     if (runtime_averaging) {
-      average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      bool ierr = average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      if (!ierr) std::cout << "alpha = " << alpha << std::endl;
       // We don't need the secondary variables
     }
 
@@ -19132,6 +19134,281 @@ void CNSSolver::InitAverages() {
     average_node[iPoint]->SetResolvedKineticEnergy();
   }
 
+}
+
+void CNSSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
+			     CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
+  
+  unsigned short iDim;
+  unsigned long iVertex, iPoint, Point_Normal;
+  
+  su2double *GridVel;
+  su2double Area, UnitNormal[3] = {0.0,0.0,0.0};
+  su2double Density, Pressure, Energy,  Velocity[3] = {0.0,0.0,0.0};
+  su2double Density_Bound, Pressure_Bound, Vel_Bound[3] = {0.0,0.0,0.0};
+  su2double Density_Infty, Pressure_Infty, Vel_Infty[3] = {0.0,0.0,0.0};
+  su2double SoundSpeed, Entropy, Velocity2, Vn;
+  su2double SoundSpeed_Bound, Entropy_Bound, Vel2_Bound, Vn_Bound;
+  su2double SoundSpeed_Infty, Entropy_Infty, Vel2_Infty, Vn_Infty, Qn_Infty;
+  su2double RiemannPlus, RiemannMinus;
+  su2double *V_infty, *V_domain;
+  
+  su2double Gas_Constant     = config->GetGas_ConstantND();
+  
+  bool implicit =
+    ((config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK && iRKStep == 0) ||
+     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91 && iRKStep == 0) );
+
+  bool grid_movement  = config->GetGrid_Movement();
+  bool viscous        = config->GetViscous();
+  bool tkeNeeded = (((config->GetKind_Solver() == RANS ) ||
+                     (config->GetKind_Solver() == DISC_ADJ_RANS))
+                    && ( (config->GetKind_Turb_Model() == SST) || (config->GetKind_Turb_Model() == KE)) );
+  
+  su2double *Normal = new su2double[nDim];
+  
+  /*--- Loop over all the vertices on this boundary marker ---*/
+  
+  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+    
+    /*--- Allocate the value at the infinity ---*/
+    V_infty = GetCharacPrimVar(val_marker, iVertex);
+    
+    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
+    
+    if (geometry->node[iPoint]->GetDomain()) {
+      
+      /*--- Index of the closest interior node ---*/
+      
+      Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+      
+      /*--- Normal vector for this vertex (negate for outward convention) ---*/
+      
+      geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
+      for (iDim = 0; iDim < nDim; iDim++) Normal[iDim] = -Normal[iDim];
+      conv_numerics->SetNormal(Normal);
+      
+      /*--- Retrieve solution at the farfield boundary node ---*/
+      V_domain = node[iPoint]->GetPrimitive();
+
+      /*--- Construct solution state at infinity for compressible flow by
+         using Riemann invariants, and then impose a weak boundary condition
+         by computing the flux using this new state for U. See CFD texts by
+         Hirsch or Blazek for more detail. Adapted from an original
+         implementation in the Stanford University multi-block (SUmb) solver
+         in the routine bcFarfield.f90 written by Edwin van der Weide,
+         last modified 06-12-2005. First, compute the unit normal at the
+         boundary nodes. ---*/
+
+      Area = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) Area += Normal[iDim]*Normal[iDim];
+      Area = sqrt(Area);
+
+      for (iDim = 0; iDim < nDim; iDim++)
+        UnitNormal[iDim] = Normal[iDim]/Area;
+
+      /*--- Store primitive variables (density, velocities, velocity squared,
+         energy, pressure, and sound speed) at the boundary node, and set some
+         other quantities for clarity. Project the current flow velocity vector
+         at this boundary node into the local normal direction, i.e. compute
+         v_bound.n.  ---*/
+
+      Density_Bound = V_domain[nDim+2];
+      Vel2_Bound = 0.0; Vn_Bound = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Vel_Bound[iDim] = V_domain[iDim+1];
+        Vel2_Bound     += Vel_Bound[iDim]*Vel_Bound[iDim];
+        Vn_Bound       += Vel_Bound[iDim]*UnitNormal[iDim];
+      }
+      Pressure_Bound   = node[iPoint]->GetPressure();
+      SoundSpeed_Bound = sqrt(Gamma*Pressure_Bound/Density_Bound);
+      Entropy_Bound    = pow(Density_Bound, Gamma)/Pressure_Bound;
+
+      /*--- Store the primitive variable state for the freestream. Project
+         the freestream velocity vector into the local normal direction,
+         i.e. compute v_infty.n. ---*/
+
+      Density_Infty = GetDensity_Inf();
+      Vel2_Infty = 0.0; Vn_Infty = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Vel_Infty[iDim] = GetVelocity_Inf(iDim);
+        Vel2_Infty     += Vel_Infty[iDim]*Vel_Infty[iDim];
+        Vn_Infty       += Vel_Infty[iDim]*UnitNormal[iDim];
+      }
+      Pressure_Infty   = GetPressure_Inf();
+      SoundSpeed_Infty = sqrt(Gamma*Pressure_Infty/Density_Infty);
+      Entropy_Infty    = pow(Density_Infty, Gamma)/Pressure_Infty;
+
+      /*--- Adjust the normal freestream velocity for grid movement ---*/
+
+      Qn_Infty = Vn_Infty;
+      if (grid_movement) {
+        GridVel = geometry->node[iPoint]->GetGridVel();
+        for (iDim = 0; iDim < nDim; iDim++)
+          Qn_Infty -= GridVel[iDim]*UnitNormal[iDim];
+      }
+
+      /*--- Compute acoustic Riemann invariants: R = u.n +/- 2c/(gamma-1).
+         These correspond with the eigenvalues (u+c) and (u-c), respectively,
+         which represent the acoustic waves. Positive characteristics are
+         incoming, and a physical boundary condition is imposed (freestream
+         state). This occurs when either (u.n+c) > 0 or (u.n-c) > 0. Negative
+         characteristics are leaving the domain, and numerical boundary
+         conditions are required by extrapolating from the interior state
+         using the Riemann invariants. This occurs when (u.n+c) < 0 or
+         (u.n-c) < 0. Note that grid movement is taken into account when
+         checking the sign of the eigenvalue. ---*/
+
+      /*--- Check whether (u.n+c) is greater or less than zero ---*/
+
+      if (Qn_Infty > -SoundSpeed_Infty) {
+        /*--- Subsonic inflow or outflow ---*/
+        RiemannPlus = Vn_Bound + 2.0*SoundSpeed_Bound/Gamma_Minus_One;
+      } else {
+        /*--- Supersonic inflow ---*/
+        RiemannPlus = Vn_Infty + 2.0*SoundSpeed_Infty/Gamma_Minus_One;
+      }
+
+      /*--- Check whether (u.n-c) is greater or less than zero ---*/
+
+      if (Qn_Infty > SoundSpeed_Infty) {
+        /*--- Supersonic outflow ---*/
+        RiemannMinus = Vn_Bound - 2.0*SoundSpeed_Bound/Gamma_Minus_One;
+      } else {
+        /*--- Subsonic outflow ---*/
+        RiemannMinus = Vn_Infty - 2.0*SoundSpeed_Infty/Gamma_Minus_One;
+      }
+
+      /*--- Compute a new value for the local normal velocity and speed of
+         sound from the Riemann invariants. ---*/
+
+      Vn = 0.5 * (RiemannPlus + RiemannMinus);
+      SoundSpeed = 0.25 * (RiemannPlus - RiemannMinus)*Gamma_Minus_One;
+
+      /*--- Construct the primitive variable state at the boundary for
+         computing the flux for the weak boundary condition. The values
+         that we choose to construct the solution (boundary or freestream)
+         depend on whether we are at an inflow or outflow. At an outflow, we
+         choose boundary information (at most one characteristic is incoming),
+         while at an inflow, we choose infinity values (at most one
+         characteristic is outgoing). ---*/
+
+      if (Qn_Infty > 0.0)   {
+        /*--- Outflow conditions ---*/
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Bound[iDim] + (Vn-Vn_Bound)*UnitNormal[iDim];
+        Entropy = Entropy_Bound;
+      } else  {
+        /*--- Inflow conditions ---*/
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Infty[iDim] + (Vn-Vn_Infty)*UnitNormal[iDim];
+        Entropy = Entropy_Infty;
+      }
+
+      /*--- Recompute the primitive variables. ---*/
+
+      Density = pow(Entropy*SoundSpeed*SoundSpeed/Gamma,1.0/Gamma_Minus_One);
+      Velocity2 = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Velocity2 += Velocity[iDim]*Velocity[iDim];
+      }
+      Pressure = Density*SoundSpeed*SoundSpeed/Gamma;
+      Energy   = Pressure/(Gamma_Minus_One*Density) + 0.5*Velocity2;
+      if (tkeNeeded) Energy += GetTke_Inf();
+
+      /*--- Store new primitive state for computing the flux. ---*/
+
+      V_infty[0] = Pressure/(Gas_Constant*Density);
+      for (iDim = 0; iDim < nDim; iDim++)
+        V_infty[iDim+1] = Velocity[iDim];
+      V_infty[nDim+1] = Pressure;
+      V_infty[nDim+2] = Density;
+      V_infty[nDim+3] = Energy + Pressure/Density;
+
+
+      
+      /*--- Set various quantities in the numerics class ---*/
+      
+      conv_numerics->SetPrimitive(V_domain, V_infty);
+      
+      if (grid_movement) {
+        conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(),
+                                  geometry->node[iPoint]->GetGridVel());
+      }
+      
+      /*--- Compute the convective residual using an upwind scheme ---*/
+
+      conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+      
+      /*--- Update residual value ---*/
+      
+      LinSysRes.AddBlock(iPoint, Residual);
+      
+      /*--- Convective Jacobian contribution for implicit integration ---*/
+      
+      if (implicit)
+        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
+      
+      /*--- Roe Turkel preconditioning, set the value of beta ---*/
+      
+      if (config->GetKind_Upwind() == TURKEL)
+        node[iPoint]->SetPreconditioner_Beta(conv_numerics->GetPrecond_Beta());
+      
+      /*--- Viscous residual contribution ---*/
+      
+      if (viscous) {
+        
+        /*--- Set laminar and eddy viscosity at the infinity ---*/
+        
+        V_infty[nDim+5] = node[iPoint]->GetLaminarViscosity();
+        V_infty[nDim+6] = node[iPoint]->GetEddyViscosity();
+        
+        /*--- Set the normal vector and the coordinates ---*/
+        
+        visc_numerics->SetNormal(Normal);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
+                                geometry->node[Point_Normal]->GetCoord());
+        
+        /*--- Primitive variables, and gradient ---*/
+        
+        visc_numerics->SetPrimitive(V_domain, V_infty);
+        visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(),
+                                          node[iPoint]->GetGradient_Primitive());
+        
+        /*--- Turbulent kinetic energy ---*/
+        
+        if (config->GetKind_Turb_Model() == SST)
+          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
+                                              solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+
+	/*--- Pass in relevant information from hybrid model ---*/
+	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+	  // TODO: This probably isn't really right
+	  HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
+						    visc_numerics, iPoint, iPoint);
+	}
+
+
+        /*--- Compute and update viscous residual ---*/
+        
+        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+        LinSysRes.SubtractBlock(iPoint, Residual);
+        
+        /*--- Viscous Jacobian contribution for implicit integration ---*/
+        
+        if (implicit)
+          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+        
+      }
+      
+    }
+  }
+  
+  /*--- Free locally allocated memory ---*/
+  delete [] Normal;
+  
 }
 
 void CNSSolver::UpdateAverage(const su2double weight,

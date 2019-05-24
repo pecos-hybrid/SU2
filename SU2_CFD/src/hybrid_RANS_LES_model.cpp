@@ -397,6 +397,9 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
     su2double** primvar_grad_j =
         solver_container[FLOW_SOL]->average_node[jPoint]->GetGradient_Primitive();
 
+    assert(primvar_i != NULL);
+    assert(primvar_j != NULL);
+
     numerics->SetPrimitive_Average(primvar_i, primvar_j);
     numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
 

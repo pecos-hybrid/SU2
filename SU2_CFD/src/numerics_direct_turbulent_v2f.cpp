@@ -208,10 +208,10 @@ void CAvgGrad_TurbKE::FinishResidualCalc(su2double *val_residual,
     Jacobian_i[3][1] = 0.0;
     Jacobian_i[3][2] = 0.0;
     Jacobian_i[3][3] = -diff_f*proj_vector_ij;
-    if (correct_gradient) {
-      Jacobian_i[3][3] -= 0.5 * diff_f * n_mag/Volume;
-      Jacobian_i[3][3] += 0.5 * diff_f * proj_vector_ij*s_mag/Volume;
-    }
+    // if (correct_gradient) {
+    //   Jacobian_i[3][3] -= 0.5 * diff_f * n_mag/Volume;
+    //   Jacobian_i[3][3] += 0.5 * diff_f * proj_vector_ij*s_mag/Volume;
+    // }
 
     Jacobian_j[0][0] = diff_kine*proj_vector_ij/Density_j;
     Jacobian_j[0][1] = 0.0;
@@ -232,10 +232,10 @@ void CAvgGrad_TurbKE::FinishResidualCalc(su2double *val_residual,
     Jacobian_j[3][1] = 0.0;
     Jacobian_j[3][2] = 0.0;
     Jacobian_j[3][3] = diff_f*proj_vector_ij;
-    if (correct_gradient) {
-      Jacobian_j[3][3] += 0.5 * diff_f * n_mag/Volume;
-      Jacobian_j[3][3] -= 0.5 * diff_f * proj_vector_ij*s_mag/Volume;
-    }
+    // if (correct_gradient) {
+    //   Jacobian_j[3][3] += 0.5 * diff_f * n_mag/Volume;
+    //   Jacobian_j[3][3] -= 0.5 * diff_f * proj_vector_ij*s_mag/Volume;
+    // }
   }
 
 }
@@ -361,7 +361,10 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
       //SGSProduction *= KineticEnergyRatio;
       const su2double alpha = KineticEnergyRatio;
       const su2double alpha_fac = alpha*(2.0 - alpha);
-      SGSProduction     = alpha_fac*muT*S*S - 2.0/3.0*rho*alpha*tke*diverg;
+      SGSProduction = alpha_fac*muT*S*S;
+      if (config->GetBoolDivU_inTKEProduction()) {
+	SGSProduction -= 2.0/3.0*rho*alpha*tke*diverg;
+      }
 
       if (config->GetUse_Resolved_Turb_Stress()) {
         su2double Pk_resolved = 0;

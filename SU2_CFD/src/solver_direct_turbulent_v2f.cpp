@@ -611,8 +611,10 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
 
       /*--- Set wall values ---*/
       if (compressible) {
-        density = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-        laminar_viscosity = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
+        //density = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+	//laminar_viscosity = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
+	density = flow_node[iPoint]->GetDensity();
+	laminar_viscosity = flow_node[iPoint]->GetLaminarViscosity();
       }
       if (incompressible) {
         density = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();

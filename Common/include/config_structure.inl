@@ -1535,6 +1535,7 @@ inline unsigned short CConfig::GetKind_HybridRANSLES_Testing(void) { return Kind
 inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { return Kind_Hybrid_Res_Ind; }
 
 inline bool CConfig::isHybrid_Forced(void) { return Hybrid_Forcing; }
+inline bool CConfig::isHybrid_Forced_Axi(void) { return Hybrid_Forcing_Axi; }
 
 inline su2double* CConfig::GetHybrid_Forcing_Periodic_Length(void) { return Hybrid_Forcing_Periodic_Length; }
 

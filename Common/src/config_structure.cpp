@@ -642,6 +642,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
+  addBoolOption("HYBRID_FORCING_AXI", Hybrid_Forcing_Axi, false);
 
 
   default_hybrid_periodic_length[0] = -1.0;

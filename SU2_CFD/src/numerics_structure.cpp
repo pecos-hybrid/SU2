@@ -1907,6 +1907,18 @@ void CNumerics::SetRoe_Dissipation(const su2double Dissipation_i,
 
   const unsigned short roe_low_diss = config->GetKind_RoeLowDiss();
 
+  if (!((Dissipation_i >= 0) && (Dissipation_i <= 1))) {
+    std::cout << "Error: Dissipation_i = " << Dissipation_i << std::endl;
+    Dissipation_ij = 1.0;
+    return;
+  }
+
+  if (!((Dissipation_j >= 0) && (Dissipation_j <= 1))) {
+    std::cout << "Error: Dissipation_j = " << Dissipation_j << std::endl;
+    Dissipation_ij = 1.0;
+    return;
+  }
+
   assert((Dissipation_i >= 0) && (Dissipation_i <= 1));
   assert((Dissipation_j >= 0) && (Dissipation_j <= 1));
   if (roe_low_diss == FD_DUCROS || roe_low_diss == NTS_DUCROS) {
