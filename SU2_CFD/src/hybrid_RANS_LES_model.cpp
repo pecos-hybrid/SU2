@@ -170,7 +170,6 @@ void CHybrid_Mediator::SetupRANSNumerics(CSolver **solver_container,
     rans_numerics->SetResolvedTurbStress(flow_node[iPoint]->GetResolvedTurbStress());
   } else {
     rans_numerics->SetProduction(flow_node[iPoint]->GetProduction());
-    assert(flow_node[iPoint]->GetProduction() == rans_numerics->GetProduction());
   }
 }
 

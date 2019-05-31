@@ -2,7 +2,7 @@
  * \file solver_adjoint_discrete.cpp
  * \brief Main subroutines for solving the discrete adjoint problem.
  * \author T. Albring
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -53,8 +53,6 @@ CDiscAdjSolver::CDiscAdjSolver(CGeometry *geometry, CConfig *config, CSolver *di
   ifstream restart_file;
   string filename, AdjExt;
 
-  bool fsi = config->GetFSI_Simulation();
-
   nVar = direct_solver->GetnVar();
   nDim = geometry->GetnDim();
 
@@ -86,7 +84,7 @@ CDiscAdjSolver::CDiscAdjSolver(CGeometry *geometry, CConfig *config, CSolver *di
 
   /*--- Define some auxiliary vectors related to the residual for problems with a BGS strategy---*/
 
-  if (fsi){
+  if (config->GetMultizone_Residual()){
 
     Residual_BGS      = new su2double[nVar];     for (iVar = 0; iVar < nVar; iVar++) Residual_BGS[iVar]      = 1.0;
     Residual_Max_BGS  = new su2double[nVar];     for (iVar = 0; iVar < nVar; iVar++) Residual_Max_BGS[iVar]  = 1.0;
@@ -329,10 +327,41 @@ void CDiscAdjSolver::RegisterVariables(CGeometry *geometry, CConfig *config, boo
     config->SetTotalTemperatureIn_BC(Temperature);
   }
 
+  /*--- Register incompressible initialization values as input ---*/
 
-    /*--- Here it is possible to register other variables as input that influence the flow solution
-     * and thereby also the objective function. The adjoint values (i.e. the derivatives) can be
-     * extracted in the ExtractAdjointVariables routine. ---*/
+  if ((config->GetKind_Regime() == INCOMPRESSIBLE) &&
+      ((KindDirect_Solver == RUNTIME_FLOW_SYS &&
+        (!config->GetBoolTurbomachinery())))) {
+
+    /*--- Access the velocity (or pressure) and temperature at the
+     inlet BC and the back pressure at the outlet. Note that we are
+     assuming that have internal flow, which will be true for the
+     majority of cases. External flows with far-field BCs will report
+     zero for these sensitivities. ---*/
+
+    ModVel    = config->GetIncInlet_BC();
+    BPressure = config->GetIncPressureOut_BC();
+    Temperature = config->GetIncTemperature_BC();
+
+    /*--- Register the variables for AD. ---*/
+
+    if (!reset) {
+      AD::RegisterInput(ModVel);
+      AD::RegisterInput(BPressure);
+      AD::RegisterInput(Temperature);
+    }
+
+    /*--- Set the BC values in the config class. ---*/
+
+    config->SetIncInlet_BC(ModVel);
+    config->SetIncPressureOut_BC(BPressure);
+    config->SetIncTemperature_BC(Temperature);
+
+  }
+
+  /*--- Here it is possible to register other variables as input that influence the flow solution
+   * and thereby also the objective function. The adjoint values (i.e. the derivatives) can be
+   * extracted in the ExtractAdjointVariables routine. ---*/
 }
 
 void CDiscAdjSolver::RegisterOutput(CGeometry *geometry, CConfig *config) {
@@ -380,6 +409,9 @@ void CDiscAdjSolver::RegisterObj_Func(CConfig *config) {
       break;
     case EQUIVALENT_AREA:
       ObjFunc_Value = direct_solver->GetTotal_CEquivArea();
+      break;
+    case BUFFET_SENSOR:
+      ObjFunc_Value = direct_solver->GetTotal_Buffet_Metric();
       break;
     }
 
@@ -535,6 +567,28 @@ void CDiscAdjSolver::ExtractAdjoint_Variables(CGeometry *geometry, CConfig *conf
 #else
     Total_Sens_BPress = Local_Sens_BPress;
     Total_Sens_Temp = Local_Sens_Temperature;
+#endif
+
+  }
+
+  if ((config->GetKind_Regime() == INCOMPRESSIBLE) &&
+      (KindDirect_Solver == RUNTIME_FLOW_SYS &&
+       (!config->GetBoolTurbomachinery()))) {
+        
+    su2double Local_Sens_ModVel, Local_Sens_BPress, Local_Sens_Temp;
+
+    Local_Sens_ModVel = SU2_TYPE::GetDerivative(ModVel);
+    Local_Sens_BPress = SU2_TYPE::GetDerivative(BPressure);
+    Local_Sens_Temp   = SU2_TYPE::GetDerivative(Temperature);
+
+#ifdef HAVE_MPI
+    SU2_MPI::Allreduce(&Local_Sens_ModVel, &Total_Sens_ModVel, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(&Local_Sens_BPress, &Total_Sens_BPress, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(&Local_Sens_Temp,   &Total_Sens_Temp,   1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#else
+    Total_Sens_ModVel = Local_Sens_ModVel;
+    Total_Sens_BPress = Local_Sens_BPress;
+    Total_Sens_Temp   = Local_Sens_Temp;
 #endif
 
   }
@@ -727,6 +781,9 @@ void CDiscAdjSolver::SetAdjoint_OutputMesh(CGeometry *geometry, CConfig *config)
 //        Solution_Geometry[iDim] += node[iPoint]->GetDual_Time_Derivative_Geometry(iDim);
 //      }
 //    }
+    for (iDim = 0; iDim < nDim; iDim++){
+      node[iPoint]->SetSensitivity(iDim, Solution_Geometry[iDim]);
+    }
     geometry->node[iPoint]->SetAdjointCoord(Solution_Geometry);
   }
 
@@ -913,7 +970,7 @@ void CDiscAdjSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfi
       skipVars += nDim + 2;
     }
     if (incompressible) {
-      skipVars += nDim + 1;
+      skipVars += nDim + 2;
     }
   }
 
@@ -983,7 +1040,7 @@ void CDiscAdjSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfi
 
 }
 
-void CDiscAdjSolver::ComputeResidual_BGS(CGeometry *geometry, CConfig *config){
+void CDiscAdjSolver::ComputeResidual_Multizone(CGeometry *geometry, CConfig *config){
 
   unsigned short iVar;
   unsigned long iPoint;

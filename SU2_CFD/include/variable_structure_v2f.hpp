@@ -125,11 +125,18 @@ public:
 
   /**
    * \brief Sets the turbulent length and timescales
+   *
+   * \param[in] nu - The kinematic viscosity
+   * \param[in] S - The magnitude of the deviatoric rate-of-strain
+   * \param[in] VelMag - The magntidue of the freestream velocity
+   * \param[in] L_inf - The freestream (or problem) lengthscale
+   * \param[in] config - Configuration settings
    */
   void SetTurbScales(su2double nu,
                      su2double S,
                      su2double VelMag,
-                     su2double L_inf);
+                     su2double L_inf,
+                     const CConfig* config);
 
   su2double GetTypicalLengthscale(void) const;
 

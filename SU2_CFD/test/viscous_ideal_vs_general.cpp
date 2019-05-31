@@ -141,7 +141,7 @@ TestRunner::TestRunner(CConfig* config)
 
   ideal_gas.SetTDState_rhoT(density, temperature);
   conductivity_model.SetConductivity(temperature, density, laminar_viscosity,
-                                     ideal_gas.GetCp());
+                                     eddy_viscosity, ideal_gas.GetCp());
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     velocity[iDim] = sqrt(velocity_squared/3.0);

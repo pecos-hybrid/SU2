@@ -30,8 +30,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
+ * * You should have received a copy of the GNU Lesser General Public
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -297,7 +296,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   // for readability...
   const su2double tke = TurbVar_i[0];
   const su2double tdr = TurbVar_i[1];
-  const su2double v20 = TurbVar_i[2];
+  const su2double v2  = TurbVar_i[2];
   const su2double f   = TurbVar_i[3];
 
   // clip values to avoid non-physical quantities...
@@ -310,13 +309,14 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
     VelMag += VelInf[iDim]*VelInf[iDim];
   VelMag = sqrt(VelMag);
 
-  const su2double tke_lim = max(tke, scale*VelMag*VelMag);
-  const su2double tdr_lim = max(tdr, scale*VelMag*VelMag*VelMag/L_inf);
+  const su2double TKE_MIN = scale*VelMag*VelMag;
+  const su2double TDR_MIN = scale*VelMag*VelMag*VelMag/L_inf;
+  const su2double tke_lim = max(tke, TKE_MIN);
+  const su2double v2_lim  = max(v2, 2.0/3*TKE_MIN);
+  const su2double tdr_lim = max(tdr, TDR_MIN);
 
   // make sure v2 is well-behaved
-  su2double zeta = max(v20/tke_lim, scale);
-  // Extra max(..., 0) necessary in case v20 and tke are negative
-  const su2double v2 = max(max(v20, zeta*tke), 0.0);
+  su2double zeta = max(min(v2/tke_lim, 2.0), 0.0);
 
   // Grab other quantities for convenience/readability
   const su2double rho = Density_i;
@@ -347,7 +347,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   //... production
   // NB: we ignore the Jacobian of production here
 
-  //SGSProduction     = muT*S*S - 2.0/3.0*rho*tke*diverg;
   SGSProduction = muT*S*S;
   if (config->GetBoolDivU_inTKEProduction()) {
     SGSProduction -= (2.0/3.0)*rho*tke*diverg;
@@ -404,8 +403,17 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   su2double Pe, Pe_rk, Pe_re, Pe_rv2;
   su2double De, De_rk, De_re, De_rv2;
 
-  // NB: C_e1 depends on tke and v2 in v2-f
-  const su2double C_e1 = C_e1o*(1.0+0.045*sqrt(1.0/zeta));
+  /*---  C_e1 depends on tke and v2 in v2-f
+   * When v2 goes near zero during messy transient startups, C_e1 can grow
+   * very large. This can cause an imbalance, where dissipation is produced
+   * faster than it can be destroyed. This v2 dependence was originally
+   * intended to blend between C_e1 = 1.3 and C_e1 = 1.55.  So the variations
+   * should *not* be large, and should be clipped. As y+ -> 0,
+   * C_e1 -> infinity. But for channel flow at Re_tau = 5200, C_e1 < 29 for
+   * all y+ > .07. So we can set a relatively low limit (e.g. 100) to enforce
+   * our desired behavior. This should not affect converged solution. ---*/
+  const su2double inv_zeta = max(tke/v2_lim, 0.5);
+  const su2double C_e1 = min(C_e1o*(1.0+0.05*sqrt(inv_zeta)), 100.0);
 
   // ... production
   Pe = C_e1*Pk/TurbT;
@@ -428,7 +436,11 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   // ... production
   // Limit production of v2 based on max zeta = 2/3
-  Pv2 = rho * min( tke*f, 2.0*Pk/3.0/rho + 5.0*v2/T1 );
+  if (Pk > 0 && v2/T1 > TDR_MIN) {
+    Pv2 = rho * min( tke*f, 2.0*Pk/3.0/rho + 5.0*v2/T1 );
+  } else {
+    Pv2 = rho * tke * f;
+  }
 
   Pv2_rk  = 0.0;
   Pv2_re  = 0.0;
@@ -453,12 +465,13 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   const su2double ttC1m1 = (2.0/3.0)*(C_1 - 1.0);
   const su2double C_2f = C_2p;
 
-  su2double Rf = 1.0/TurbT;
+  su2double Rf;
   if (config->GetBoolUse_v2f_Rf_mod()) {
     Rf = min(1.0/TurbT, S/(sqrt(2.0)*3.0));
+  } else {
+    Rf = 1.0/TurbT;
   }
 
-  //Pf = (C_2f*Pk/(rho*tke_lim) - (C1m6*zeta - ttC1m1)/TurbT) / Lsq;
   Pf = (C_2f*Pk/(rho*tke_lim) - Rf*(C1m6*zeta - ttC1m1)) / Lsq;
 
   // not keeping any derivatives of Pf
@@ -469,7 +482,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   Df_f = 1.0/Lsq;
 
   // check for nans
-#ifndef NDEBUG
   bool found_nan = ((Pk!=Pk)         || (Dk!=Dk)         ||
                     (Pe!=Pe)         || (De!=De)         ||
                     (Pv2!=Pv2)       || (Dv2!=Dv2)       ||
@@ -483,14 +495,14 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
 
   if (found_nan) {
-    std::cout << "WTF!?! Found a nan at x = " << Coord_i[0] << ", " << Coord_i[1] << std::endl;
+    std::cout << "Found a nan at x = " << Coord_i[0] << ", " << Coord_i[1] << std::endl;
     std::cout << "turb state = " << tke << ", " << tdr << ", " << v2 << ", " << f << std::endl;
     std::cout << "T          = " << TurbT  << ", C_e1 = " << C_e1 << std::endl;
     std::cout << "TKE eqn    = " << Pk << " - " << Dk << std::endl;
     std::cout << "TDR eqn    = " << Pe << " - " << De << std::endl;
     std::cout << "v2  eqn    = " << Pv2 << " - " << Dv2 << std::endl;
+    exit(EXIT_FAILURE);
   }
-#endif
 
 
   // form source term and Jacobian...
