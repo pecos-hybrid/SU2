@@ -2989,7 +2989,43 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
 
       if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
         //timescale = solver[TURB_SOL]->average_node[iPoint]->GetTurbTimescale();
-	timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+	//timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
+
+	const su2double rho = solver[FLOW_SOL]->average_node[iPoint]->GetDensity();
+	const su2double nu  = solver[FLOW_SOL]->average_node[iPoint]->GetLaminarViscosity() / rho;
+
+	// Don't want stag anomaly time scale in here
+	const su2double kine = solver[TURB_SOL]->node[iPoint]->GetSolution(0);
+	const su2double epsi = solver[TURB_SOL]->node[iPoint]->GetSolution(1);
+	const su2double v2   = solver[TURB_SOL]->node[iPoint]->GetSolution(2);
+
+	/*--- Relevant scales ---*/
+	const su2double scale = EPS;
+
+	su2double *VelInf;
+	VelInf    = config->GetVelocity_FreeStreamND();
+  
+	su2double VelMag = 0;
+	for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+	  VelMag += VelInf[iDim]*VelInf[iDim];
+	}
+	VelMag = sqrt(VelMag);
+
+	su2double L_inf = config->GetLength_Reynolds();
+
+	//using std::max;
+	const su2double tke_lim = std::max(kine, scale*VelMag*VelMag);
+	const su2double tke_positive = std::max(kine, 0.0);
+	const su2double tdr_lim = std::max(epsi, scale*VelMag*VelMag*VelMag/L_inf);
+	const su2double zeta_lim = std::max(v2/tke_lim, scale);
+
+	//--- Model time scale ---//
+	const su2double typical_time = tke_positive/tdr_lim;
+
+	const su2double C_T = 6.0;
+	const su2double kol_time     = C_T*sqrt(nu/tdr_lim);
+	timescale = std::max(typical_time, kol_time);
+
         assert(timescale > 0);
       }
 
