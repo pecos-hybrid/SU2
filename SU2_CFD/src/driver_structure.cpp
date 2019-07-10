@@ -744,7 +744,7 @@ void CDriver::Geometrical_Preprocessing() {
 
     if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT) {
       if (rank == MASTER_NODE) cout << "Computing cell resolution tensors." << endl;
-      geometry_container[iZone][MESH_0]->SetResolutionTensor();
+      geometry_container[iZone][MESH_0]->SetResolutionTensor(config_container[iZone]);
     }
 
     /*--- Identify closest normal neighbor ---*/
