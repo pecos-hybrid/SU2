@@ -272,6 +272,14 @@ void CAvgGrad_Hybrid::SetLaminarStressTensor(su2double **val_gradprimvar,
 
   unsigned short iDim, jDim;
 
+  // why not?
+  //su2double muBulk = 0.0*val_laminar_viscosity;
+  //su2double muBulk = 10.0*val_laminar_viscosity;
+  //su2double muBulk = 20.0*val_laminar_viscosity;
+  //su2double muBulk = 100.0*val_laminar_viscosity;
+  //su2double muBulk = 1.0*val_laminar_viscosity;
+  su2double muBulk = 0.0;
+
   su2double div_vel = 0.0;
   for (iDim = 0 ; iDim < nDim; iDim++)
     div_vel += val_gradprimvar[iDim+1][iDim];
@@ -279,7 +287,8 @@ void CAvgGrad_Hybrid::SetLaminarStressTensor(su2double **val_gradprimvar,
   for (iDim = 0 ; iDim < nDim; iDim++) {
     for (jDim = 0 ; jDim < nDim; jDim++) {
       tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
-                        - TWO3*val_laminar_viscosity*div_vel*delta[iDim][jDim];
+                        - TWO3*val_laminar_viscosity*div_vel*delta[iDim][jDim]
+                	+ muBulk*div_vel*delta[iDim][jDim];
     }
   }
 }
@@ -361,7 +370,7 @@ void CAvgGrad_Hybrid::AddTauSGETJacobian(su2double *val_Mean_PrimVar,
 	  tauSGET_mom[i][j] += -xi*mu[m][k]*nvec[m]*nvec[k]*delta[i][j];
 	}
 	tauSGET_mom[i][j] += -xi*mu[i][k]*nvec[j]*nvec[k];
-	tauSGET_mom[i][j] -= -xi*TWO3*mu[j][k]*nvec[i]*nvec[k];
+	//tauSGET_mom[i][j] -= -xi*TWO3*mu[j][k]*nvec[i]*nvec[k];
       }
       tau_jacobian_i[i][j+1] += tauSGET_mom[i][j];
     }
@@ -396,8 +405,11 @@ void CAvgGrad_Hybrid::AddSGSHeatFlux(su2double **val_gradprimvar,
   assert(val_alpha >= 0.0);
   assert(val_alpha <= 1.0);
 
+  const su2double alpha_fac = val_alpha*(2.0 - val_alpha);
+
   const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
-  const su2double heat_flux_factor = Cp * (val_alpha*val_eddy_viscosity/Prandtl_Turb);
+  //const su2double heat_flux_factor = Cp * (val_alpha*val_eddy_viscosity/Prandtl_Turb);
+  const su2double heat_flux_factor = Cp * (alpha_fac*val_eddy_viscosity/Prandtl_Turb);
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     heat_flux_vector[iDim] += heat_flux_factor*val_gradprimvar[0][iDim];

@@ -2964,6 +2964,13 @@ void CUpwRoe_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jaco
   if (roe_low_dissipation)
     SetRoe_Dissipation(Dissipation_i, Dissipation_j, Sensor_i, Sensor_j, Dissipation_ij, config);
   
+  su2double dissipationVec[5];
+  dissipationVec[0] = Dissipation_ij;
+  dissipationVec[1] = Dissipation_ij;
+  dissipationVec[2] = Dissipation_ij;
+  dissipationVec[3] = Dissipation_ij; //max(Dissipation_ij, 0.1);
+  dissipationVec[4] = Dissipation_ij; //max(Dissipation_ij, 0.1);
+
   /*--- Roe's Flux approximation ---*/
   
   for (iVar = 0; iVar < nVar; iVar++) {
@@ -2975,14 +2982,22 @@ void CUpwRoe_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jaco
         /*--- Compute |Proj_ModJac_Tensor| = P x |Lambda| x inverse P ---*/
         
         for (kVar = 0; kVar < nVar; kVar++)
-          Proj_ModJac_Tensor_ij += P_Tensor[iVar][kVar]*Lambda[kVar]*invP_Tensor[kVar][jVar];
+          Proj_ModJac_Tensor_ij += P_Tensor[iVar][kVar]*Lambda[kVar]*dissipationVec[kVar]*invP_Tensor[kVar][jVar];
 
-        val_residual[iVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Diff_U[jVar]*Area*Dissipation_ij;
+        val_residual[iVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Diff_U[jVar]*Area;
         if(implicit){
-          // val_Jacobian_i[iVar][jVar] += (1.0-kappa)*Proj_ModJac_Tensor_ij*Area;
-          // val_Jacobian_j[iVar][jVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Area;
-          val_Jacobian_i[iVar][jVar] += (1.0-kappa)*Proj_ModJac_Tensor_ij*Area*Dissipation_ij;
-          val_Jacobian_j[iVar][jVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Area*Dissipation_ij;
+          val_Jacobian_i[iVar][jVar] += (1.0-kappa)*Proj_ModJac_Tensor_ij*Area;
+          val_Jacobian_j[iVar][jVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Area;
+
+        // for (kVar = 0; kVar < nVar; kVar++)
+        //   Proj_ModJac_Tensor_ij += P_Tensor[iVar][kVar]*Lambda[kVar]*invP_Tensor[kVar][jVar];
+
+        // val_residual[iVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Diff_U[jVar]*Area*Dissipation_ij;
+        // if(implicit){
+        //   // val_Jacobian_i[iVar][jVar] += (1.0-kappa)*Proj_ModJac_Tensor_ij*Area;
+        //   // val_Jacobian_j[iVar][jVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Area;
+        //   val_Jacobian_i[iVar][jVar] += (1.0-kappa)*Proj_ModJac_Tensor_ij*Area*Dissipation_ij;
+        //   val_Jacobian_j[iVar][jVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Area*Dissipation_ij;
 
         }
     }
@@ -4579,11 +4594,18 @@ void CAvgGrad_Base::SetTauJacobian(const su2double *val_Mean_PrimVar,
   const su2double Density = val_Mean_PrimVar[nDim+2];
   const su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
   const su2double xi = total_viscosity/(Density*val_dist_ij);
+  //const su2double xiBulk = 0.0*total_viscosity/(Density*val_dist_ij);
+  //const su2double xiBulk = 10.0*total_viscosity/(Density*val_dist_ij);
+  //const su2double xiBulk = 20.0*total_viscosity/(Density*val_dist_ij);
+  //const su2double xiBulk = 100.0*total_viscosity/(Density*val_dist_ij);
+  //const su2double xiBulk = 1.0*total_viscosity/(Density*val_dist_ij);
+  const su2double xiBulk = 0.0;
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       // Jacobian w.r.t. momentum
       tau_jacobian_i[iDim][jDim+1] = -xi*(delta[iDim][jDim] + val_normal[iDim]*val_normal[jDim]/3.0);
+      tau_jacobian_i[iDim][jDim+1] += -xiBulk*(val_normal[iDim]*val_normal[jDim]); // right?
     }
     // Jacobian w.r.t. density
     tau_jacobian_i[iDim][0] = 0;
