@@ -776,9 +776,11 @@ void CHexahedron::SetResolutionTensor(su2double** val_coord) {
   min_dp = 1.0;
   for (iFace = 1; iFace < nFaces; ++iFace) {
     if (iFace == paired_faces[1]) continue;
+    // current_dp = inline_dot_prod(center2face[paired_faces[2]],center2face[iFace])
+    //     /(inline_magnitude(center2face[paired_faces[2]])
+    //         *inline_magnitude(center2face[1]));
     current_dp = inline_dot_prod(center2face[paired_faces[2]],center2face[iFace])
-        /(inline_magnitude(center2face[paired_faces[2]])
-            *inline_magnitude(center2face[1]));
+        /(inline_magnitude(center2face[paired_faces[2]])*inline_magnitude(center2face[iFace]));
     if (current_dp < min_dp) {
       min_dp = current_dp;
       paired_faces[3] = iFace;
