@@ -156,13 +156,17 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   // }
 
   //const su2double AR_switch = 50;
-  const su2double AR_switch = 32;
-  //const su2double AR_switch = 128;
+  //const su2double AR_switch = 32;
+  //const su2double AR_switch = 64;
+  const su2double AR_switch = 128;
+  //const su2double AR_switch = 256;
+  //const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/128.0) + 1.0);
   const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/16.0) + 1.0);
+  //const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/8.0) + 1.0);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       eddy_viscosity[iDim][jDim] *= (1 - blending);
-      //eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
+      eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
     }
   }
 

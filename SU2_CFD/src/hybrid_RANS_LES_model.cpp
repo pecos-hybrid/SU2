@@ -232,6 +232,7 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     frobenius_norm = sqrt(frobenius_norm);
 
     const su2double C_r = 1.0;
+    //const su2double C_r = 1.5;
     //const su2double C_r = 3.0; // Just to see what happens!
     const su2double r_k_min = 1.0E-8;
     const su2double r_k_max = 30;
@@ -340,7 +341,8 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
   if (fluct_stress_model) {
 
     const su2double* primvar =
-        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetPrimitive();
+    //solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
     const su2double* turbvar =
         solver_container[TURB_SOL]->node[iPoint]->GetSolution();
     const su2double mean_eddy_visc =
