@@ -43,8 +43,6 @@
 
 #include "../include/numerics_structure.hpp"
 
-#ifdef BUILD_TESTS
-
 const unsigned short nDim = 2;
 const unsigned short nVar = 4;
 const unsigned short nPrimVar = nVar+5;
@@ -253,5 +251,3 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
     }
   }
 }
-
-#endif

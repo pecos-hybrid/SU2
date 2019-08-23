@@ -519,6 +519,7 @@ def write_makefile(build_dirs):
                          'SUBDIRS = '+ build_dirs + '\n',
                          'INSTALLDIRS = $(SUBDIRS:%=install-%)\n',
                          'CLEANDIRS = $(SUBDIRS:%=clean-%)\n',
+                         'CHECKDIRS = $(SUBDIRS:%=check-%)\n',
                          '\n',
                          'subdirs: $(SUBDIRS)\n',
                          '\n',
@@ -533,9 +534,14 @@ def write_makefile(build_dirs):
                          '$(CLEANDIRS):\n',
                          '\t$(MAKE) -C $(@:clean-%=%) clean\n',
                          '\n',
+                         'check: $(CHECKDIRS)\n',
+                         '$(CHECKDIRS):\n',
+                         '\t$(MAKE) -C $(@:check-%=%) check\n',
+                         '\n',
                          '.PHONY: subdirs $(SUBDIRS)\n',
                          '.PHONY: subdirs $(INSTALLDIRS)\n',
                          '.PHONY: subdirs $(CLEANDIRS)\n',
+                         '.PHONY: subdirs $(CHECKDIRS)\n',
                          '.PHONY: install\n'])
 
     makefile.close()

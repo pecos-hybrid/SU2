@@ -51,8 +51,6 @@ static const unsigned short nVar = 5;
  *  Tests
  * --------------------------------------------------------------------------*/
 
-#ifdef BUILD_TESTS
-
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
 
 BOOST_AUTO_TEST_CASE(IsotropicRANSFlux) {
@@ -112,5 +110,3 @@ BOOST_AUTO_TEST_CASE(IsotropicRANSFlux) {
   delete [] gradprimvar;
 
 }
-
-#endif

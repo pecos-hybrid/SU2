@@ -44,8 +44,6 @@
 
 #include "../include/numerics_structure.hpp"
 
-#ifdef BUILD_TESTS
-
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
 const unsigned short nPrimVar = nDim+9;
@@ -583,5 +581,3 @@ BOOST_FIXTURE_TEST_CASE(ViscousTiming, ViscousResidualFixture) {
 
   delete numerics;
 }
-
-#endif

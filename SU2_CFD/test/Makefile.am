@@ -36,18 +36,18 @@
 check_PROGRAMS  =
 TESTS  =
 
-if BUILD_TESTS
-
 check_PROGRAMS += viscous_proj_flux
 check_PROGRAMS += viscous_residual_test
 check_PROGRAMS += viscous_residual_2d_test
 check_PROGRAMS += viscous_ideal_vs_general
-check_PROGRAMS += hybrid_rdelta_test
 check_PROGRAMS += load_hybrid_constants_test
 if BUILD_LAPACK
 check_PROGRAMS += eigensolver_test
 check_PROGRAMS += zeta_unit_cell_test
 check_PROGRAMS += zeta_transform_test
+endif
+if HAVE_BOOST
+check_PROGRAMS += hybrid_rdelta_test
 endif
 
 # Eventually these will likely be required
@@ -55,7 +55,7 @@ AM_CPPFLAGS =
 AM_CPPFLAGS += -I$(top_srcdir)/Common/include
 AM_CPPFLAGS += -I$(top_srcdir)/Common/test
 AM_CPPFLAGS += -I$(top_srcdir)/SU2_CFD/include
-AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ -DBUILD_TESTS @BOOST_CXX@
+AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ @BOOST_CXX@
 
 #AM_LDFLAGS = 
 #LIBS = 
@@ -73,12 +73,14 @@ viscous_proj_flux_SOURCES              = viscous_proj_flux.cpp
 viscous_residual_test_SOURCES          = viscous_residual_test.cpp
 viscous_residual_2d_test_SOURCES       = viscous_residual_2d_test.cpp
 viscous_ideal_vs_general_SOURCES       = viscous_ideal_vs_general.cpp
-hybrid_rdelta_test_SOURCES             = hybrid_rdelta_test.cpp
 load_hybrid_constants_test_SOURCES     = load_hybrid_constants_test.cpp
 if BUILD_LAPACK
 eigensolver_test_SOURCES               = eigensolver_test.cpp
 zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
 zeta_transform_test_SOURCES            = zeta_transform_test.cpp
+endif
+if HAVE_BOOST
+hybrid_rdelta_test_SOURCES             = hybrid_rdelta_test.cpp
 endif
 
 # Tests to be run
@@ -86,14 +88,15 @@ TESTS += viscous_proj_flux
 TESTS += viscous_residual_test
 TESTS += viscous_residual_2d_test
 TESTS += viscous_ideal_vs_general
-TESTS += hybrid_rdelta_test
 TESTS += load_hybrid_constants_test
 if BUILD_LAPACK
 TESTS += eigensolver_test
 TESTS += zeta_unit_cell_test
 TESTS += zeta_transform_test
 endif
+if HAVE_BOOST
+TESTS += hybrid_rdelta_test
+endif
 
 # Any of above we expect to fail?
 #XFAIL_TESTS =
-endif
