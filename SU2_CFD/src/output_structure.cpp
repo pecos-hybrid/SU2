@@ -458,10 +458,6 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
           (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   
       if (dynamic_hybrid) {
-        if (config[iZone]->GetKind_Hybrid_Anisotropy_Model() != ISOTROPIC) {
-          RegisterTensor("Eddy_Visc_Anisotropy", "a", FLOW_SOL,
-                         &CVariable::GetEddyViscAnisotropy, iZone);
-        }
         switch (config[iZone]->GetKind_Hybrid_Blending()) {
           case RANS_ONLY:
             // No extra variables

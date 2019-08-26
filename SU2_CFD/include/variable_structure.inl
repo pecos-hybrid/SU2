@@ -275,13 +275,6 @@ inline su2double CVariable::GetResolutionAdequacy(void) {return 1; }
 
 inline su2double CVariable::GetRANSWeight(void) {return 1; }
 
-inline su2double** CVariable::GetEddyViscAnisotropy(void) { return NULL; }
-
-inline su2double CVariable::GetEddyViscAnisotropy(unsigned short iDim,
-                                                  unsigned short jDim) {
-  return (iDim == jDim);
-}
-
 inline void CVariable::SetGammaEff(void) { }
 
 inline void CVariable::SetGammaSep(su2double gamma_sep) { }
@@ -469,8 +462,6 @@ inline void CVariable::SetAverageTurbScales(su2double val_T_avg, su2double val_L
 inline void CVariable::SetResolutionAdequacy(su2double val_r_k) { }
 
 inline void CVariable::SetRANSWeight(su2double val_w_rans) { }
-
-inline void CVariable::SetEddyViscAnisotropy(su2double** val_anisotropy_i) { }
 
 inline void CVariable::SetThermalConductivity(su2double thermalConductivity) { }
 
@@ -1426,22 +1417,6 @@ inline su2double CHybridVariable::GetResolutionAdequacy() { return Resolution_Ad
 inline void CHybridVariable::SetRANSWeight(su2double val_w_rans) {RANS_Weight = val_w_rans;}
 
 inline su2double CHybridVariable::GetRANSWeight() { return RANS_Weight; }
-
-inline void CNSVariable::SetEddyViscAnisotropy(su2double** val_anisotropy) {
-    // Copy values instead of copying pointers to values that may change
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      for (unsigned short jDim = 0; jDim < nDim; jDim++)
-        Eddy_Visc_Anisotropy[iDim][jDim] = val_anisotropy[iDim][jDim];
-}
-
-inline su2double** CNSVariable::GetEddyViscAnisotropy() {
-  return Eddy_Visc_Anisotropy;
-}
-
-inline su2double CNSVariable::GetEddyViscAnisotropy(unsigned short iDim,
-                                                    unsigned short jDim) {
-  return Eddy_Visc_Anisotropy[iDim][jDim];
-}
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() {
   return T;

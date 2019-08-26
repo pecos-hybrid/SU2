@@ -128,7 +128,7 @@ def main():
     flatplate.cfg_dir   = "navierstokes/flatplate"
     flatplate.cfg_file  = "lam_flatplate.cfg"
     flatplate.test_iter = 20
-    flatplate.test_vals = [-4.679955, 0.781133, -0.136008, 0.022966] #last 4 columns
+    flatplate.test_vals = [-4.679940, 0.781126, -0.136009, 0.022966] #last 4 columns
     flatplate.su2_exec  = "parallel_computation.py -f"
     flatplate.timeout   = 1600
     flatplate.tol       = 0.00001
@@ -139,7 +139,7 @@ def main():
     cylinder.cfg_dir   = "navierstokes/cylinder"
     cylinder.cfg_file  = "lam_cylinder.cfg"
     cylinder.test_iter = 25
-    cylinder.test_vals = [-6.757291, -1.289309, -0.125948, 0.625438] #last 4 columns
+    cylinder.test_vals = [-6.757297, -1.289314, -0.125936, 0.625403] #last 4 columns
     cylinder.su2_exec  = "parallel_computation.py -f"
     cylinder.timeout   = 1600
     cylinder.tol       = 0.00001
@@ -187,7 +187,7 @@ def main():
     rae2822_sst.cfg_dir   = "rans/rae2822"
     rae2822_sst.cfg_file  = "turb_SST_RAE2822.cfg"
     rae2822_sst.test_iter = 20
-    rae2822_sst.test_vals = [-0.510795, 4.910154, 0.835836, 0.054149] #last 4 columns
+    rae2822_sst.test_vals = [-0.510795, 4.910127, 0.835841, 0.054150] #last 4 columns
     rae2822_sst.su2_exec  = "parallel_computation.py -f"
     rae2822_sst.timeout   = 1600
     rae2822_sst.tol       = 0.00001
@@ -198,7 +198,7 @@ def main():
     turb_flatplate.cfg_dir   = "rans/flatplate"
     turb_flatplate.cfg_file  = "turb_SA_flatplate.cfg"
     turb_flatplate.test_iter = 20
-    turb_flatplate.test_vals = [-4.146425, -6.736667, -0.176279, 0.057569] #last 4 columns
+    turb_flatplate.test_vals = [-4.146390, -6.736667, -0.176279, 0.057569] #last 4 columns
     turb_flatplate.su2_exec  = "parallel_computation.py -f"
     turb_flatplate.timeout   = 1600
     turb_flatplate.tol       = 0.00001
@@ -209,7 +209,7 @@ def main():
     turb_oneram6.cfg_dir   = "rans/oneram6"
     turb_oneram6.cfg_file  = "turb_ONERAM6.cfg"
     turb_oneram6.test_iter = 10
-    turb_oneram6.test_vals = [-2.327509, -6.563372, 0.230438, 0.155815] #last 4 columns
+    turb_oneram6.test_vals = [-2.327506, -6.563401, 0.230473, 0.155832] #last 4 columns
     turb_oneram6.su2_exec  = "parallel_computation.py -f"
     turb_oneram6.timeout   = 3200
     turb_oneram6.tol       = 0.00001
@@ -398,7 +398,7 @@ def main():
     spinning_cylinder.cfg_dir   = "moving_wall/spinning_cylinder"
     spinning_cylinder.cfg_file  = "spinning_cylinder.cfg"
     spinning_cylinder.test_iter = 25
-    spinning_cylinder.test_vals = [-7.648320, -2.202753, 1.236836, 1.609040] #last 4 columns
+    spinning_cylinder.test_vals = [-7.648371, -2.202832, 1.236929, 1.609010] #last 4 columns
     spinning_cylinder.su2_exec  = "parallel_computation.py -f"
     spinning_cylinder.timeout   = 1600
     spinning_cylinder.tol       = 0.00001

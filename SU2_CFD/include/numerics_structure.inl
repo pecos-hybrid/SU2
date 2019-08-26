@@ -288,11 +288,6 @@ inline void CNumerics::SetEddyViscosity(su2double val_eddy_viscosity_i, su2doubl
   Eddy_Viscosity_j = val_eddy_viscosity_j;
 }
 
-inline void CNumerics::SetEddyViscAnisotropy(su2double** val_anisotropy_i,
-                                             su2double** val_anisotropy_j) {
-    Eddy_Viscosity_Anisotropy_i = val_anisotropy_i;
-    Eddy_Viscosity_Anisotropy_j = val_anisotropy_j;
-}
 
 inline void CNumerics::SetTurbTimescale(su2double val_turb_T) {
   TurbT = val_turb_T;
@@ -608,3 +603,10 @@ inline void CNumerics::ComputeResidual(su2double **val_Jacobian_i, su2double *va
 
 inline void CNumerics::ComputeResidual(su2double **val_Jacobian_i, su2double *val_Jacobian_mui, su2double ***val_Jacobian_gradi, 
                   su2double **val_Jacobian_j, su2double *val_Jacobian_muj, su2double ***val_Jacobian_gradj, CConfig *config) { }
+
+inline void CNumerics::SetTauWall(su2double val_tauwall_i, su2double val_tauwall_j) { }
+
+inline void CAvgGrad_Base::SetTauWall(su2double val_tauwall_i, su2double val_tauwall_j) {
+  TauWall_i = val_tauwall_i;
+  TauWall_j = val_tauwall_j;
+}

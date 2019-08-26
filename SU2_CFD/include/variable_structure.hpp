@@ -908,19 +908,6 @@ public:
    * \return Value of the eddy viscosity.
    */
   virtual su2double GetEddyViscosity(void);
-  
-  /**
-   * \brief A virtual member
-   * \return The normalized anisotropy tensor for the eddy viscosity.
-   */
-  virtual su2double** GetEddyViscAnisotropy(void);
-
-  /**
-   * \brief A virtual member
-   * \return A component of the normalized anisotropy tensor for the eddy viscosity.
-   */
-  virtual su2double GetEddyViscAnisotropy(unsigned short iDim,
-                                          unsigned short jDim);
 
   /*!
    * \brief A virtual member.
@@ -1147,12 +1134,6 @@ public:
    * \param[in] eddy_visc - Value of the eddy viscosity.
    */
   virtual void SetEddyViscosity(su2double eddy_visc);
-  
-  /**
-   * \brief A virtual member
-   * \param eddy_visc_anisotropy - The normalized anisotropy tensor for the eddy viscosity
-   */
-  virtual void SetEddyViscAnisotropy(su2double** eddy_visc_anisotropy);
 
   /*!
    * \brief A virtual member.
@@ -3979,7 +3960,6 @@ private:
   su2double Viscosity_Inf;   /*!< \brief Viscosity of the fluid at the infinity. */
   su2double Vorticity[3];    /*!< \brief Vorticity of the fluid. */
   su2double StrainMag;       /*!< \brief Magnitude of rate of strain tensor. */
-  su2double** Eddy_Visc_Anisotropy; /*!< \brief Anisotropy of the eddy viscosity */
   su2double DES_LengthScale; /*!< \brief DES Length Scale. */
   su2double inv_TimeScale;   /*!< \brief Inverse of the reference time scale. */
   su2double Roe_Dissipation; /*!< \brief Roe low dissipation coefficient. */
@@ -4050,11 +4030,6 @@ public:
   void SetEddyViscosity(su2double eddy_visc);
   
   /*!
-   * \brief Sets the normalized anisotropy of the eddy viscosity
-   */
-  void SetEddyViscAnisotropy(su2double** val_anisotropy);
-  
-  /*!
    * \brief Get the laminar viscosity of the flow.
    * \return Value of the laminar viscosity of the flow.
    */
@@ -4071,16 +4046,6 @@ public:
    * \return The eddy viscosity of the flow.
    */
   su2double GetEddyViscosity(void);
-  
-  /*!
-   * \brief Get the normalized anisotropy of the eddy viscosity
-   */
-  su2double** GetEddyViscAnisotropy();
-
-  /*!
-   * \brief Get a component of the normalized anisotropy of the eddy viscosity
-   */
-  su2double GetEddyViscAnisotropy(unsigned short iDim, unsigned short jDim);
 
   /*!
    * \brief Get the specific heat at constant P of the flow.

@@ -41,8 +41,7 @@
 #include <limits> // used to find machine epsilon
 #include <cmath>  // std::abs
 
-#include "../include/solver_structure.hpp"
-#include "../include/variable_structure.hpp"
+#include "../include/solver_structure_v2f.hpp"
 #include "../include/variable_structure_v2f.hpp"
 #include "../include/hybrid_RANS_LES_model.hpp"
 
@@ -54,7 +53,6 @@ void WriteCfgFile(unsigned short nDim, const char* filename) {
   cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
   cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
   cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA_STRAIN_ONLY" << std::endl;
-  cfg_file << "HYBRID_ANISOTROPY_MODEL= ISOTROPIC" << std::endl;
   // This option is deprecated
   // cfg_file << "HYBRID_MODEL_CONSTANT= 1.0" << std::endl;
   cfg_file.close();

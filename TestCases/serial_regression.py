@@ -108,7 +108,7 @@ def main():
     flatplate.cfg_dir   = "navierstokes/flatplate"
     flatplate.cfg_file  = "lam_flatplate.cfg"
     flatplate.test_iter = 20
-    flatplate.test_vals = [-4.680911, 0.781118, -0.135956, 0.022978] #last 4 columns
+    flatplate.test_vals = [-4.680896, 0.781111, -0.135957, 0.022978] #last 4 columns
     flatplate.su2_exec  = "SU2_CFD"
     flatplate.timeout   = 1600
     flatplate.tol       = 0.00001
@@ -119,7 +119,7 @@ def main():
     cylinder.cfg_dir   = "navierstokes/cylinder"
     cylinder.cfg_file  = "lam_cylinder.cfg"
     cylinder.test_iter = 25
-    cylinder.test_vals = [-6.765426, -1.297422, 0.019496, 0.310082] #last 4 columns
+    cylinder.test_vals = [-6.765432, -1.297428, 0.019508, 0.310040] #last 4 columns
     cylinder.su2_exec  = "SU2_CFD"
     cylinder.timeout   = 1600
     cylinder.tol       = 0.00001
@@ -141,7 +141,7 @@ def main():
     poiseuille.cfg_dir   = "navierstokes/poiseuille"
     poiseuille.cfg_file  = "lam_poiseuille.cfg"
     poiseuille.test_iter = 10
-    poiseuille.test_vals = [-12.272126, -3.335311, 0.000001, 2.351005] #last 4 columns
+    poiseuille.test_vals = [-12.272146, -3.335311, 0.000001, 2.351005] #last 4 columns
     poiseuille.su2_exec  = "SU2_CFD"
     poiseuille.timeout   = 1600
     poiseuille.tol       = 0.00001
@@ -167,7 +167,7 @@ def main():
     rae2822_sst.cfg_dir   = "rans/rae2822"
     rae2822_sst.cfg_file  = "turb_SST_RAE2822.cfg"
     rae2822_sst.test_iter = 20
-    rae2822_sst.test_vals = [-0.510826, 4.909749, 0.825022, 0.052675] #last 4 columns
+    rae2822_sst.test_vals = [-0.510826, 4.909714, 0.825023, 0.052675] #last 4 columns
     rae2822_sst.su2_exec  = "SU2_CFD"
     rae2822_sst.timeout   = 1600
     rae2822_sst.tol       = 0.00001
@@ -178,7 +178,7 @@ def main():
     turb_flatplate.cfg_dir   = "rans/flatplate"
     turb_flatplate.cfg_file  = "turb_SA_flatplate.cfg"
     turb_flatplate.test_iter = 20
-    turb_flatplate.test_vals = [-4.158341, -6.737135, -0.176245, 0.057446] #last 4 columns
+    turb_flatplate.test_vals = [-4.158303, -6.737135, -0.176244, 0.057446] #last 4 columns
     turb_flatplate.su2_exec  = "SU2_CFD"
     turb_flatplate.timeout   = 1600
     turb_flatplate.tol       = 0.00001
@@ -200,7 +200,7 @@ def main():
     turb_oneram6.cfg_dir   = "rans/oneram6"
     turb_oneram6.cfg_file  = "turb_ONERAM6.cfg"
     turb_oneram6.test_iter = 10
-    turb_oneram6.test_vals = [-2.327509, -6.563372, 0.230438, 0.155815]#last 4 columns
+    turb_oneram6.test_vals = [-2.327508, -6.563402, 0.230474, 0.155832]#last 4 columns
     turb_oneram6.su2_exec  = "SU2_CFD"
     turb_oneram6.timeout   = 3200
     turb_oneram6.tol       = 0.00001
@@ -488,7 +488,7 @@ def main():
     spinning_cylinder.cfg_dir   = "moving_wall/spinning_cylinder"
     spinning_cylinder.cfg_file  = "spinning_cylinder.cfg"
     spinning_cylinder.test_iter = 25
-    spinning_cylinder.test_vals = [-7.709662, -2.274900, 1.418422, 1.734206] #last 4 columns
+    spinning_cylinder.test_vals = [-7.709625, -2.274866, 1.418504, 1.734213] #last 4 columns
     spinning_cylinder.su2_exec  = "SU2_CFD"
     spinning_cylinder.timeout   = 1600
     spinning_cylinder.tol       = 0.00001
