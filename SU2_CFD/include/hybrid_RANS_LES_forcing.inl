@@ -80,11 +80,11 @@ inline void CHybridForcingTG0::SetTGField(
   su2double a[3];
 
   for (unsigned int ii=0; ii<3; ii++) {
-    const su2double ell = std::min(Lsgs, dwall);
-    const su2double elllim = std::max(ell, 2.0*Lmesh[ii]);
+    const su2double ell = min(Lsgs, dwall);
+    const su2double elllim = max(ell, 2.0*Lmesh[ii]);
 
     if (D[ii] > 0.0) {
-      const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
+      const su2double denom = round(D[ii]/min(elllim, D[ii]));
       a[ii] = M_PI/(D[ii]/denom);
     } else {
       a[ii] = M_PI/elllim;
