@@ -60,7 +60,7 @@ inline su2double CHybridForcingTG0::ComputeScalingFactor(
   // TODO: Compare this with Sigfried's improved version once channel
   // validation is successful.
   if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
-    const su2double Sr = std::tanh(1.0 - 1.0/sqrt(resolution_adequacy));
+    const su2double Sr = tanh(1.0 - 1.0/sqrt(resolution_adequacy));
     if (alpha <= alpha_kol) {
       eta = -Ftar * Sr * (alpha - alpha_kol);
     } else {
