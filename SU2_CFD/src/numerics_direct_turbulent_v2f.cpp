@@ -35,6 +35,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../../Common/include/config_structure.hpp"
+#include "../include/numerics_structure.hpp"
 #include "../include/numerics_structure_v2f.hpp"
 #include <limits>
 
@@ -339,16 +341,43 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
 
   // TKE equation...
-  su2double Pk, Pk_rk, Pk_re, Pk_rv2;
+  su2double Pk_rk, Pk_re, Pk_rv2;
   su2double Dk, Dk_rk, Dk_re, Dk_rv2;
 
   //... production
-  // NB: we ignore the jacobian of production here
 
-  //Pk     = muT*S*S - 2.0/3.0*rho*tke*diverg;
-  Pk     = muT*S*S;
+  SGSProduction     = muT*S*S - 2.0/3.0*rho*tke*diverg;
+  SGSProduction = muT*S*S;
   if (config->GetBoolDivU_inTKEProduction()) {
-    Pk -= (2.0/3.0)*rho*tke*diverg;
+    SGSProduction -= (2.0/3.0)*rho*tke*diverg;
+  }
+
+  /*--- If using a hybrid method, include resolved production ---*/
+
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Limit alpha to protect from imbalance in k_model vs k_resolved. ---*/
+    if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
+      SGSProduction *= KineticEnergyRatio;
+      if (config->GetUse_Resolved_Turb_Stress()) {
+        su2double Pk_resolved = 0;
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+            Pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+          }
+        }
+        Pk = SGSProduction + Pk_resolved;
+      }
+      /*--- If using production instead of resolved turb. stress,
+       * the production (`Pk`) has been set externally.  So we only need to
+       * make sure that SGSProduction has been properly calculated, since
+       * it will be pulled back out and passed to the averaging routine. ---*/
+    } else {
+      /*--- Don't allow resolved turb. stress to be added if alpha is not
+       * valid, in case the resolved flow data are bad. ---*/
+      Pk = SGSProduction;
+    }
+  } else {
+    Pk = SGSProduction;
   }
 
   Pk_rk  = 0.0;
@@ -421,7 +450,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
     Rf = min(1.0/TurbT, S/(sqrt(2.0)*3.0));
   }
 
-  //Pf = (C_2f*Pk/(rho*tke_lim) - (C1m6*zeta - ttC1m1)/TurbT) / Lsq;
   Pf = (C_2f*Pk/(rho*tke_lim) - Rf*(C1m6*zeta - ttC1m1)) / Lsq;
 
   // not keeping any derivatives of Pf

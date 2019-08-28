@@ -64,7 +64,6 @@ protected:
   bool Non_Physical;      /*!< \brief Non-physical points in the solution (force first order). */
   su2double *Solution_time_n,  /*!< \brief Solution of the problem at time n for dual-time stepping technique. */
   *Solution_time_n1;      /*!< \brief Solution of the problem at time n-1 for dual-time stepping technique. */
-  su2double* Solution_Avg; /*!< \brief The runtime average of the solution */
   su2double **Gradient;    /*!< \brief Gradient of the solution of the problem. */
   su2double *Limiter;        /*!< \brief Limiter of the solution of the problem. */
   su2double *Solution_Max;    /*!< \brief Max solution for limiter computation. */
@@ -910,28 +909,44 @@ public:
   virtual su2double GetEddyViscosity(void);
 
   /*!
+   * \brief Get the anisotropic eddy-viscosity
+   * \return The anisotropic eddy viscosity of the flow.
+   */
+  virtual su2double** GetAnisoEddyViscosity(void) const;
+
+  virtual void SetForcingStress(su2double** val_tau_F);
+
+  virtual su2double** GetForcingStress();
+
+  virtual su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
+  
+  /*!
+   * \brief Get the trace of the anisotropic eddy-viscosity
+   * \return The trace of the anisotropic eddy viscosity of the flow.
+   */
+  virtual su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
    * \brief A virtual member.
    * \return Value of turbulent timescale
    */
-  virtual su2double GetTurbTimescale(void);
+  virtual su2double GetTurbTimescale(void) const;
 
   /*!
    * \brief A virtual member.
    * \return Value of the turbulent lengthscale
    */
-  virtual su2double GetTurbLengthscale(void);
+  virtual su2double GetTurbLengthscale(void) const;
 
-  /*!
-   * \brief A virtual member.
-   * \return Value of turbulent timescale
-   */
-  virtual su2double GetAverageTurbTimescale(void);
+  virtual su2double GetTypicalLengthscale(void) const;
 
-  /*!
-   * \brief A virtual member.
-   * \return Value of the turbulent lengthscale
-   */
-  virtual su2double GetAverageTurbLengthscale(void);
+  virtual su2double GetTypicalTimescale(void) const;
+
+  virtual su2double GetKolLengthscale(void) const;
+
+  virtual su2double GetKolTimescale(void) const;
+
+  virtual su2double GetKolKineticEnergyRatio(void) const;
 
   /*!
    * \brief A virtual member.
@@ -943,13 +958,75 @@ public:
    * \brief Get the resolution adequacy parameter for a hybrid RANS/LES model
    * \return The resolution adequacy parameter
    */
-  virtual su2double GetResolutionAdequacy(void);
+  virtual su2double GetResolutionAdequacy(void) const;
 
-  /**
-   * \brief Get the RANS weighting for a hybrid RANS/LES model
-   * \return The RANS weight parameter
+  virtual su2double* GetForcingVector() const;
+
+  /*!
+   * \brief Get the ratio of modeled to total turbulent kinetic energy
+   * \return The ratio of modeled to total turbulent kinetic energy
    */
-  virtual su2double GetRANSWeight(void);
+  virtual su2double GetKineticEnergyRatio(void) const;
+
+  /*!
+   * \brief Get a component of the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \return The component of the resolved turbulent stress at iDim, jDim
+   */
+  virtual su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
+
+  /*!
+   * \brief Get the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \return An nDim x nDim tensor with the resolved turbulent stress
+   */
+  virtual su2double** GetResolvedTurbStress(void) const;
+
+  /*!
+   * \brief Get the resolved turbulent kinetic energy.
+   * \return The resolved turbulent kinetic energy.
+   */
+  virtual su2double GetResolvedKineticEnergy(void) const;
+
+  /*!
+   * \brief Get the turbulent production
+   * \return The turbulent production.
+   */
+  virtual su2double GetProduction(void) const;
+
+  /*!
+   * \brief Set the turbulent production
+   * \param[in] val_production - The turbulent production.
+   */
+  virtual void SetProduction(su2double val_production);
+
+  /*!
+   * \brief Get the subgrid production of turbulent kinetic energy.
+   * \return The subgrid production
+   */
+  virtual su2double GetSGSProduction(void) const;
+
+  /*!
+   * \brief Set the subgrid production of turbulent kinetic energy.
+   * \param[in] val_sgs_production - The sgs turbulent production.
+   */
+  virtual void SetSGSProduction(su2double val_sgs_production);
 
   /*!
    * \brief A virtual member.
@@ -1137,28 +1214,68 @@ public:
 
   /*!
    * \brief A virtual member.
+   * \param[in] aniso_eddy_visc - Value of the eddy viscosity.
+   */
+  virtual void SetAnisoEddyViscosity(su2double** aniso_eddy_visc);
+
+  /*!
+   * \brief A virtual member.
    * \param[in] val_turb_T - The turbulent timescale
    * \param[in] val_turb_L - The turbulent lengthscale
    */
   virtual void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
-  /*!
-   * \brief A virtual member.
-   * \param[in] val_T_avg - The average turbulent timescale
-   * \param[in] val_L_avg - The average turbulent lengthscale
-   */
-  virtual void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
+  virtual void SetTurbScales(su2double nu,
+                     su2double S,
+                     su2double VelMag,
+                     su2double L_inf);
+
+  virtual void SetKolKineticEnergyRatio(su2double nu);
+
   /*!
    * \brief A virtual member.
    * \param[in] val_r_k - The resolution adequacy parameter for hybrid RANS/LES
    */
   virtual void SetResolutionAdequacy(su2double val_r_k);
 
+  virtual void SetForcingVector(const su2double* force);
+
   /*!
-   * \brief A virtual member.
-   * \param[in] val_w_rans - The RANS weight for a hybrid RANS/LES model
+   * \brief Set the ratio of modeled to total turbulent kinetic energy.
+   * \param[in] val_alpha - The ratio of modeled to total turbulent kinetic energy.
    */
-  virtual void SetRANSWeight(su2double val_w_rans);
+  virtual void SetKineticEnergyRatio(su2double val_alpha);
+
+  /*!
+   * \brief Add to the value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The amount to be added.
+   */
+  virtual void AddResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
+
+  /*!
+   * \brief Set a value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The value of the component of the turbulent stress.
+   */
+  virtual void SetResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
+
+  /*!
+   * \brief Calculate the resolved kinetic energy and store it.
+   *
+   * This function accepts no parameters because it uses the resolved
+   * turbulent stress to calculate the resolved kinetic energy.
+   */
+  virtual void SetResolvedKineticEnergy(void);
+
+  /*!
+   * \brief Store the resolved kinetic energy;
+   *
+   * \param[in] val_kinetic_energy - The resolved kinetic energy;
+   */
+  virtual void SetResolvedKineticEnergy(su2double val_kinetic_energy);
 
   /*!
    * \brief A virtual member.
@@ -1235,7 +1352,7 @@ public:
    * \brief A virtual member.
    */
   virtual su2double *GetPrimitive(void);
-  
+
   /*!
    * \brief A virtual member.
    */
@@ -1825,7 +1942,23 @@ public:
    * \param[in] val_muT
    */
   virtual void SetmuT(su2double val_muT);
-  
+
+  virtual void SetForcingProduction(su2double val_P_F);
+
+  virtual void SetForcingRatio(su2double val_P_F_ratio);
+
+  virtual su2double GetForcingProduction();
+
+  virtual su2double GetForcingRatio();
+
+  virtual void SetSourceTerms(su2double* val_source_terms);
+
+  virtual su2double* GetSourceTerms();
+
+  virtual su2double GetSAlpha();
+
+  virtual su2double GetScf();
+
   /*!
    * \brief Add a value to the maximum eigenvalue for the inviscid terms of the PDE.
    * \param[in] val_max_lambda - Value of the maximum eigenvalue for the inviscid terms of the PDE.
@@ -2452,30 +2585,6 @@ public:
 
   virtual su2double GetSolution_Old_Accel(unsigned short iVar);
 
-  /*!
-   * \brief Set the average solution manually.
-   * \param val_averages - An array containing the average solution
-   */
-  void SetAverageSolution(const su2double* val_averages);
-
-  /*!
-   * \brief Add to the average solution.
-   * \param val_delta_averages - The amount to add to the average solution.
-   */
-  void AddAverageSolution(const su2double* val_delta_averages);
-
-  /*!
-   * \brief Get an array of values representing the average solution.
-   * \return An array of values representing the average solution.
-   */
-  const su2double* GetAverageSolution() const;
-
-  /*!
-   * \brief Get a component of the average solution.
-   * \param iVar - The component of the average solution to be used.
-   * \return A component of the average solution
-   */
-  su2double GetAverageSolution(const unsigned short iVar) const;
 };
 
 /*!
@@ -3267,7 +3376,7 @@ protected:
   su2double *Primitive;  /*!< \brief Primitive variables (T, vx, vy, vz, P, rho, h, c) in compressible flows. */
   su2double **Gradient_Primitive;  /*!< \brief Gradient of the primitive variables (T, vx, vy, vz, P, rho). */
   su2double *Limiter_Primitive;    /*!< \brief Limiter of the primitive variables (T, vx, vy, vz, P, rho). */
-  
+
   /*--- Secondary variable definition ---*/
   
   su2double *Secondary;            /*!< \brief Primitive variables (T, vx, vy, vz, P, rho, h, c) in compressible flows. */
@@ -3389,7 +3498,7 @@ public:
    * \return Value of the primitive variables gradient.
    */
   su2double **GetGradient_Primitive(void);
-  
+
   /*!
    * \brief Get the value of the primitive variables gradient.
    * \return Value of the primitive variables gradient.
@@ -3964,6 +4073,15 @@ private:
   su2double inv_TimeScale;   /*!< \brief Inverse of the reference time scale. */
   su2double Roe_Dissipation; /*!< \brief Roe low dissipation coefficient. */
   su2double Vortex_Tilting;  /*!< \brief Value of the vortex tilting variable for DES length scale computation. */
+  su2double** AnisoEddyViscosity; /*!< \brief Anisotropic eddy viscosity. */
+  su2double KineticEnergyRatio; /*!< \brief Ratio of modeled to total turbulent kinetic energy */
+  su2double** Forcing_Stress;
+  su2double ResolutionAdequacy;
+  su2double* ForcingVector;
+  su2double** ResolvedTurbStress; /*!< \brief The resolved portion of the Reynolds stress tensor */
+  su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
+  su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
+  su2double SGSProduction; /*!< \brief The subgrid portion of the production of TKE */
   
 public:
   
@@ -4030,6 +4148,53 @@ public:
   void SetEddyViscosity(su2double eddy_visc);
   
   /*!
+   * \brief Set the anisotropic eddy viscosity for the flow.
+   * \param[in] aniso_eddy_visc - Value of the eddy viscosity.
+   */
+  void SetAnisoEddyViscosity(su2double** aniso_eddy_visc);
+
+  /*!
+   * \brief Set the ratio of modeled to total turbulent kinetic energy.
+   * \param val_alpha -  The ratio of modeled to total turbulent kinetic energy.
+   */
+  void SetKineticEnergyRatio(su2double val_alpha);
+
+  /*!
+   * \brief Add to the value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The amount to be added.
+   */
+  void AddResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
+
+  /*!
+   * \brief Set a value of the resolved turbulent stress.
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \param[in] val_stress - The value of the component of the turbulent stress.
+   */
+  void SetResolvedTurbStress(unsigned short iDim, unsigned short jDim, su2double val_stress);
+
+  /*!
+   * \brief Calculate the resolved kinetic energy and store it.
+   *
+   * This function accepts no parameters because it uses the resolved
+   * turbulent stress to calculate the resolved kinetic energy.
+   */
+  void SetResolvedKineticEnergy(void);
+
+  void SetResolutionAdequacy(su2double val_r_k);
+
+  void SetForcingVector(const su2double* force);
+
+  /*!
+   * \brief Store the resolved kinetic energy;
+   *
+   * \param[in] val_kinetic_energy - The resolved kinetic energy;
+   */
+  void SetResolvedKineticEnergy(su2double val_kinetic_energy);
+
+  /*!
    * \brief Get the laminar viscosity of the flow.
    * \return Value of the laminar viscosity of the flow.
    */
@@ -4046,6 +4211,95 @@ public:
    * \return The eddy viscosity of the flow.
    */
   su2double GetEddyViscosity(void);
+
+  /*!
+   * \brief Get the anisotropic eddy-viscosity
+   * \return The anisotropic eddy viscosity of the flow.
+   */
+  su2double** GetAnisoEddyViscosity(void) const;
+
+  /*!
+   * \brief Get the trace of the anisotropic eddy-viscosity
+   * \return The trace of the anisotropic eddy viscosity of the flow.
+   */
+  su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
+   * \brief Get the ratio of modeled to total turbulent kinetic energy.
+   * \return The ratio of modeled to total turbulent kinetic energy.
+   */
+  su2double GetKineticEnergyRatio(void) const;
+
+  /*!
+   * \brief Get a component of the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \param[in] iDim - The first index
+   * \param[in] jDim - The second index
+   * \return The component of the resolved turbulent stress at iDim, jDim
+   */
+  su2double GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const;
+
+  /*!
+   * \brief Get the resolved turbulent stress.
+   *
+   * Note that the resolved turbulent stress is defined as:
+   * \f[
+   *  \tau_{ij}^{res} = - \bar{\rho} u_i^< u_j^<
+   * /f]
+   * where \f$\bar{\rho}\f$ is the resolved density and \f$u_i^<\f$ is
+   * the resolved velocity fluctuation about the mean.
+   *
+   * \return An nDim x nDim tensor with the resolved turbulent stress
+   */
+  su2double** GetResolvedTurbStress(void) const;
+
+  /*!
+   * \brief Get the resolved turbulent kinetic energy.
+   * \return The resolved turbulent kinetic energy.
+   */
+  su2double GetResolvedKineticEnergy(void) const;
+
+  su2double GetResolutionAdequacy(void) const;
+
+  su2double* GetForcingVector() const;
+
+  void SetForcingStress(su2double** val_tau_F);
+
+  su2double** GetForcingStress();
+
+  su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
+
+  /*!
+   * \brief Get the improved turbulent production term, including
+   *        contributions from the resolved stress.
+   * \return The improved turbulent production.
+   */
+  su2double GetProduction(void) const;
+
+  /*!
+   * \brief Set the turbulent production
+   * \param[in] val_production - The turbulent production.
+   */
+  void SetProduction(su2double val_production);
+
+  /*!
+   * \brief Get the subgrid production of turbulent kinetic energy.
+   * \return The subgrid production
+   */
+  su2double GetSGSProduction(void) const;
+
+  /*!
+   * \brief Set the subgrid production of turbulent kinetic energy.
+   * \param[in] val_sgs_production - The sgs turbulent production.
+   */
+  void SetSGSProduction(su2double val_sgs_production);
 
   /*!
    * \brief Get the specific heat at constant P of the flow.
@@ -4272,6 +4526,7 @@ class CTurbVariable : public CVariable {
 protected:
   su2double muT;                /*!< \brief Eddy viscosity. */
   su2double *HB_Source;          /*!< \brief Harmonic Balance source term. */
+  su2double Forcing_Production; /*!< \brief Production due to forcing. */
   
 public:
   /*!
@@ -4303,6 +4558,10 @@ public:
    * \param[in] val_muT - Value of the eddy viscosity.
    */
   void SetmuT(su2double val_muT);
+
+  void SetForcingProduction(su2double val_P_F);
+
+  su2double GetForcingProduction();
 };
 
 /*!
@@ -4457,9 +4716,7 @@ protected:
   F2,            /*!< \brief Menter blending function for stress limiter. */
   CDkw,           /*!< \brief Cross-diffusion. */
   T,              /*!< \brief Turbulent timescale */
-  L,              /*!< \brief Turbulent lengthscale */
-  T_avg,          /*!< \brief Average turbulent timescale */
-  L_avg;          /*!< \brief Average turbulent lengthscale */
+  L;              /*!< \brief Turbulent lengthscale */
 
   
 public:
@@ -4513,25 +4770,13 @@ public:
    * \brief Get the large-eddy timescale of the turbulence
    * \return The large-eddy timescale of the turbulence.
    */
-  su2double GetTurbTimescale(void);
+  su2double GetTurbTimescale(void) const;
 
   /**
    * \brief Get the large-eddy lengthscale of the turbulence
    * \return The large-eddy lengthscale of the turbulence
    */
-  su2double GetTurbLengthscale(void);
-
-  /**
-   * \brief Get the average large-eddy timescale of the turbulence
-   * \return The large-eddy timescale of the turbulence.
-   */
-  su2double GetAverageTurbTimescale(void);
-
-  /**
-   * \brief Get the average large-eddy lengthscale of the turbulence
-   * \return The large-eddy lengthscale of the turbulence
-   */
-  su2double GetAverageTurbLengthscale(void);
+  su2double GetTurbLengthscale(void) const;
 
   /**
    * \brief Sets the large-eddy lengthscale and the large-eddy timescale
@@ -4539,102 +4784,6 @@ public:
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
-
-  /**
-   * \brief Sets the average large-eddy lengthscale and the timescale
-   * \param[in] val_T_avg - Average large eddy timescale of the turbulence
-   * \param[in] val_L_avg - Average large eddy lengthscale of the turbulence
-   */
-  void SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg);
-};
-
-/*!
- * \class CHybridVariable
- * \brief Base class for the "hybrid parameters"; the variables defining the
- *        hybridization of RANS/LES.
- * \ingroup Hybrid_Parameter_Model
- * \author C. Pederson
- * \version 5.0.0 "Raven"
- */
-class CHybridVariable : public CVariable {
-protected:
-  su2double Resolution_Adequacy; /*!< \brief A measure of the ability of the grid to resolve the turbulence */
-  su2double RANS_Weight; /*!< \brief The weight given to the RANS solution */
-public:
-  /*!
-   * \brief Constructor of the class.
-   */
-  CHybridVariable(void);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  virtual ~CHybridVariable(void);
-
-  /*!
-   * \overload
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nvar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CHybridVariable(unsigned short val_nDim, unsigned short val_nvar,
-                    CConfig *config);
-
-  /*!
-   * \brief Get the value of the resolution adequacy
-   * \return the value of the resolution adequacy
-   */
-  su2double GetResolutionAdequacy();
-
-  /*!
-   * \brief Set the value of the resolution adequacy
-   * \param[in] val_r_k - The value of the resolution adequacy
-   */
-  void SetResolutionAdequacy(su2double val_r_k);
-
-  /*!
-   * \brief Get the value of the RANS weight
-   * \return the RANS weight
-   */
-  su2double GetRANSWeight();
-
-  /*!
-   * \brief Set the value of the blending coefficient.
-   * \param[in] val_w_rans - RANS weight
-   */
-  void SetRANSWeight(su2double val_w_rans);
-};
-
-
-
-/*!
- * \class CHybridConvVariable
- * \brief Hybrid parameter corresponding to Gadebusch and Perot's method
- * \ingroup Hybrid_Parameter_Model
- * \author C. Pederson
- * \version 5.0.0 "Raven"
- */
-class CHybridConvVariable : public CHybridVariable {
-public:
-  /*!
-   * \brief Constructor of the class.
-   */
-  CHybridConvVariable(void);
-
-  /*!
-   * \overload
-   * \param[in] hybrid_param - The hybrid parameter ("energy flow" parameter)
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nvar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CHybridConvVariable(su2double hybrid_param, unsigned short val_nDim,
-                      unsigned short val_nvar, CConfig *config);
-
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CHybridConvVariable(void);
 };
 
 /*!

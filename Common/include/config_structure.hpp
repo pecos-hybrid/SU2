@@ -519,8 +519,15 @@ private:
   Kind_Struct_Solver,		/*!< \brief Determines the geometric condition (small or large deformations) for structural analysis. */
   Kind_DV_FEA;				/*!< \brief Kind of Design Variable for FEA problems.*/
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
-  unsigned short Kind_Hybrid_Blending; /*!< \brief Hybrid RANS/LES blending definition */
+  unsigned short Kind_HybridRANSLES_Testing; /*!< \brief Hybrid RANS/LES blending definition */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
+  bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
+  su2double *Hybrid_Forcing_Periodic_Length;  /*!< \brief Domain lengths in periodic directions for hybrid forcing */
+  su2double *default_hybrid_periodic_length;  /*!< \brief Default for Hybrid_Forcing_Periodic_Length */
+  su2double Hybrid_Forcing_Strength,  /*!< \brief An overall scaling coefficient for the periodic forcing .*/
+            Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
+  unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
+  bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -999,6 +1006,7 @@ private:
   unsigned short Kind_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
   unsigned short Kind_Averaging_Period;  /*!< \brief Type of period over which runtime averages are to be computed. */
   su2double nAveragingPeriods;  /*!< \brief Number of periods over which to average. */
+  su2double AveragingStartTime; /*!< \brief Amount of time to skip before averaging begins. */
 
   bool DivU_inTKEProduction;
   bool Use_v2f_Rf_mod;
@@ -3762,16 +3770,69 @@ public:
   void SetKind_SU2(unsigned short val_kind_su2);
 
   /*!
-   * \brief Get the kind of hybrid RANS/LES blending scheme.
-   * \return Kind of blending scheme.
+   * \brief Get the kind of hybrid RANS/LES testing scheme.
+   *
+   * This allows the hybrid scheme to enter special testing
+   * modes where only parts of the hybrid scheme are enabled.
+   * This only works for the model-split hybridization.
+   *
+   * \return Kind of testing scheme.
    */
-  unsigned short GetKind_Hybrid_Blending(void);
+  unsigned short GetKind_HybridRANSLES_Testing(void);
 
   /*!
    * \brief Get the kind of hybrid RANS/LES resolution adequacy indicator.
    * \return Kind of blending scheme.
    */
   unsigned short GetKind_Hybrid_Resolution_Indicator(void);
+
+  /*!
+   * \brief Checks if a hybrid LES/RANS method should be forced.
+   * \return True if the hybrid RANS/LES model is to be forced.
+   */
+  bool isHybrid_Forced(void);
+
+  /*!
+   * \brief Get the array of domain lengths for use in hybrid forcing.
+   * \return Pointer to array of length 3
+   */
+  su2double* GetHybrid_Forcing_Periodic_Length(void);
+
+  /*!
+   * \brief Checks if a hybrid LES/RANS method should be forced.
+   * \return True if the hybrid RANS/LES model is to be forced.
+   */
+  su2double GetHybrid_Forcing_Strength(void) const;
+
+  /*!
+   * \brief Get the size of vortices to be used for forcing.
+   *
+   * The forcing vortices will be of period N*L, where N is the forcing
+   * vortex length and L is the turbulent lengthscale.
+   *
+   * \return A constant representing the size of the forcing vortices.
+   */
+  su2double GetHybrid_Forcing_Vortex_Length(void) const;
+
+  /*!
+   * \brief Get the kind of subgrid energy-transfer model for hybrid
+   *        RANS/LES
+   * \return Kind of SGET model
+   */
+  unsigned short GetKind_Hybrid_SGET_Model(void);
+
+  /*!
+   * \brief Check if the full resolved turbulent stress is to be used for
+   *        hybrid RANS/LES.
+   * \return True if the resolved turbulent stress is to be used.
+   */
+  bool GetUse_Resolved_Turb_Stress(void) const;
+
+  /*!
+   * \brief Change whether the resolved turb stress should be used..
+   * \param[in] load_stress - True if the resolved turbulent stress is to be used.
+   */
+  void SetUse_Resolved_Turb_Stress(bool use_stress);
 
   /*!
    * \brief Get the kind of the turbulence model.
@@ -5159,11 +5220,19 @@ public:
   su2double GetCurrent_UnstTime(void);
   
   /*!
+   * \brief If we are performing an unsteady simulation, this is the
+   *  value of current time (nondimensionalized)
+   * \return Value of the physical time in an unsteady simulation.
+   */
+  su2double GetCurrent_UnstTimeND(void);
+
+  /*!
    * \brief If we are performing an unsteady simulation, this adds to the
    * value of the current time.
    * \param[in] Amount of time to be added (usually one time step)
+   *            (in nondimensional units)
    */
-  void AddCurrent_UnstTime(su2double delta_time);
+  void AddCurrent_UnstTimeND(su2double delta_time);
 
   /*!
    * \brief If we are performing an unsteady simulation, set the
@@ -5171,6 +5240,13 @@ public:
    * \param[in] val_time - Value of the physical time in an unsteady simulation.
    */
   void SetCurrent_UnstTime(su2double val_time);
+
+  /*!
+   * \brief If we are performing an unsteady simulation, set the
+   *  value of current time (in nondimensional units);
+   * \param[in] val_time - Value of the nondimensional time in an unsteady simulation
+   */
+  void SetCurrent_UnstTimeND(su2double val_time);
 
   /*!
    * \brief Divide the rectbles and hexahedron.
@@ -8117,6 +8193,12 @@ public:
    * \return Value of Low dissipation approach.
    */
    unsigned short GetKind_RoeLowDiss(void);
+
+   /*!
+    * \brief Check if an upwind/central flux blending scheme should be applied.
+    * \return True if the fluxes should be blended.
+    */
+   bool BlendUpwindCentralFluxes(void) const;
     
   /*!
    * \brief Get the DES Constant.
@@ -8173,6 +8255,12 @@ public:
    * \return The number of time periods over which to average.
    */
   su2double GetnAveragingPeriods(void) const;
+
+  /*!
+   * \brief Get The time at which to start runtime averaging.
+   * \return The time at which to start runtime averaging.
+   */
+  su2double GetAveragingStartTime(void) const;
 };
 
 #include "config_structure.inl"

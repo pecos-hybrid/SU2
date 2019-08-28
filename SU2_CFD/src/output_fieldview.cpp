@@ -250,7 +250,7 @@ void COutput::SetFieldViewASCII(CConfig *config, CGeometry *geometry, unsigned s
       }
     }
 
-    if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) &&
+    if ((config->GetKind_HybridRANSLES() == MODEL_SPLIT) &&
         config->GetWrt_Resolution_Tensors()) {
       for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
         for (unsigned short jDim = 1; jDim < nDim+1; jDim++) {

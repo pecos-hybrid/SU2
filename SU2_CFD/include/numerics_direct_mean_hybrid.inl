@@ -1,7 +1,7 @@
 /*!
- * \file variable_structure.inl
- * \brief In-Line subroutines of the <i>variable_structure.hpp</i> file.
- * \author F. Palacios, T. Economon
+ * \file numerics_direct_mean_hybrid.inl
+ * \brief In-Line subroutines of the <i>numerics_direct_mean_hybird.hpp</i> file.
+ * \author C. Pederson
  * \version 6.0.1 "Falcon"
  *
  * The current SU2 release has been coordinated by the
@@ -35,61 +35,27 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
-
-inline su2double CTurbKEVariable::GetTurbTimescale() const{
-  return timescale;
+inline void CAvgGrad_Hybrid::SetAniso_Eddy_Viscosity(su2double** aniso_eddy_viscosity_i,
+                                                     su2double** aniso_eddy_viscosity_j) {
+  Aniso_Eddy_Viscosity_i = aniso_eddy_viscosity_i;
+  Aniso_Eddy_Viscosity_j = aniso_eddy_viscosity_j;
 }
 
-inline su2double CTurbKEVariable::GetTurbLengthscale() const {
- return lengthscale;
+
+inline void CAvgGrad_Hybrid::SetPrimitive_Average(su2double* val_primvar_average_i,
+                                                  su2double* val_primvar_average_j) {
+  PrimVar_Average_i = val_primvar_average_i;
+  PrimVar_Average_j = val_primvar_average_j;
 }
 
-inline void CTurbKEVariable::SetProduction(su2double val_production) {
-  Production = val_production;
+inline void CAvgGrad_Hybrid::SetPrimVarGradient_Average(su2double **val_primvar_grad_i,
+                                                        su2double **val_primvar_grad_j) {
+  PrimVar_Grad_Average_i = val_primvar_grad_i;
+  PrimVar_Grad_Average_j = val_primvar_grad_j;
 }
 
-inline su2double CTurbKEVariable::GetProduction(void) const {
-  return Production;
+inline void CAvgGrad_Hybrid::SetKineticEnergyRatio(const su2double val_alpha_i,
+                                                   const su2double val_alpha_j) {
+  alpha_i = val_alpha_i;
+  alpha_j = val_alpha_j;
 }
-
-inline void CTurbKEVariable::SetKolKineticEnergyRatio(const su2double nu) {
-  const su2double TKE_MIN = 1.0E-8;
-  const su2double ktot = max(Solution[0], TKE_MIN);
-  const su2double tdr = Solution[1];
-  const su2double Cnu = 1.0;
-  alpha_kol = min(Cnu*sqrt(nu*tdr)/ktot, 1.0);
-}
-
-inline su2double CTurbKEVariable::GetAnisoRatio(void) {
-  // XXX: This floor is arbitrary.
-  const su2double TKE_MIN = EPS;
-  return TWO3*Solution[0]/max(TKE_MIN, Solution[2]);
-}
-
-inline su2double CTurbKEVariable::GetTypicalLengthscale(void) const {
-  return typical_length;
-}
-
-inline su2double CTurbKEVariable::GetTypicalTimescale(void) const {
-  return typical_time;
-}
-
-inline su2double CTurbKEVariable::GetKolLengthscale(void) const {
-  return kol_length;
-}
-
-inline su2double CTurbKEVariable::GetKolTimescale(void) const {
-  return kol_time;
-}
-
-inline su2double CTurbKEVariable::GetKolKineticEnergyRatio(void) const {
-  return alpha_kol;
-}
-
-inline void CTurbKEVariable::SetConstants(const su2double* constants)  {
-  C_mu    = constants[0];
-  C_T     = constants[8];
-  C_eta   = constants[10];
-}
-

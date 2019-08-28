@@ -69,7 +69,9 @@ libSU2Core_sources = \
   ../include/driver_structure.hpp \
   ../include/iteration_structure.hpp \
   ../include/numerics_structure.hpp \
+  ../include/numerics_direct_mean_hybrid.hpp \
   ../include/numerics_structure.inl \
+  ../include/numerics_direct_mean_hybrid.inl \
   ../include/numerics_structure_v2f.hpp \
   ../include/output_structure.hpp \
   ../include/output_structure.inl \
@@ -77,6 +79,10 @@ libSU2Core_sources = \
   ../include/solver_structure.inl \
   ../include/solver_structure_v2f.hpp \
   ../include/solver_structure_v2f.inl \
+  ../include/fluctuating_stress.hpp \
+  ../include/fluctuating_stress.inl \
+  ../include/hybrid_RANS_LES_forcing.hpp \
+  ../include/hybrid_RANS_LES_forcing.inl \
   ../include/hybrid_RANS_LES_model.hpp \
   ../include/SU2_CFD.hpp \
   ../include/transport_model.hpp \
@@ -102,11 +108,11 @@ libSU2Core_sources = \
   ../src/numerics_direct_poisson.cpp \
   ../src/numerics_direct_heat.cpp \
   ../src/numerics_direct_mean.cpp \
+  ../src/numerics_direct_mean_hybrid.cpp \
   ../src/numerics_direct_mean_inc.cpp \
   ../src/numerics_direct_transition.cpp \
   ../src/numerics_direct_turbulent.cpp \
   ../src/numerics_direct_turbulent_v2f.cpp \
-  ../src/numerics_direct_hybrid.cpp \
   ../src/numerics_direct_wave.cpp \
   ../src/numerics_direct_elasticity_nonlinear.cpp \
   ../src/numerics_direct_elasticity_linear.cpp \
@@ -133,11 +139,12 @@ libSU2Core_sources = \
   ../src/solver_direct_transition.cpp \
   ../src/solver_direct_turbulent.cpp \
   ../src/solver_direct_turbulent_v2f.cpp \
-  ../src/solver_direct_hybrid.cpp \
   ../src/solver_direct_wave.cpp \
   ../src/solver_direct_elasticity.cpp \
   ../src/solver_structure.cpp \
   ../src/solver_template.cpp \
+  ../src/fluctuating_stress.cpp \
+  ../src/hybrid_RANS_LES_forcing.cpp \
   ../src/hybrid_RANS_LES_model.cpp \
   ../src/transfer_physics.cpp \
   ../src/transfer_structure.cpp \
@@ -154,7 +161,6 @@ libSU2Core_sources = \
   ../src/variable_direct_transition.cpp \
   ../src/variable_direct_turbulent.cpp \
   ../src/variable_direct_turbulent_v2f.cpp \
-  ../src/variable_direct_hybrid.cpp \
   ../src/variable_direct_wave.cpp \
   ../src/variable_direct_elasticity.cpp \
   ../src/variable_structure.cpp \

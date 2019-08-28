@@ -450,14 +450,9 @@ CQuadrilateral::~CQuadrilateral() {
 }
 
 void CQuadrilateral::SetResolutionTensor(su2double **val_coord) {
+
   unsigned short iDim, jDim, kDim, lDim;
   unsigned short iFace;
-  unsigned short* paired_faces;
-  /** paired_faces is used to sort the faces into matching pairs.
-      The code will look for pairs of faces that are mostly opposite, then
-      sort them so that the face indices in paired_faces[0] and paired_faces[1]
-      match, then paired_faces[2] and paired_faces[3] match, etc.
-   */
 
   /*-- Allocate ResolutionTensor --*/
   ResolutionTensor = new su2double* [nDim];
@@ -472,7 +467,11 @@ void CQuadrilateral::SetResolutionTensor(su2double **val_coord) {
     }
   }
 
-  paired_faces = new unsigned short [nFaces];
+  /*--- paired_faces is used to sort the faces into matching pairs.
+      The code will look for pairs of faces that are mostly opposite, then
+      sort them so that the face indices in paired_faces[0] and paired_faces[1]
+      match, then paired_faces[2] and paired_faces[3] match, etc. ---*/
+  unsigned short paired_faces[nFaces];
   vector<vector<su2double> > eigvecs(nDim, vector<su2double>(nDim));
 
   /*-- Create cell center to face vectors --*/
@@ -741,8 +740,6 @@ void CHexahedron::SetResolutionTensor(su2double** val_coord) {
 
   paired_faces = new unsigned short [nFaces];
 
-  vector<vector<su2double> > eigvecs(nDim, vector<su2double>(nDim));
-
   /*-- Create cell center to face vectors --*/
   vector<vector<su2double> > center2face(nFaces, vector<su2double>(nDim));
   for (iFace = 0; iFace < nFaces; ++iFace) {
@@ -805,6 +802,10 @@ void CHexahedron::SetResolutionTensor(su2double** val_coord) {
   }
 
   /*-- Use paired_faces list to build vectors --*/
+
+  /*-- eigvecs[i][j] is the jth element of the ith eigenvector.
+   *   eigvecs[i] is the ith eigenvector ---*/
+  vector<vector<su2double> > eigvecs(nDim, vector<su2double>(nDim));
   for (iDim = 0; iDim < nDim; ++iDim) {
     for (jDim = 0; jDim < nDim; ++jDim) {
       eigvecs[jDim][iDim] = Coord_FaceElems_CG[paired_faces[jDim*2]][iDim] -
@@ -841,7 +842,15 @@ void CHexahedron::SetResolutionTensor(su2double** val_coord) {
     }
   }
 
-  /*-- Perform matrix multiplication --*/
+  /*-- Perform matrix multiplication
+   * Typically, this is done as A = Q D Q^T, or
+   *    Q[i][k] * D[k][m] Q[j][m]
+   * where Q is a square matrix whose columns are the eigenvectors and
+   * D is the diagonal matrix whose diagonal elements are the
+   * corresponding eigenvalues.  But here, Q[i] is the ith eigenvector,
+   * rather than Q[:][i].  So the notation is flipped to:
+   *    Q[k][i] * D[k][m] Q[m][j]
+   * --*/
   for (iDim = 0; iDim < nDim; ++iDim) {
     for (jDim = 0; jDim < nDim; ++jDim) {
       for (kDim = 0; kDim < nDim; ++kDim) {

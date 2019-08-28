@@ -33,19 +33,26 @@
 
 #include "../include/hybrid_RANS_LES_model.hpp"
 #include "../include/numerics_structure.hpp"
+#include "../include/numerics_direct_mean_hybrid.hpp"
 #include "../include/solver_structure.hpp"
 #ifdef HAVE_LAPACK
 #include "mkl.h"
 #include "mkl_lapacke.h"
 #endif
 
-CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config, string filename)
-   : nDim(nDim), C_sf(0.367), config(config) {
+CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
+                                   const string& filename)
+    : nDim(nDim), fluct_stress_model(NULL), forcing_model(NULL), config(config) {
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
+
+  aniso_eddy_viscosity = new su2double*[nDim];
+  for (unsigned int iDim = 0; iDim < nDim; iDim++) {
+    aniso_eddy_viscosity[iDim] = new su2double[nDim];
+  }
 
   /*--- Allocate the approximate structure function (used in calcs) ---*/
 
@@ -130,64 +137,108 @@ CHybrid_Mediator::~CHybrid_Mediator() {
     delete [] Q[iDim];
     delete [] Qapprox[iDim];
     delete [] invLengthTensor[iDim];
+    delete [] aniso_eddy_viscosity[iDim];
   }
   delete [] Q;
   delete [] Qapprox;
   delete [] invLengthTensor;
+  delete [] aniso_eddy_viscosity;
+
+  /*--- Through dependency injection, we've taken over responsibility for
+   * the fluctuating stress and forcing models.
+   */
+  if (fluct_stress_model != NULL) {
+    delete fluct_stress_model;
+  }
+
+  if (forcing_model != NULL) {
+    delete forcing_model;
+  }
 
 #ifdef HAVE_LAPACK
   mkl_free_buffers();
 #endif
 }
 
-void CHybrid_Mediator::SetupRANSNumerics(CGeometry* geometry,
-                                         CSolver **solver_container,
+void CHybrid_Mediator::SetupRANSNumerics(CSolver **solver_container,
                                          CNumerics* rans_numerics,
-                                         unsigned short iPoint,
-                                         unsigned short jPoint) {
-  su2double* alpha =
-      solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  /*--- Since this is a source term, we don't need a second point ---*/
-  rans_numerics->SetHybridParameter(alpha, NULL);
+                                         const unsigned long iPoint) {
+
+  CVariable** flow_node = solver_container[FLOW_SOL]->average_node;
+  rans_numerics->SetKineticEnergyRatio(flow_node[iPoint]->GetKineticEnergyRatio());
+  if (config->GetUse_Resolved_Turb_Stress()) {
+    rans_numerics->SetResolvedTurbStress(flow_node[iPoint]->GetResolvedTurbStress());
+  } else {
+    rans_numerics->SetProduction(flow_node[iPoint]->GetProduction());
+    assert(flow_node[iPoint]->GetProduction() == rans_numerics->GetProduction());
+  }
 }
 
-void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
-                                              CSolver **solver_container,
-                                              unsigned short iPoint) {
+void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
+                                                 CSolver **solver_container,
+                                                 unsigned long iPoint) {
+
 
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
   const su2double TKE_MIN = EPS;
-  su2double r_k, w_rans;
-
+  su2double r_k;
 
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
-  su2double** ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-  su2double* ResolutionValues = geometry->node[iPoint]->GetResolutionValues();
-  su2double** ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
+  const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
+  const su2double* ResolutionValues = geometry->node[iPoint]->GetResolutionValues();
+  const su2double* const* ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
 
   if (config->GetKind_Hybrid_Resolution_Indicator() != RK_INDICATOR) {
     // Compute inverse length scale tensor
+    const su2double alpha =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
     ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
+                           solver_container[FLOW_SOL]->average_node[iPoint],
                            solver_container[TURB_SOL]->node[iPoint],
-                           solver_container[HYBRID_SOL]->node[iPoint],
+                           alpha,
                            config->GetKind_Hybrid_Resolution_Indicator());
 
     vector<su2double> eigvalues_iLM;
     vector<vector<su2double> > eigvectors_iLM;
     SolveGeneralizedEigen(invLengthTensor, ResolutionTensor,
                           eigvalues_iLM, eigvectors_iLM);
-    std::vector<su2double>::iterator iter;
-    iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
-    unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
 
-    r_k = C_sf*eigvalues_iLM[max_index];
+    // std::vector<su2double>::iterator iter;
+    // iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
+    // unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
 
-    // NB: with the r_{\Delta} variants of the model, we should never
-    // use w_rans.  So, I set it to nan s.t. if it ever gets used
-    // inadvertantly, the soln will be obviously wrong.
+    // const su2double C_r = 3.0;
+    // r_k = C_r*eigvalues_iLM[max_index];
 
-    w_rans = std::numeric_limits<su2double>::quiet_NaN();
+    su2double max_eigval = 0.0;
+    for (iDim=0; iDim<3; iDim++) {
+      if( abs(eigvalues_iLM[iDim]) > max_eigval) {
+        max_eigval = abs(eigvalues_iLM[iDim]);
+      }
+    }
+
+    su2double LinvM[3][3];
+    su2double frobenius_norm = 0;
+    for (iDim = 0; iDim < nDim; iDim++) {
+      for (jDim = 0; jDim < nDim; jDim++) {
+        LinvM[iDim][jDim] = 0.0;
+        for (kDim = 0; kDim < nDim; kDim++) {
+          LinvM[iDim][jDim] += invLengthTensor[jDim][kDim]*ResolutionTensor[kDim][iDim];
+        }
+        frobenius_norm += pow(LinvM[iDim][jDim], 2);
+      }
+    }
+    frobenius_norm = sqrt(frobenius_norm);
+
+    const su2double C_r = 1.0;
+    const su2double r_k_min = 1.0E-8;
+    const su2double r_k_max = 30;
+    r_k = C_r*min(max_eigval, frobenius_norm);
+    r_k = max(min(r_k, r_k_max), r_k_min);
+
+    if (alpha > 1) r_k = min(r_k, 1.0);
+
   }
   else if (config->GetKind_Hybrid_Resolution_Indicator() == RK_INDICATOR) {
 
@@ -235,6 +286,7 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
       /*---Find the largest product of resolved fluctuations at the cutoff---*/
       su2double aniso_ratio = solver_container[TURB_SOL]->node[iPoint]->GetAnisoRatio(); 
       su2double C_kQ = 16.0;
+      const su2double C_sf = 0.367;
       su2double max_resolved = aniso_ratio*C_kQ*C_sf*TWO3*eigvalues_zQz[max_index];
 
       /*--- Find the smallest product of unresolved fluctuations at the cutoff ---*/
@@ -259,113 +311,147 @@ void CHybrid_Mediator::SetupHybridParamSolver(CGeometry* geometry,
       /*--- Calculate the resolution adequacy parameter ---*/
       r_k = max(max_resolved / fmax(min_unresolved, TKE_MIN), EPS);
 
-
-      /*--- Find the dissipation ratio ---*/
-      su2double C_eps = 0.25;
-      su2double TurbL = solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-      su2double d_max = GetProjResolution(ResolutionTensor,
-                                          eigvectors_zQz[max_index]);
-      su2double r_eps = C_eps * pow(r_k, 1.5) * TurbL / d_max;
-
-      /*--- Calculate the RANS weight ---*/
-      w_rans = tanh(0.5*pow(fmax(r_eps - 1, 0), 0.25));
     } else {
+
       r_k = 0.0;
-      w_rans = 0.0;
+
     }
   }
   else {
     SU2_MPI::Error("Unrecognized HYBRID_RESOLUTION_INDICATOR value!", CURRENT_FUNCTION);
   }
 
-  solver_container[HYBRID_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
-  solver_container[HYBRID_SOL]->node[iPoint]->SetRANSWeight(w_rans);
-
+  // Set resolution adequacy in the CNSVariables class
+  solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
 }
 
-void CHybrid_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
-                                                CSolver **solver_container,
-                                                CNumerics *hybrid_param_numerics,
-                                                unsigned short iPoint,
-                                                unsigned short jPoint) {
-
-  /*--- Find and store turbulent length and timescales ---*/
-  su2double turb_T;
-  if (config->GetKind_Turb_Model() == KE) {
-    // Recompute the turbulence timescale **without** the stag. point anomaly
-    const su2double k = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-    const su2double eps = solver_container[TURB_SOL]->node[iPoint]->GetSolution(1);
-    const su2double nu = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
-    const su2double C_T = 6;
-    turb_T = max(k/eps, C_T*sqrt(nu/eps));
-  } else {
-    turb_T = solver_container[TURB_SOL]->node[iPoint]->GetTurbTimescale();
-  }
-  su2double turb_L =
-      solver_container[TURB_SOL]->node[iPoint]->GetTurbLengthscale();
-
-#ifndef NDEBUG
-  if (turb_T <= 0) {
-    SU2_MPI::Error("Turbulent timescale was non-positive!", CURRENT_FUNCTION);
-  }
-  if (turb_L <= 0) {
-    SU2_MPI::Error("Turbulent lengthscale was non-positive!", CURRENT_FUNCTION);
-  }
-#endif
-
-  hybrid_param_numerics->SetTurbTimescale(turb_T);
-  hybrid_param_numerics->SetTurbLengthscale(turb_L);
-
-  /*--- Pass resolution adequacy into the numerics object ---*/
-
-  su2double r_k = solver_container[HYBRID_SOL]->node[iPoint]->GetResolutionAdequacy();
-  hybrid_param_numerics->SetResolutionAdequacy(r_k);
-
-  /*--- Pass RANS weight into the numerics object ---*/
-
-  su2double w_rans = solver_container[HYBRID_SOL]->node[iPoint]->GetRANSWeight();
-  hybrid_param_numerics->SetRANSWeight(w_rans);
+void CHybrid_Mediator::ComputeForcingField(CSolver** solver,
+                                           CGeometry *geometry,
+                                           CConfig *config) {
+  forcing_model->ComputeForcingField(solver, geometry, config);
 }
 
-void CHybrid_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
+
+void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
+                                               CSolver **solver_container,
+                                               const unsigned long iPoint) {
+
+  if (fluct_stress_model) {
+
+    const su2double* primvar =
+        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+    const su2double* turbvar =
+        solver_container[TURB_SOL]->node[iPoint]->GetSolution();
+    const su2double mean_eddy_visc =
+        solver_container[FLOW_SOL]->node[iPoint]->GetEddyViscosity();
+
+    fluct_stress_model->SetPrimitive(primvar);
+    fluct_stress_model->SetTurbVar(turbvar);
+    fluct_stress_model->CalculateEddyViscosity(geometry, config, iPoint,
+                                               mean_eddy_visc,
+                                               aniso_eddy_viscosity);
+
+    /*--- XXX: This is an ad-hoc correction
+     * Rescale the eddy viscosity to rapidly remove fluctuations where
+     * resolved turbulence has been transported into regions with
+     * insufficient resolution ---*/
+
+    const su2double avg_resolution_adequacy =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
+    assert(avg_resolution_adequacy >= 0);
+    assert(avg_resolution_adequacy == avg_resolution_adequacy);
+    const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+         aniso_eddy_viscosity[iDim][jDim] *= factor;
+      }
+    }
+
+    solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
+
+  }
+}
+
+void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
                                              CSolver **solver_container,
                                              CNumerics* visc_numerics,
-                                             unsigned short iPoint,
-                                             unsigned short jPoint) {
+                                             const unsigned long iPoint,
+                                             const unsigned long jPoint) {
 
-  /*--- Pass alpha to the resolved flow ---*/
+  CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
 
-  su2double* alpha_i = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  su2double* alpha_j = solver_container[HYBRID_SOL]->node[jPoint]->GetSolution();
-  visc_numerics->SetHybridParameter(alpha_i, alpha_j);
+  /*--- We assume that the averaging start time from the cfg file is
+   * dimensional ---*/
+  const su2double time = config->GetCurrent_UnstTime();
+
+  if (time > config->GetAveragingStartTime()) {
+    su2double* primvar_i =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetPrimitive();
+    su2double* primvar_j =
+        solver_container[FLOW_SOL]->average_node[jPoint]->GetPrimitive();
+
+    su2double** primvar_grad_i =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetGradient_Primitive();
+    su2double** primvar_grad_j =
+        solver_container[FLOW_SOL]->average_node[jPoint]->GetGradient_Primitive();
+
+    numerics->SetPrimitive_Average(primvar_i, primvar_j);
+    numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
+
+  } else {
+
+    /*--- Since averages are only calculated once per timestep, prevent
+     * the averages from lagging behind the fluctuating quantities.
+     * Otherwise, nonzero "fluctuations" will appear. ---*/
+
+    su2double* primvar_i =
+        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+    su2double* primvar_j =
+        solver_container[FLOW_SOL]->node[jPoint]->GetPrimitive();
+
+    su2double** primvar_grad_i =
+        solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
+    su2double** primvar_grad_j =
+        solver_container[FLOW_SOL]->node[jPoint]->GetGradient_Primitive();
+
+
+    numerics->SetPrimitive_Average(primvar_i, primvar_j);
+    numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
+
+  }
+
+  su2double** aniso_viscosity_i =
+      solver_container[FLOW_SOL]->node[iPoint]->GetAnisoEddyViscosity();
+  su2double** aniso_viscosity_j =
+      solver_container[FLOW_SOL]->node[jPoint]->GetAnisoEddyViscosity();
+
+  const su2double alpha_i =
+      solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+  const su2double alpha_j =
+      solver_container[FLOW_SOL]->average_node[jPoint]->GetKineticEnergyRatio();
+
+  numerics->SetAniso_Eddy_Viscosity(aniso_viscosity_i, aniso_viscosity_j);
+  numerics->SetKineticEnergyRatio(alpha_i, alpha_j);
 }
 
 
 void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
+                                              CVariable* flow_avgs,
                                               CVariable* turb_vars,
-                                              CVariable* hybr_vars,
-                                              int short hybrid_res_ind) {
+                                              const su2double val_alpha,
+                                              const int short hybrid_res_ind) {
 
   unsigned short iDim, jDim, kDim;
-  su2double Sd[3][3], Om[3][3], delta[3][3], Pij[3][3];
-  su2double div_vel;
+  su2double Sd[3][3], Sd_avg[3][3], Om[3][3], delta[3][3], Pij[3][3];
+  su2double Gt[3][3], Gp[3][3], Gpd[3][3], tauSGET[3][3];
+  su2double div_vel, div_avg_vel, div_fluct;
 
   // Not intended for use in 2D
   if (nDim == 2) {
     SU2_MPI::Error("The RDELTA resolution adequacy option is not implemented for 2D!", CURRENT_FUNCTION);
   }
 
-  // Get primative variables and gradients
-  su2double** val_gradprimvar =  flow_vars->GetGradient_Primitive();
-
-  // Get eddy viscosity
-  su2double eddy_viscosity = flow_vars->GetEddyViscosity();
-
-  // Get hybrid blend (i.e., alpha)
-  su2double* blend = hybr_vars->GetSolution();
-
-  // Bound alpha away from zero
-  su2double alpha = max(blend[0],1e-8);
+  // 1) Preliminaries: Extract data, convenience calcs...
 
   // delta tensor (for convenience)
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -378,25 +464,78 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     }
   }
 
-  // Compute divergence
-  div_vel = 0.0;
-  for (iDim = 0 ; iDim < nDim; iDim++)
-    div_vel += val_gradprimvar[iDim+1][iDim];
+  const su2double rho =  flow_avgs->GetDensity();
 
-  // The deviatoric part of the strain rate tensor
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      Sd[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] + val_gradprimvar[jDim+1][iDim]) -
-                       delta[iDim][jDim]*div_vel/3.0;
+  su2double alpha = max(val_alpha, 1e-8);
+
+  // Get primative gradients
+  su2double** val_gradprimvar =  flow_vars->GetGradient_Primitive();
+  su2double** val_gradprimavg =  flow_avgs->GetGradient_Primitive();
+
+  // Get eddy viscosities
+  /*--- Use the turb_vars (rather than flow_vars) for the eddy viscosity.
+   * When the eddy viscosity is computed, it is immediately stored in the
+   * turbulence solver nodes. It is only copied over to the flow solver
+   * at the start of the next iteration.  So retrieving the eddy viscosity
+   * from the turbulence solver ensures that the most up-to-date value is
+   * used, rather than a time-lagged value. ---*/
+  su2double eddy_viscosity = turb_vars->GetmuT();
+  su2double** aniso_viscosity = flow_vars->GetAnisoEddyViscosity();
+
+  // Compute the fluctuating velocity gradient tensor
+  for (iDim=0; iDim<nDim; iDim++) {
+    for (jDim=0; jDim<nDim; jDim++) {
+      Gt[iDim][jDim] = val_gradprimvar[iDim+1][jDim];
+      Gp[iDim][jDim] = val_gradprimvar[iDim+1][jDim] - val_gradprimavg[iDim+1][jDim];
     }
   }
 
-  // The rotation rate tensor
+  // Compute divergences
+  div_vel = div_avg_vel = div_fluct = 0.0;
+  for (iDim = 0 ; iDim < nDim; iDim++) {
+    div_vel     += val_gradprimvar[iDim+1][iDim];
+    div_avg_vel += val_gradprimavg[iDim+1][iDim];
+    div_fluct   += Gp[iDim][iDim];
+  }
+
+  // Evaluate deviatoric part of fluctuating velocity gradient
+  for (iDim =0; iDim < nDim; iDim++) {
+    for (jDim =0; jDim < nDim; jDim++) {
+      Gpd[iDim][jDim] = Gp[iDim][jDim] - delta[iDim][jDim]*div_fluct/3;
+    }
+  }
+
+  // The deviatoric part of the strain rate tensors (mean and resolved)
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      Sd[iDim][jDim]     = 0.5*(val_gradprimvar[iDim+1][jDim] + val_gradprimvar[jDim+1][iDim]) -
+                           delta[iDim][jDim]*div_vel/3.0;
+      Sd_avg[iDim][jDim] = 0.5*(val_gradprimavg[iDim+1][jDim] + val_gradprimavg[jDim+1][iDim]) -
+                           delta[iDim][jDim]*div_avg_vel/3.0;
+    }
+  }
+
+  // The rotation rate tensor (resolved)
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       Om[iDim][jDim] = 0.5*(val_gradprimvar[iDim+1][jDim] - val_gradprimvar[jDim+1][iDim]);
     }
   }
+
+
+  // Evaluate tauSGET
+  for (iDim =0; iDim < nDim; iDim++) {
+    for (jDim =0; jDim < nDim; jDim++) {
+      tauSGET[iDim][jDim] = 0;
+      for (kDim =0; kDim < nDim; kDim++) {
+        tauSGET[iDim][jDim] += aniso_viscosity[iDim][kDim]*Gpd[jDim][kDim] +
+                               aniso_viscosity[jDim][kDim]*Gpd[iDim][kDim];
+      }
+    }
+  }
+
+
+  const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
   // v2 here is *subgrid*, so must multiply by alpha
   su2double v2;
@@ -408,9 +547,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
 
-  // NB: Assumes isotropic eddy viscosity
-  // TODO: If/when we go back to anisotropic eddy viscosity, make sure
-  // change propagates to here
+  // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
+  // here.  TODO: Add divergence contribution.
 
   // Strain only part
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -418,23 +556,26 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
       Pij[iDim][jDim] = 0.0;
       for (kDim = 0; kDim < nDim; kDim++) {
         // NB: Assumes that eddy_viscosity is *full* eddy
-        // viscosity---i.e., not multiplied by alpha^2---so that
-        // alpha^2 is necessary here
-        Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Sd[kDim][jDim];
+        // viscosity---i.e., not multiplied by alpha---so that
+        // alpha is necessary here
+        Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Sd[kDim][jDim];
       }
     }
   }
 
   switch (hybrid_res_ind) {
   case RDELTA_INDICATOR_STRAIN_ONLY:
-    // nothing to do here
+    // TODO: Add rho*k contribution
+    SU2_MPI::Error("The RDELTA_INDICATOR_STRAIN_ONLY resolution adequacy option is not currently supported!", CURRENT_FUNCTION);
     break;
   case RDELTA_INDICATOR_FULLP:
+    SU2_MPI::Error("The RDELTA_INDICATOR_FULLP resolution adequacy option is not currently supported!", CURRENT_FUNCTION);
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
         for (kDim = 0; kDim < nDim; kDim++) {
-          Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Om[jDim][kDim];
+          Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Om[jDim][kDim];
         }
+        // TODO: Add rho*k contribution
       }
     }
     break;
@@ -442,8 +583,11 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
         for (kDim = 0; kDim < nDim; kDim++) {
-          Pij[iDim][jDim] += 2.0*alpha*alpha*eddy_viscosity*Sd[iDim][kDim]*Om[kDim][jDim];
+          // rotation contribution
+          Pij[iDim][jDim] += 2.0*alpha*eddy_viscosity*Sd_avg[iDim][kDim]*Om[kDim][jDim];
         }
+        // rho*k contribtuion
+        Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
       }
     }
     break;
@@ -452,30 +596,58 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     break;
   }
 
-
-  // set inverse length scale tensor
+  // 3) tauSGET contribution
+  
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
-      invLengthTensor[iDim][jDim] = 0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (v2*sqrt(v2)) ;
+      for (kDim = 0; kDim < nDim; kDim++) {
+        Pij[iDim][jDim] += tauSGET[iDim][kDim]*Gt[kDim][jDim];
+      }
+    }
+  }
+
+
+  // 4) Compute inverse length scale tensor from production tensor
+  // NB: Typo in AIAA paper
+  const su2double t0 = 1.5*sqrt(1.5);
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim < nDim; jDim++) {
+      invLengthTensor[iDim][jDim] =
+        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2));
     }
   }
 
 #ifndef NDEBUG
   // check for nans
+  bool found_nan = false;
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       if (invLengthTensor[iDim][jDim] != invLengthTensor[iDim][jDim]) {
-        SU2_MPI::Error("invLengthTensor has NaN!", CURRENT_FUNCTION);
+        found_nan = true;
       }
     }
   }
+  if (found_nan) {
+    for (iDim = 0; iDim < nDim; iDim++) {
+      for (jDim = 0; jDim < nDim; jDim++) {
+        std::cout << "tauSGET[" << iDim << "][" << jDim << "] = "
+                  << tauSGET[iDim][jDim] << std::endl;
+        std::cout << "Gt[" << iDim << "][" << jDim << "] = "
+                  << Gt[iDim][jDim] << std::endl;
+        std::cout << "muSGET[" << iDim << "][" << jDim << "] = "
+                  << aniso_viscosity[iDim][jDim] << std::endl;
+      }
+    }
+    SU2_MPI::Error("invLengthTensor has NaN!", CURRENT_FUNCTION);
+  }
+
 #endif
 
 }
 
 
-su2double CHybrid_Mediator::GetProjResolution(su2double** resolution_tensor,
-                                              vector<su2double> direction) {
+su2double CHybrid_Mediator::GetProjResolution(const su2double* const* resolution_tensor,
+                                              const vector<su2double>& direction) {
 
 #ifndef NDEBUG
   su2double magnitude_squared = 0;
@@ -501,7 +673,7 @@ su2double CHybrid_Mediator::GetProjResolution(su2double** resolution_tensor,
   return sqrt(result);
 }
 
-vector<vector<su2double> > CHybrid_Mediator::LoadConstants(string filename) {
+vector<vector<su2double> > CHybrid_Mediator::LoadConstants(const string& filename) {
   vector<vector<su2double> > output;
   output.resize(nDim);
   ifstream file;
@@ -526,7 +698,7 @@ vector<vector<su2double> > CHybrid_Mediator::LoadConstants(string filename) {
   return output;
 };
 
-vector<su2double> CHybrid_Mediator::GetEigValues_Q(vector<su2double> eigvalues_M) {
+vector<su2double> CHybrid_Mediator::GetEigValues_Q(const vector<su2double>& eigvalues_M) {
   su2double dnorm = *min_element(eigvalues_M.begin(), eigvalues_M.end());
 
   /*--- Normalize eigenvalues ---*/
@@ -584,8 +756,8 @@ vector<su2double> CHybrid_Mediator::GetEigValues_Q(vector<su2double> eigvalues_M
   return eigvalues_Q;
 }
 
-vector<vector<su2double> > CHybrid_Mediator::BuildZeta(su2double* values_M,
-                                                       su2double** vectors_M) {
+vector<vector<su2double> > CHybrid_Mediator::BuildZeta(const su2double* values_M,
+                                                       const su2double* const* vectors_M) {
 
   vector<vector<su2double> > zeta(3, vector<su2double>(3,0));
 
@@ -622,7 +794,7 @@ vector<vector<su2double> > CHybrid_Mediator::BuildZeta(su2double* values_M,
 
 }
 
-vector<su2double> CHybrid_Mediator::GetEigValues_Zeta(vector<su2double> eigvalues_M) {
+vector<su2double> CHybrid_Mediator::GetEigValues_Zeta(const vector<su2double>& eigvalues_M) {
   /*--- Find the minimum eigenvalue ---*/
 
   su2double dnorm = *min_element(eigvalues_M.begin(), eigvalues_M.end());
@@ -654,7 +826,7 @@ vector<su2double> CHybrid_Mediator::GetEigValues_Zeta(vector<su2double> eigvalue
   return eigvalues_zeta;
 }
 
-void CHybrid_Mediator::SolveEigen(su2double** M,
+void CHybrid_Mediator::SolveEigen(const su2double* const* M,
                                   vector<su2double> &eigvalues,
                                   vector<vector<su2double> > &eigvectors) {
 unsigned short iDim, jDim;
@@ -768,7 +940,8 @@ unsigned short iDim, jDim;
 #endif
 }
 
-void CHybrid_Mediator::SolveGeneralizedEigen(su2double** A, su2double** B,
+void CHybrid_Mediator::SolveGeneralizedEigen(const su2double* const* A,
+                                             const su2double* const* B,
 					     vector<su2double> &eigvalues,
 					     vector<vector<su2double> > &eigvectors) {
 
@@ -776,7 +949,24 @@ void CHybrid_Mediator::SolveGeneralizedEigen(su2double** A, su2double** B,
   eigvectors.resize(nDim, std::vector<su2double>(nDim));
 
 #ifdef HAVE_LAPACK
+
   unsigned short iDim, jDim;
+
+#ifndef NDEBUG
+  const su2double tolerance = 1E-10;
+  for (iDim = 0; iDim < nDim; iDim++) {
+    for (jDim = 0; jDim< nDim; jDim++) {
+      const su2double tolerance = 1E-10;
+      if (abs(A[iDim][jDim] - A[jDim][iDim]) > tolerance) {
+        SU2_MPI::Error("Matrix A is not symmetric!", CURRENT_FUNCTION);
+      }
+      if (abs(B[iDim][jDim] - B[jDim][iDim]) > tolerance) {
+        SU2_MPI::Error("Matrix A is not symmetric!", CURRENT_FUNCTION);
+      }
+    }
+  }
+#endif // NDEBUG
+
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim< nDim; jDim++) {
       mat[iDim*nDim+jDim]  = A[iDim][jDim];
@@ -833,56 +1023,118 @@ vector<vector<su2double> > CHybrid_Mediator::GetConstants() {
   return constants;
 }
 
+void CHybrid_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) {
+  fluct_stress_model = fluct_stress;
+}
+
+void CHybrid_Mediator::SetForcingModel(CHybridForcingAbstractBase* forcing) {
+  forcing_model = forcing;
+}
+
+const su2double* CHybrid_Mediator::GetForcingVector(unsigned long iPoint) {
+  return forcing_model->GetForcingVector(iPoint);
+}
 
 
 CHybrid_Dummy_Mediator::CHybrid_Dummy_Mediator(unsigned short nDim,
                                                CConfig* config)
     : nDim(nDim) {
 
-  /*--- Set the default value of the hybrid parameter ---*/
-  dummy_alpha = new su2double[1];
-  dummy_alpha[0] = 1.0;
+  zero_vector = new su2double[nDim];
+
+  zero_tensor = new su2double*[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    zero_vector[iDim] = 0;
+    zero_tensor[iDim] = new su2double[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      zero_tensor[iDim][jDim] = 0;
+    }
+  }
 }
 
 CHybrid_Dummy_Mediator::~CHybrid_Dummy_Mediator() {
-  delete [] dummy_alpha;
+
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    delete [] zero_tensor[iDim];
+  }
+  delete [] zero_tensor;
+  delete [] zero_vector;
 }
 
-void CHybrid_Dummy_Mediator::SetupRANSNumerics(CGeometry* geometry,
-                                         CSolver **solver_container,
-                                         CNumerics* rans_numerics,
-                                         unsigned short iPoint,
-                                         unsigned short jPoint) {
-  // This next line is just here for testing purposes.
-  su2double* alpha = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  assert(alpha != NULL);
-  rans_numerics->SetHybridParameter(dummy_alpha, dummy_alpha);
+void CHybrid_Dummy_Mediator::SetupRANSNumerics(CSolver **solver_container,
+                                               CNumerics* rans_numerics,
+                                               unsigned long iPoint) {
+
+  rans_numerics->SetKineticEnergyRatio(1.0);
+  rans_numerics->SetResolvedTurbStress(zero_tensor);
 }
 
-void CHybrid_Dummy_Mediator::SetupHybridParamSolver(CGeometry* geometry,
-                                           CSolver **solver_container,
-                                           unsigned short iPoint) {
+void CHybrid_Dummy_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
+                                                       CSolver **solver_container,
+                                                       unsigned long iPoint) {
+  // Set resolution adequacy in the CNSVariables class
+  solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(1.0);
 }
 
-void CHybrid_Dummy_Mediator::SetupHybridParamNumerics(CGeometry* geometry,
-                                             CSolver **solver_container,
-                                             CNumerics *hybrid_param_numerics,
-                                             unsigned short iPoint,
-                                             unsigned short jPoint) {
+void CHybrid_Dummy_Mediator::ComputeForcingField(CSolver** solver,
+                                                 CGeometry *geometry,
+                                                 CConfig *config) {
+  // nothing to compute
 }
 
-void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(CGeometry* geometry,
+
+void CHybrid_Dummy_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
+                                               CSolver **solver_container,
+                                               unsigned long iPoint) {
+  solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(zero_tensor);
+}
+
+void CHybrid_Dummy_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
                                              CSolver **solver_container,
                                              CNumerics* visc_numerics,
-                                             unsigned short iPoint,
-                                             unsigned short jPoint) {
+                                             unsigned long iPoint,
+                                             unsigned long jPoint) {
 
-  /*--- Pass alpha to the resolved flow ---*/
+  /*--- Set the "average" variables to be identical to the resolved
+   * variables. ---*/
 
-  // This next two lines are just here for testing purposes.
-  su2double* alpha_i = solver_container[HYBRID_SOL]->node[iPoint]->GetSolution();
-  su2double* alpha_j = solver_container[HYBRID_SOL]->node[jPoint]->GetSolution();
-  assert(alpha_i != NULL);
-  assert(alpha_j != NULL);
-  visc_numerics->SetHybridParameter(dummy_alpha, dummy_alpha);
+  su2double* primvar_i =
+      solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+  su2double* primvar_j =
+      solver_container[FLOW_SOL]->node[jPoint]->GetPrimitive();
+
+  su2double** primvar_grad_i =
+      solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
+  su2double** primvar_grad_j =
+      solver_container[FLOW_SOL]->node[jPoint]->GetGradient_Primitive();
+
+  /*--- This should be the zero tensor, if SetupResolvedFlowSolver was
+   * called properly ---*/
+
+  su2double** aniso_viscosity_i =
+      solver_container[FLOW_SOL]->node[iPoint]->GetAnisoEddyViscosity();
+  su2double** aniso_viscosity_j =
+      solver_container[FLOW_SOL]->node[jPoint]->GetAnisoEddyViscosity();
+
+  CAvgGrad_Hybrid* numerics = dynamic_cast<CAvgGrad_Hybrid*>(visc_numerics);
+  numerics->SetPrimitive_Average(primvar_i, primvar_j);
+  numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
+  numerics->SetAniso_Eddy_Viscosity(aniso_viscosity_i, aniso_viscosity_j);
+  numerics->SetKineticEnergyRatio(1.0, 1.0);
+}
+
+void CHybrid_Dummy_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) {
+  /*--- We won't use it, so just delete it. ---*/
+  delete fluct_stress;
+}
+
+void CHybrid_Dummy_Mediator::SetForcingModel(CHybridForcingAbstractBase* forcing) {
+  /*--- We won't use it, so just delete it. ---*/
+  delete forcing;
+}
+
+const su2double* CHybrid_Dummy_Mediator::GetForcingVector(unsigned long iPoint) {
+  // dummy mediator has no forcing
+  return zero_vector;
 }

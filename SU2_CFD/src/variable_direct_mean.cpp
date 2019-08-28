@@ -399,7 +399,7 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
   
   Primitive = new su2double [nPrimVar];
   for (iVar = 0; iVar < nPrimVar; iVar++) Primitive[iVar] = 0.0;
-  
+
   Secondary = new su2double [nSecondaryVar];
   for (iVar = 0; iVar < nSecondaryVar; iVar++) Secondary[iVar] = 0.0;
 
@@ -447,6 +447,7 @@ CEulerVariable::~CEulerVariable(void) {
       if (Gradient_Primitive[iVar] != NULL) delete [] Gradient_Primitive[iVar];
     delete [] Gradient_Primitive;
   }
+
   if (Gradient_Secondary != NULL) {
     for (iVar = 0; iVar < nSecondaryVarGrad; iVar++)
       if (Gradient_Secondary[iVar] != NULL) delete [] Gradient_Secondary[iVar];
@@ -555,7 +556,12 @@ void CEulerVariable::SetSecondaryVar(CFluidModel *FluidModel) {
 
 }
 
-CNSVariable::CNSVariable(void) : CEulerVariable() { }
+CNSVariable::CNSVariable(void) : CEulerVariable() {
+
+  ResolvedTurbStress = NULL;
+  AnisoEddyViscosity = NULL;
+  ForcingVector = NULL;
+}
 
 CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2double val_energy,
                          unsigned short val_nDim, unsigned short val_nvar,
@@ -570,6 +576,28 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     inv_TimeScale   = config->GetModVel_FreeStream() / config->GetRefLength();
     Roe_Dissipation = 0.0;
     Vortex_Tilting  = 0.0;
+
+    ResolvedTurbStress = new su2double*[nDim];
+    AnisoEddyViscosity = new su2double*[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ResolvedTurbStress[iDim] = new su2double[nDim];
+      AnisoEddyViscosity[iDim] = new su2double[nDim];
+    }
+
+    // Why Forcing_Stress?  Is this correct name?
+    if (config->isHybrid_Forced()) {
+      Forcing_Stress = new su2double*[nDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++)
+        Forcing_Stress[iDim] = new su2double[nDim];
+    } else {
+      Forcing_Stress = NULL;
+    }
+
+    ForcingVector = new su2double[nDim];
+
+    /*--- Initialize this here so that preprocessing can run properly ---*/
+
+    ResolvedKineticEnergy = 0;
 
 }
 
@@ -586,9 +614,51 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     Roe_Dissipation = 0.0;
     Vortex_Tilting  = 0.0;
 
+    ResolvedTurbStress = new su2double*[nDim];
+    AnisoEddyViscosity = new su2double*[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ResolvedTurbStress[iDim] = new su2double[nDim];
+      AnisoEddyViscosity[iDim] = new su2double[nDim];
+    }
+
+    // Why Forcing_Stress?  Is this correct name?
+    if (config->isHybrid_Forced()) {
+      Forcing_Stress = new su2double*[nDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++)
+        Forcing_Stress[iDim] = new su2double[nDim];
+    } else {
+      Forcing_Stress = NULL;
+    }
+
+    ForcingVector = new su2double[nDim];
+
+    /*--- Initialize this here so that preprocessing can run properly ---*/
+
+    ResolvedKineticEnergy = 0;
+
 }
 
 CNSVariable::~CNSVariable(void) {
+  if (ResolvedTurbStress != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      delete [] ResolvedTurbStress[iDim];
+    }
+    delete [] ResolvedTurbStress;
+  }
+  if (AnisoEddyViscosity != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      delete [] AnisoEddyViscosity[iDim];
+    }
+    delete [] AnisoEddyViscosity;
+  }
+  if (Forcing_Stress != NULL) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      delete [] Forcing_Stress[iDim];
+    delete [] Forcing_Stress;
+  }
+  if (ForcingVector != NULL) {
+    delete [] ForcingVector;
+  }
 }
 
 bool CNSVariable::SetVorticity(void) {
@@ -729,8 +799,9 @@ void CNSVariable::SetRoe_Dissipation_FD(su2double val_wall_dist){
   const su2double nu = GetLaminarViscosity()/GetDensity();
   const su2double nu_t = GetEddyViscosity()/GetDensity();
   const su2double r_d = (nu + nu_t)/(uijuij*k2*pow(val_wall_dist, 2.0));
+  const su2double f_d = 1.0-tanh(pow(8.0*r_d,3.0));
   
-  Roe_Dissipation = 1.0-tanh(pow(8.0*r_d,3.0));
+  Roe_Dissipation = 1.0 - f_d;
   
   AD::SetPreaccOut(Roe_Dissipation);
   AD::EndPreacc();

@@ -35,6 +35,7 @@
 #define BOOST_TEST_MODULE hybrid_rdelta
 #include "MPI_global_fixture.hpp"
 
+#include <cstdio> // std::remove
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -51,7 +52,9 @@ void WriteCfgFile(unsigned short nDim, const char* filename) {
   cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
-  cfg_file << "HYBRID_RANSLES= DYNAMIC_HYBRID" << std::endl;
+  cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
+  cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
+  cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
   cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA_STRAIN_ONLY" << std::endl;
   // This option is deprecated
   // cfg_file << "HYBRID_MODEL_CONSTANT= 1.0" << std::endl;
@@ -71,6 +74,7 @@ struct HybridRdeltaFixture {
     char cfg_filename[100] = "hybrid_rdelta_test.cfg";
     WriteCfgFile(3, cfg_filename);
     mock_config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 3, VERB_NONE);
+    std::remove(cfg_filename);
 
     su2double flow_soln[5], hybrid_soln;
 
@@ -94,16 +98,15 @@ struct HybridRdeltaFixture {
     mock_var_array[1] = new CTurbKEVariable(0.0, 0.0, 0.0, 0.0, // k, eps, v2, f
                                             0.0, 0.0, 0.0,      // muT, Tm, Lm
                                             3, 4,               // ndim, nvar
-                                            NULL, mock_config); // constants, config
+                                            mock_config); // constants, config
 
-    mock_var_array[2] = new CHybridConvVariable(hybrid_soln, 3, 1, mock_config);
+    mock_var_array[2] = NULL;
 
     mock_mediator = new CHybrid_Mediator(3, mock_config);
   }
 
   ~HybridRdeltaFixture() {
     delete mock_mediator;
-    delete mock_var_array[2];
     delete mock_var_array[1];
     delete mock_var_array[0];
     delete mock_var_array;
@@ -128,8 +131,9 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
   mock_var_array[0]->SetGradient_PrimitiveZero(7);
   mock_var_array[0]->SetEddyViscosity(0.0);
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2],
+                                        0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(0,0),0.0);
@@ -158,11 +162,12 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
   mock_var_array[0]->SetEddyViscosity(1.0);
   mock_var_array[1]->SetSolution(2, 1.0);  // v2
-  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
+//  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2],
+                                        1.0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // 0,0 and 1,1 entries should be 0.5
@@ -191,11 +196,12 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
   mock_var_array[0]->SetEddyViscosity(2.0);
   mock_var_array[1]->SetSolution(2, 1.0);  // v2
-  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
+//  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2],
+                                        1.0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // 0,0 and 1,1 entries should be 1.0
@@ -223,11 +229,12 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
   mock_var_array[0]->SetEddyViscosity(1.0);
   mock_var_array[1]->SetSolution(2, 4.0);  // v2
-  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
+//  mock_var_array[2]->SetSolution(0, 1.0);  // alpha
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2],
+                                        1.0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // 0,0 and 1,1 entries should be 0.0625
@@ -255,11 +262,12 @@ BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
   mock_var_array[0]->SetGradient_Primitive(1, 1, 1.0);
   mock_var_array[0]->SetEddyViscosity(1.0);
   mock_var_array[1]->SetSolution(2, 1.0);  // v2
-  mock_var_array[2]->SetSolution(0, 0.25);  // alpha
+//  mock_var_array[2]->SetSolution(0, 0.25);  // alpha
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2],
+                                        0.25,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // 0,0 and 1,1 entries should be 0.0625
@@ -304,8 +312,9 @@ BOOST_FIXTURE_TEST_CASE(PureRotation, HybridRdeltaFixture) {
   mock_var_array[1]->SetSolution(2, 1.0);
 
   mock_mediator->ComputeInvLengthTensor(mock_var_array[0],
+                                        mock_var_array[0],
                                         mock_var_array[1],
-                                        mock_var_array[2],
+                                        1.0,
                                         mock_config->GetKind_Hybrid_Resolution_Indicator());
 
   // Everything should be zero

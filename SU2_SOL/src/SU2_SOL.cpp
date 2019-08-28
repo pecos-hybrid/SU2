@@ -161,6 +161,10 @@ int main(int argc, char *argv[]) {
   
 	/*--- Definition of the output class (one for all the zones) ---*/
 	output = new COutput(config_container[ZONE_0]);
+
+  /*--- Register variables for output ---*/
+
+  output->RegisterAllVariables(config_container, nZone);
   
   /*---  Check whether this is an FSI, fluid unsteady, harmonic balance or structural dynamic simulation and call the
    solution merging routines accordingly.---*/

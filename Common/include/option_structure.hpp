@@ -413,7 +413,6 @@ const int TURB_SOL = 2;		/*!< \brief Position of the turbulence model solution i
 const int ADJTURB_SOL = 3;	/*!< \brief Position of the continuous adjoint turbulence solution in the solver container array. */
 
 const int TRANS_SOL = 4;	/*!< \brief Position of the transition model solution in the solver container array. */
-const int HYBRID_SOL = 5; /*!< \brief Position of the hybrid RANS/LES transport eqn. for the hybrid parameter(s) in the solver container array. */
 const int POISSON_SOL = 2;		/*!< \brief Position of the electronic potential solution in the solver container array. */
 const int WAVE_SOL = 1;		/*!< \brief Position of the wave equation in the solution solver array. */
 const int HEAT_SOL = 5;		/*!< \brief Position of the heat equation in the solution solver array. */
@@ -719,17 +718,19 @@ static const map<string, ENUM_TURB_MODEL> Turb_Model_Map = CCreateMap<string, EN
 ("KE", KE);
 
 /*!
- * \brief Types of hybrid RANS/LES blending schemes.
+ * \brief Type of hybrid RANS/LES testing scheme
  *
- * These define the transport equation for the hybrid parameter.
+ * If the hybrid method is set to "RANS only", then the hybrid numerics
+ * will be exercised as fully as possible while still defaulting to RANS
+ * behavior.  This is intended for testing only.
  */
-enum ENUM_HYBRID_BLENDING {
+enum ENUM_HYBRID_RANS_LES_TESTING {
     RANS_ONLY = 0, /*!< \brief Kind of hybrid RANS/LES blending (RANS only). */
-    FULL_TRANSPORT = 1 /*!< \brief Kind of hybrid RANS/LES blending (Full transport). */
+    FULL_HYBRID_RANS_LES = 1 /*!< \brief Kind of hybrid RANS/LES blending (Full hybrid model). */
 };
-static const map<string, ENUM_HYBRID_BLENDING> Hybrid_Blending_Map = CCreateMap<string, ENUM_HYBRID_BLENDING>
+static const map<string, ENUM_HYBRID_RANS_LES_TESTING> Hybrid_Testing_Map = CCreateMap<string, ENUM_HYBRID_RANS_LES_TESTING>
 ("RANS_ONLY", RANS_ONLY)
-("FULL_TRANSPORT", FULL_TRANSPORT);
+("FULL_HYBRID", FULL_HYBRID_RANS_LES);
 
 /*!
  * \brief Types of hybrid RANS/LES resolution adeqeuacy indicators.
@@ -747,6 +748,19 @@ static const map<string, ENUM_HYBRID_RES_IND> Hybrid_Res_Ind_Map = CCreateMap<st
 ("RDELTA_FULLP"       , RDELTA_INDICATOR_FULLP)
 ("RDELTA_STRAIN_ONLY" , RDELTA_INDICATOR_STRAIN_ONLY)
 ("RDELTA_FULLP_VELCON", RDELTA_INDICATOR_FULLP_VELCON);
+
+/*!
+ * \brief Type of subgrid energy transfer (SGET) model
+ *
+ * This option is used for model-split hybrid RANS/LES only.
+ */
+enum ENUM_SGET_MODEL {
+  NO_SGET_MODEL, /*!< \brief A zero stress model */
+  M43_MODEL      /*!< \brief Haering's M43 LES model */
+};
+static const map<string, ENUM_SGET_MODEL> SGET_Model_Map = CCreateMap<string, ENUM_SGET_MODEL>
+("NONE", NO_SGET_MODEL)
+("M43", M43_MODEL);
 
 /*!
  * \brief types of transition models
@@ -770,7 +784,7 @@ enum ENUM_HYBRIDRANSLES {
   SA_DDES  = 2,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Delta_max SGS ). */
   SA_ZDES  = 3,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Vorticity based SGS like Zonal DES). */
   SA_EDDES  = 4,  /*!< \brief Kind of Hybrid RANS/LES (SA - Delayed DES (DDES) with Shear Layer Adapted SGS: Enhanced DDES). */
-  DYNAMIC_HYBRID = 5 /*!< \brief Dynamic hybrid RANS/LES model. */
+  MODEL_SPLIT = 5 /*!< \brief Model split RANS/LES hybridization. */
 };
 static const map<string, ENUM_HYBRIDRANSLES> HybridRANSLES_Map = CCreateMap<string, ENUM_HYBRIDRANSLES>
 ("NONE", NO_HYBRIDRANSLES)
@@ -778,7 +792,7 @@ static const map<string, ENUM_HYBRIDRANSLES> HybridRANSLES_Map = CCreateMap<stri
 ("SA_DDES", SA_DDES)
 ("SA_ZDES", SA_ZDES)
 ("SA_EDDES", SA_EDDES)
-("DYNAMIC_HYBRID", DYNAMIC_HYBRID);
+("MODEL_SPLIT", MODEL_SPLIT);
 
 /*!
  * \brief types of Roe Low Dissipation Schemes

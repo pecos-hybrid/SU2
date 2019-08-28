@@ -41,7 +41,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
   
   unsigned short iDim, jDim, iVar, nDim = geometry->GetnDim();
   unsigned short Kind_Solver = config->GetKind_Solver();
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
   unsigned long iPoint, iElem, iNode;
   unsigned long iExtIter = config->GetExtIter();
@@ -195,6 +195,14 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         Tecplot_File << ", \"" << it->Tecplot_Name << "\"";
       }
       
+      for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+           it != output_vectors[val_iZone].end(); ++it) {
+        for (iDim = 1; iDim < nDim+1; iDim++) {
+          Tecplot_File << ", \"" << it->Tecplot_Name;
+          Tecplot_File << "<sub>" << iDim << "</sub>\"";
+        }
+      }
+
       for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
            it != output_tensors[val_iZone].end(); ++it) {
         for (iDim = 1; iDim < nDim+1; iDim++) {
@@ -205,10 +213,10 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         }
       }
 
-      if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
+      if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
         for (iDim = 0; iDim < nDim; iDim++)
           for (jDim = 0; jDim < nDim; jDim++)
-            Tecplot_File << ", \"M<sub>" << iDim << jDim << "</sub>\"";
+            Tecplot_File << ", \"Resolution_Tensor_" << iDim << jDim << "\"";
       }
 
       if (config->GetWrt_SharpEdges()) {
@@ -302,7 +310,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
   /*--- Write the header ---*/
   Tecplot_File << "ZONE ";
   if (config->GetUnsteady_Simulation() && config->GetWrt_Unsteady()) {
-    Tecplot_File << "STRANDID="<<SU2_TYPE::Int(iExtIter+1)<<", SOLUTIONTIME="<<config->GetDelta_UnstTime()*iExtIter<<", ";
+    Tecplot_File << "STRANDID="<<SU2_TYPE::Int(iExtIter+1)<<", SOLUTIONTIME="<<config->GetCurrent_UnstTime()<<", ";
   } else if (config->GetUnsteady_Simulation() == HARMONIC_BALANCE) {
     /*--- Compute period of oscillation & compute time interval using nTimeInstances ---*/
     su2double period = config->GetHarmonicBalance_Period();
@@ -928,7 +936,7 @@ void COutput::WriteTecplotASCII_Parallel(CConfig *config, CGeometry *geometry, C
     
     Tecplot_File << "ZONE ";
     if (config->GetUnsteady_Simulation() && config->GetWrt_Unsteady()) {
-      Tecplot_File << "STRANDID="<<SU2_TYPE::Int(iExtIter+1)<<", SOLUTIONTIME="<<config->GetDelta_UnstTime()*iExtIter<<", ";
+      Tecplot_File << "STRANDID="<<SU2_TYPE::Int(iExtIter+1)<<", SOLUTIONTIME="<<config->GetCurrent_UnstTime()<<", ";
     } else if (config->GetUnsteady_Simulation() == HARMONIC_BALANCE) {
       /*--- Compute period of oscillation & compute time interval using nTimeInstances ---*/
       su2double period = config->GetHarmonicBalance_Period();
@@ -1684,7 +1692,7 @@ void COutput::SetTecplotBinary_DomainSolution(CConfig *config, CGeometry *geomet
   Debug            = 0;
   IsDouble          = 1;
   NPts            = (INTEGER4)nGlobal_Poin;
-  t              = SU2_TYPE::GetValue(iExtIter*config->GetDelta_UnstTime());
+  t              = SU2_TYPE::GetValue(config->GetCurrent_UnstTime());
   KMax            = 0;
   ICellMax          = 0;
   JCellMax          = 0;
@@ -2751,7 +2759,7 @@ void COutput::SetTecplotBinary_SurfaceSolution(CConfig *config, CGeometry *geome
   Debug            = 0;
   IsDouble          = 1;
   NPts            = (INTEGER4)nSurf_Poin;
-  t              = SU2_TYPE::GetValue(iExtIter*config->GetDelta_UnstTime());
+  t              = SU2_TYPE::GetValue(config->GetCurrent_UnstTime());
   KMax            = 0;
   ICellMax          = 0;
   JCellMax          = 0;
@@ -3085,6 +3093,14 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       *NVar += 1;
     }
     
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      for (iDim = 1; iDim < nDim+1; iDim++) {
+          variables << it->Name << "_" << iDim << " ";
+          *NVar += 1;
+      }
+    }
+
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       for (iDim = 1; iDim < nDim+1; iDim++) {
@@ -3095,7 +3111,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       }
     }
 
-    if ((config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID) &&
+    if ((config->GetKind_HybridRANSLES() == MODEL_SPLIT) &&
         config->GetWrt_Resolution_Tensors()) {
       for (iDim = 0; iDim < nDim; iDim++)
         for (jDim = 0; jDim < nDim; jDim++)

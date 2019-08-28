@@ -249,13 +249,19 @@ inline void CPoint::SetZeroValues(void) { }
 
 inline void CPoint::AddNormal(su2double *val_face_normal) { }
 
-inline su2double** CPoint::GetResolutionTensor(void) const { return ResolutionTensor; }
+inline const su2double* const* CPoint::GetResolutionTensor(void) const { return ResolutionTensor; }
 
 inline su2double CPoint::GetResolutionTensor(unsigned short iDim, unsigned short jDim) const { return ResolutionTensor[iDim][jDim]; }
 
-inline su2double** CPoint::GetResolutionVectors(void) { return ResolutionVectors; }
+inline const su2double* const* CPoint::GetResolutionTensor43(void) const { return ResolutionTensor43; }
 
-inline su2double* CPoint::GetResolutionValues(void) { return ResolutionValues; }
+inline su2double CPoint::GetResolutionTensor43(unsigned short iDim, unsigned short jDim) const { return ResolutionTensor43[iDim][jDim]; }
+
+inline su2double CPoint::GetResolutionCoeff(void) const { return ResolutionCoeff; }
+
+inline const su2double* const* CPoint::GetResolutionVectors(void)const { return ResolutionVectors; }
+
+inline const su2double* CPoint::GetResolutionValues(void) const { return ResolutionValues; }
 inline void CPoint::SetAdjointCoord(su2double *adj_coor){
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
         SU2_TYPE::SetDerivative(Coord[iDim], SU2_TYPE::GetValue(adj_coor[iDim]));

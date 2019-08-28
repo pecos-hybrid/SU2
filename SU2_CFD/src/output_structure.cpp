@@ -435,6 +435,7 @@ COutput::~COutput(void) {
 void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
 
   output_vars.resize(val_nZone);
+  output_vectors.resize(val_nZone);
   output_tensors.resize(val_nZone);
 
   for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
@@ -448,25 +449,43 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetTurbLengthscale, iZone);
         RegisterScalar("T_m", "T<sub>m</sub>", TURB_SOL,
                        &CVariable::GetTurbTimescale, iZone);
-        RegisterScalar("Avg_L_m", "L<sub>m,avg</sub>", TURB_SOL,
-                       &CVariable::GetAverageTurbLengthscale, iZone);
-        RegisterScalar("Avg_T_m", "T<sub>m,avg</sub>", TURB_SOL,
-                       &CVariable::GetAverageTurbTimescale, iZone);
+        RegisterScalar("Production", "Production", TURB_SOL,
+                       &CVariable::GetProduction, iZone, false);
       }
 
-      const bool dynamic_hybrid =
-          (config[iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+      const bool model_split_hybrid =
+          (config[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
-      if (dynamic_hybrid) {
-        switch (config[iZone]->GetKind_Hybrid_Blending()) {
-          case RANS_ONLY:
-            // No extra variables
-            break;
-          case FULL_TRANSPORT:
-            RegisterScalar("Resolution_Adequacy", "r<sub>k</sub>", HYBRID_SOL,
-                           &CVariable::GetResolutionAdequacy, iZone);
-            break;
+      if (model_split_hybrid) {
+        RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
+                       &CVariable::GetKineticEnergyRatio, iZone, true);
+        RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
+                       &CVariable::GetResolvedKineticEnergy, iZone, true);
+        RegisterScalar("SGSProduction", "SGSProduction", FLOW_SOL,
+                       &CVariable::GetSGSProduction, iZone, true);
+        RegisterScalar("trace_mu_SGET", "trace_mu_SGET", FLOW_SOL,
+                       &CVariable::GetTraceAnisoEddyViscosity, iZone);
+        RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
+                       &CVariable::GetAnisoEddyViscosity, iZone);
+        RegisterScalar("r_M", "r<sub>M</sub>", FLOW_SOL,
+                       &CVariable::GetResolutionAdequacy, iZone, false);
+        RegisterScalar("Average_r_M", "avgr<sub>M</sub>", FLOW_SOL,
+                       &CVariable::GetResolutionAdequacy, iZone, true);
+        RegisterVector("hyb_force", "F", FLOW_SOL,
+                       &CVariable::GetForcingVector, iZone, false);
+        if (config[iZone]->GetUse_Resolved_Turb_Stress()) {
+          RegisterTensor("tau_res", "tau<sup>res</sup>", FLOW_SOL,
+                         &CVariable::GetResolvedTurbStress, iZone, true);
         }
+        // TODO: Re-incarnate output associated with forcing
+        // RegisterScalar("Forcing_Production", "P<sub>F</sub>", TURB_SOL,
+        //                &CVariable::GetForcingProduction, iZone);
+        // RegisterScalar("Forcing_Ratio", "P<sub>F</sub>", HYBRID_SOL,
+        //                &CVariable::GetForcingRatio, iZone);
+        // RegisterScalar("S_alpha", "S<sub>a</sub>", HYBRID_SOL,
+        //                &CVariable::GetSAlpha, iZone);
+        // RegisterScalar("S_cf", "S<sub>cf</sub>", HYBRID_SOL,
+        //                &CVariable::GetScf, iZone);
       }
     }
   }
@@ -474,28 +493,55 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
 
 void COutput::RegisterScalar(std::string name, std::string tecplot_name,
                                unsigned short solver_type,
-                               DataAccessor accessor, unsigned short val_zone) {
-  COutputVariable variable = {name, tecplot_name, solver_type, accessor};
+                               DataAccessor accessor, unsigned short val_zone,
+                               bool average) {
+  COutputVariable variable = {name, tecplot_name, solver_type, accessor, average};
   output_vars[val_zone].push_back(variable);
+}
+
+void COutput::RegisterVector(std::string name, std::string tecplot_name,
+                             unsigned short solver_type,
+                             VectorAccessor accessor, unsigned short val_zone,
+                             bool average) {
+  COutputVector vector = {name, tecplot_name, solver_type, accessor, average};
+  output_vectors[val_zone].push_back(vector);
 }
 
 void COutput::RegisterTensor(std::string name, std::string tecplot_name,
                              unsigned short solver_type,
-                             TensorAccessor accessor, unsigned short val_zone) {
-  COutputTensor tensor = {name, tecplot_name, solver_type, accessor};
+                             TensorAccessor accessor, unsigned short val_zone,
+                             bool average) {
+  COutputTensor tensor = {name, tecplot_name, solver_type, accessor, average};
   output_tensors[val_zone].push_back(tensor);
 }
 
 su2double COutput::RetrieveVariable(CSolver** solver,
                                     COutputVariable var,
                                     unsigned long iPoint) {
+  if (var.Average) {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)();
+  } else {
    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)();
+  }
+}
+
+su2double COutput::RetrieveVectorComponent(CSolver** solver, COutputVector var,
+                                           unsigned long iPoint, unsigned short iDim) {
+  if (var.Average) {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)()[iDim];
+  } else {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim];
+  }
 }
 
 su2double COutput::RetrieveTensorComponent(CSolver** solver, COutputTensor var,
                                   unsigned long iPoint, unsigned short iDim,
                                   unsigned short jDim) {
-  return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim][jDim];
+  if (var.Average) {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)()[iDim][jDim];
+  } else {
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim][jDim];
+  }
 }
 
 void COutput::SetSurfaceCSV_Flow(CConfig *config, CGeometry *geometry,
@@ -2370,7 +2416,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
                          ( config->GetKind_Solver() == ADJ_NAVIER_STOKES ) ||
                          ( config->GetKind_Solver() == ADJ_RANS          )   );
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   const bool runtime_average = (config->GetKind_Averaging() != NO_AVERAGING);
   
   unsigned short iDim, jDim;
@@ -2406,7 +2452,6 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     case RANS :
       FirstIndex = FLOW_SOL; SecondIndex = TURB_SOL;
       if (transition) ThirdIndex=TRANS_SOL;
-      else if (dynamic_hybrid) ThirdIndex=HYBRID_SOL;
       else if (config->GetWeakly_Coupled_Heat()) ThirdIndex = HEAT_SOL;
       else ThirdIndex = NONE;
       break;
@@ -2428,6 +2473,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   nVar_Consv = nVar_First + nVar_Second + nVar_Third;
   nVar_Total = nVar_Consv;
   
+  /*--- Add the average values ---*/
+
+  if (runtime_average) nVar_Total += nVar_Consv;
+
   if (!config->GetLow_MemoryOutput()) {
     
     /*--- Add the limiters ---*/
@@ -2437,10 +2486,6 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     /*--- Add the residuals ---*/
     
     if (config->GetWrt_Residuals()) nVar_Total += nVar_Consv;
-    
-    /*--- Add the average values ---*/
-
-    if (runtime_average) nVar_Total += nVar_Consv;
 
     /*--- Add the grid velocity to the restart file for the unsteady adjoint ---*/
     
@@ -2483,13 +2528,18 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       nVar_Total += 1;
     }
     
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      nVar_Total += nDim;
+    }
+
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       nVar_Total += nDim*nDim;
     }
 
 
-    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
       // Add the resolution tensors (a rank 3 tensor)
       iVar_Resolution_Tensor = nVar_Total; nVar_Total += 9;
     }
@@ -2689,7 +2739,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         Buffer_Send_Var[jPoint] = solver[CurrentIndex]->node[iPoint]->GetSolution(jVar);
 
         if (runtime_average) {
-          Buffer_Send_Avg[jPoint] = solver[CurrentIndex]->node[iPoint]->GetAverageSolution(jVar);
+          Buffer_Send_Avg[jPoint] = solver[CurrentIndex]->average_node[iPoint]->GetSolution(jVar);
         }
         
         if (!config->GetLow_MemoryOutput()) {
@@ -3314,6 +3364,60 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       iVar++;
     }
 
+    /*--- Communicate the extra vector variables ---*/
+
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+
+        /*--- Loop over this partition to collect the current variable ---*/
+
+        jPoint = 0;
+        for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+
+          /*--- Check for halos & write only if requested ---*/
+
+          if (!Local_Halo[iPoint] || Wrt_Halo) {
+
+            /*--- Load buffers with the variables. ---*/
+
+            Buffer_Send_Var[jPoint] = RetrieveVectorComponent(solver, *it, iPoint, iDim);
+
+            jPoint++;
+          }
+        }
+
+        /*--- Gather the data on the master node. ---*/
+
+#ifdef HAVE_MPI
+        SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+#else
+        for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
+#endif
+
+        /*--- The master node unpacks and sorts this variable by global index ---*/
+
+        if (rank == MASTER_NODE) {
+          jPoint = 0;
+          for (iProcessor = 0; iProcessor < size; iProcessor++) {
+            for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+
+              /*--- Get global index, then loop over each variable and store ---*/
+
+              iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+              Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+              jPoint++;
+            }
+
+            /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+
+            jPoint = (iProcessor+1)*nBuffer_Scalar;
+          }
+        }
+        iVar++;
+      }
+    }
+
     /*--- Communicate the extra tensor variables ---*/
 
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
@@ -3372,7 +3476,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the Resolution Tensor ---*/
 
-    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
       iVar = iVar_Resolution_Tensor;
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
@@ -4298,7 +4402,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   bool grid_movement = config->GetGrid_Movement();
   bool dynamic_fem = (config->GetDynamic_Analysis() == DYNAMIC);
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
   ofstream restart_file;
   ofstream meta_file;
@@ -4418,6 +4522,20 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"" << it->Tecplot_Name << "\"";
     }
     
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      if (config->GetOutput_FileFormat() == PARAVIEW) {
+        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+          restart_file << "\t\"" << it->Name << "_" << iDim << "\"";
+        }
+      } else {
+        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+            restart_file << "\t\"" << it->Tecplot_Name;
+            restart_file << "<sub>" << iDim << "</sub>" << "\"";
+        }
+      }
+    }
+
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
@@ -4436,7 +4554,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       }
     }
 
-    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
         restart_file << "\t\"Resolution_Tensor_11\"";
         restart_file << "\t\"Resolution_Tensor_12\"";
@@ -4448,15 +4566,15 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
         restart_file << "\t\"Resolution_Tensor_32\"";
         restart_file << "\t\"Resolution_Tensor_33\"";
       } else {
-        restart_file << "\t\"M<sub>11</sub>\"";
-        restart_file << "\t\"M<sub>12</sub>\"";
-        restart_file << "\t\"M<sub>13</sub>\"";
-        restart_file << "\t\"M<sub>21</sub>\"";
-        restart_file << "\t\"M<sub>22</sub>\"";
-        restart_file << "\t\"M<sub>23</sub>\"";
-        restart_file << "\t\"M<sub>31</sub>\"";
-        restart_file << "\t\"M<sub>32</sub>\"";
-        restart_file << "\t\"M<sub>33</sub>\"";
+        restart_file << "\t\"Resolution_Tensor_11\"";
+        restart_file << "\t\"Resolution_Tensor_12\"";
+        restart_file << "\t\"Resolution_Tensor_13\"";
+        restart_file << "\t\"Resolution_Tensor_21\"";
+        restart_file << "\t\"Resolution_Tensor_22\"";
+        restart_file << "\t\"Resolution_Tensor_23\"";
+        restart_file << "\t\"Resolution_Tensor_31\"";
+        restart_file << "\t\"Resolution_Tensor_32\"";
+        restart_file << "\t\"Resolution_Tensor_33\"";
       }
     }
 
@@ -4640,7 +4758,6 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
   bool actuator_disk = ((config->GetnMarker_ActDiskInlet() != 0) || (config->GetnMarker_ActDiskOutlet() != 0));
   bool turbulent = ((config->GetKind_Solver() == RANS) || (config->GetKind_Solver() == ADJ_RANS) ||
                     (config->GetKind_Solver() == DISC_ADJ_RANS));
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
   bool cont_adj = config->GetContinuous_Adjoint();
   bool disc_adj = config->GetDiscrete_Adjoint();
   bool frozen_visc = (cont_adj && config->GetFrozen_Visc_Cont()) ||( disc_adj && config->GetFrozen_Visc_Disc());
@@ -4768,7 +4885,6 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
     case SST:   	SPRINTF (turb_resid, ",\"Res_Turb[0]\",\"Res_Turb[1]\""); break;
     case KE:   	 SPRINTF (turb_resid, ",\" Res_Turb[0]\",\" Res_Turb[1]\",\" Res_Turb[2]\",\" Res_Turb[3]\""); break;
   }
-  char hybrid_resid[] = ",\"Res_Hybrid[0]\"";
   char adj_turb_resid[]= ",\"Res_AdjTurb[0]\"";
   char wave_resid[]= ",\"Res_Wave[0]\",\"Res_Wave[1]\"";
   char fem_resid[]= ",\"Res_FEM[0]\",\"Res_FEM[1]\",\"Res_FEM[2]\"";
@@ -4806,7 +4922,6 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
 
       ConvHist_file[0] << flow_resid;
       if (turbulent) ConvHist_file[0] << turb_resid;
-      if (dynamic_hybrid) ConvHist_file[0] << hybrid_resid;
       if (weakly_coupled_heat) ConvHist_file[0] << heat_resid;
       if (aeroelastic) ConvHist_file[0] << aeroelastic_coeff;
       if (output_per_surface) ConvHist_file[0] << monitoring_coeff;
@@ -4989,7 +5104,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     
     char begin[1000], direct_coeff[1000], heat_coeff[1000], equivalent_area_coeff[1000], engine_coeff[1000], rotating_frame_coeff[1000], Cp_inverse_design[1000], Heat_inverse_design[1000], surface_coeff[1000], aeroelastic_coeff[1000], monitoring_coeff[10000],
     adjoint_coeff[1000], flow_resid[1000], adj_flow_resid[1000], turb_resid[1000], trans_resid[1000],
-    adj_turb_resid[1000], wave_coeff[1000], hybrid_resid[1000],
+    adj_turb_resid[1000], wave_coeff[1000],
     begin_fem[1000], fem_coeff[1000], wave_resid[1000], heat_resid[1000], combo_obj[1000],
     fem_resid[1000], end[1000], end_fem[1000], surface_outputs[1000], d_direct_coeff[1000], turbo_coeff[10000];
 
@@ -5011,7 +5126,6 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     bool actuator_disk = ((config[val_iZone]->GetnMarker_ActDiskInlet() != 0) || (config[val_iZone]->GetnMarker_ActDiskOutlet() != 0));
     bool inv_design = (config[val_iZone]->GetInvDesign_Cp() || config[val_iZone]->GetInvDesign_HeatFlux());
     bool transition = (config[val_iZone]->GetKind_Trans_Model() == LM);
-    const bool dynamic_hybrid = (config[val_iZone]->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
     bool thermal = (config[val_iZone]->GetKind_Solver() == RANS || config[val_iZone]->GetKind_Solver()  == NAVIER_STOKES);
     bool turbulent = ((config[val_iZone]->GetKind_Solver() == RANS) || (config[val_iZone]->GetKind_Solver() == ADJ_RANS) ||
                       (config[val_iZone]->GetKind_Solver() == DISC_ADJ_RANS));
@@ -5125,7 +5239,6 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         case KE:     nVar_Turb = 4; break;
       }
     }
-    if (dynamic_hybrid) nVar_Hybrid = 1;
     if (transition) nVar_Trans = 2;
     if (wave) nVar_Wave = 2;
     if (heat) nVar_Heat = 1;
@@ -5336,13 +5449,6 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         if (transition) {
           for (iVar = 0; iVar < nVar_Trans; iVar++)
             residual_transition[iVar] = solver_container[val_iZone][FinestMesh][TRANS_SOL]->GetRes_RMS(iVar);
-        }
-        
-        /*--- Hybrid parameter solver ---*/
-        
-        if (dynamic_hybrid) {
-          for (iVar = 0; iVar < nVar_Hybrid; iVar++)
-            residual_hybrid[iVar] = solver_container[val_iZone][FinestMesh][HYBRID_SOL]->GetRes_RMS(iVar);
         }
 
         
@@ -5681,11 +5787,6 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
                                  log10(residual_turbulent[2]), log10(residual_turbulent[3])); break;
               }
             }
-
-            /*--- Hybrid RANS/LES dynamic_hybrid parameter transport model ---*/
-            if (dynamic_hybrid) {
-              SPRINTF(hybrid_resid, ", %12.10f", log10(residual_hybrid[0]));
-            }
             
             /*---- Averaged stagnation pressure at an exit ----*/
             
@@ -5893,6 +5994,13 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               } else {
                 cout << endl << "Dual Time step: " << config[val_iZone]->GetDelta_UnstTimeND() << ".";
               }
+              if (config[val_iZone]->GetKind_Averaging() != NO_AVERAGING &&
+                  config[val_iZone]->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
+                const su2double timescale = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetAveragingTimescale();
+                const su2double N_T = config[val_iZone]->GetnAveragingPeriods();
+                cout << endl << "Averaging period (non-dim): " << timescale;
+                cout << endl << "Total averaging window (non-dim): " << N_T*timescale;
+              }
             }
           }
           else if (fem && !fsi) {
@@ -6008,9 +6116,6 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               case SST:	      cout << "     Res[kine]" << "     Res[omega]"; break;
               case KE:	   cout << "     Res[kine]" << "     Res[epsi]" << "     Res[zeta]" << "        Res[f]"; break;
             }
-
-            if (dynamic_hybrid)
-              cout << "    Res[alpha]";
 
             if (weakly_coupled_heat) {
               cout <<  "     Res[Heat]";
@@ -6356,10 +6461,6 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
                         cout.width(14); cout << log10(residual_turbulent[1]);
                         cout.width(14); cout << log10(residual_turbulent[2]);
                         cout.width(14); cout << log10(residual_turbulent[3]); break;
-              }
-
-              if (dynamic_hybrid) {
-                cout.width(14); cout << log10(residual_hybrid[0]);
               }
 
               if (weakly_coupled_heat) {
@@ -12360,7 +12461,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   bool compressible         = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible       = (config->GetKind_Regime() == INCOMPRESSIBLE);
   bool transition           = (config->GetKind_Trans_Model() == BC);
-  const bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == DYNAMIC_HYBRID);
+  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   bool grid_movement        = (config->GetGrid_Movement());
   bool Wrt_Halo             = config->GetWrt_Halo(), isPeriodic;
   bool weakly_coupled_heat  = config->GetWeakly_Coupled_Heat();
@@ -12394,7 +12495,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     case RANS : FirstIndex = FLOW_SOL; SecondIndex = TURB_SOL; break;
     default: SecondIndex = NONE; break;
   }
-  if (dynamic_hybrid) ThirdIndex = HYBRID_SOL;
   
   nVar_First = solver[FirstIndex]->GetnVar();
   if (SecondIndex != NONE) nVar_Second = solver[SecondIndex]->GetnVar();
@@ -12456,9 +12556,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back("Nu_Tilde");
     }
   }
-  if (dynamic_hybrid) {
-    Variable_Names.push_back("Alpha");
-  }
   if (incompressible && weakly_coupled_heat) Variable_Names.push_back("Temperature");
 
   /*--- Add the average solution ---*/
@@ -12490,9 +12587,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         /*--- S-A variants ---*/
         Variable_Names.push_back("Average_Nu_Tilde");
       }
-    }
-    if (dynamic_hybrid) {
-      Variable_Names.push_back("Average_Alpha");
     }
   }
 
@@ -12531,9 +12625,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Variable_Names.push_back("Limiter_Nu_Tilde");
         }
       }
-      if (dynamic_hybrid) {
-        Variable_Names.push_back("Limiter_Alpha");
-      }
     }
     
     /*--- Add the residuals ---*/
@@ -12565,9 +12656,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           /*--- S-A variants ---*/
           Variable_Names.push_back("Residual_Nu_Tilde");
         }
-      }
-      if (dynamic_hybrid) {
-        Variable_Names.push_back("Residual_Alpha");
       }
     }
     
@@ -12645,7 +12733,27 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
          it != output_vars[val_iZone].end(); ++it) {
       nVar_Par += 1;
-      Variable_Names.push_back(it->Name);
+      if (config->GetOutput_FileFormat() == PARAVIEW){
+        Variable_Names.push_back(it->Name);
+      } else {
+        Variable_Names.push_back(it->Tecplot_Name);
+      }
+    }
+
+    for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+         it != output_vectors[val_iZone].end(); ++it) {
+      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
+        nVar_Par += 1;
+        if (config->GetOutput_FileFormat() == PARAVIEW){
+          ostringstream label;
+          label << it->Name << "_" << iDim;
+          Variable_Names.push_back(label.str());
+        } else {
+          ostringstream label;
+          label << it->Tecplot_Name << "<sub>" << iDim << "</sub>";
+          Variable_Names.push_back(label.str());
+        }
+      }
     }
 
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
@@ -12653,14 +12761,20 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
         for (unsigned int jDim=1; jDim < nDim+1; jDim++) {
           nVar_Par += 1;
-          ostringstream label(it->Name);
-          label << "_" << iDim << jDim;
-          Variable_Names.push_back(label.str());
+          if (config->GetOutput_FileFormat() == PARAVIEW){
+            ostringstream label;
+            label << it->Name << "_" << iDim << jDim;
+            Variable_Names.push_back(label.str());
+          } else {
+            ostringstream label;
+            label << it->Tecplot_Name << "<sub>" << iDim << jDim << "</sub>";
+            Variable_Names.push_back(label.str());
+          }
         }
       }
     }
 
-    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
       nVar_Par += 9;
       Variable_Names.push_back("Resolution_Tensor_11");
       Variable_Names.push_back("Resolution_Tensor_12");
@@ -12825,16 +12939,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         }
       }
 
-      /*--- If we're using an extra dynamic_hybrid RANS/LES transport equation, then
-       * load data for the dynamic_hybrid variables ---*/
-
-      if (ThirdIndex != NONE && dynamic_hybrid) {
-        for (jVar = 0; jVar < nVar_Third; jVar++) {
-          Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetSolution(jVar);
-          iVar++;
-        }
-      }
-
       if (incompressible && weakly_coupled_heat) {
         Local_Data[jPoint][iVar] = solver[HEAT_SOL]->node[iPoint]->GetSolution(0);
         iVar++;
@@ -12844,20 +12948,13 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       if (config->GetKind_Averaging() != NO_AVERAGING) {
         /*--- Mean Flow Averages ---*/
         for (jVar = 0; jVar < nVar_First; jVar++) {
-          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetAverageSolution(jVar);
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->average_node[iPoint]->GetSolution(jVar);
           iVar++;
         }
         /*--- RANS Averages ---*/
         if (SecondIndex != NONE) {
           for (jVar = 0; jVar < nVar_Second; jVar++) {
-            Local_Data[jPoint][iVar] = solver[SecondIndex]->node[iPoint]->GetAverageSolution(jVar);
-            iVar++;
-          }
-        }
-        /*--- Dynamic hybrid RANS/LES Averages ---*/
-        if (ThirdIndex != NONE && dynamic_hybrid) {
-          for (jVar = 0; jVar < nVar_Third; jVar++) {
-            Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetAverageSolution(jVar);
+            Local_Data[jPoint][iVar] = solver[SecondIndex]->average_node[iPoint]->GetSolution(jVar);
             iVar++;
           }
         }
@@ -12880,13 +12977,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
               iVar++;
             }
           }
-          /*--- Dynamic hybrid RANS/LES Limiters ---*/
-          if (ThirdIndex != NONE && dynamic_hybrid) {
-            for (jVar = 0; jVar < nVar_Third; jVar++) {
-              Local_Data[jPoint][iVar] = solver[ThirdIndex]->node[iPoint]->GetLimiter_Primitive(jVar);
-              iVar++;
-            }
-          }
         }
         
         /*--- Residuals ---*/
@@ -12900,13 +12990,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           if (SecondIndex != NONE) {
             for (jVar = 0; jVar < nVar_Second; jVar++) {
               Local_Data[jPoint][iVar] = solver[SecondIndex]->LinSysRes.GetBlock(iPoint, jVar);
-              iVar++;
-            }
-          }
-          /*--- Dynamic hybrid RANS/LES  ---*/
-          if (ThirdIndex != NONE && dynamic_hybrid) {
-            for (jVar = 0; jVar < nVar_Third; jVar++) {
-              Local_Data[jPoint][iVar] = solver[ThirdIndex]->LinSysRes.GetBlock(iPoint, jVar);
               iVar++;
             }
           }
@@ -12971,7 +13054,17 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           Local_Data[jPoint][iVar] = RetrieveVariable(solver, *it, iPoint);
           iVar++;
         }
-        
+
+        /*--- Load data for the additional vectors ---*/
+
+        for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
+             it != output_vectors[val_iZone].end(); ++it) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            Local_Data[jPoint][iVar] = RetrieveVectorComponent(solver, *it, iPoint, iDim);
+            iVar++;
+          }
+        }
+
         /*--- Load data for the additional tensors ---*/
 
         for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
@@ -12984,13 +13077,13 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           }
         }
 
-        /*--- Load data for a hybrid RANS/LES model. ---*/
-        if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
-          // Add the resolution tensor
-          su2double** resolution_tensor = geometry->node[iPoint]->GetResolutionTensor();
-          for (iDim = 0; iDim < nDim; iDim++) {
-            for (jDim = 0; jDim < nDim; jDim++) {
-              Local_Data[jPoint][iVar] = resolution_tensor[iDim][jDim];
+        /*--- Load data for the resolution tensors ---*/
+
+
+        if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetResolutionTensor(iDim, jDim);
               iVar++;
             }
           }

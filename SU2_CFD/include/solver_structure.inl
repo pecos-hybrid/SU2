@@ -45,6 +45,10 @@ inline void CSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) { }
 
 inline void CSolver::Set_MPI_Primitive(CGeometry *geometry, CConfig *config) { }
 
+inline void CSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config) { }
+
+inline void CSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config) { }
+
 //inline void CSolver::Set_MPI_Secondary(CGeometry *geometry, CConfig *config) { }
 
 inline void CSolver::Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config) { }
@@ -137,6 +141,12 @@ inline void CSolver::SetPrimitive_Gradient_GG(CGeometry *geometry, CConfig *conf
 inline void CSolver::SetPrimitive_Gradient_LS(CGeometry *geometry, CConfig *config) { }
 
 inline void CSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config) { }
+
+inline void CSolver::SetAverage_Primitive_Gradient_GG(CGeometry *geometry, CConfig *config) { }
+
+inline void CSolver::SetAverage_Primitive_Gradient_LS(CGeometry *geometry, CConfig *config) { }
+
+inline void CSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config) { }
 
 inline void CSolver::SetPrimitive_Limiter_MPI(CGeometry *geometry, CConfig *config) { }
 
@@ -1128,6 +1138,10 @@ inline void CSolver::SetConjugateHeatVariable(unsigned short val_marker, unsigne
 
 inline su2double CSolver::GetConjugateHeatVariable(unsigned short val_marker, unsigned long val_vertex, unsigned short pos_var) { return 0.0; }
 
+inline void CSolver::SetAveragingTimescale(su2double val_timescale) { AveragingTimescale = val_timescale; }
+
+inline su2double CSolver::GetAveragingTimescale(void) const { return AveragingTimescale; }
+
 inline su2double CEulerSolver::GetDensity_Inf(void) { return Density_Inf; }
 
 inline su2double CEulerSolver::GetModVelocity_Inf(void) { 
@@ -1693,7 +1707,7 @@ inline void CNSSolver::SetStrainMag_Max(su2double val_strainmag_max) { StrainMag
 
 inline void CNSSolver::SetOmega_Max(su2double val_omega_max) { Omega_Max = val_omega_max; }
 
-inline void CEulerSolver::AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator) { HybridMediator = hybrid_mediator; }
+inline void CNSSolver::AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator) { HybridMediator = hybrid_mediator; }
 
 inline su2double CNSSolver::GetConjugateHeatVariable(unsigned short val_marker, unsigned long val_vertex, unsigned short pos_var) { return HeatConjugateVar[val_marker][val_vertex][pos_var]; }
 
@@ -2191,8 +2205,6 @@ inline void CTurbSolver::SetInlet_TurbVar(unsigned short val_marker, unsigned lo
   else
     Inlet_TurbVars[val_marker][val_vertex][val_dim] = val_turb_var;
 }
-
-inline void CHybridSolver::AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator) { HybridMediator = hybrid_mediator; }
 
 inline void CTurbSolver::AddHybridMediator(CAbstract_Hybrid_Mediator* hybrid_mediator) { HybridMediator = hybrid_mediator; }
 

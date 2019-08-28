@@ -80,6 +80,7 @@ CSolver::CSolver(void) {
   Restart_Vars       = NULL;
   Restart_Data       = NULL;
   node               = NULL;
+  average_node       = NULL;
   nOutputVariables   = 0;
   
 }
@@ -100,6 +101,13 @@ CSolver::~CSolver(void) {
       delete node[iPoint];
     }
     delete [] node;
+  }
+
+  if (average_node != NULL) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++) {
+      delete average_node[iPoint];
+    }
+    delete [] average_node;
   }
 
   /*--- Private ---*/
@@ -2811,17 +2819,28 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 
 		/*--- Total unsteady simulation time ---*/
 
-		if (config->GetDiscard_InFiles() == false) {
-		  if ((abs(config->GetCurrent_UnstTime() - Total_Time_) > EPS) &&
-		      (rank == MASTER_NODE)) {
-          cout << "Initial time set to the unsteady time from the restart file." << endl;
-		  }
-		  config->SetCurrent_UnstTime(Total_Time_);
-		}
-		else {
-			if ((config->GetCurrent_UnstTime() != Total_Time_) &&  (rank == MASTER_NODE))
-				cout <<"WARNING: Discarding the unsteady time in the solution file." << endl;
-		}
+    switch (config->GetUnsteady_Simulation()) {
+      case TIME_STEPPING:
+        if (config->GetDiscard_InFiles() == false) {
+          if ((abs(config->GetCurrent_UnstTime() - Total_Time_) > EPS) &&
+              (rank == MASTER_NODE)) {
+            cout << "Initial time set to the unsteady time from the restart file." << endl;
+          }
+          config->SetCurrent_UnstTime(Total_Time_);
+        } else {
+          if ((config->GetCurrent_UnstTime() != Total_Time_) &&  (rank == MASTER_NODE))
+            cout <<"WARNING: Discarding the unsteady time in the solution file." << endl;
+        }
+        break;
+      case DT_STEPPING_1ST: case DT_STEPPING_2ND:
+        /*-- This should eventually be replaced by the ability to load in custom unsteady times. ---*/
+        if (rank == MASTER_NODE && Total_Time_ > EPS) {
+          cout << "WARNING: Dual time-stepping does not read in the unsteady time from the" << endl;
+          cout << "input file. Dual time-stepping always calculates time as:" << endl;
+          cout << "    time = (external iteration number) * (timestep)" << endl;
+        }
+    }
+
 
 
 		/*--- The adjoint problem needs this information from the direct solution ---*/
@@ -2924,79 +2943,97 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
                           CConfig* config) {
 
-  /*--- In the averaging process here, one bad value can contaminate the
-   * averages at a point.  We could try to correct for this here, but
-   * the generic averaging routine is not the best place to do so.  Instead,
-   * corrections should happen in the solver or variable classes, where more
-   * specific and physically relevant limitations can be applied for
-   * each variable individually. For example, density can be constrained
-   * to be positive but momentum can be positive or negative.
-   *
-   * Instead of trying to account for bad values here, we assume that the
-   * values stored in the "Solution" are good values. ---*/
+  su2double time = config->GetCurrent_UnstTime();
 
-  su2double timescale;
-  const su2double dt = config->GetDelta_UnstTimeND();
-  const su2double N_T = config->GetnAveragingPeriods();
+  if (time > config->GetAveragingStartTime()) {
 
-  assert(dt > 0);
-  assert(N_T > 0);
+    /*--- In the averaging process here, one bad value can contaminate the
+     * averages at a point.  We could try to correct for this here, but
+     * the generic averaging routine is not the best place to do so.  Instead,
+     * corrections should happen in the solver or variable classes, where more
+     * specific and physically relevant limitations can be applied for
+     * each variable individually. For example, density can be constrained
+     * to be positive but momentum can be positive or negative.
+     *
+     * Instead of trying to account for bad values here, we assume that the
+     * values stored in the "Solution" are good values. ---*/
 
-  if (config->GetKind_Averaging_Period() == FLOW_TIMESCALE) {
-    timescale = config->GetRefLength()/config->GetModVel_FreeStream();
-    timescale /= config->GetTime_Ref();
-    assert(timescale > 0);
-  } else if (config->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
-    su2double local_max_timescale = 0;
-    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-      timescale = solver[TURB_SOL]->node[iPoint]->GetAverageTurbTimescale();
-      local_max_timescale = max(timescale, local_max_timescale);
-    }
-    SU2_MPI::Allreduce(&local_max_timescale, &timescale, 1,
-                       MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    assert(timescale > 0);
-  }
+    su2double timescale;
+    const su2double dt = config->GetDelta_UnstTimeND();
+    const su2double N_T = config->GetnAveragingPeriods();
 
-  su2double* buffer = new su2double[nVar];
-  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    assert(dt > 0);
+    assert(N_T > 0);
 
-    if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
-      timescale = solver[TURB_SOL]->node[iPoint]->GetAverageTurbTimescale();
+    if (config->GetKind_Averaging_Period() == FLOW_TIMESCALE) {
+      timescale = config->GetRefLength()/config->GetModVel_FreeStream();
+      timescale /= config->GetTime_Ref();
       assert(timescale > 0);
+    } else if (config->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
+      su2double local_max_timescale = 0;
+      for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+        timescale = solver[TURB_SOL]->average_node[iPoint]->GetTurbTimescale();
+        local_max_timescale = max(timescale, local_max_timescale);
+      }
+      SU2_MPI::Allreduce(&local_max_timescale, &timescale, 1,
+                         MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      assert(timescale > 0);
+
+      /*--- Save the timescale so it can be accessed later ---*/
+
+      SetAveragingTimescale(timescale);
     }
 
-    /*--- Even if (dt > N_T*timescale) at any point (i.e., the timesteps
-     * are greater than the averaging period), we don't want the weight
-     * to be greater than 1. We also want to average over at least a few
-     * values, even if the timesteps are larger than the averaging period.
-     * So we change the weight to make the averaging act as if
-     * dt = (N_T*timescale)/min_number_samples ---*/
-    const unsigned short min_number_samples = 5;
-    const su2double weight = min(dt/(N_T * timescale), 1.0/min_number_samples);
+    su2double* buffer = new su2double[nVar];
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
-    UpdateAverage(weight, iPoint, buffer);
+      if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
+        timescale = solver[TURB_SOL]->average_node[iPoint]->GetTurbTimescale();
+        assert(timescale > 0);
+      }
+
+      /*--- Even if (dt > N_T*timescale) at any point (i.e., the timesteps
+       * are greater than the averaging period), we don't want the weight
+       * to be greater than 1. We also want to average over at least a few
+       * values, even if the timesteps are larger than the averaging period.
+       * So we change the weight to make the averaging act as if
+       * dt = (N_T*timescale)/min_number_samples ---*/
+      const unsigned short min_number_samples = 5;
+      const su2double weight = min(dt/(N_T * timescale), 1.0/min_number_samples);
+
+      UpdateAverage(weight, iPoint, buffer, config);
+    }
+
+    delete [] buffer;
+
+  } else {
+
+    /*--- We're delaying the average calculation till later, so just
+     * set average = instantaneous ---*/
+
+    InitAverages();
+
   }
-
-  delete [] buffer;
 }
 
 
-void CSolver::UpdateAverage(su2double weight, unsigned short iPoint,
-                            su2double* buffer) {
+void CSolver::UpdateAverage(const su2double weight, const unsigned long iPoint,
+                            su2double* buffer, const CConfig* config) {
 
-  const su2double* average = node[iPoint]->GetAverageSolution();
+  assert(average_node != NULL);
+  const su2double* average = average_node[iPoint]->GetSolution();
   const su2double* current = node[iPoint]->GetSolution();
 
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
-    buffer[iVar] = (current[iVar] - average[iVar])*weight;
+    const su2double new_average = (current[iVar] - average[iVar])*weight + average[iVar];
+    average_node[iPoint]->SetSolution(iVar, new_average);
   }
-
-  node[iPoint]->AddAverageSolution(buffer);
 }
 
 void CSolver::InitAverages() {
+  assert(average_node != NULL); // Check that the average nodes are set up
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-    node[iPoint]->SetAverageSolution(node[iPoint]->GetSolution());
+    average_node[iPoint]->SetSolution(node[iPoint]->GetSolution());
   }
 }
 

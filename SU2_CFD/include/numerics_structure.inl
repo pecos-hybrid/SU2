@@ -321,7 +321,11 @@ inline void CNumerics::SetGradResolutionTensor(su2double*** val_grad_tensor) {
 
 inline void CNumerics::SetResolutionAdequacy(su2double val_r_k) { Resolution_Adequacy = val_r_k; }
 
-inline void CNumerics::SetRANSWeight(su2double val_w_rans) { RANS_Weight = val_w_rans; }
+inline void CNumerics::SetResolvedTurbStress(su2double** val_turb_stress) { }
+
+inline void CNumerics::SetKineticEnergyRatio(su2double val_alpha) {
+  KineticEnergyRatio = val_alpha;
+}
 
 inline void CNumerics::SetIntermittency(su2double intermittency_in) { }
 
@@ -331,13 +335,21 @@ inline void CNumerics::SetDestruction(su2double val_destruction) { }
 
 inline void CNumerics::SetCrossProduction(su2double val_crossproduction) { }
 
-inline su2double CNumerics::GetProduction(void) { return 0; }
+inline su2double CNumerics::GetProduction(void) const { return 0; }
 
 inline su2double CNumerics::GetDestruction(void) { return 0; }
 
 inline su2double CNumerics::GetCrossProduction(void) { return 0; }
 
 inline su2double CNumerics::GetGammaBC(void) { return 0.0; }
+
+inline void CNumerics::SetForcingProduction(su2double val_production) { }
+
+inline void CNumerics::SetForcingRatio(su2double val_forcing_ratio) { }
+
+inline void CNumerics::SetSourceTerms(su2double* val_source_terms) { }
+
+inline void CNumerics::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) { }
 
 inline void CNumerics::SetTurbKineticEnergy(su2double val_turb_ke_i, su2double val_turb_ke_j) {
   turb_ke_i = val_turb_ke_i;
@@ -510,6 +522,11 @@ inline su2double CNumerics::GetDissipation(){
   return Dissipation_ij;
 }
 
+inline void CAvgGrad_Flow::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) {
+  Forcing_Stress_i = tau_F_i;
+  Forcing_Stress_j = tau_F_j;
+}
+
 inline void CSourcePieceWise_TurbSST::SetF1blending(su2double val_F1_i, su2double val_F1_j) { 
   F1_i = val_F1_i; 
   F1_j = val_F1_j;
@@ -533,7 +550,7 @@ inline void CSourcePieceWise_TurbSA::SetDestruction(su2double val_destruction) {
 
 inline void CSourcePieceWise_TurbSA::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA::GetGammaBC(void) { return gamma_BC; }
 
@@ -549,7 +566,7 @@ inline void CSourcePieceWise_TurbSA_E::SetDestruction(su2double val_destruction)
 
 inline void CSourcePieceWise_TurbSA_E::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA_E::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA_E::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_E::GetDestruction(void) { return Destruction; }
 
@@ -563,7 +580,7 @@ inline void CSourcePieceWise_TurbSA_E_COMP::SetDestruction(su2double val_destruc
 
 inline void CSourcePieceWise_TurbSA_E_COMP::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA_E_COMP::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA_E_COMP::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_E_COMP::GetDestruction(void) { return Destruction; }
 
@@ -577,7 +594,7 @@ inline void CSourcePieceWise_TurbSA_COMP::SetDestruction(su2double val_destructi
 
 inline void CSourcePieceWise_TurbSA_COMP::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA_COMP::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA_COMP::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_COMP::GetDestruction(void) { return Destruction; }
 
@@ -591,11 +608,14 @@ inline void CSourcePieceWise_TurbSA_Neg::SetDestruction(su2double val_destructio
 
 inline void CSourcePieceWise_TurbSA_Neg::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
 
-inline su2double CSourcePieceWise_TurbSA_Neg::GetProduction(void) { return Production; }
+inline su2double CSourcePieceWise_TurbSA_Neg::GetProduction(void) const { return Production; }
 
 inline su2double CSourcePieceWise_TurbSA_Neg::GetDestruction(void) { return Destruction; }
 
 inline su2double CSourcePieceWise_TurbSA_Neg::GetCrossProduction(void) { return CrossProduction; }
+
+// Belongs in v2f file now?
+//inline void CSourcePieceWise_TurbKE::SetForcingProduction(su2double val_production) { ForcingProduction = val_production; }
 
 inline su2double CUpwTurkel_Flow::GetPrecond_Beta() { return Beta; }
 
@@ -609,4 +629,12 @@ inline void CNumerics::SetTauWall(su2double val_tauwall_i, su2double val_tauwall
 inline void CAvgGrad_Base::SetTauWall(su2double val_tauwall_i, su2double val_tauwall_j) {
   TauWall_i = val_tauwall_i;
   TauWall_j = val_tauwall_j;
+}
+
+inline su2double CAvgGrad_Base::GetStressTensor(unsigned short iDim, unsigned short jDim) {
+  return tau[iDim][jDim];
+}
+
+inline su2double CAvgGrad_Base::GetHeatFluxVector(unsigned short iDim) {
+  return heat_flux_vector[iDim];
 }

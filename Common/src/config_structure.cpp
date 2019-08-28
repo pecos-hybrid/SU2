@@ -512,6 +512,7 @@ void CConfig::SetPointersNull(void) {
   default_body_force         = NULL;
   default_sineload_coeff     = NULL;
   default_nacelle_location   = NULL;
+  default_hybrid_periodic_length = NULL;
 
   Riemann_FlowDir       = NULL;
   Giles_FlowDir         = NULL;
@@ -610,6 +611,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_body_force         = new su2double[3];
   default_sineload_coeff     = new su2double[3];
   default_nacelle_location   = new su2double[5];
+  default_hybrid_periodic_length = new su2double[3];
 
   // This config file is parsed by a number of programs to make it easy to write SU2
   // wrapper scripts (in python, go, etc.) so please do
@@ -632,11 +634,40 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief MATH_PROBLEM  \n DESCRIPTION: Mathematical problem \n  Options: DIRECT, ADJOINT \ingroup Config*/
   addMathProblemOption("MATH_PROBLEM", ContinuousAdjoint, false, DiscreteAdjoint, false, Restart_Flow, false);
 
-    /*! \brief HYBRID_BLENDING_SCHEME \n DESCRIPTION: Specify the blending model for a hybrid LES/RANS model. \n Options: see \link Hybrid_Blending_Map \endlink \n DEFAULT: DYNAMIC_HYBRID \ingroup Config */
-  addEnumOption("HYBRID_BLENDING_SCHEME", Kind_Hybrid_Blending, Hybrid_Blending_Map, FULL_TRANSPORT);
+    /*! \brief HYBRID_TESTING_SCHEME \n DESCRIPTION: Use an optional scheme for testing the model-split hybridization. \n Options: see \link Hybrid_Testing_Map \endlink \n DEFAULT: FULL_HYBRID_RANS_LES \ingroup Config */
+  addEnumOption("HYBRID_RANS_LES_TESTING", Kind_HybridRANSLES_Testing, Hybrid_Testing_Map, FULL_HYBRID_RANS_LES);
   
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RK_INDICATOR);
+
+  /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
+  addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
+
+
+  default_hybrid_periodic_length[0] = -1.0;
+  default_hybrid_periodic_length[1] = -1.0;
+  default_hybrid_periodic_length[2] = -1.0;
+  /*! \brief HYBRID_FORCING_PERIODIC_LENGTH \n
+   * DESCRIPTION: Vector of domain lengths for periodic directions,
+   * used in hybrid forcing (D_X, D_Y, D_Z), negative value indicates
+   * direction is not periodic. \n
+   * DEFAULT: (-1,-1,-1).
+   */
+  addDoubleArrayOption("HYBRID_FORCING_PERIODIC_LENGTH", 3,
+                       Hybrid_Forcing_Periodic_Length,
+                       default_hybrid_periodic_length);
+
+  /*!\brief HYBRID_FORCING_STRENGTH  \n DESCRIPTION: An overall scaling coefficient for the periodic forcing \ingroup Config*/
+  addDoubleOption("HYBRID_FORCING_STRENGTH", Hybrid_Forcing_Strength, 8);
+
+  /*!\brief HYBRID_FORCING_VORTEX_LENGTH  \n DESCRIPTION: The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. \ingroup Config*/
+  addDoubleOption("HYBRID_FORCING_VORTEX_LENGTH", Hybrid_Forcing_Vortex_Length, 4);
+
+  /*! \brief SUBGRID_ENERGY_TRANSFER_MODEL \n DESCRIPTION: Specify the subgrid energy transfer model to be used with the model-split hybrid RANS/LES model. \n Options: see \link Hybrid_SGET_Model_Map \endlink \n DEFAULT: M43 \ingroup Config */
+  addEnumOption("SUBGRID_ENERGY_TRANSFER_MODEL", Kind_Hybrid_SGET_Model, SGET_Model_Map, M43_MODEL);
+
+  /*!\brief USE_RESOLVED_TURB_STRESS \n DESCRIPTION: Use the resolved turbulent stress in stead of improved production for hybrid RANS/LES calculations. \ingroup Config*/
+  addBoolOption("USE_RESOLVED_TURB_STRESS", Use_Resolved_Turb_Stress, YES);
 
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
@@ -2139,11 +2170,20 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief RUNTIME_AVERAGING \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the type of averaging to be performed.  \n DEFAULT: NO_AVERAGING \ingroup Config */
   addEnumOption("RUNTIME_AVERAGING", Kind_Averaging, RuntimeAverage_Map, NO_AVERAGING);
 
-  /*!\brief AVERAGING_PERIOD \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the time period over which the averaging will be applied.  \n DEFAULT: TURB_TIMESCALE \ingroup Config */
-  addEnumOption("AVERAGING_PERIOD", Kind_Averaging_Period, AveragingPeriod_Map, TURB_TIMESCALE);
+  /*!\brief AVERAGING_PERIOD \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the time period over which the averaging will be applied.  \n DEFAULT: FLOW_TIMESCALE \ingroup Config */
+  addEnumOption("AVERAGING_PERIOD", Kind_Averaging_Period, AveragingPeriod_Map, FLOW_TIMESCALE);
 
   /*!\brief NUM_AVERAGING_PERIODS \n DESCRIPTION: If averaging is to be performed at runtime, this is the number of time periods over which to average. The inverse of this number can also be thought of as a proportional gain or a relaxation factor for the average calculations.  \n DEFAULT: 4.0 \ingroup Config */
   addDoubleOption("NUM_AVERAGING_PERIODS", nAveragingPeriods, 4.0);
+
+  /*!\brief AVERAGING_START_TIME \n
+   * DESCRIPTION: Averaging, if specified, will only be performed starting
+   * at this specific time.  Once the current time exceeds the time
+   * specified here, averaging will start up normally.  Until then,
+   * the average will be set to the instantaneous values. This setting is
+   * useful when the initial state does not match the desired state.  \n
+   * DEFAULT: 0.0 \ingroup Config */
+  addDoubleOption("AVERAGING_START_TIME", AveragingStartTime, 0.0);
 
   /* END_CONFIG_OPTIONS */
 
@@ -3762,6 +3802,12 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
       SU2_MPI::Error("The number of averaging periods must be greater than zero.", CURRENT_FUNCTION);
     }
   }
+
+  /*--- Check that the hybrid RANS/LES options are appropriate ---*/
+
+  if (Kind_HybridRANSLES == MODEL_SPLIT && Kind_Averaging == NO_AVERAGING) {
+    SU2_MPI::Error("Model-split hybrid RANS/LES requires averaging to be used.", CURRENT_FUNCTION);
+  }
 }
 
 void CConfig::SetMarkers(unsigned short val_software) {
@@ -4433,14 +4479,17 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case KE:     cout << "Zeta-f KE"                 << endl; break;
         }
         if (QCR) cout << "Using Quadratic Constitutive Relation, 2000 version (QCR2000)" << endl;
-        cout << "Hybrid RANS/LES: ";
-        switch (Kind_HybridRANSLES){
-          case NO_HYBRIDRANSLES: cout <<  "No Hybrid RANS/LES" << endl; break;
-          case SA_DES:  cout << "Detached Eddy Simulation (DES97) " << endl; break;
-          case SA_DDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Standard SGS" << endl; break;
-          case SA_ZDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Vorticity-based SGS" << endl; break;
-          case SA_EDDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Shear-layer Adapted SGS" << endl; break;
-          case DYNAMIC_HYBRID: cout << "Dynamic Hybrid Model" << endl; break;
+        if (Kind_HybridRANSLES != NO_HYBRIDRANSLES) {
+          cout << "Hybrid RANS/LES: ";
+          switch (Kind_HybridRANSLES) {
+            case SA_DES:  cout << "Detached Eddy Simulation (DES97) " << endl; break;
+            case SA_DDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Standard SGS" << endl; break;
+            case SA_ZDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Vorticity-based SGS" << endl; break;
+            case SA_EDDES:  cout << "Delayed Detached Eddy Simulation (DDES) with Shear-layer Adapted SGS" << endl; break;
+            case MODEL_SPLIT: cout << "Model-split hybridization" << endl; break;
+            default:
+              SU2_MPI::Error("Unrecognized hybrid model.", CURRENT_FUNCTION);
+          }
         }
         break;
       case POISSON_EQUATION: cout << "Poisson equation." << endl; break;
@@ -6007,6 +6056,8 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
     cout << endl;
 
     cout << "Number of averaging periods: " << nAveragingPeriods << endl;
+    if (AveragingStartTime > 0)
+      cout << "Averaging will start at time: " << AveragingStartTime << endl;
   }
 
 
@@ -6729,6 +6780,7 @@ CConfig::~CConfig(void) {
   if (default_body_force    != NULL) delete [] default_body_force;
   if (default_sineload_coeff!= NULL) delete [] default_sineload_coeff;
   if (default_nacelle_location    != NULL) delete [] default_nacelle_location;
+  if (default_hybrid_periodic_length != NULL) delete [] default_hybrid_periodic_length;
 
   if (FFDTag != NULL) delete [] FFDTag;
   if (nDV_Value != NULL) delete [] nDV_Value;
@@ -6883,7 +6935,6 @@ unsigned short CConfig::GetContainerPosition(unsigned short val_eqsystem) {
     case RUNTIME_FLOW_SYS:      return FLOW_SOL;
     case RUNTIME_TURB_SYS:      return TURB_SOL;
     case RUNTIME_TRANS_SYS:     return TRANS_SOL;
-    case RUNTIME_HYBRID_SYS:    return HYBRID_SOL;
     case RUNTIME_POISSON_SYS:   return POISSON_SOL;
     case RUNTIME_WAVE_SYS:      return WAVE_SOL;
     case RUNTIME_HEAT_SYS:      return HEAT_SOL;

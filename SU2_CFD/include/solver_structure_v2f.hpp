@@ -50,7 +50,6 @@ using namespace std;
  * \ingroup Turbulence_Model
  * \author S. Haering
  */
-
 class CTurbKESolver: public CTurbSolver {
 
 private:
@@ -59,28 +58,6 @@ private:
     epsi_Inf,              /*!< \brief Free-stream specific dissipation. */
     zeta_Inf,              /*!< \brief Free-stream v2/tke ratio. */
     f_Inf;                 /*!< \brief Free-stream redistribution. */
-
-  /*!
-   * \brief Finish the averaging calculation.
-   *
-   * This is a templated step in the averaging calculation.  The averaging
-   * routine loops over all the nodes and calls this routine for each node.
-   *
-   * This step roughly corresponds to:
-   *   // Retrieve U_current
-   *   // Retrieve U_average
-   *   dU = (U_current - U_average)*weight;
-   *   // Store dU
-   *
-   * Note that the base class already updates the average of the solution.
-   * This method should only be implemented when other variables are to be
-   * averaged.
-   *
-   * \param weight - The amount to weight the update on the average
-   * \param iPoint - The point at which the average will be calculated
-   * \param buffer - An allocated array of size nVar for working calculations
-   */
-  void UpdateAverage(su2double weight, unsigned short iPoint, su2double* buffer);
 
 public:
   /*!

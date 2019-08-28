@@ -1431,9 +1431,16 @@ inline su2double CConfig::GetDelta_UnstTime(void) { return Delta_UnstTime; }
 
 inline su2double CConfig::GetCurrent_UnstTime(void) { return Current_UnstTime; }
 
-inline void CConfig::AddCurrent_UnstTime(su2double delta_time) { Current_UnstTime += delta_time; }
+inline su2double CConfig::GetCurrent_UnstTimeND(void) { return Current_UnstTimeND; }
 
-inline void CConfig::SetCurrent_UnstTime(su2double val_time) { Current_UnstTime = val_time; }
+inline void CConfig::AddCurrent_UnstTimeND(su2double delta_time) {
+  Current_UnstTimeND += delta_time;
+  Current_UnstTime += (delta_time * Time_Ref);
+}
+
+inline void CConfig::SetCurrent_UnstTime(su2double val_time) { Current_UnstTime = val_time; };
+
+inline void CConfig::SetCurrent_UnstTimeND(su2double val_time) { Current_UnstTimeND = val_time; };
 
 inline void CConfig::SetDelta_UnstTimeND(su2double val_delta_unsttimend) { Delta_UnstTimeND = val_delta_unsttimend; }
 
@@ -1523,9 +1530,23 @@ inline bool CConfig::GetSmoothNumGrid(void) { return SmoothNumGrid; }
 
 inline void CConfig::SetSmoothNumGrid(bool val_smoothnumgrid) { SmoothNumGrid = val_smoothnumgrid; }
 
-inline unsigned short CConfig::GetKind_Hybrid_Blending(void) { return Kind_Hybrid_Blending; }
+inline unsigned short CConfig::GetKind_HybridRANSLES_Testing(void) { return Kind_HybridRANSLES_Testing; }
 
 inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { return Kind_Hybrid_Res_Ind; }
+
+inline bool CConfig::isHybrid_Forced(void) { return Hybrid_Forcing; }
+
+inline su2double* CConfig::GetHybrid_Forcing_Periodic_Length(void) { return Hybrid_Forcing_Periodic_Length; }
+
+inline su2double CConfig::GetHybrid_Forcing_Strength(void) const { return Hybrid_Forcing_Strength; }
+
+inline su2double CConfig::GetHybrid_Forcing_Vortex_Length(void) const { return Hybrid_Forcing_Vortex_Length; }
+
+inline unsigned short CConfig::GetKind_Hybrid_SGET_Model(void) {return Kind_Hybrid_SGET_Model; }
+
+inline bool CConfig::GetUse_Resolved_Turb_Stress(void) const { return Use_Resolved_Turb_Stress; }
+
+inline void CConfig::SetUse_Resolved_Turb_Stress(bool use_stress) { Use_Resolved_Turb_Stress = use_stress; }
 
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
 
@@ -1832,6 +1853,12 @@ inline bool CConfig::isDESBasedModel(void) {
 
 inline unsigned short CConfig::GetKind_RoeLowDiss(void) {return Kind_RoeLowDiss; }
 
+inline bool CConfig::BlendUpwindCentralFluxes(void) const {
+  const bool scheme_supports_blending = (Kind_Upwind_Flow == ROE) ||
+      (Kind_Upwind_Flow == SLAU) || (Kind_Upwind_Flow == SLAU2);
+  return (Kind_RoeLowDiss != NO_ROELOWDISS && scheme_supports_blending);
+}
+
 inline su2double CConfig::GetConst_DES(void) {return Const_DES; }
 
 inline bool CConfig::GetQCR(void) {return QCR;}
@@ -1845,3 +1872,5 @@ inline unsigned short CConfig::GetKind_Averaging(void) const { return Kind_Avera
 inline unsigned short CConfig::GetKind_Averaging_Period(void) const { return Kind_Averaging_Period; }
 
 inline su2double CConfig::GetnAveragingPeriods(void) const { return nAveragingPeriods; }
+
+inline su2double CConfig::GetAveragingStartTime(void) const { return AveragingStartTime; }

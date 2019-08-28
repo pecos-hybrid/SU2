@@ -32,8 +32,8 @@
  */
 
 #define BOOST_TEST_MODULE Unit_test_config
-#include "MPI_global_fixture.hpp"
 
+#include "../../Common/test/MPI_global_fixture.hpp"
 #include "../../Common/include/config_structure.hpp"
 
 BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );

@@ -35,8 +35,9 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/solver_structure.hpp"
+#include "../include/numerics_structure_v2f.hpp"
 #include "../include/solver_structure_v2f.hpp"
-
 #include "../include/variable_structure_v2f.hpp"
 
 CTurbKESolver::CTurbKESolver(void) : CTurbSolver() {
@@ -54,6 +55,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   unsigned long iPoint;
   ifstream restart_file;
   string text_line;
+  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -79,6 +81,9 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   /*--- Define geometry constants in the solver structure ---*/
   nDim = geometry->GetnDim();
   node = new CVariable*[nPoint];
+  if (runtime_averaging) {
+    average_node = new CVariable*[nPoint];
+  }
 
   /*--- Single grid simulation ---*/
   if (iMesh == MESH_0) {
@@ -260,17 +265,30 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
 
   /*--- Initialize the solution to the far-field state everywhere. ---*/
+  CTurbKEVariable::SetConstants(constants);
 
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CTurbKEVariable(kine_Inf, epsi_Inf, zeta_Inf, f_Inf,
                                        muT_Inf, Tm_Inf, Lm_Inf,
-                                       nDim, nVar, constants, config);
+                                       nDim, nVar, config);
+
+  if (runtime_averaging) {
+    for (iPoint = 0; iPoint < nPoint; iPoint++) {
+      average_node[iPoint] =
+          new CTurbKEVariable(kine_Inf, epsi_Inf, zeta_Inf, f_Inf, muT_Inf,
+                              Tm_Inf, Lm_Inf, nDim, nVar, config);
+    }
+  }
 
   /*--- MPI solution ---*/
 
   //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
   Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
+  if (runtime_averaging) {
+    Set_MPI_Average_Solution(geometry, config);
+    Set_MPI_Average_Solution(geometry, config);
+  }
 
   /*--- Initializate quantities for SlidingMesh Interface ---*/
 
@@ -377,12 +395,12 @@ void CTurbKESolver::Preprocessing(CGeometry *geometry,
 }
 
 void CTurbKESolver::Postprocessing(CGeometry *geometry,
-                                   CSolver **solver_container, CConfig *config, unsigned short iMesh) {
+                                   CSolver **solver_container,
+                                   CConfig *config, unsigned short iMesh) {
 
-  su2double rho;
-  su2double kine, v2, zeta, muT, *VelInf;
-  su2double VelMag;
-  unsigned long iPoint;
+  su2double rho, nu, S;
+  su2double kine, v2, zeta, muT;
+  const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
   /*--- Compute mean flow and turbulence gradients ---*/
   if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
@@ -393,29 +411,43 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
-  /*--- Recompute turbulence scales to ensure they're up to date ---*/
-  CalculateTurbScales(solver_container, config);
+  su2double scale = EPS;
+  su2double* VelInf = config->GetVelocity_FreeStreamND();
+  su2double VelMag = 0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    VelMag += VelInf[iDim]*VelInf[iDim];
+  VelMag = sqrt(VelMag);
+  const su2double L_inf = config->GetLength_Reynolds();
 
-  for (iPoint = 0; iPoint < nPoint; iPoint ++) {
+  CVariable** flow_node;
+  if (model_split) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint ++) {
 
     /*--- Compute turbulence scales ---*/
-    rho  = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+
+    rho = flow_node[iPoint]->GetDensity();
+    nu  = flow_node[iPoint]->GetLaminarViscosity() / rho;
+    S   = flow_node[iPoint]->GetStrainMag();
 
     /*--- Scalars ---*/
     kine = node[iPoint]->GetSolution(0);
     v2   = node[iPoint]->GetSolution(2);
 
     /*--- T & L ---*/
-    su2double scale = EPS;
-    VelInf = config->GetVelocity_FreeStreamND();
-    VelMag = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      VelMag += VelInf[iDim]*VelInf[iDim];
-    VelMag = sqrt(VelMag);
+
     kine = max(kine, scale*VelMag*VelMag);
     zeta = max(v2/kine, scale);
 
-    su2double Tm = node[iPoint]->GetTurbTimescale();
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
+    node[iPoint]->SetKolKineticEnergyRatio(nu);
+
+    const su2double Tm = node[iPoint]->GetTurbTimescale();
 
     /*--- Compute the eddy viscosity ---*/
 
@@ -423,65 +455,40 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     node[iPoint]->SetmuT(muT);
 
+    /* Compute resolution adequacy */
+    if (model_split) {
+      HybridMediator->ComputeResolutionAdequacy(geometry, solver_container,
+                                                iPoint);
+    }
+
   }
 }
 
 void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
                                         CConfig *config) {
 
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
+  su2double* VelInf = config->GetVelocity_FreeStreamND();
+  su2double VelMag = 0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    VelMag += VelInf[iDim]*VelInf[iDim];
+  VelMag = sqrt(VelMag);
+  const su2double L_inf = config->GetLength_Reynolds();
+
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-    const su2double rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-    const su2double mu = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
 
-    /*--- Scalars ---*/
-    su2double kine = node[iPoint]->GetSolution(0);
-    su2double epsi = node[iPoint]->GetSolution(1);
-    su2double v2   = node[iPoint]->GetSolution(2);
+    const su2double nu  = flow_node[iPoint]->GetLaminarViscosity() /
+                          flow_node[iPoint]->GetDensity();
+    const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    /*--- Relevant scales ---*/
-    su2double scale = EPS;
-    su2double L_inf = config->GetLength_Reynolds();
-    su2double* VelInf = config->GetVelocity_FreeStreamND();
-    su2double VelMag = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      VelMag += VelInf[iDim]*VelInf[iDim];
-    VelMag = sqrt(VelMag);
-
-    /*--- Clipping to avoid nonphysical quantities
-     * We keep "tke_positive" in order to allow tke=0 but clip negative
-     * values.  If tke is some small nonphysical quantity (but not zero),
-     * then it is possible for L1 > L3 and T1 > T3 when the viscous
-     * scales are smaller than this nonphysical limit. ---*/
-    
-    const su2double tke_lim = max(kine, scale*VelMag*VelMag);
-    const su2double tke_positive = max(kine, 0.0);
-    const su2double tdr_lim = max(epsi, scale*VelMag*VelMag*VelMag/L_inf);
-    const su2double zeta_lim = max(v2/tke_lim, scale);
-    const su2double S_FLOOR = scale;
-
-    // Grab other quantities for convenience/readability
-    const su2double C_mu    = constants[0];
-    const su2double C_T     = constants[8];
-    const su2double C_eta   = constants[10];
-    const su2double nu      = mu/rho;
-    const su2double S       = solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag();; //*sqrt(2.0) already included
-
-    //--- Model time scale ---//
-    const su2double T1     = tke_positive/tdr_lim;
-    // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
-    const su2double T2     = 0.6/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
-    const su2double T3     = C_T*sqrt(nu/tdr_lim);
-    su2double T = max(min(T1,T2),T3);
-
-    //--- Model length scale ---//
-    const su2double L1     = pow(tke_positive,1.5)/tdr_lim;
-    // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
-    const su2double L2     = sqrt(tke_positive)/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
-    const su2double L3     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
-    su2double L = max(min(L1,L2),L3); //... mult by C_L in source numerics
-
-    /*--- Make sure to store T, L so the hybrid class can access them ---*/
-    node[iPoint]->SetTurbScales(T, L);
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
   }
 }
 
@@ -490,19 +497,21 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
         CNumerics *second_numerics, CConfig *config, unsigned short iMesh,
         unsigned short iRKStep) {
 
-  /*--- Compute turbulence scales ---
-   * This calculation is best left here.  In the end, we want to set
-   * T and L for each node.  The Numerics class doesn't have access to the
-   * nodes, so we calculate the turbulence scales here, and pass them into
-   * the numerics class. If this was moved post/pre-processing, it would
-   * only be executed once per timestep, despite inner iterations of implicit
-   * solvers ---*/
+  const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
+  CVariable** flow_node;
+  if (model_split) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
+  /*--- Update turb scales ---*/
+  // TODO: Evaluate if this should be left in.
   CalculateTurbScales(solver_container, config);
 
-  unsigned long iPoint;
-
-  for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
     numerics->SetTimeStep(
       solver_container[FLOW_SOL]->node[iPoint]->GetDelta_Time());
@@ -510,12 +519,10 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
     numerics->SetCoord(geometry->node[iPoint]->GetCoord(), NULL);
 
     /*--- Conservative variables w/o reconstruction ---*/
-    numerics->SetPrimitive(
-      solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive(), NULL);
+    numerics->SetPrimitive(flow_node[iPoint]->GetPrimitive(), NULL);
 
     /*--- Gradient of the primitive and conservative variables ---*/
-    numerics->SetPrimVarGradient(
-      solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(), NULL);
+    numerics->SetPrimVarGradient(flow_node[iPoint]->GetGradient_Primitive(), NULL);
 
     /*--- Turbulent variables w/o reconstruction, and its gradient ---*/
     numerics->SetTurbVar(node[iPoint]->GetSolution(), NULL);
@@ -529,14 +536,29 @@ void CTurbKESolver::Source_Residual(CGeometry *geometry,
     numerics->SetTurbTimescale(node[iPoint]->GetTurbTimescale());
 
     /*--- Set vorticity and strain rate magnitude ---*/
-    numerics->SetVorticity(
-      solver_container[FLOW_SOL]->node[iPoint]->GetVorticity(), NULL);
+    numerics->SetVorticity(flow_node[iPoint]->GetVorticity(), NULL);
+    numerics->SetStrainMag(flow_node[iPoint]->GetStrainMag(), 0.0);
 
-    numerics->SetStrainMag(
-      solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag(), 0.0);
+    /*--- Set the resolved Reynolds stress ---*/
+    if (model_split) {
+      HybridMediator->SetupRANSNumerics(solver_container, numerics, iPoint);
+    }
 
     /*--- Compute the source term ---*/
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
+
+    if (model_split) {
+      CSourcePieceWise_TurbKE* v2f_numerics = dynamic_cast<CSourcePieceWise_TurbKE*>(numerics);
+      const su2double sgs_production = v2f_numerics->GetSGSProduction();
+      solver_container[FLOW_SOL]->average_node[iPoint]->SetSGSProduction(sgs_production);
+      if (config->GetUse_Resolved_Turb_Stress()) {
+        /*--- Production is not passed in, so output it instead ---*/
+        const su2double production = numerics->GetProduction();
+        solver_container[FLOW_SOL]->average_node[iPoint]->SetProduction(production);
+      }
+    }
+    node[iPoint]->SetProduction(numerics->GetProduction());
+    assert(node[iPoint]->GetProduction() == numerics->GetProduction());
 
     /*--- Subtract residual and the Jacobian ---*/
     LinSysRes.SubtractBlock(iPoint, Residual);
@@ -563,6 +585,13 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
 
   bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
 
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
@@ -582,12 +611,12 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
 
       /*--- Set wall values ---*/
       if (compressible) {
-        density = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-        laminar_viscosity = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
+        density = flow_node[jPoint]->GetDensity();
+        laminar_viscosity = flow_node[jPoint]->GetLaminarViscosity();
       }
       if (incompressible) {
-        density = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-        laminar_viscosity = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
+        density = flow_node[jPoint]->GetDensity();
+        laminar_viscosity = flow_node[jPoint]->GetLaminarViscosity();
       }
 
       if (config->GetBoolUse_v2f_Explicit_WallBC()) {
@@ -710,6 +739,14 @@ void CTurbKESolver::BC_Far_Field(CGeometry *geometry,
 
   bool grid_movement = config->GetGrid_Movement();
 
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
   Normal = new su2double[nDim];
 
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
@@ -723,7 +760,7 @@ void CTurbKESolver::BC_Far_Field(CGeometry *geometry,
       V_infty = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
 
       /*--- Retrieve solution at the farfield boundary node ---*/
-      V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+      V_domain = flow_node[iPoint]->GetPrimitive();
       conv_numerics->SetPrimitive(V_domain, V_infty);
 
       /*--- Set turbulent variable at infinity ---*/
@@ -776,6 +813,14 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
 
   bool grid_movement  = config->GetGrid_Movement();
 
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
   string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
   /*--- Loop over all the vertices on this boundary marker ---*/
@@ -797,7 +842,7 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
       V_inlet = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
 
       /*--- Retrieve solution at the farfield boundary node ---*/
-      V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+      V_domain = flow_node[iPoint]->GetPrimitive();
 
       /*--- Set various quantities in the solver class ---*/
       conv_numerics->SetPrimitive(V_domain, V_inlet);
@@ -879,6 +924,14 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
 
   bool grid_movement  = config->GetGrid_Movement();
 
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
   Normal = new su2double[nDim];
 
   /*--- Loop over all the vertices on this boundary marker ---*/
@@ -895,7 +948,7 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
       V_outlet = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
 
       /*--- Retrieve solution at the farfield boundary node ---*/
-      V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+      V_domain = flow_node[iPoint]->GetPrimitive();
 
       /*--- Set various quantities in the solver class ---*/
       conv_numerics->SetPrimitive(V_domain, V_outlet);
@@ -988,47 +1041,4 @@ void CTurbKESolver::SetInlet(CConfig* config) {
     }
   }
 
-}
-
-
-void CTurbKESolver::UpdateAverage(const su2double weight,
-                                  const unsigned short iPoint,
-                                  su2double* buffer) {
-
-  const su2double T_avg = node[iPoint]->GetAverageTurbTimescale();
-  const su2double L_avg = node[iPoint]->GetAverageTurbLengthscale();
-  const su2double T_new = T_avg + (node[iPoint]->GetTurbTimescale() - T_avg)*weight;
-  const su2double L_new = L_avg + (node[iPoint]->GetTurbLengthscale() - L_avg)*weight;
-
-#ifndef NDEBUG
-  if (T_new > 1E16) {
-    std::stringstream error_msg;
-    error_msg << "Average turbulent timescale was unusually large.\n";
-    error_msg << "Average turbulent timescale: " << T_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (T_new < 0) {
-    std::stringstream error_msg;
-    error_msg << "Average turbulent timescale less than zero.\n";
-    error_msg << "Average turbulent timescale: " << T_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (L_new > 1E16) {
-    std::stringstream error_msg;
-    error_msg << "Average lengthscale was unusually large.\n";
-    error_msg << "Average turbulent lengthscale: " << L_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-  if (L_new < 0) {
-    std::stringstream error_msg;
-    error_msg << "Average lengthscale was less than zero.\n";
-    error_msg << "Average turbulent lengthscale: " << L_new << endl;
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-#endif
-
-  node[iPoint]->SetAverageTurbScales(T_new, L_new);
-
-  /*--- Call the base class solver to compute solution average. ---*/
-  CSolver::UpdateAverage(weight, iPoint, buffer);
 }

@@ -38,14 +38,20 @@ TESTS  =
 
 if HAVE_BOOST
 check_PROGRAMS += unit_test_config
+if BUILD_LAPACK
 check_PROGRAMS += resolution_tensor_test
+endif
 endif
 
 # Eventually these will likely be required
-AM_CPPFLAGS = -I$(top_srcdir)/Common/include
+AM_CPPFLAGS = -I$(top_srcdir)/Common/include @LAPACK_CXX@
 #AM_LDFLAGS = 
 #LIBS = 
 LDADD = $(top_builddir)/Common/lib/libSU2.a
+LDADD += @LAPACK_LD@
+if BUILD_LAPACK
+LDFLAGS  += -mkl
+endif
 
 # always link to built dependencies from ./externals
 AM_CPPFLAGS += @su2_externals_INCLUDES@ @BOOST_CXX@
@@ -54,13 +60,17 @@ LDADD += @su2_externals_LIBS@
 # Test sources
 if HAVE_BOOST
 unit_test_config_SOURCES = unit_test_config.cpp
+if BUILD_LAPACK
 resolution_tensor_test_SOURCES = resolution_tensor_test.cpp
+endif
 endif
 
 # Tests to be run
 if HAVE_BOOST
 TESTS += unit_test_config
+if BUILD_LAPACK
 TESTS += resolution_tensor_test
+endif
 endif
 
 # Any of above we expect to fail?

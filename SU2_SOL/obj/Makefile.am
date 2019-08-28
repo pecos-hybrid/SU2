@@ -86,3 +86,8 @@ ___bin_SU2_SOL_LDADD += @MUTATIONPP_LD@
 ___bin_SU2_SOL_CXXFLAGS += @JSONCPP_CXX@
 ___bin_SU2_SOL_LDADD += @JSONCPP_LD@
 # endif
+
+# if BUILD_LAPACK
+___bin_SU2_SOL_CXXFLAGS += @LAPACK_CXX@
+___bin_SU2_SOL_LDADD += @LAPACK_LD@
+# endif

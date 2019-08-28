@@ -261,19 +261,52 @@ inline su2double *CVariable::GetIntBoundary_Jump(void) { return NULL; }
 
 inline su2double CVariable::GetEddyViscosity(void) { return 0; }
 
-inline su2double CVariable::GetTurbTimescale(void) { return 0; }
+inline su2double** CVariable::GetAnisoEddyViscosity(void) const { return NULL; }
 
-inline su2double CVariable::GetTurbLengthscale(void) { return 0; }
+inline su2double CVariable::GetTraceAnisoEddyViscosity(void) const { return 0; }
 
-inline su2double CVariable::GetAverageTurbTimescale() { return 0; }
+inline su2double CVariable::GetTurbTimescale(void) const { return 0; }
 
-inline su2double CVariable::GetAverageTurbLengthscale() { return 0; }
+inline su2double CVariable::GetTurbLengthscale(void) const { return 0; }
+
+inline su2double CVariable::GetTypicalLengthscale(void) const { return 0; };
+
+inline su2double CVariable::GetTypicalTimescale(void) const { return 0; };
+
+inline su2double CVariable::GetKolLengthscale(void) const { return 0; };
+
+inline su2double CVariable::GetKolTimescale(void) const { return 0; };
+
+inline su2double CVariable::GetKolKineticEnergyRatio(void) const { return 0; };
 
 inline su2double CVariable::GetAnisoRatio(void) {return 1; }
 
-inline su2double CVariable::GetResolutionAdequacy(void) {return 1; }
+inline su2double CVariable::GetResolutionAdequacy(void) const { return 1; }
 
-inline su2double CVariable::GetRANSWeight(void) {return 1; }
+inline su2double* CVariable::GetForcingVector() const { return NULL; }
+
+inline su2double CVariable::GetKineticEnergyRatio(void) const { return 1; }
+
+inline su2double CVariable::GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const { return 0; }
+
+inline su2double** CVariable::GetResolvedTurbStress(void) const { return NULL; }
+
+inline su2double CVariable::GetResolvedKineticEnergy(void) const { return 0; }
+
+inline su2double** CVariable::GetForcingStress(void) { return NULL; }
+
+inline su2double CVariable::GetForcingStress(unsigned short iDim,
+                                             unsigned short jDim) {
+  return 0.0;
+}
+
+inline su2double CVariable::GetProduction(void) const { return 0; }
+
+inline void CVariable::SetProduction(su2double val_production) { }
+
+inline su2double CVariable::GetSGSProduction(void) const { return 0; }
+
+inline void CVariable::SetSGSProduction(su2double val_production) { }
 
 inline void CVariable::SetGammaEff(void) { }
 
@@ -455,13 +488,36 @@ inline void CVariable::SetLaminarViscosity(CConfig *config) { }
 
 inline void CVariable::SetEddyViscosity(su2double eddy_visc) { }
 
+inline void CVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) { }
+
 inline void CVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) { }
 
-inline void CVariable::SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg) { }
+inline void CVariable::SetTurbScales(su2double nu,
+                                     su2double S,
+                                     su2double VelMag,
+                                     su2double L_inf) { }
+
+inline void CVariable::SetKolKineticEnergyRatio(su2double nu) { }
 
 inline void CVariable::SetResolutionAdequacy(su2double val_r_k) { }
 
-inline void CVariable::SetRANSWeight(su2double val_w_rans) { }
+inline void CVariable::SetForcingVector(const su2double* force) { }
+
+inline void CVariable::SetKineticEnergyRatio(su2double val_alpha) { }
+
+inline void CVariable::AddResolvedTurbStress(unsigned short iDim,
+                                               unsigned short jDim,
+                                               su2double val_stress) { }
+
+inline void CVariable::SetResolvedTurbStress(unsigned short iDim,
+                                               unsigned short jDim,
+                                               su2double val_stress) { }
+
+inline void CVariable::SetResolvedKineticEnergy(void) { }
+
+inline void CVariable::SetForcingStress(su2double** val_tau_F) { }
+
+inline void CVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) { }
 
 inline void CVariable::SetThermalConductivity(su2double thermalConductivity) { }
 
@@ -518,6 +574,22 @@ inline su2double CVariable::GetF2blending(void) { return 0; }
 inline su2double CVariable::GetmuT() { return 0;}
 
 inline void CVariable::SetmuT(su2double val_muT) { }
+
+inline void CVariable::SetForcingProduction(su2double val_P_F) { }
+
+inline su2double CVariable::GetForcingProduction(void) { return 0; }
+
+inline void CVariable::SetForcingRatio(su2double P_F_ratio) { }
+
+inline su2double CVariable::GetForcingRatio(void) { return 1; }
+
+inline void CVariable::SetSourceTerms(su2double* val_source_terms) { };
+
+inline su2double* CVariable::GetSourceTerms() { return NULL; };
+
+inline su2double CVariable::GetSAlpha() { return 0; };
+
+inline su2double CVariable::GetScf() { return 0; }
 
 inline su2double* CVariable::GetSolution_Direct() { return NULL; }
 
@@ -876,6 +948,47 @@ inline void CEulerVariable::Set_BGSSolution_k(void) {
 
 inline su2double CNSVariable::GetEddyViscosity(void) { return Primitive[nDim+6]; }
 
+inline su2double** CNSVariable::GetAnisoEddyViscosity(void) const { return AnisoEddyViscosity; }
+
+inline su2double CNSVariable::GetTraceAnisoEddyViscosity(void) const {
+  if (nDim == 2) {
+    return (AnisoEddyViscosity[0][0] + AnisoEddyViscosity[1][1]);
+  } else {
+    return (AnisoEddyViscosity[0][0] + AnisoEddyViscosity[1][1] + AnisoEddyViscosity[2][2]);
+  }
+}
+
+inline su2double CNSVariable::GetKineticEnergyRatio(void) const { return KineticEnergyRatio; }
+
+inline su2double CNSVariable::GetResolvedTurbStress(unsigned short iDim,
+                                                    unsigned short jDim) const {
+  return ResolvedTurbStress[iDim][jDim];
+}
+
+inline su2double** CNSVariable::GetResolvedTurbStress(void) const {
+  return ResolvedTurbStress;
+}
+
+inline su2double CNSVariable::GetResolvedKineticEnergy(void) const {
+  return ResolvedKineticEnergy;
+}
+
+inline su2double CNSVariable::GetResolutionAdequacy(void) const {
+  return ResolutionAdequacy;
+}
+
+inline su2double* CNSVariable::GetForcingVector() const {
+  return ForcingVector;
+}
+
+inline su2double CNSVariable::GetProduction(void) const { return TurbProduction; }
+
+inline void CNSVariable::SetProduction(su2double val_production) { TurbProduction = val_production; }
+
+inline su2double CNSVariable::GetSGSProduction(void) const { return SGSProduction; }
+
+inline void CNSVariable::SetSGSProduction(su2double val_production) { SGSProduction = val_production; }
+
 inline su2double CNSVariable::GetLaminarViscosity(void) { return Primitive[nDim+5]; }
 
 inline su2double CNSVariable::GetThermalConductivity(void) { return Primitive[nDim+7]; }
@@ -923,6 +1036,55 @@ inline void CNSVariable::SetdktdT_rho(su2double dktdT_rho) {
 }
 
 inline void CNSVariable::SetEddyViscosity(su2double eddy_visc) { Primitive[nDim+6] = eddy_visc; }
+
+inline void CNSVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) {
+  /*--- Copy values over, since the pointed-to-values may change ---*/
+  assert(aniso_eddy_visc != NULL);
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    assert(aniso_eddy_visc[iDim] != NULL);
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      AnisoEddyViscosity[iDim][jDim] = aniso_eddy_visc[iDim][jDim];
+    }
+  }
+}
+
+inline void CNSVariable::SetKineticEnergyRatio(const su2double val_alpha) {
+  KineticEnergyRatio = val_alpha;
+}
+
+inline void CNSVariable::AddResolvedTurbStress(unsigned short iDim,
+                                               unsigned short jDim,
+                                               su2double val_stress) {
+  ResolvedTurbStress[iDim][jDim] += val_stress;
+}
+
+inline void CNSVariable::SetResolvedTurbStress(unsigned short iDim,
+                                               unsigned short jDim,
+                                               su2double val_stress) {
+  ResolvedTurbStress[iDim][jDim] = val_stress;
+}
+
+inline void CNSVariable::SetResolvedKineticEnergy(void) {
+  /*--- The turbulent stress is defined as \tau = - \rho u_i u_j,
+   * so we have to use a negative value and divide by density. ---*/
+  ResolvedKineticEnergy = 0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    ResolvedKineticEnergy += -0.5*ResolvedTurbStress[iDim][iDim];
+  }
+  ResolvedKineticEnergy /= GetDensity();
+}
+
+inline void CNSVariable::SetResolutionAdequacy(su2double val_r_k) { ResolutionAdequacy = val_r_k; }
+
+inline void CNSVariable::SetForcingVector(const su2double* force) {
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    ForcingVector[iDim] = force[iDim];
+  }
+}
+
+inline void CNSVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) {
+  ResolvedKineticEnergy = val_kinetic_energy;
+}
 
 inline void CNSVariable::SetWallTemperature(su2double Temperature_Wall ) { Primitive[0] = Temperature_Wall; }
 
@@ -1299,6 +1461,12 @@ inline su2double* CHeatVariable::GetSolution_Direct() { return Solution_Direct;}
 
 inline void CHeatVariable::SetSolution_Direct(su2double *val_solution_direct) { for (unsigned short iVar = 0; iVar < nVar; iVar++) Solution_Direct[iVar] += val_solution_direct[iVar];}
 
+inline void CTurbVariable::SetForcingProduction(su2double val_P_F) {
+  Forcing_Production = val_P_F;
+}
+
+inline su2double CTurbVariable::GetForcingProduction() { return Forcing_Production; }
+
 inline void CTurbSAVariable::SetHarmonicBalance_Source(unsigned short val_var, su2double val_source) { HB_Source[val_var] = val_source; }
 
 inline su2double CTurbSAVariable::GetHarmonicBalance_Source(unsigned short val_var) { return HB_Source[val_var]; }
@@ -1410,38 +1578,37 @@ inline void CDiscAdjVariable::SetSolution_Direct(su2double *val_solution_direct)
   }
 }
 
-inline void CHybridVariable::SetResolutionAdequacy(su2double val_r_k) { Resolution_Adequacy = val_r_k;}
+// FIXME: Still need these?
+inline void CNSVariable::SetForcingStress(su2double** val_tau_F) {
+    // Copy values instead of copying pointers to values that may change
+    for (unsigned short iDim = 0; iDim < nDim; iDim++)
+      for (unsigned short jDim = 0; jDim < nDim; jDim++)
+        Forcing_Stress[iDim][jDim] = val_tau_F[iDim][jDim];
+}
 
-inline su2double CHybridVariable::GetResolutionAdequacy() { return Resolution_Adequacy; }
+inline su2double** CNSVariable::GetForcingStress(void) { return Forcing_Stress; }
 
-inline void CHybridVariable::SetRANSWeight(su2double val_w_rans) {RANS_Weight = val_w_rans;}
+inline su2double CNSVariable::GetForcingStress(unsigned short iDim,
+                                               unsigned short jDim) {
+  if (Forcing_Stress != NULL)
+    return Forcing_Stress[iDim][jDim];
+  else
+    SU2_MPI::Error("Attempted to access forcing stress before forcing stress is properly initialized!", CURRENT_FUNCTION);
+    return 0;   // This return is here to make static checkers happy
+}
+// FIXME: end 'these'
 
-inline su2double CHybridVariable::GetRANSWeight() { return RANS_Weight; }
-
-inline su2double CTurbSSTVariable::GetTurbTimescale() {
+inline su2double CTurbSSTVariable::GetTurbTimescale() const {
   return T;
 }
 
-inline su2double CTurbSSTVariable::GetTurbLengthscale() {
+inline su2double CTurbSSTVariable::GetTurbLengthscale() const {
  return L;
-}
-
-inline su2double CTurbSSTVariable::GetAverageTurbTimescale() {
-  return T_avg;
-}
-
-inline su2double CTurbSSTVariable::GetAverageTurbLengthscale() {
- return L_avg;
 }
 
 inline void CTurbSSTVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) {
   T = val_turb_T;
   L = val_turb_L;
-}
-
-inline void CTurbSSTVariable::SetAverageTurbScales(su2double val_T_avg, su2double val_L_avg) {
-  T_avg = val_T_avg;
-  L_avg = val_L_avg;
 }
 
 inline su2double* CDiscAdjVariable::GetGeometry_Direct() { return Geometry_Direct; }
