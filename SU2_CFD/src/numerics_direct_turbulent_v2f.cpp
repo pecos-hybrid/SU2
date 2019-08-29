@@ -347,7 +347,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   //... production
   // NB: we ignore the Jacobian of production here
 
-  //SGSProduction     = muT*S*S - 2.0/3.0*rho*tke*diverg;
   SGSProduction = muT*S*S;
   if (config->GetBoolDivU_inTKEProduction()) {
     SGSProduction -= (2.0/3.0)*rho*tke*diverg;
@@ -455,7 +454,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
     Rf = min(1.0/TurbT, S/(sqrt(2.0)*3.0));
   }
 
-  //Pf = (C_2f*Pk/(rho*tke_lim) - (C1m6*zeta - ttC1m1)/TurbT) / Lsq;
   Pf = (C_2f*Pk/(rho*tke_lim) - Rf*(C1m6*zeta - ttC1m1)) / Lsq;
 
   // not keeping any derivatives of Pf

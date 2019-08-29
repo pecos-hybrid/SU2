@@ -213,8 +213,8 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
 
     su2double max_eigval = 0.0;
     for (iDim=0; iDim<3; iDim++) {
-      if( std::abs(eigvalues_iLM[iDim]) > max_eigval) {
-        max_eigval = std::abs(eigvalues_iLM[iDim]);
+      if( abs(eigvalues_iLM[iDim]) > max_eigval) {
+        max_eigval = abs(eigvalues_iLM[iDim]);
       }
     }
 

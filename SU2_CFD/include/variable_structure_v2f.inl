@@ -58,7 +58,7 @@ inline void CTurbKEVariable::SetKolKineticEnergyRatio(const su2double nu) {
   const su2double ktot = max(Solution[0], TKE_MIN);
   const su2double tdr = Solution[1];
   const su2double Cnu = 1.0;
-  alpha_kol = min(Cnu*std::sqrt(nu*tdr)/ktot, 1.0);
+  alpha_kol = min(Cnu*sqrt(nu*tdr)/ktot, 1.0);
 }
 
 inline su2double CTurbKEVariable::GetAnisoRatio(void) {

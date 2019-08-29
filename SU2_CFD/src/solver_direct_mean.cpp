@@ -17715,7 +17715,6 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
     for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
       const su2double Volume = geometry->node[iPoint]->GetVolume();
-      //const su2double* U = node[iPoint]->GetSolution();
 
       // Use mean density in forcing, to eliminate (as much as
       // possible) effect of correlation between rho and Force
