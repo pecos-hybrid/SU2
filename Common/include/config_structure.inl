@@ -920,7 +920,9 @@ inline su2double CConfig::GetDeform_Linear_Solver_Error(void) { return Deform_Li
 
 inline unsigned long CConfig::GetLinear_Solver_Iter(void) { return Linear_Solver_Iter; }
 
-inline bool CConfig::GetLinear_Solver_Max_Iter_Error(void) { return Linear_Solver_Max_Iter_Error; }
+inline bool CConfig::GetLinear_Solver_Max_Iter_Error(void) const { return Linear_Solver_Max_Iter_Error; }
+
+inline bool CConfig::GetLinear_Solver_Verbose(void) const { return Linear_Solver_Verbose; }
 
 inline unsigned long CConfig::GetDeform_Linear_Solver_Iter(void) { return Deform_Linear_Solver_Iter; }
 

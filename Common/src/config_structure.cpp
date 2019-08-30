@@ -1187,8 +1187,10 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("LINEAR_SOLVER_ERROR_HEAT", Linear_Solver_Error_Heat, 1E-8);
   /* DESCRIPTION: Maximum number of iterations of the linear solver for the implicit formulation */
   addUnsignedLongOption("LINEAR_SOLVER_ITER", Linear_Solver_Iter, 10);
-  /* DESCRIPTION: Display an error and exit if the linear solver exceeds the max iterations \n DEFAULT: False */
+  /* DESCRIPTION: Display an error and exit if the linear solver exceeds the max iterations \n DEFAULT: False \ingroup Config */
   addBoolOption("LINEAR_SOLVER_MAX_ITER_ERROR", Linear_Solver_Max_Iter_Error, false);
+  /* DESCRIPTION: Print out the residual history of the linear solver during runtime. \n DEFAULT: False \ingroup Config */
+  addBoolOption("LINEAR_SOLVER_VERBOSE", Linear_Solver_Verbose, false);
   /* DESCRIPTION: Max iterations of the linear solver for the FVM heat solver. */
   addUnsignedLongOption("LINEAR_SOLVER_ITER_HEAT", Linear_Solver_Iter_Heat, 10);
   /* DESCRIPTION: Fill in level for the ILU preconditioner */

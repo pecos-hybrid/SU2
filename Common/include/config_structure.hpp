@@ -537,6 +537,7 @@ private:
   su2double Linear_Solver_Error_Heat;        /*!< \brief Min error of the linear solver for the implicit formulation in the fvm heat solver . */
   unsigned long Linear_Solver_Iter;		/*!< \brief Max iterations of the linear solver for the implicit formulation. */
   bool Linear_Solver_Max_Iter_Error; /*!< \brief Program will exit with an error if the linear solver exceeds the max iterations. */
+  bool Linear_Solver_Verbose; /*!< \brief Print out the residual history of the linear solver during runtime. */
   unsigned long Deform_Linear_Solver_Iter;   /*!< \brief Max iterations of the linear solver for the implicit formulation. */
   unsigned long Linear_Solver_Iter_FSI_Struc;		/*!< \brief Max iterations of the linear solver for FSI applications and structural solver. */
   unsigned long Linear_Solver_Iter_Heat;       /*!< \brief Max iterations of the linear solver for the implicit formulation in the fvm heat solver. */
@@ -3570,7 +3571,13 @@ public:
    * \brief Check if the program will error out when reaching the max number of iterations
    * \return True if the program will error out when reaching the max number of iterations
    */
-  bool GetLinear_Solver_Max_Iter_Error(void);
+  bool GetLinear_Solver_Max_Iter_Error(void) const;
+
+  /*!
+   * \brief Check if printing out the residual history for the linear solver.
+   * \return True if printing out the residual history for the linear solver.
+   */
+  bool GetLinear_Solver_Verbose(void) const;
 
   /*!
    * \brief Get max number of iterations of the linear solver for the implicit formulation.
