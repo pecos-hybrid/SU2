@@ -2142,6 +2142,11 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION:  Roe with low dissipation for unsteady flows */
   addEnumOption("ROE_LOW_DISSIPATION", Kind_RoeLowDiss, RoeLowDiss_Map, NO_ROELOWDISS);
 
+  /* DESCRIPTION:  In a Roe-like scheme with upwind/central blending, this
+   * is the minimum weight given to the upwinding. Values below 0.005 have
+   * been observed to be unstable for some simulations. */
+  addDoubleOption("ROE_LOW_DISSIPATION_MIN", Roe_Min_Dissipation, 0.01);
+
   /* DESCRIPTION: Activate SA Quadratic Constitutive Relation, 2000 version */
   addBoolOption("SA_QCR", QCR, false);
   

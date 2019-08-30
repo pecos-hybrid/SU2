@@ -1855,6 +1855,8 @@ inline bool CConfig::isDESBasedModel(void) {
 
 inline unsigned short CConfig::GetKind_RoeLowDiss(void) {return Kind_RoeLowDiss; }
 
+inline su2double CConfig::GetRoe_Min_Dissipation(void) const {return Roe_Min_Dissipation; }
+
 inline bool CConfig::BlendUpwindCentralFluxes(void) const {
   const bool scheme_supports_blending = (Kind_Upwind_Flow == ROE) ||
       (Kind_Upwind_Flow == SLAU) || (Kind_Upwind_Flow == SLAU2);

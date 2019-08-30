@@ -961,6 +961,7 @@ private:
   su2double Const_DES;   /*!< \brief Detached Eddy Simulation Constant. */
   unsigned short Kind_HybridRANSLES; /*!< \brief Kind of Hybrid RANS/LES. */
   unsigned short Kind_RoeLowDiss;    /*!< \brief Kind of Roe scheme with low dissipation for unsteady flows. */
+  su2double Roe_Min_Dissipation;    /*!< \brief In a Roe-like scheme with upwind/central blending, this is the minimum weight given to the upwinding. */
   bool QCR;                   /*!< \brief Spalart-Allmaras with Quadratic Constitutive Relation, 2000 version (SA-QCR2000) . */
   su2double *default_vel_inf, /*!< \brief Default freestream velocity array for the COption class. */
   *default_eng_cyl,           /*!< \brief Default engine box array for the COption class. */
@@ -8200,6 +8201,12 @@ public:
    * \return Value of Low dissipation approach.
    */
    unsigned short GetKind_RoeLowDiss(void);
+
+  /*!
+   * \brief Get the Kind of Roe Low Dissipation Scheme for Unsteady flows.
+   * \return Value of Low dissipation approach.
+   */
+   su2double GetRoe_Min_Dissipation(void) const;
 
    /*!
     * \brief Check if an upwind/central flux blending scheme should be applied.
