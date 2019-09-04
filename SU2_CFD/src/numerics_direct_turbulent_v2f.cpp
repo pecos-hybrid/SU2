@@ -357,7 +357,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
     /*--- Limit alpha to protect from imbalance in k_model vs k_resolved. ---*/
     if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
-      //SGSProduction *= KineticEnergyRatio;
       const su2double alpha = KineticEnergyRatio;
       const su2double alpha_fac = alpha*(2.0 - alpha);
       SGSProduction     = alpha_fac*muT*S*S - 2.0/3.0*rho*alpha*tke*diverg;

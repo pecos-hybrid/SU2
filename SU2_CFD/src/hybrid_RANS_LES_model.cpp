@@ -204,13 +204,6 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     SolveGeneralizedEigen(invLengthTensor, ResolutionTensor,
                           eigvalues_iLM, eigvectors_iLM);
 
-    // std::vector<su2double>::iterator iter;
-    // iter = max_element(eigvalues_iLM.begin(), eigvalues_iLM.end());
-    // unsigned short max_index = distance(eigvalues_iLM.begin(), iter);
-
-    // const su2double C_r = 3.0;
-    // r_k = C_r*eigvalues_iLM[max_index];
-
     su2double max_eigval = 0.0;
     for (iDim=0; iDim<3; iDim++) {
       if( abs(eigvalues_iLM[iDim]) > max_eigval) {
@@ -232,7 +225,6 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     frobenius_norm = sqrt(frobenius_norm);
 
     const su2double C_r = 1.0;
-    //const su2double C_r = 3.0; // Just to see what happens!
     const su2double r_k_min = 1.0E-8;
     const su2double r_k_max = 30;
     r_k = C_r*min(max_eigval, frobenius_norm);
@@ -352,10 +344,14 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
                                                mean_eddy_visc,
                                                aniso_eddy_viscosity);
 
-    // /*--- XXX: This is an ad-hoc correction
-    //  * Rescale the eddy viscosity to rapidly remove fluctuations where
-    //  * resolved turbulence has been transported into regions with
-    //  * insufficient resolution ---*/
+    /*--- XXX: This is an ad-hoc correction
+     * Rescale the eddy viscosity to rapidly remove fluctuations where
+     * resolved turbulence has been transported into regions with
+     * insufficient resolution.
+     *
+     * This rescaling has been temporarily removed to improve the
+     * of the model for fully-developed channel flow problems.  It is
+     * unclear how necessary it is more more complex problems. ---*/
 
     // const su2double avg_resolution_adequacy =
     //   solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
@@ -561,6 +557,11 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
   // here.  TODO: Add divergence contribution.
 
+  /*--- Testing on the WMH indicates that scaling the whole stress by
+   * alpha*(2-alpha) improves the model performance.  That change would
+   * make the turbulent kinetic energy inconsistent, so it is avoided here.
+   * But that indicates there's some other issue. ---*/
+
   su2double alpha_fac = alpha*(2.0 - alpha);
   alpha_fac = max(alpha_fac, 1e-8);
   alpha_fac = min(alpha_fac, 1.0);
@@ -602,8 +603,6 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
           Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][kDim]*Om[kDim][jDim];
         }
         // rho*k contribtuion
-	// should this part be just alpha scaling?
-        //Pij[iDim][jDim] -= 2.0*alpha_fac*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
 	Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
       }
     }
@@ -633,17 +632,6 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
         0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2));
     }
   }
-
-  // No extra zeta here when using alpha*(2-alpha) in stress
-  // // NB: v2 is pre-multiplied by alpha and ktot is not
-  // const su2double fac0 = 1.5*sqrt(1.5)*v2*sqrt(v2);
-  // const su2double fac1 = ktot / (1.5*v2);
-  // for (iDim = 0; iDim < nDim; iDim++) {
-  //   for (jDim = 0; jDim < nDim; jDim++) {
-  //     invLengthTensor[iDim][jDim] =
-  //       0.5*fac1*(Pij[iDim][jDim] + Pij[jDim][iDim])/fac0;
-  //   }
-  // }
 
 #ifndef NDEBUG
   // check for nans

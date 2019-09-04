@@ -164,14 +164,8 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
 
   /*--- Limit alpha to protect from imbalance in k_model vs k_resolved ---*/
-  //const su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j), 0.0), 1.0);
+
   su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j), 0.0), 1.0);
-
-  // use more complex scaling
-  //su2double Mean_Alpha_Fcn = Mean_Alpha*(2.0 - Mean_Alpha);
-
-  // const su2double Alpha0 = 0.1; // offset alpha
-  // const su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j)+Alpha0, 0.0), 1.0);
 
   /*--- Mean gradient approximation ---*/
 
@@ -244,10 +238,6 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
       }
     } else {
       const su2double dist_ij = sqrt(dist_ij_2);
-      // SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
-      //                dist_ij, UnitNormal);
-      // SetHeatFluxJacobian(Mean_PrimVar, Mean_Laminar_Viscosity,
-      //                     Mean_Eddy_Viscosity, dist_ij, UnitNormal);
       SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, 0,
                      dist_ij, UnitNormal);
       AddTauSGETJacobian(Mean_PrimVar, Mean_Aniso_Eddy_Viscosity,
@@ -304,9 +294,6 @@ void CAvgGrad_Hybrid::AddTauSGS(const su2double *val_primvar,
 
   for (iDim = 0 ; iDim < nDim; iDim++) {
     for (jDim = 0 ; jDim < nDim; jDim++) {
-      // tau[iDim][jDim] += val_alpha*val_eddy_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
-      //                   - TWO3*val_alpha*val_eddy_viscosity*div_vel*delta[iDim][jDim]
-      //                   - TWO3*Density*val_alpha*val_turb_ke*delta[iDim][jDim];
        tau[iDim][jDim] += mut_sgs*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
                          - TWO3*mut_sgs*div_vel*delta[iDim][jDim]
                          - TWO3*Density*val_alpha*val_turb_ke*delta[iDim][jDim];
