@@ -3550,84 +3550,89 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
     }
   }
 
-  // If set number of RK steps or any of coefficient vectors, check
-  // for consistency and put Butcher tableau coefficients into matrix
-  if (nRKStep != 0 || nRKBvec != 0 || nRKCvec != 0 || nRKAmat != 0) {
-    // check for consistency
-    if (nRKStep != nRKBvec) {
-      cout << "Number of RK steps inconsistent with RK_BVEC entry." << endl;
-      cout << "nRKStep = " << nRKStep << ", nRKBvec = " << nRKBvec << endl;
-      exit(EXIT_FAILURE);
-    }
-    if (nRKStep != nRKCvec) {
-      cout << "Number of RK steps inconsistent with RK_CVEC entry." << endl;
-      exit(EXIT_FAILURE);
-    }
+  /*--- We don't check SMR91 because the coefficients are hardcoded. ---*/
 
-    unsigned short namat_expected = (nRKStep*nRKStep - nRKStep)/2;
-    if (nRKAmat != namat_expected) {
-      cout << "Number of RK steps inconsistent with RK_AMAT_LOWER entry." << endl;
-      exit(EXIT_FAILURE);
-    }
+  if (Kind_TimeIntScheme_Flow == RUNGE_KUTTA_LIMEX_EDIRK ||
+      Kind_TimeIntScheme_Flow == RUNGE_KUTTA_EXPLICIT) {
+    // If set number of RK steps or any of coefficient vectors, check
+    // for consistency and put Butcher tableau coefficients into matrix
+    if (nRKStep != 0 || nRKBvec != 0 || nRKCvec != 0 || nRKAmat != 0) {
+      // check for consistency
+      if (nRKStep != nRKBvec) {
+        cout << "Number of RK steps inconsistent with RK_BVEC entry." << endl;
+        cout << "nRKStep = " << nRKStep << ", nRKBvec = " << nRKBvec << endl;
+        exit(EXIT_FAILURE);
+      }
+      if (nRKStep != nRKCvec) {
+        cout << "Number of RK steps inconsistent with RK_CVEC entry." << endl;
+        exit(EXIT_FAILURE);
+      }
 
-    // If consistent, translate A mat input to full matrix
-    unsigned short count = 0;
-    RK_aMat = new su2double* [nRKStep];
-    for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
-      RK_aMat[iRKStep] = new su2double [nRKStep];
-      for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
-        if (iRKStep>jRKStep) {
-          RK_aMat[iRKStep][jRKStep] = RK_aMat_read[count];
-          count++;
-        } else {
-          RK_aMat[iRKStep][jRKStep] = 0.0;
+      unsigned short namat_expected = (nRKStep*nRKStep - nRKStep)/2;
+      if (nRKAmat != namat_expected) {
+        cout << "Number of RK steps inconsistent with RK_AMAT_LOWER entry." << endl;
+        exit(EXIT_FAILURE);
+      }
+
+      // If consistent, translate A mat input to full matrix
+      unsigned short count = 0;
+      RK_aMat = new su2double* [nRKStep];
+      for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
+        RK_aMat[iRKStep] = new su2double [nRKStep];
+        for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
+          if (iRKStep>jRKStep) {
+            RK_aMat[iRKStep][jRKStep] = RK_aMat_read[count];
+            count++;
+          } else {
+            RK_aMat[iRKStep][jRKStep] = 0.0;
+          }
         }
       }
+
     }
 
-  }
+    // If set any of implicit coefficient vectors, check
+    // for consistency and put Butcher tableau coefficients into matrix
+    if (nRKBvecImp != 0 || nRKCvecImp != 0 || nRKAmatImp != 0) {
+      // check for consistency
 
-  // If set any of implicit coefficient vectors, check
-  // for consistency and put Butcher tableau coefficients into matrix
-  if (nRKBvecImp != 0 || nRKCvecImp != 0 || nRKAmatImp != 0) {
-    // check for consistency
+      // Used for EDIRK s.t. the number of implicit steps is one less
+      // than total number of steps
+      unsigned short nImp = nRKStep - 1;
 
-    // Used for EDIRK s.t. the number of implicit steps is one less
-    // than total number of steps
-    unsigned short nImp = nRKStep - 1;
+      if (nImp != nRKBvecImp) {
+        cout << "Number of RK steps inconsistent with RK_BVEC_IMP entry." << endl;
+        cout << "nRKStep = " << nRKStep << ", nRKBvecImp = " << nRKBvecImp << endl;
+        exit(EXIT_FAILURE);
+      }
+      if (nImp != nRKCvecImp) {
+        cout << "Number of RK steps inconsistent with RK_CVEC_IMP entry." << endl;
+        cout << "nRKStep = " << nRKStep << ", nRKCvecImp = " << nRKCvecImp << endl;
+        exit(EXIT_FAILURE);
+      }
 
-    if (nImp != nRKBvecImp) {
-      cout << "Number of RK steps inconsistent with RK_BVEC_IMP entry." << endl;
-      cout << "nRKStep = " << nRKStep << ", nRKBvecImp = " << nRKBvecImp << endl;
-      exit(EXIT_FAILURE);
-    }
-    if (nImp != nRKCvecImp) {
-      cout << "Number of RK steps inconsistent with RK_CVEC_IMP entry." << endl;
-      cout << "nRKStep = " << nRKStep << ", nRKCvecImp = " << nRKCvecImp << endl;
-      exit(EXIT_FAILURE);
-    }
+      unsigned short namat_expected = (nImp*nImp + nImp)/2;
+      if (nRKAmatImp != namat_expected) {
+        cout << "Number of RK steps inconsistent with RK_AMAT_LOWER_IMP entry." << endl;
+        exit(EXIT_FAILURE);
+      }
 
-    unsigned short namat_expected = (nImp*nImp + nImp)/2;
-    if (nRKAmatImp != namat_expected) {
-      cout << "Number of RK steps inconsistent with RK_AMAT_LOWER_IMP entry." << endl;
-      exit(EXIT_FAILURE);
-    }
-
-    // If consistent, translate A mat input to full matrix
-    unsigned short count = 0;
-    RK_aMat_imp = new su2double* [nImp];
-    for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
-      RK_aMat_imp[iRKStep] = new su2double [nImp];
-      for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
-        if (iRKStep>=jRKStep) {
-          RK_aMat_imp[iRKStep][jRKStep] = RK_aMat_read_imp[count];
-          count++;
-        } else {
-          RK_aMat_imp[iRKStep][jRKStep] = 0.0;
+      // If consistent, translate A mat input to full matrix
+      unsigned short count = 0;
+      RK_aMat_imp = new su2double* [nImp];
+      for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
+        RK_aMat_imp[iRKStep] = new su2double [nImp];
+        for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
+          if (iRKStep>=jRKStep) {
+            RK_aMat_imp[iRKStep][jRKStep] = RK_aMat_read_imp[count];
+            count++;
+          } else {
+            RK_aMat_imp[iRKStep][jRKStep] = 0.0;
+          }
         }
       }
-    }
 
+    }
   }
 
   if (nIntCoeffs == 0) {
