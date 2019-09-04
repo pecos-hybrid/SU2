@@ -636,6 +636,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
     /*! \brief HYBRID_TESTING_SCHEME \n DESCRIPTION: Use an optional scheme for testing the model-split hybridization. \n Options: see \link Hybrid_Testing_Map \endlink \n DEFAULT: FULL_HYBRID_RANS_LES \ingroup Config */
   addEnumOption("HYBRID_RANS_LES_TESTING", Kind_HybridRANSLES_Testing, Hybrid_Testing_Map, FULL_HYBRID_RANS_LES);
+
+  /*! \brief FLUCT_STRESS_DAMPING \n DESCRIPTION: Specify the damping that will occur for the fluctuating stress in high-AR cells \n Options: see \link Hybrid_Fluct_Stress_Damping_Map \endlink \n DEFAULT: BLEND_STRESS_TO_ZERO \ingroup Config */
+  addEnumOption("FLUCT_STRESS_DAMPING", Kind_Hybrid_Fluct_Stress_Damping, Hybrid_Fluct_Stress_Damping_Map, BLEND_STRESS_TO_ZERO);
   
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RK_INDICATOR);

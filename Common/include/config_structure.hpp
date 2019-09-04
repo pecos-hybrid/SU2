@@ -520,6 +520,7 @@ private:
   Kind_DV_FEA;				/*!< \brief Kind of Design Variable for FEA problems.*/
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
   unsigned short Kind_HybridRANSLES_Testing; /*!< \brief Hybrid RANS/LES blending definition */
+  unsigned short Kind_Hybrid_Fluct_Stress_Damping; /*!< \brief Damping of the fluctuating stress in high-AR cells (only in model-split hybrid RANS/LES) */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
   su2double *Hybrid_Forcing_Periodic_Length;  /*!< \brief Domain lengths in periodic directions for hybrid forcing */
@@ -3787,6 +3788,15 @@ public:
    * \return Kind of testing scheme.
    */
   unsigned short GetKind_HybridRANSLES_Testing(void);
+
+  /*!
+   * \brief Get the kind of damping for fluctuating stress in high-AR cells.
+   *
+   * This option is only used in the model-split hybridization.
+   *
+   * \return Kind of damping for the fluctuating stress.
+   */
+  unsigned short GetKind_Hybrid_Fluct_Stress_Damping(void) const;
 
   /*!
    * \brief Get the kind of hybrid RANS/LES resolution adequacy indicator.

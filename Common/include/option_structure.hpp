@@ -733,6 +733,21 @@ static const map<string, ENUM_HYBRID_RANS_LES_TESTING> Hybrid_Testing_Map = CCre
 ("FULL_HYBRID", FULL_HYBRID_RANS_LES);
 
 /*!
+ * \brief Types of damping for the fluctuating stress
+ *
+ * This is only used in the model-split hybrid RANS/LES model
+ */
+enum ENUM_FLUCT_STRESS_DAMPING {
+  NO_STRESS_DAMPING, /*!< \brief Don't damp fluctuating stress in high-AR cells */
+  BLEND_STRESS_TO_ZERO, /*!< \brief Damp fluctuating stress in high-AR cells to zero */
+  BLEND_STRESS_TO_RANS /*!< \brief Blend fluctuating stress with RANS stress in high-AR cells */
+};
+static const map<string, ENUM_FLUCT_STRESS_DAMPING> Hybrid_Fluct_Stress_Damping_Map = CCreateMap<string, ENUM_FLUCT_STRESS_DAMPING>
+("NONE"                 , NO_STRESS_DAMPING)
+("BLEND_STRESS_TO_ZERO" , BLEND_STRESS_TO_ZERO)
+("BLEND_STRESS_TO_RANS" , BLEND_STRESS_TO_RANS);
+
+/*!
  * \brief Types of hybrid RANS/LES resolution adeqeuacy indicators.
  *
  * These define the way mesh's ability to resolve turbulence is measured.
