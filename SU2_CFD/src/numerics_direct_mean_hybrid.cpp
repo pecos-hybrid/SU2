@@ -320,6 +320,16 @@ void CAvgGrad_Hybrid::AddTauSGET(su2double **val_gradprimvar,
       }
     }
   }
+
+  // Make tauSGET trace = 0
+
+  su2double traceTau = 0;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    traceTau += tau[iDim][iDim];
+  }
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    tau[iDim][iDim] -= traceTau/3;
+  }
 }
 
 void CAvgGrad_Hybrid::AddTauSGETJacobian(su2double *val_Mean_PrimVar,
