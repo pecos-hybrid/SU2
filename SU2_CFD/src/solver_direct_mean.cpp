@@ -19219,15 +19219,3 @@ void CNSSolver::UpdateAverage(const su2double weight,
   update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
   average_node[iPoint]->SetForce(update_mean_F);
 }
-
-void CEulerSolver::SetBulk_Forcing(CGeometry *geometry, CSolver **solver_container, CConfig *config,
-                                   unsigned short iMesh, unsigned long Iteration) {
-
-  su2double local_vol = 0, local_momentum = 0, local_temp = 0;
-  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
-    const su2double cell_volume = geometry->node[iPoint]->GetVolume();
-    local_vol += cell_volume;
-  }
-
-}
-
