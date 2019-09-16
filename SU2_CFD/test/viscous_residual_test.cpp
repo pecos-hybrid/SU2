@@ -620,7 +620,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithModelSplit, ViscousResidualFixture) {
 
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
-  su2double expected_residual[nVar] = {0, -12, 12, 0, 12};
+  su2double expected_residual[nVar] = {0, -18, 12, 0, 6};
   expected_jacobian_i[1][0] = 8;
   expected_jacobian_i[1][1] = -8;
   expected_jacobian_i[2][0] = 12;
@@ -633,13 +633,13 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithModelSplit, ViscousResidualFixture) {
       expected_jacobian_j[iVar][jVar] = -expected_jacobian_i[iVar][jVar];
     }
   }
-  expected_jacobian_i[4][0] = 32.75;
-  expected_jacobian_i[4][1] = -3.5;
+  expected_jacobian_i[4][0] = 35.75;
+  expected_jacobian_i[4][1] = -6.5;
   expected_jacobian_i[4][2] = 15;
   expected_jacobian_i[4][3] = 13.5;
 
-  expected_jacobian_j[4][0] = -44.75;
-  expected_jacobian_j[4][1] = -8.5;
+  expected_jacobian_j[4][0] = -41.75;
+  expected_jacobian_j[4][1] = -11.5;
   expected_jacobian_j[4][2] = -3;
   expected_jacobian_j[4][3] = -13.5;
 
