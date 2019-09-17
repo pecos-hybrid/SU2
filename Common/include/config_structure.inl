@@ -1524,6 +1524,10 @@ inline bool CConfig::Low_Mach_Correction(void) { return Low_Mach_Corr; }
 
 inline bool CConfig::GetGravityForce(void) { return GravityForce; }
 
+inline void CConfig::SetBody_Force_Vector(su2double val_force, unsigned short iDim) {
+  Body_Force_Vector[iDim] = val_force;
+}
+
 inline bool CConfig::GetBody_Force(void) { return Body_Force; }
 
 inline su2double* CConfig::GetBody_Force_Vector(void) { return Body_Force_Vector; }

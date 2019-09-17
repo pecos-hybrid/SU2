@@ -5191,6 +5191,9 @@ void CSourceBodyForce::ComputeResidual(su2double *val_residual, CConfig *config)
   unsigned short iDim;
   su2double Force_Ref = config->GetForce_Ref();
 
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    Body_Force_Vector[iDim] = config->GetBody_Force_Vector()[iDim];
+
   if (compressible) {
 
     /*--- Zero the continuity contribution ---*/

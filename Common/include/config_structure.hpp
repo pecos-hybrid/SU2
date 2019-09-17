@@ -5614,6 +5614,13 @@ public:
   su2double* GetBody_Force_Vector(void);
 
   /*!
+   * \brief Set a component of the body force.
+   * \param[in] val_force - The value of the component of the body force
+   * \param[in] iDim - The component index
+   */
+  void SetBody_Force_Vector(su2double val_force, unsigned short iDim);
+
+  /*!
    * \brief Get information about the rotational frame.
    * \return <code>TRUE</code> if there is a rotational frame; otherwise <code>FALSE</code>.
    */

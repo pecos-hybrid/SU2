@@ -5434,8 +5434,23 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 
   if (body_force) {
 
+    const su2double target_momentum = 0.28294334329;
+    const su2double force = target_momentum - bulk_density * bulk_velocity;
+    config->SetBody_Force_Vector(0.0, 1);
+    config->SetBody_Force_Vector(0.0, 2);
+    if (rank == MASTER_NODE) {
+      ofstream outfile;
+      outfile.open("f.log", ios::app);
+      const su2double dt = node[0]->GetDelta_Time();
+      outfile << force/dt << "\n";
+      outfile.close();
+    }
+
     /*--- Loop over all points ---*/
     for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+      const su2double dt = node[iPoint]->GetDelta_Time();
+      config->SetBody_Force_Vector(force/dt, 0);
 
       /*--- Load the conservative variables ---*/
       numerics->SetConservative(node[iPoint]->GetSolution(),
@@ -17291,6 +17306,11 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   
   if (implicit && !config->GetDiscrete_Adjoint()) Jacobian.SetValZero();
 
+  /*--- Compute the bulk quantities ---*/
+  if (iMesh == 0) {
+    SetBulk_Forcing(geometry, solver_container, config);
+  }
+
   /*--- Error message ---*/
   
   if (config->GetConsole_Output_Verb() == VERB_HIGH) {
@@ -19219,3 +19239,46 @@ void CNSSolver::UpdateAverage(const su2double weight,
   update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
   average_node[iPoint]->SetForce(update_mean_F);
 }
+
+void CEulerSolver::SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfig *config) {
+
+  // XXX: This only works in the x direction for now
+
+  su2double local_vol = 0, local_mass, local_momentum = 0, local_temp = 0;
+  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
+    const su2double cell_volume = geometry->node[iPoint]->GetVolume();
+    if (cell_volume > 0.0) {
+      const su2double momentum_x = solver[FLOW_SOL]->node[iPoint]->GetSolution(1);
+      local_vol += cell_volume;
+      local_mass += cell_volume * solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
+      local_momentum += cell_volume * momentum_x;
+      local_temp += cell_volume * momentum_x *
+        solver[FLOW_SOL]->node[iPoint]->GetTemperature();
+    }
+  }
+#ifdef HAVE_MPI
+    su2double send_integrals[4], recv_integrals[4];
+    send_integrals[0] = local_vol;
+    send_integrals[1] = local_mass;
+    send_integrals[2] = local_momentum;
+    send_integrals[3] = local_temp;
+    SU2_MPI::Reduce(send_integrals, recv_integrals, 4, MPI_DOUBLE, MPI_SUM, MASTER_NODE, MPI_COMM_WORLD);
+    SU2_MPI::Bcast(recv_integrals, 4, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+    const su2double global_vol = recv_integrals[0];
+    const su2double global_mass = recv_integrals[1];
+    const su2double global_momentum = recv_integrals[2];
+    const su2double global_temp = recv_integrals[3];
+#else
+    const su2double global_vol = local_vol;
+    const su2double global_mass = local_mass;
+    const su2double global_momentum = local_momentum;
+    const su2double global_temp = local_temp;
+#endif
+
+ 
+  bulk_density = global_mass / global_vol;
+  bulk_velocity = global_momentum / (bulk_density * global_vol);
+  bulk_temperature = global_temp /
+      (bulk_density * bulk_velocity * global_vol);
+}
+

@@ -4663,6 +4663,9 @@ protected:
   su2double ****SlidingState;
   int **SlidingStateNodes;
 
+  /*-- Bulk variables ---*/
+  su2double bulk_density, bulk_velocity, bulk_temperature;
+
 public:
   
   
@@ -6903,6 +6906,8 @@ public:
                     const string& restart_filename,
                     CConfig* config,
                     CGeometry** geometry);
+
+  void SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfig *config);
 };
 
   
