@@ -753,16 +753,12 @@ static const map<string, ENUM_FLUCT_STRESS_DAMPING> Hybrid_Fluct_Stress_Damping_
  * These define the way mesh's ability to resolve turbulence is measured.
  */
 enum ENUM_HYBRID_RES_IND {
-    RK_INDICATOR                  = 0, /*!< \brief Structure fcn theory indicator */
-    RDELTA_INDICATOR_FULLP        = 1, /*!< \brief Subgrid-production-based indicator */
-    RDELTA_INDICATOR_STRAIN_ONLY  = 2, /*!< \brief Like RDELTA_INDICATOR_FULLP but only strain part */
-    RDELTA_INDICATOR_FULLP_VELCON = 3 /*!< \brief Like RDELTA_INDICATOR_FULLP but contracted over velocity instead of dimension */
+    RDELTA_INDICATOR_FULLP_WITH_DIV, /*!< \brief Subgrid production-based indicator, contracted over velocity instead of dimension */
+    RDELTA_INDICATOR_FULLP_VELCON  /*!< \brief Same as FULLP_WITH_DIV, but omitting the divergence of velocity term from the velocity gradient */
 };
 static const map<string, ENUM_HYBRID_RES_IND> Hybrid_Res_Ind_Map = CCreateMap<string, ENUM_HYBRID_RES_IND>
-("RK"                 , RK_INDICATOR)
-("RDELTA_FULLP"       , RDELTA_INDICATOR_FULLP)
-("RDELTA_STRAIN_ONLY" , RDELTA_INDICATOR_STRAIN_ONLY)
-("RDELTA_FULLP_VELCON", RDELTA_INDICATOR_FULLP_VELCON);
+("RDELTA_INDICATOR_FULLP_WITH_DIV", RDELTA_INDICATOR_FULLP_WITH_DIV)
+("RDELTA_INDICATOR_FULLP_VELCON", RDELTA_INDICATOR_FULLP_VELCON);
 
 /*!
  * \brief Type of subgrid energy transfer (SGET) model

@@ -640,8 +640,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*! \brief FLUCT_STRESS_DAMPING \n DESCRIPTION: Specify the damping that will occur for the fluctuating stress in high-AR cells \n Options: see \link Hybrid_Fluct_Stress_Damping_Map \endlink \n DEFAULT: BLEND_STRESS_TO_ZERO \ingroup Config */
   addEnumOption("FLUCT_STRESS_DAMPING", Kind_Hybrid_Fluct_Stress_Damping, Hybrid_Fluct_Stress_Damping_Map, BLEND_STRESS_TO_ZERO);
   
-  /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
-  addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RK_INDICATOR);
+  /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RDELTA_INDICATOR_FULLP_VELCON \ingroup Config */
+  addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RDELTA_INDICATOR_FULLP_VELCON);
 
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
