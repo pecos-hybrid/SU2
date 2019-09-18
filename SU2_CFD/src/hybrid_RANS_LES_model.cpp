@@ -508,10 +508,11 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
           // rotation contribution
           Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][kDim]*Om[kDim][jDim];
           // Isotropic contribution (from delta_ij div_vel)
-          Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][jDim]*div_avg_vel/3.0;
+          Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][jDim]*div_vel/3.0;
         }
         // rho*k contribtuion
-	Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
+	Pij[iDim][jDim] -= 2.0/3.0*alpha*rho*ktot *
+            (Sd[iDim][jDim] + Om[iDim][jDim] + div_vel*delta[iDim][jDim]/3.0);
       }
     }
     break;
