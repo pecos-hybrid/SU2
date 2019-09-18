@@ -627,14 +627,12 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
 
       /*--- Set wall values ---*/
       if (compressible) {
-        //density = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-	//laminar_viscosity = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
-	density = flow_node[iPoint]->GetDensity();
-	laminar_viscosity = flow_node[iPoint]->GetLaminarViscosity();
+        density = flow_node[jPoint]->GetDensity();
+        laminar_viscosity = flow_node[jPoint]->GetLaminarViscosity();
       }
       if (incompressible) {
-        density = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-        laminar_viscosity = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
+        density = flow_node[jPoint]->GetDensity();
+        laminar_viscosity = flow_node[jPoint]->GetLaminarViscosity();
       }
 
       if (config->GetBoolUse_v2f_Explicit_WallBC()) {
@@ -743,6 +741,7 @@ void CTurbKESolver::BC_Isothermal_Wall(CGeometry *geometry,
   // minimize code duplication
   BC_HeatFlux_Wall(geometry, solver_container, conv_numerics,
                    visc_numerics, config, val_marker, iRKStep);
+
 }
 
 void CTurbKESolver::BC_Far_Field(CGeometry *geometry,

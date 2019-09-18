@@ -920,7 +920,9 @@ inline su2double CConfig::GetDeform_Linear_Solver_Error(void) { return Deform_Li
 
 inline unsigned long CConfig::GetLinear_Solver_Iter(void) { return Linear_Solver_Iter; }
 
-inline bool CConfig::GetLinear_Solver_Max_Iter_Error(void) { return Linear_Solver_Max_Iter_Error; }
+inline bool CConfig::GetLinear_Solver_Max_Iter_Error(void) const { return Linear_Solver_Max_Iter_Error; }
+
+inline bool CConfig::GetLinear_Solver_Verbose(void) const { return Linear_Solver_Verbose; }
 
 inline unsigned long CConfig::GetDeform_Linear_Solver_Iter(void) { return Deform_Linear_Solver_Iter; }
 
@@ -1532,6 +1534,8 @@ inline void CConfig::SetSmoothNumGrid(bool val_smoothnumgrid) { SmoothNumGrid = 
 
 inline unsigned short CConfig::GetKind_HybridRANSLES_Testing(void) { return Kind_HybridRANSLES_Testing; }
 
+inline unsigned short CConfig::GetKind_Hybrid_Fluct_Stress_Damping(void) const { return Kind_Hybrid_Fluct_Stress_Damping; }
+
 inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { return Kind_Hybrid_Res_Ind; }
 
 inline bool CConfig::isHybrid_Forced(void) { return Hybrid_Forcing; }
@@ -1857,6 +1861,8 @@ inline bool CConfig::isDESBasedModel(void) {
 }
 
 inline unsigned short CConfig::GetKind_RoeLowDiss(void) {return Kind_RoeLowDiss; }
+
+inline su2double CConfig::GetRoe_Min_Dissipation(void) const {return Roe_Min_Dissipation; }
 
 inline bool CConfig::BlendUpwindCentralFluxes(void) const {
   const bool scheme_supports_blending = (Kind_Upwind_Flow == ROE) ||

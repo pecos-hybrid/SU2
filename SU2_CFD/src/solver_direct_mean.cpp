@@ -17927,7 +17927,6 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
     for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
       const su2double Volume = geometry->node[iPoint]->GetVolume();
-      //const su2double* U = node[iPoint]->GetSolution();
 
       // Use mean density in forcing, to eliminate (as much as
       // possible) effect of correlation between rho and Force
@@ -17945,19 +17944,16 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
 
       // momentum
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        //Residual[iDim+1] = -Volume * U[0] * Force[iDim];
 	Residual[iDim+1] = -Volume * U[0] * (Force[iDim] - MeanForce[iDim]);
-	//Residual[iDim+1] = -Volume * (Force[iDim] - MeanForce[iDim]);
-	//Residual[iDim+1] = -Volume * Force[iDim];
       }
 
       // energy
       Residual[nDim+1] = 0.0;
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        //Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
-	//Residual[nDim+1] += -Volume * U[iDim+1] * (Force[iDim] - MeanForce[iDim]);
-	Residual[nDim+1] += 0.0; // no source in energy?
-	//Residual[nDim+1] += -Volume * (U[iDim+1]/U[0]) * (Force[iDim] - MeanForce[iDim]);
+        /*--- There's no source in the energy equation because we're
+         * tracking the transport of total energy, while the forcing is due
+         * to interactions between resolved and unresolved scales. ---*/
+	Residual[nDim+1] += 0.0;
       }
 
       // update residual
@@ -19629,16 +19625,6 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
   assert(average_node != NULL);
 
-  // QUESTION: When are primitive variables updated?  Are they valid for use here???
-
-  // const su2double* resolved_prim_vars = node[iPoint]->GetPrimitive();
-  // const su2double* average_prim_vars = average_node[iPoint]->GetPrimitive();
-  // su2double fluct_velocity[nDim];
-  // for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-  //   fluct_velocity[iDim] = resolved_prim_vars[iDim+1] - average_prim_vars[iDim+1];
-  // }
-  // const su2double resolved_rho = resolved_prim_vars[nDim+2];
-
   // Call base first, to update averages of conserved variables
   CSolver::UpdateAverage(weight, iPoint, buffer, config);
 
@@ -19649,8 +19635,6 @@ void CNSSolver::UpdateAverage(const su2double weight,
     fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
   }
   const su2double resolved_rho = resolved_vars[0];
-
-
 
   if (config->GetUse_Resolved_Turb_Stress()) {
 
@@ -19694,9 +19678,10 @@ void CNSSolver::UpdateAverage(const su2double weight,
         current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
       }
     }
-    //const su2double new_Pk = production + (current_production - production)*weight;
+
+    /*-- Give Pk a different averaging time than the rest of the terms ---*/
+
     const su2double new_Pk = production + (current_production - production)*weight*0.5; // for Cave=2
-    //const su2double new_Pk = production + (current_production - production)*weight*0.25;
     average_node[iPoint]->SetProduction(new_Pk);
 
     /*--- Update resolved kinetic energy ---*/
@@ -19725,14 +19710,9 @@ void CNSSolver::UpdateAverage(const su2double weight,
   /*--- Update the average of the forcing ---*/
   const su2double* mean_F = average_node[iPoint]->GetForce();
   const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
-  //const su2double* inst_F = node[iPoint]->GetResolutionAdequacy();
   su2double update_mean_F[3];
   update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
   update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
   update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
   average_node[iPoint]->SetForce(update_mean_F);
-
-  /*--- Make sure the average of the solution variables is updated too --*/
-
-  //CSolver::UpdateAverage(weight, iPoint, buffer, config);
 }

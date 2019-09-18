@@ -41,7 +41,7 @@ inline su2double CHybridForcingAbstractBase::TransformCoords(
 inline su2double CHybridForcingTG0::GetTargetProduction(const su2double v2,
                                                         const su2double Tsgs,
                                                         const su2double alpha) const {
-  return C_F * std::sqrt(alpha*v2)/Tsgs;
+  return C_F * sqrt(alpha*v2)/Tsgs;
 }
 
 inline const su2double* CHybridForcingTG0::GetForcingVector(unsigned long iPoint) const {
@@ -60,7 +60,7 @@ inline su2double CHybridForcingTG0::ComputeScalingFactor(
   // TODO: Compare this with Sigfried's improved version once channel
   // validation is successful.
   if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
-    const su2double Sr = std::tanh(1.0 - 1.0/sqrt(resolution_adequacy));
+    const su2double Sr = tanh(1.0 - 1.0/sqrt(resolution_adequacy));
     if (alpha <= alpha_kol) {
       eta = -Ftar * Sr * (alpha - alpha_kol);
     } else {
@@ -81,35 +81,21 @@ inline void CHybridForcingTG0::SetTGField(
   su2double a[3];
 
   for (unsigned int ii=0; ii<3; ii++) {
-    const su2double ell = std::min(Lsgs, dwall);
-    //const su2double ell = Lsgs;
-    const su2double elllim = std::max(ell, 2.0*Lmesh[ii]);
+    const su2double ell = min(Lsgs, dwall);
+    const su2double elllim = max(ell, 2.0*Lmesh[ii]);
 
     if (D[ii] > 0.0) {
-      const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
+      const su2double denom = round(D[ii]/min(elllim, D[ii]));
       a[ii] = M_PI/(D[ii]/denom);
     } else {
       a[ii] = M_PI/elllim;
     }
   }
 
-  // h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
-  // h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
-  // h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
+  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
+  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
+  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
 
-  //// CHANNEL HACK
-  //h[0] = A * cos(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-M_PI/2);
-  //h[1] = B * sin(a[0]*x[0]) * cos(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]-M_PI/2);
-  //h[2] = C * sin(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * cos(a[2]*x[2]-M_PI/2);
-  // // CHANNEL HACK
-  // h[0] = A * cos(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]);
-  // h[1] = B * sin(a[0]*x[0]) * cos(a[1]*(x[1]-1.0)) * sin(a[2]*x[2]);
-  // h[2] = C * sin(a[0]*x[0]) * sin(a[1]*(x[1]-1.0)) * cos(a[2]*x[2]);
-
-  // CHANNEL HACK
-  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*(x[2]-1.0));
-  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*(x[2]-1.0));
-  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*(x[2]-1.0));
 }
 
 inline void CHybridForcingTG0::SetAxiTGField(

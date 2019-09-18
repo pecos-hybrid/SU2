@@ -83,8 +83,8 @@ class TestFlowVariable : public CVariable {
 
     Solution[0] = 1;
     Solution[1] = 23.0867;
-    Solution[2] = -0.0728996;
-    Solution[3] = -0.311579;
+    Solution[2] = -0.311579;
+    Solution[3] = -0.0728996;
 
     nPrimVar = nVar;
     Primitive = new su2double[nPrimVar];
@@ -114,8 +114,8 @@ class TestAvgVariable : public CVariable {
     nPrimVar = nVar;
     Primitive = new su2double[nPrimVar];
     Primitive[1] = 22.8796;
-    Primitive[2] = -0.266714;
-    Primitive[3] = 0.00357933;
+    Primitive[2] = 0.00357933;
+    Primitive[3] = -0.266714;
     ResolutionAdequacy = 0.8;
     KineticEnergyRatio = 0.598898;
   }
@@ -199,8 +199,8 @@ struct ForcingFixture {
       }
     }
     geometry->node[0]->SetResolutionTensor(0, 0, 0.0634665);
-    geometry->node[0]->SetResolutionTensor(1, 1, 0.0146755);
-    geometry->node[0]->SetResolutionTensor(2, 2, 0.0785398);
+    geometry->node[0]->SetResolutionTensor(1, 1, 0.0785398);
+    geometry->node[0]->SetResolutionTensor(2, 2, 0.0146755);
     geometry->node[0]->SetWall_Distance(0.171989);
 
     solver = new CSolver*[MAX_SOLS];
@@ -232,11 +232,9 @@ BOOST_FIXTURE_TEST_CASE(ForcingTest, ForcingFixture) {
   CHybridForcingTG0 forcing(geometry, config);
   forcing.ComputeForcingField(solver, geometry, config);
   const su2double* F = forcing.GetForcingVector(0);
-  // Test values taken from CDP
-  const su2double dt = config->GetDelta_UnstTimeND();
-  const su2double true_F[3] = {-2.5810564961917728E-005/dt,
-                               -1.0608578335743336E-004/dt,
-                               -2.2531677802402187E-004/dt};
+  const su2double true_F[3] = {-0.08043470719730432,
+                               -1.0438793879055037,
+                                0.01922248395257712};
 
   const su2double tolerance = 1E-4;
   BOOST_CHECK_CLOSE_FRACTION(F[0], true_F[0], tolerance);
@@ -277,7 +275,9 @@ BOOST_FIXTURE_TEST_CASE(TaylorGreenFields, ForcingFixture) {
   CHybridForcingTG0 forcing(geometry, config);
   forcing.SetTGField(x, Lsgs, Lmesh, D, dwall, h);
 
-  su2double true_h[3] = {-4.4539063719893331E-003,  -1.8306307791801466E-002,  -3.8880971216165662E-002};
+  su2double true_h[3] = {-4.4539063719893331E-003,
+                          0.012204205194536234,
+                          0.058321456823961781};
   const su2double tolerance = 1E-4;
   BOOST_CHECK_CLOSE_FRACTION(h[0], true_h[0], tolerance);
   BOOST_CHECK_CLOSE_FRACTION(h[1], true_h[1], tolerance);

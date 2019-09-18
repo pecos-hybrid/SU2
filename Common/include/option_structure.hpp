@@ -749,21 +749,32 @@ static const map<string, ENUM_HYBRID_RANS_LES_TESTING> Hybrid_Testing_Map = CCre
 ("FULL_HYBRID", FULL_HYBRID_RANS_LES);
 
 /*!
+ * \brief Types of damping for the fluctuating stress
+ *
+ * This is only used in the model-split hybrid RANS/LES model
+ */
+enum ENUM_FLUCT_STRESS_DAMPING {
+  NO_STRESS_DAMPING, /*!< \brief Don't damp fluctuating stress in high-AR cells */
+  BLEND_STRESS_TO_ZERO, /*!< \brief Damp fluctuating stress in high-AR cells to zero */
+  BLEND_STRESS_TO_RANS /*!< \brief Blend fluctuating stress with RANS stress in high-AR cells */
+};
+static const map<string, ENUM_FLUCT_STRESS_DAMPING> Hybrid_Fluct_Stress_Damping_Map = CCreateMap<string, ENUM_FLUCT_STRESS_DAMPING>
+("NONE"                 , NO_STRESS_DAMPING)
+("BLEND_STRESS_TO_ZERO" , BLEND_STRESS_TO_ZERO)
+("BLEND_STRESS_TO_RANS" , BLEND_STRESS_TO_RANS);
+
+/*!
  * \brief Types of hybrid RANS/LES resolution adeqeuacy indicators.
  *
  * These define the way mesh's ability to resolve turbulence is measured.
  */
 enum ENUM_HYBRID_RES_IND {
-    RK_INDICATOR                  = 0, /*!< \brief Structure fcn theory indicator */
-    RDELTA_INDICATOR_FULLP        = 1, /*!< \brief Subgrid-production-based indicator */
-    RDELTA_INDICATOR_STRAIN_ONLY  = 2, /*!< \brief Like RDELTA_INDICATOR_FULLP but only strain part */
-    RDELTA_INDICATOR_FULLP_VELCON = 3 /*!< \brief Like RDELTA_INDICATOR_FULLP but contracted over velocity instead of dimension */
+    RDELTA_INDICATOR_FULLP_WITH_DIV, /*!< \brief Subgrid production-based indicator, contracted over velocity instead of dimension */
+    RDELTA_INDICATOR_FULLP_VELCON  /*!< \brief Same as FULLP_WITH_DIV, but omitting the divergence of velocity term from the velocity gradient */
 };
 static const map<string, ENUM_HYBRID_RES_IND> Hybrid_Res_Ind_Map = CCreateMap<string, ENUM_HYBRID_RES_IND>
-("RK"                 , RK_INDICATOR)
-("RDELTA_FULLP"       , RDELTA_INDICATOR_FULLP)
-("RDELTA_STRAIN_ONLY" , RDELTA_INDICATOR_STRAIN_ONLY)
-("RDELTA_FULLP_VELCON", RDELTA_INDICATOR_FULLP_VELCON);
+("RDELTA_INDICATOR_FULLP_WITH_DIV", RDELTA_INDICATOR_FULLP_WITH_DIV)
+("RDELTA_INDICATOR_FULLP_VELCON", RDELTA_INDICATOR_FULLP_VELCON);
 
 /*!
  * \brief Type of subgrid energy transfer (SGET) model

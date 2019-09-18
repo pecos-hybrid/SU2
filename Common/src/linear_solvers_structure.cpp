@@ -610,6 +610,7 @@ unsigned long CSysSolve::Solve(CSysMatrix & Jacobian, CSysVector & LinSysRes, CS
   }
 
   /*--- Solve the linear system using a Krylov subspace method ---*/
+  const bool monitoring = config->GetLinear_Solver_Verbose();
   
   if (config->GetKind_Linear_Solver() == BCGSTAB ||
       config->GetKind_Linear_Solver() == FGMRES ||
@@ -643,20 +644,20 @@ unsigned long CSysSolve::Solve(CSysMatrix & Jacobian, CSysVector & LinSysRes, CS
     
     switch (config->GetKind_Linear_Solver()) {
       case BCGSTAB:
-        IterLinSol = BCGSTAB_LinSolver(LinSysRes, LinSysSol, *mat_vec, *precond, SolverTol, MaxIter, &Residual, true);
+        IterLinSol = BCGSTAB_LinSolver(LinSysRes, LinSysSol, *mat_vec, *precond, SolverTol, MaxIter, &Residual, monitoring);
         break;
       case FGMRES:
-        IterLinSol = FGMRES_LinSolver(LinSysRes, LinSysSol, *mat_vec, *precond, SolverTol, MaxIter, &Residual, true);
+        IterLinSol = FGMRES_LinSolver(LinSysRes, LinSysSol, *mat_vec, *precond, SolverTol, MaxIter, &Residual, monitoring);
         break;
       case CONJUGATE_GRADIENT:
-        IterLinSol = CG_LinSolver(LinSysRes, LinSysSol, *mat_vec, *precond, SolverTol, MaxIter, &Residual, true);
+        IterLinSol = CG_LinSolver(LinSysRes, LinSysSol, *mat_vec, *precond, SolverTol, MaxIter, &Residual, monitoring);
         break;
       case RESTARTED_FGMRES:
         IterLinSol = 0;
         while (IterLinSol < config->GetLinear_Solver_Iter()) {
           if (IterLinSol + config->GetLinear_Solver_Restart_Frequency() > config->GetLinear_Solver_Iter())
             MaxIter = config->GetLinear_Solver_Iter() - IterLinSol;
-          IterLinSol += FGMRES_LinSolver(LinSysRes, LinSysSol, *mat_vec, *precond, SolverTol, MaxIter, &Residual, true);
+          IterLinSol += FGMRES_LinSolver(LinSysRes, LinSysSol, *mat_vec, *precond, SolverTol, MaxIter, &Residual, monitoring);
           if (LinSysRes.norm() < SolverTol) break;
           SolverTol = SolverTol*(1.0/LinSysRes.norm());
         }
@@ -676,19 +677,19 @@ unsigned long CSysSolve::Solve(CSysMatrix & Jacobian, CSysVector & LinSysRes, CS
     switch (config->GetKind_Linear_Solver()) {
       case SMOOTHER_LUSGS:
         mat_vec = new CSysMatrixVectorProduct(Jacobian, geometry, config);
-        IterLinSol = Jacobian.LU_SGS_Smoother(LinSysRes, LinSysSol, *mat_vec, SolverTol, MaxIter, &Residual, false, geometry, config);
+        IterLinSol = Jacobian.LU_SGS_Smoother(LinSysRes, LinSysSol, *mat_vec, SolverTol, MaxIter, &Residual, monitoring, geometry, config);
         delete mat_vec;
         break;
       case SMOOTHER_JACOBI:
         mat_vec = new CSysMatrixVectorProduct(Jacobian, geometry, config);
         Jacobian.BuildJacobiPreconditioner();
-        IterLinSol = Jacobian.Jacobi_Smoother(LinSysRes, LinSysSol, *mat_vec, SolverTol, MaxIter, &Residual, false, geometry, config);
+        IterLinSol = Jacobian.Jacobi_Smoother(LinSysRes, LinSysSol, *mat_vec, SolverTol, MaxIter, &Residual, monitoring, geometry, config);
         delete mat_vec;
         break;
       case SMOOTHER_ILU:
         mat_vec = new CSysMatrixVectorProduct(Jacobian, geometry, config);
         Jacobian.BuildILUPreconditioner();
-        IterLinSol = Jacobian.ILU_Smoother(LinSysRes, LinSysSol, *mat_vec, SolverTol, MaxIter, &Residual, false, geometry, config);
+        IterLinSol = Jacobian.ILU_Smoother(LinSysRes, LinSysSol, *mat_vec, SolverTol, MaxIter, &Residual, monitoring, geometry, config);
         delete mat_vec;
         break;
       case SMOOTHER_LINELET:

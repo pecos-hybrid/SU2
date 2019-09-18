@@ -68,11 +68,9 @@ AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ @BOOST_CXX@
 LDADD  =
 LDADD += $(top_builddir)/SU2_CFD/obj/libSU2Core.a
 LDADD += $(top_builddir)/Common/lib/libSU2.a
-#LDADD += @su2_externals_LIBS@ @LAPACK_LD@
-LDADD += @su2_externals_LIBS@ @LAPACK_LDALL@
+LDADD += @su2_externals_LIBS@ @LAPACK_LD@
 if BUILD_LAPACK
-#LDFLAGS  += -mkl
-LDFLAGS  += @LAPACK_LDALL@
+LDFLAGS  += -mkl
 endif
 
 # Test sources

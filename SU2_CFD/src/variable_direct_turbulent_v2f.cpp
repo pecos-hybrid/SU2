@@ -63,9 +63,17 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
   Solution[3] = val_f;	Solution_Old[3] = val_f;
   timescale  = val_Tm;
   lengthscale  = val_Lm;
+  typical_length = lengthscale;
+  typical_time = timescale;
 
   /*--- Initialization of eddy viscosity ---*/  
   muT = val_muT;
+
+  /*--- Initialize kolmogorov scales to arbitrary values ---*/
+
+  alpha_kol = 0.01;
+  kol_time = 0.01 * timescale;
+  kol_length = 0.01 * lengthscale;
 
   /*--- Allocate and initialize solution for the dual time strategy ---*/
   if (dual_time) {
