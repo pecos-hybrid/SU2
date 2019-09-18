@@ -345,8 +345,8 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   su2double Dk, Dk_rk, Dk_re, Dk_rv2;
 
   //... production
+  // NB: we ignore the Jacobian of production here
 
-  SGSProduction     = muT*S*S - 2.0/3.0*rho*tke*diverg;
   SGSProduction = muT*S*S;
   if (config->GetBoolDivU_inTKEProduction()) {
     SGSProduction -= (2.0/3.0)*rho*tke*diverg;
@@ -357,7 +357,10 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
     /*--- Limit alpha to protect from imbalance in k_model vs k_resolved. ---*/
     if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
-      SGSProduction *= KineticEnergyRatio;
+      const su2double alpha = KineticEnergyRatio;
+      const su2double alpha_fac = alpha*(2.0 - alpha);
+      SGSProduction     = alpha_fac*muT*S*S - 2.0/3.0*rho*alpha*tke*diverg;
+
       if (config->GetUse_Resolved_Turb_Stress()) {
         su2double Pk_resolved = 0;
         for (unsigned short iDim = 0; iDim < nDim; iDim++) {

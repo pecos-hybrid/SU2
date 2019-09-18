@@ -165,7 +165,7 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
 
   /*--- Limit alpha to protect from imbalance in k_model vs k_resolved ---*/
 
-  const su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j), 0.0), 1.0);
+  su2double Mean_Alpha = min(max(0.5*(alpha_i + alpha_j), 0.0), 1.0);
 
   /*--- Mean gradient approximation ---*/
 
@@ -238,10 +238,17 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
       }
     } else {
       const su2double dist_ij = sqrt(dist_ij_2);
-      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
+      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, 0,
                      dist_ij, UnitNormal);
+      AddTauSGETJacobian(Mean_PrimVar, Mean_Aniso_Eddy_Viscosity,
+			 dist_ij, UnitNormal);
+
       SetHeatFluxJacobian(Mean_PrimVar, Mean_Laminar_Viscosity,
-                          Mean_Eddy_Viscosity, dist_ij, UnitNormal);
+                          0, dist_ij, UnitNormal);
+
+      AddSGETHeatFluxJacobian(Mean_PrimVar, Mean_Aniso_Eddy_Viscosity,
+			      dist_ij, UnitNormal);
+
       GetViscousProjJacs(Mean_PrimVar, Area, Proj_Flux_Tensor,
                          val_Jacobian_i, val_Jacobian_j);
     }
@@ -278,15 +285,18 @@ void CAvgGrad_Hybrid::AddTauSGS(const su2double *val_primvar,
   unsigned short iDim, jDim;
   const su2double Density = val_primvar[nDim+2];
 
+  const su2double alpha_fac = val_alpha*(2.0 - val_alpha);
+  const su2double mut_sgs = alpha_fac*val_eddy_viscosity;
+
   su2double div_vel = 0.0;
   for (iDim = 0 ; iDim < nDim; iDim++)
     div_vel += val_gradprimvar[iDim+1][iDim];
 
   for (iDim = 0 ; iDim < nDim; iDim++) {
     for (jDim = 0 ; jDim < nDim; jDim++) {
-      tau[iDim][jDim] += val_alpha*val_eddy_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
-                        - TWO3*val_alpha*val_eddy_viscosity*div_vel*delta[iDim][jDim]
-                        - TWO3*Density*val_alpha*val_turb_ke*delta[iDim][jDim];
+       tau[iDim][jDim] += mut_sgs*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
+                         - TWO3*mut_sgs*div_vel*delta[iDim][jDim]
+                         - TWO3*Density*val_alpha*val_turb_ke*delta[iDim][jDim];
     }
   }
 }
@@ -311,6 +321,44 @@ void CAvgGrad_Hybrid::AddTauSGET(su2double **val_gradprimvar,
     }
   }
 }
+
+void CAvgGrad_Hybrid::AddTauSGETJacobian(su2double *val_Mean_PrimVar,
+					 su2double **mu,
+					 const su2double val_dist_ij,
+					 const su2double *nvec) {
+
+  /*--- QCR and wall functions are **not** accounted for here ---*/
+
+  const su2double Density = val_Mean_PrimVar[nDim+2];
+  const su2double xi = 1.0/(Density*val_dist_ij);
+
+  su2double tauSGET_mom[3][3];
+
+  // NB: Assumes normal and edge are aligned
+
+  // Jacobian w.r.t. momentum
+  for (unsigned short i = 0; i < nDim; i++) { // tau \cdot nvec component
+    for (unsigned short j = 0; j < nDim; j++) { // momentum component
+      tauSGET_mom[i][j] = 0;
+      for (unsigned short k = 0; k < nDim; k++) { // summmation index
+	for (unsigned short m = 0; m < nDim; m++) { // summation index
+	  tauSGET_mom[i][j] += -xi*mu[m][k]*nvec[m]*nvec[k]*delta[i][j];
+	}
+	tauSGET_mom[i][j] += -xi*mu[i][k]*nvec[j]*nvec[k];
+	tauSGET_mom[i][j] -= -xi*TWO3*mu[j][k]*nvec[i]*nvec[k];
+      }
+      tau_jacobian_i[i][j+1] += tauSGET_mom[i][j];
+    }
+
+    for (unsigned short j = 0; j < nDim; j++) {
+      tau_jacobian_i[i][0] -= tauSGET_mom[i][j]*val_Mean_PrimVar[j+1];
+    }
+  
+    // Jacobian w.r.t. energy
+    // nothing to add
+  }
+}
+
 
 void CAvgGrad_Hybrid::SetLaminarHeatFlux(su2double **val_gradprimvar,
                                          const su2double val_laminar_viscosity) {
@@ -404,4 +452,44 @@ void CAvgGrad_Hybrid::SetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
     heat_flux_jac_i[4] = conductivity_over_Rd * R_dTdu4;
 
   }
+}
+
+void CAvgGrad_Hybrid::AddSGETHeatFluxJacobian(su2double *val_Mean_PrimVar,
+					      su2double **mu,
+					      const su2double val_dist_ij,
+					      const su2double *val_normal) {
+
+  const su2double Prandtl_sgs = 0.90;
+
+  su2double sqvel = 0.0;
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    sqvel += val_Mean_PrimVar[iDim+1]*val_Mean_PrimVar[iDim+1];
+  }
+
+  const su2double Density = val_Mean_PrimVar[nDim+2];
+  const su2double Pressure = val_Mean_PrimVar[nDim+1];
+  const su2double phi = Gamma_Minus_One/Density;
+
+  /*--- R times partial derivatives of temp. ---*/
+
+  const su2double R_dTdu0 = -Pressure/(Density*Density) + 0.5*sqvel*phi;
+  const su2double R_dTdu1 = -phi*val_Mean_PrimVar[1];
+  const su2double R_dTdu2 = -phi*val_Mean_PrimVar[2];
+  const su2double R_dTdu3 = -phi*val_Mean_PrimVar[3];
+  const su2double R_dTdu4 = phi;
+
+  const su2double cpoR = Gamma/Gamma_Minus_One; // cp over R
+  const su2double cpoRdPr = cpoR/val_dist_ij/Prandtl_sgs;
+
+  for (unsigned short i = 0; i < nDim; i++) { 
+    for (unsigned short k = 0; k < nDim; k++) {
+      heat_flux_jac_i[0] += val_normal[i]*val_normal[k]*mu[i][k]*cpoRdPr*R_dTdu0;
+      heat_flux_jac_i[1] += val_normal[i]*val_normal[k]*mu[i][k]*cpoRdPr*R_dTdu1;
+      heat_flux_jac_i[2] += val_normal[i]*val_normal[k]*mu[i][k]*cpoRdPr*R_dTdu2;
+      heat_flux_jac_i[3] += val_normal[i]*val_normal[k]*mu[i][k]*cpoRdPr*R_dTdu3;
+      heat_flux_jac_i[4] += val_normal[i]*val_normal[k]*mu[i][k]*cpoRdPr*R_dTdu4;
+    }
+  }
+
 }

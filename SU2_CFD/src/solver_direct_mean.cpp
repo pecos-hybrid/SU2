@@ -909,8 +909,12 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   if (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) euler_implicit = true;
   else euler_implicit = false;
 
-  if (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) rk_implicit = true;
-  else rk_implicit = false;
+  if( (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+      (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) ){
+    rk_implicit = true;
+  } else {
+    rk_implicit = false;
+  }
   
   if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) least_squares = true;
   else least_squares = false;
@@ -17226,7 +17230,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   
   /*--- Roe Low Dissipation Sensor ---*/
   
-  if (roe_low_dissipation){
+  if (roe_low_dissipation && iRKStep==0){
     SetRoe_Dissipation(geometry, config);
     if (kind_row_dissipation == FD_DUCROS || kind_row_dissipation == NTS_DUCROS){
       SetUpwind_Ducros_Sensor(geometry, config);
@@ -17344,11 +17348,35 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
     /*--- Retrieve the value of the kinetic energy (if need it) ---*/
-    
+
+    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+
+      // TODO: Move this to the hybrid mediator to keep the CNSSolver cleaner
+      // TODO: Remove extra asserts after testing is complete.
+
+      const su2double k_total = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+      const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
+      assert(k_resolved >= 0);
+
+      const su2double tke_lim = max(k_total, 1.0E-8);
+      //const su2double a_kol = 1.0E-2; // XXX: We should actually get the viscous limit here
+      const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+      const su2double alpha = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
+      average_node[iPoint]->SetKineticEnergyRatio(alpha);
+      assert(alpha == alpha);  // alpha should not be NaN
+    }
+
+    su2double alpha = 1.0;
     if (turb_model != NONE) {
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
-      if (tkeNeeded)
+      if (tkeNeeded) {
         turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+
+	// account for resolved portion
+	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+	  alpha = average_node[iPoint]->GetKineticEnergyRatio();
+	}
+      }
       
       if (config->isDESBasedModel()){
         DES_LengthScale = solver_container[TURB_SOL]->node[iPoint]->GetDES_LengthScale();
@@ -17361,28 +17389,13 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
     
-    RightSol = node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+    RightSol = node[iPoint]->SetPrimVar(eddy_visc, alpha*turb_ke, FluidModel);
     node[iPoint]->SetSecondaryVar(FluidModel);
     if (runtime_averaging) {
       average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
       // We don't need the secondary variables
     }
 
-    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-
-      // TODO: Move this to the hybrid mediator to keep the CNSSolver cleaner
-      // TODO: Remove extra asserts after testing is complete.
-
-      const su2double k_total = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-      const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
-      assert(k_resolved >= 0);
-
-      const su2double tke_lim = max(k_total, 1.0E-8);
-      const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
-      const su2double alpha = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
-      average_node[iPoint]->SetKineticEnergyRatio(alpha);
-      assert(alpha == alpha);  // alpha should not be NaN
-    }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
         
@@ -17702,24 +17715,34 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
     for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
       const su2double Volume = geometry->node[iPoint]->GetVolume();
-      const su2double* U = node[iPoint]->GetSolution();
+
+      // Use mean density in forcing, to eliminate (as much as
+      // possible) effect of correlation between rho and Force
+      const su2double* U = average_node[iPoint]->GetSolution();
 
       const su2double* Force = HybridMediator->GetForcingVector(iPoint);
+      const su2double* MeanForce = average_node[iPoint]->GetForce();
 
       // Set forcing in variable class (for output purposes)
       node[iPoint]->SetForcingVector(Force);
+      average_node[iPoint]->SetForcingVector(MeanForce);
 
       // mass (no forcing)
       Residual[0] = 0.0;
 
       // momentum
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Residual[iDim+1] = -Volume * U[0] * Force[iDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+	Residual[iDim+1] = -Volume * U[0] * (Force[iDim] - MeanForce[iDim]);
+      }
 
       // energy
       Residual[nDim+1] = 0.0;
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        /*--- There's no source in the energy equation because we're
+         * tracking the transport of total energy, while the forcing is due
+         * to interactions between resolved and unresolved scales. ---*/
+	Residual[nDim+1] += 0.0;
+      }
 
       // update residual
       LinSysRes.AddBlock(iPoint, Residual);
@@ -19115,13 +19138,16 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
   assert(average_node != NULL);
 
-  const su2double* resolved_prim_vars = node[iPoint]->GetPrimitive();
-  const su2double* average_prim_vars = average_node[iPoint]->GetPrimitive();
+  // Call base first, to update averages of conserved variables
+  CSolver::UpdateAverage(weight, iPoint, buffer, config);
+
+  const su2double* resolved_vars = node[iPoint]->GetSolution();
+  const su2double* average_vars = average_node[iPoint]->GetSolution();
   su2double fluct_velocity[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    fluct_velocity[iDim] = resolved_prim_vars[iDim+1] - average_prim_vars[iDim+1];
+    fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
   }
-  const su2double resolved_rho = resolved_prim_vars[nDim+2];
+  const su2double resolved_rho = resolved_vars[0];
 
   if (config->GetUse_Resolved_Turb_Stress()) {
 
@@ -19155,7 +19181,10 @@ void CNSSolver::UpdateAverage(const su2double weight,
         current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
       }
     }
-    const su2double new_Pk = production + (current_production - production)*weight;
+
+    /*-- Give Pk a different averaging time than the rest of the terms ---*/
+
+    const su2double new_Pk = production + (current_production - production)*weight*0.25;
     average_node[iPoint]->SetProduction(new_Pk);
 
     /*--- Update resolved kinetic energy ---*/
@@ -19181,7 +19210,12 @@ void CNSSolver::UpdateAverage(const su2double weight,
   const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
   average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
 
-  /*--- Make sure the average of the solution variables is updated too --*/
-
-  CSolver::UpdateAverage(weight, iPoint, buffer, config);
+  /*--- Update the average of the forcing ---*/
+  const su2double* mean_F = average_node[iPoint]->GetForce();
+  const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
+  su2double update_mean_F[3];
+  update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
+  update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
+  update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
+  average_node[iPoint]->SetForce(update_mean_F);
 }

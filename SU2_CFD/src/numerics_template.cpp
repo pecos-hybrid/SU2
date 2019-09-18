@@ -41,7 +41,9 @@
 CConvective_Template::CConvective_Template(unsigned short val_nDim, unsigned short val_nVar, CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
   
   
-  implicit = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
+  implicit = ( (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+               (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+               (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   
   Gamma = config->GetGamma();
   Gamma_Minus_One = Gamma - 1.0;

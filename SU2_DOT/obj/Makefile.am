@@ -111,6 +111,11 @@ su2_dot_cxx_flags += @ZLIB_CXX@
 su2_dot_ldadd += @ZLIB_LD@
 # endif
 
+# if BUILD_LAPACK
+su2_dot_cxx_flags += @LAPACK_CXX@
+su2_dot_ldadd += @LAPACK_LDALL@
+# endif
+
 if BUILD_NORMAL
 ___bin_SU2_DOT_SOURCES = ${su2_dot_sources}
 ___bin_SU2_DOT_CXXFLAGS = ${su2_dot_cxx_flags}

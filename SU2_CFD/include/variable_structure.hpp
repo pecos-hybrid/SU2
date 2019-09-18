@@ -1017,6 +1017,18 @@ public:
   virtual void SetProduction(su2double val_production);
 
   /*!
+   * \brief Get the turbulent production
+   * \return The turbulent production.
+   */
+  virtual su2double* GetForce(void) const;
+
+  /*!
+   * \brief Set the turbulent production
+   * \param[in] val_production - The turbulent production.
+   */
+  virtual void SetForce(su2double* val_force);
+
+  /*!
    * \brief Get the subgrid production of turbulent kinetic energy.
    * \return The subgrid production
    */
@@ -4082,6 +4094,7 @@ private:
   su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
   su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
   su2double SGSProduction; /*!< \brief The subgrid portion of the production of TKE */
+  su2double* Force;
   
 public:
   
@@ -4288,6 +4301,10 @@ public:
    * \param[in] val_production - The turbulent production.
    */
   void SetProduction(su2double val_production);
+
+  su2double* GetForce(void) const;
+
+  void SetForce(su2double* val_force);
 
   /*!
    * \brief Get the subgrid production of turbulent kinetic energy.

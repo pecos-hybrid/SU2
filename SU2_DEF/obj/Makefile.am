@@ -86,3 +86,8 @@ ___bin_SU2_DEF_LDADD += @MUTATIONPP_LD@
 ___bin_SU2_DEF_CXXFLAGS += @JSONCPP_CXX@
 ___bin_SU2_DEF_LDADD += @JSONCPP_LD@
 # endif
+
+# if BUILD_LAPACK
+___bin_SU2_DEF_CXXFLAGS += @LAPACK_CXX@
+___bin_SU2_DEF_LDADD += @LAPACK_LDALL@
+# endif

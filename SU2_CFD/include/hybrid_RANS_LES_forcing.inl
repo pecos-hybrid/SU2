@@ -76,7 +76,8 @@ inline void CHybridForcingTG0::SetTGField(
                 const su2double* Lmesh, const su2double* D,
                 const su2double dwall, su2double* h) const {
 
-  const su2double A = 1./3., B = -1.0, C = 2./3.;
+  //const su2double A = 1./3., B = -1.0, C = 2./3.;
+  const su2double A = 1./3., B = 2./3., C = -1.0;
   su2double a[3];
 
   for (unsigned int ii=0; ii<3; ii++) {

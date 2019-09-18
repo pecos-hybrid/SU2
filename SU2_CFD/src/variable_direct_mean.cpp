@@ -595,6 +595,9 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
 
     ForcingVector = new su2double[nDim];
 
+    Force = new su2double[3];
+    Force[0] = Force[1] = Force[2] = 0;
+
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
     ResolvedKineticEnergy = 0;
@@ -631,6 +634,8 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     }
 
     ForcingVector = new su2double[nDim];
+    Force = new su2double[nDim];
+    Force[0] = Force[1] = Force[2] = 0;
 
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
@@ -658,6 +663,9 @@ CNSVariable::~CNSVariable(void) {
   }
   if (ForcingVector != NULL) {
     delete [] ForcingVector;
+  }
+  if (Force != NULL) {
+    delete [] Force;
   }
 }
 

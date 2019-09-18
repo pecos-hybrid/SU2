@@ -520,6 +520,7 @@ private:
   Kind_DV_FEA;				/*!< \brief Kind of Design Variable for FEA problems.*/
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
   unsigned short Kind_HybridRANSLES_Testing; /*!< \brief Hybrid RANS/LES blending definition */
+  unsigned short Kind_Hybrid_Fluct_Stress_Damping; /*!< \brief Damping of the fluctuating stress in high-AR cells (only in model-split hybrid RANS/LES) */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
   su2double *Hybrid_Forcing_Periodic_Length;  /*!< \brief Domain lengths in periodic directions for hybrid forcing */
@@ -537,6 +538,7 @@ private:
   su2double Linear_Solver_Error_Heat;        /*!< \brief Min error of the linear solver for the implicit formulation in the fvm heat solver . */
   unsigned long Linear_Solver_Iter;		/*!< \brief Max iterations of the linear solver for the implicit formulation. */
   bool Linear_Solver_Max_Iter_Error; /*!< \brief Program will exit with an error if the linear solver exceeds the max iterations. */
+  bool Linear_Solver_Verbose; /*!< \brief Print out the residual history of the linear solver during runtime. */
   unsigned long Deform_Linear_Solver_Iter;   /*!< \brief Max iterations of the linear solver for the implicit formulation. */
   unsigned long Linear_Solver_Iter_FSI_Struc;		/*!< \brief Max iterations of the linear solver for FSI applications and structural solver. */
   unsigned long Linear_Solver_Iter_Heat;       /*!< \brief Max iterations of the linear solver for the implicit formulation in the fvm heat solver. */
@@ -960,6 +962,7 @@ private:
   su2double Const_DES;   /*!< \brief Detached Eddy Simulation Constant. */
   unsigned short Kind_HybridRANSLES; /*!< \brief Kind of Hybrid RANS/LES. */
   unsigned short Kind_RoeLowDiss;    /*!< \brief Kind of Roe scheme with low dissipation for unsteady flows. */
+  su2double Roe_Min_Dissipation;    /*!< \brief In a Roe-like scheme with upwind/central blending, this is the minimum weight given to the upwinding. */
   bool QCR;                   /*!< \brief Spalart-Allmaras with Quadratic Constitutive Relation, 2000 version (SA-QCR2000) . */
   su2double *default_vel_inf, /*!< \brief Default freestream velocity array for the COption class. */
   *default_eng_cyl,           /*!< \brief Default engine box array for the COption class. */
@@ -3570,7 +3573,13 @@ public:
    * \brief Check if the program will error out when reaching the max number of iterations
    * \return True if the program will error out when reaching the max number of iterations
    */
-  bool GetLinear_Solver_Max_Iter_Error(void);
+  bool GetLinear_Solver_Max_Iter_Error(void) const;
+
+  /*!
+   * \brief Check if printing out the residual history for the linear solver.
+   * \return True if printing out the residual history for the linear solver.
+   */
+  bool GetLinear_Solver_Verbose(void) const;
 
   /*!
    * \brief Get max number of iterations of the linear solver for the implicit formulation.
@@ -3779,6 +3788,15 @@ public:
    * \return Kind of testing scheme.
    */
   unsigned short GetKind_HybridRANSLES_Testing(void);
+
+  /*!
+   * \brief Get the kind of damping for fluctuating stress in high-AR cells.
+   *
+   * This option is only used in the model-split hybridization.
+   *
+   * \return Kind of damping for the fluctuating stress.
+   */
+  unsigned short GetKind_Hybrid_Fluct_Stress_Damping(void) const;
 
   /*!
    * \brief Get the kind of hybrid RANS/LES resolution adequacy indicator.
@@ -8193,6 +8211,12 @@ public:
    * \return Value of Low dissipation approach.
    */
    unsigned short GetKind_RoeLowDiss(void);
+
+  /*!
+   * \brief Get the Kind of Roe Low Dissipation Scheme for Unsteady flows.
+   * \return Value of Low dissipation approach.
+   */
+   su2double GetRoe_Min_Dissipation(void) const;
 
    /*!
     * \brief Check if an upwind/central flux blending scheme should be applied.

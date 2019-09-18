@@ -2988,7 +2988,7 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
     for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
       if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
-        timescale = solver[TURB_SOL]->average_node[iPoint]->GetTurbTimescale();
+	timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
         assert(timescale > 0);
       }
 
@@ -2999,7 +2999,10 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
        * So we change the weight to make the averaging act as if
        * dt = (N_T*timescale)/min_number_samples ---*/
       const unsigned short min_number_samples = 5;
-      const su2double weight = min(dt/(N_T * timescale), 1.0/min_number_samples);
+
+      /*--- For forward Euler, w = dt/T
+       *   For backward Euler, w = dt/(T+dt) ---*/
+      const su2double weight = min(dt/(N_T * timescale + dt), 1.0/min_number_samples);
 
       UpdateAverage(weight, iPoint, buffer, config);
     }

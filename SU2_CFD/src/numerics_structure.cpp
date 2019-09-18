@@ -1916,8 +1916,7 @@ void CNumerics::SetRoe_Dissipation(const su2double Dissipation_i,
 
   /*--- A minimum level of upwinding is used to enhance stability ---*/
 
-  const su2double Min_Dissipation = 0.05;
-  
+  const su2double Min_Dissipation = config->GetRoe_Min_Dissipation();
   const su2double Mean_Dissipation = 0.5*(Dissipation_i + Dissipation_j);
   const su2double Mean_Sensor = 0.5*(Sensor_i + Sensor_j);
   
