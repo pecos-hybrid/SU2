@@ -427,7 +427,9 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   // ... production
   // Limit production of v2 based on max zeta = 2/3
   Pv2 = rho * min( tke*f, 2.0*Pk/3.0/rho + 5.0*v2/T1 );
-  Pv2 = max(Pv2, 0.0);
+  if (config->GetBool_Pv2_Nonnegative()) {
+    Pv2 = max(Pv2, 0.0);
+  }
   //Pv2 = rho * tke*f ;
 
   Pv2_rk  = 0.0;
