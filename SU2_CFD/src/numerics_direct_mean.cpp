@@ -4576,18 +4576,11 @@ void CAvgGrad_Base::SetTauJacobian(const su2double *val_Mean_PrimVar,
   const su2double Density = val_Mean_PrimVar[nDim+2];
   const su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
   const su2double xi = total_viscosity/(Density*val_dist_ij);
-  //const su2double xiBulk = 0.0*total_viscosity/(Density*val_dist_ij);
-  //const su2double xiBulk = 10.0*total_viscosity/(Density*val_dist_ij);
-  //const su2double xiBulk = 20.0*total_viscosity/(Density*val_dist_ij);
-  //const su2double xiBulk = 100.0*total_viscosity/(Density*val_dist_ij);
-  //const su2double xiBulk = 1.0*total_viscosity/(Density*val_dist_ij);
-  const su2double xiBulk = 0.0;
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       // Jacobian w.r.t. momentum
       tau_jacobian_i[iDim][jDim+1] = -xi*(delta[iDim][jDim] + val_normal[iDim]*val_normal[jDim]/3.0);
-      tau_jacobian_i[iDim][jDim+1] += -xiBulk*(val_normal[iDim]*val_normal[jDim]); // right?
     }
     // Jacobian w.r.t. density
     tau_jacobian_i[iDim][0] = 0;

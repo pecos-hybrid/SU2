@@ -262,14 +262,6 @@ void CAvgGrad_Hybrid::SetLaminarStressTensor(su2double **val_gradprimvar,
 
   unsigned short iDim, jDim;
 
-  // why not?
-  //su2double muBulk = 0.0*val_laminar_viscosity;
-  //su2double muBulk = 10.0*val_laminar_viscosity;
-  //su2double muBulk = 20.0*val_laminar_viscosity;
-  //su2double muBulk = 100.0*val_laminar_viscosity;
-  //su2double muBulk = 1.0*val_laminar_viscosity;
-  su2double muBulk = 0.0;
-
   su2double div_vel = 0.0;
   for (iDim = 0 ; iDim < nDim; iDim++)
     div_vel += val_gradprimvar[iDim+1][iDim];
@@ -277,8 +269,7 @@ void CAvgGrad_Hybrid::SetLaminarStressTensor(su2double **val_gradprimvar,
   for (iDim = 0 ; iDim < nDim; iDim++) {
     for (jDim = 0 ; jDim < nDim; jDim++) {
       tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
-                        - TWO3*val_laminar_viscosity*div_vel*delta[iDim][jDim]
-                	+ muBulk*div_vel*delta[iDim][jDim];
+                        - TWO3*val_laminar_viscosity*div_vel*delta[iDim][jDim];
     }
   }
 }
