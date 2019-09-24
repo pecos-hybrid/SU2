@@ -1150,7 +1150,9 @@ inline bool CConfig::GetBoolUse_v2f_Rf_mod(void) { return Use_v2f_Rf_mod; }
 
 inline bool CConfig::GetBoolUse_v2f_Explicit_WallBC(void) { return Use_v2f_Explicit_WallBC; }
 
-inline bool CConfig::GetBool_Pv2_Nonnegative(void) { return Pv2_nonnegative; }
+inline bool CConfig::GetBool_Pv2_Nonnegative(void) const { return Pv2_nonnegative; }
+
+inline double CConfig::GetProduction_Relaxation(void) const { return Production_Relaxation; }
 
 inline unsigned short CConfig::GetnMarker_MixingPlaneInterface(void) { return nMarker_MixingPlaneInterface;}
 

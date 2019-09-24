@@ -1021,6 +1021,7 @@ private:
   bool Use_v2f_Rf_mod;
   bool Use_v2f_Explicit_WallBC;
   bool Pv2_nonnegative;
+  su2double Production_Relaxation;
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -4535,7 +4536,16 @@ public:
    * \brief Limit the production of v2 to be non-negative.
    * \return True if the production of v2 is limited to be non-negative.
    */
-  bool GetBool_Pv2_Nonnegative(void);
+  bool GetBool_Pv2_Nonnegative(void) const;
+
+  /*!
+   * \brief Get the relaxation factor applied to updates of production
+   *
+   * This is only used in the model-split hybrid RANS/LES
+   *
+   * \return The relaxation factor.
+   */
+  su2double GetProduction_Relaxation(void) const;
 
   /*!
    * \brief number Turbomachinery performance option specified from config file.

@@ -19681,7 +19681,8 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
     /*-- Give Pk a different averaging time than the rest of the terms ---*/
 
-    const su2double new_Pk = production + (current_production - production)*weight*0.5; // for Cave=2
+    const su2double Pk_relaxation = config->GetProduction_Relaxation();
+    const su2double new_Pk = production + (current_production - production)*weight*Pk_relaxation;
     average_node[iPoint]->SetProduction(new_Pk);
 
     /*--- Update resolved kinetic energy ---*/

@@ -969,6 +969,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief KEEP_PV2_NONNEGATIVE  \n DESCRIPTION: Limit the production of v2 to non-negative values in the v2-f RANS model. \n DEFAULT: True \ingroup Config*/
   addBoolOption("KEEP_PV2_NONNEGATIVE", Pv2_nonnegative, true);
+
+  /*!\brief PRODUCTION_RELAXATION \n DESCRIPTION: When the averages are updated, relax the updates by this amount. \n DEFAULT: 0.5 \ingroup Config */
+  addDoubleOption("PRODUCTION_RELAXATION", Production_Relaxation, 0.5);
   
   /*!\brief SPATIAL_FOURIER \n DESCRIPTION: Option to compute the spatial fourier trasformation for the Giles BC. */
   addBoolOption("SPATIAL_FOURIER", SpatialFourier, false);
