@@ -264,7 +264,7 @@ struct FluctuatingStressFixture {
     geometry->SetCoord_CG();
     geometry->SetControlVolume(config, ALLOCATE);
     geometry->SetBoundControlVolume(config, ALLOCATE);
-    geometry->SetResolutionTensor();
+    geometry->SetResolutionTensor(config);
   }
 
   const su2double machine_eps;

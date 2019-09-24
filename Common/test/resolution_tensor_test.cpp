@@ -662,7 +662,7 @@ BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
 
   unsigned short iPoint;
 
-  geometry->SetResolutionTensor();
+  geometry->SetResolutionTensor(config);
 
   for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
@@ -686,7 +686,7 @@ BOOST_FIXTURE_TEST_CASE(Quads_Test, ResolutionFixture) {
 
   unsigned short iPoint;
 
-  geometry->SetResolutionTensor();
+  geometry->SetResolutionTensor(config);
 
   for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
@@ -720,7 +720,7 @@ BOOST_FIXTURE_TEST_CASE(Gradients_Test, ResolutionFixture) {
   unsigned short iPoint;
   const su2double tol = 1e-6;
 
-  geometry->SetResolutionTensor();
+  geometry->SetResolutionTensor(config);
 
   // These are hand-calculated numerical derivatives.
   su2double correct_grads[5] = {0, 1.5, 7.0/3, 5.0/6, 0};
@@ -795,7 +795,7 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
   SetupConfig(nDim);
   SetupGeometry();
 
-  geometry->SetResolutionTensor();
+  geometry->SetResolutionTensor(config);
 
   for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
@@ -831,7 +831,7 @@ BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
   SetupConfig(nDim);
   SetupGeometry();
 
-  geometry->SetResolutionTensor();
+  geometry->SetResolutionTensor(config);
 
   for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
@@ -867,7 +867,7 @@ BOOST_FIXTURE_TEST_CASE(ResolutionConstantEqualsOneForIsotropic, ResolutionFixtu
   SetupConfig(nDim);
   SetupGeometry();
 
-  geometry->SetResolutionTensor();
+  geometry->SetResolutionTensor(config);
 
   for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
@@ -888,7 +888,7 @@ BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
   SetupConfig(nDim);
   SetupGeometry();
 
-  geometry->SetResolutionTensor();
+  geometry->SetResolutionTensor(config);
 
   for (unsigned long iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
 
