@@ -1857,7 +1857,7 @@ inline su2double* CConfig::GetFFD_BSplineOrder(){return FFD_BSpline_Order;}
 
 inline unsigned long CConfig::GetWrt_Surf_Freq_DualTime(void) { return Wrt_Surf_Freq_DualTime; }
 
-inline unsigned short CConfig::GetKind_HybridRANSLES(void) {return Kind_HybridRANSLES; }
+inline unsigned short CConfig::GetKind_HybridRANSLES(void) const {return Kind_HybridRANSLES; }
 
 inline bool CConfig::isDESBasedModel(void) {
   return ((Kind_HybridRANSLES == SA_DES)  || (Kind_HybridRANSLES == SA_DDES) ||

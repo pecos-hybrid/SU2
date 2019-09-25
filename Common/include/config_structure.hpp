@@ -8237,7 +8237,7 @@ public:
    * \brief Get the Kind of Hybrid RANS/LES.
    * \return Value of Hybrid RANS/LES method.
    */
-  unsigned short GetKind_HybridRANSLES(void);
+  unsigned short GetKind_HybridRANSLES(void) const;
 
   /*!
    * \brief Checks if a DES-based hybrid RANS/LES model is required.

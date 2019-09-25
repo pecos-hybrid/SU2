@@ -19628,92 +19628,95 @@ void CNSSolver::UpdateAverage(const su2double weight,
   // Call base first, to update averages of conserved variables
   CSolver::UpdateAverage(weight, iPoint, buffer, config);
 
-  const su2double* resolved_vars = node[iPoint]->GetSolution();
-  const su2double* average_vars = average_node[iPoint]->GetSolution();
-  su2double fluct_velocity[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
-  }
-  const su2double resolved_rho = resolved_vars[0];
-
-  if (config->GetUse_Resolved_Turb_Stress()) {
-
-    /*--- Update resolved Reynolds stress ---*/
-
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    const su2double* resolved_vars = node[iPoint]->GetSolution();
+    const su2double* average_vars = average_node[iPoint]->GetSolution();
+    su2double fluct_velocity[nDim];
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
-        const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
-        const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+      fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
+    }
+    const su2double resolved_rho = resolved_vars[0];
 
-        node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
-        average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
+    if (config->GetUse_Resolved_Turb_Stress()) {
+
+      /*--- Update resolved Reynolds stress ---*/
+
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+          const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
+          const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+
+          node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
+          average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
+        }
       }
-    }
 
-    /*--- Update resolved turbulent kinetic energy ---*/
+      /*--- Update resolved turbulent kinetic energy ---*/
 
-    average_node[iPoint]->SetResolvedKineticEnergy();
+      average_node[iPoint]->SetResolvedKineticEnergy();
 
-  } else {
+    } else {
 
-    /*--- Update improved production ---*/
+      /*--- Update improved production ---*/
 
-    const su2double* const* PrimVar_Grad = average_node[iPoint]->GetGradient_Primitive();
-    const su2double production = average_node[iPoint]->GetProduction();
+      const su2double* const* PrimVar_Grad = average_node[iPoint]->GetGradient_Primitive();
+      const su2double production = average_node[iPoint]->GetProduction();
 
-    //su2double current_production = average_node[iPoint]->GetSGSProduction();
+      //su2double current_production = average_node[iPoint]->GetSGSProduction();
 
-    // This should be more consistent with CDP
-    const su2double Savg = average_node[iPoint]->GetStrainMag();
-    const su2double Sinst = node[iPoint]->GetStrainMag();
-    const su2double mut = node[iPoint]->GetEddyViscosity();
-    const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
-    const su2double alpha_fac = alpha*(2.0 - alpha);
-    su2double current_production = Sinst*alpha_fac*mut*Savg;
+      // This should be more consistent with CDP
+      const su2double Savg = average_node[iPoint]->GetStrainMag();
+      const su2double Sinst = node[iPoint]->GetStrainMag();
+      const su2double mut = node[iPoint]->GetEddyViscosity();
+      const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
+      const su2double alpha_fac = alpha*(2.0 - alpha);
+      su2double current_production = Sinst*alpha_fac*mut*Savg;
 
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
-        current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+          current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
+        }
       }
+
+      /*-- Give Pk a different averaging time than the rest of the terms ---*/
+
+      const su2double Pk_relaxation = config->GetProduction_Relaxation();
+      const su2double new_Pk = production + (current_production - production)*weight*Pk_relaxation;
+      average_node[iPoint]->SetProduction(new_Pk);
+
+      /*--- Update resolved kinetic energy ---*/
+
+      const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
+      su2double current_resolved_k = 0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
+      }
+      // TODO: Make this consistent with Favre averaging
+      const su2double new_resolved_k = resolved_k + (current_resolved_k - resolved_k)*weight;
+      average_node[iPoint]->SetResolvedKineticEnergy(new_resolved_k);
+
     }
 
-    /*-- Give Pk a different averaging time than the rest of the terms ---*/
+    /*--- We can't update alpha (the ratio of modeled to total turbulent
+     * kinetic energy) here because we don't have access to the RANS solver
+     * variables. ---*/
 
-    const su2double Pk_relaxation = config->GetProduction_Relaxation();
-    const su2double new_Pk = production + (current_production - production)*weight*Pk_relaxation;
-    average_node[iPoint]->SetProduction(new_Pk);
+    /*--- Update the average of the resolution adequacy ---*/
+    const su2double mean_r_k = average_node[iPoint]->GetResolutionAdequacy();
+    const su2double inst_r_k = node[iPoint]->GetResolutionAdequacy();
+    const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
+    average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
 
-    /*--- Update resolved kinetic energy ---*/
-
-    const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
-    su2double current_resolved_k = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
-    }
-    // TODO: Make this consistent with Favre averaging
-    const su2double new_resolved_k = resolved_k + (current_resolved_k - resolved_k)*weight;
-    average_node[iPoint]->SetResolvedKineticEnergy(new_resolved_k);
-
+    /*--- Update the average of the forcing ---*/
+    const su2double* mean_F = average_node[iPoint]->GetForce();
+    assert(HybridMediator != NULL);
+    const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
+    su2double update_mean_F[3];
+    update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
+    update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
+    update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
+    average_node[iPoint]->SetForce(update_mean_F);
   }
-
-  /*--- We can't update alpha (the ratio of modeled to total turbulent
-   * kinetic energy) here because we don't have access to the RANS solver
-   * variables. ---*/
-
-  /*--- Update the average of the resolution adequacy ---*/
-  const su2double mean_r_k = average_node[iPoint]->GetResolutionAdequacy();
-  const su2double inst_r_k = node[iPoint]->GetResolutionAdequacy();
-  const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
-  average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
-
-  /*--- Update the average of the forcing ---*/
-  const su2double* mean_F = average_node[iPoint]->GetForce();
-  const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
-  su2double update_mean_F[3];
-  update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
-  update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
-  update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
-  average_node[iPoint]->SetForce(update_mean_F);
 }
