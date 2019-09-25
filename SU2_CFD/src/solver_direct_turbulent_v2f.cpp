@@ -208,25 +208,18 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
 
   /*--- Flow infinity initialization stuff ---*/
-  su2double rhoInf, *VelInf, muLamInf, Intensity, viscRatio, muT_Inf, Tm_Inf, Lm_Inf;
+  su2double rhoInf, VelInf, muLamInf, Intensity, viscRatio, muT_Inf, Tm_Inf, Lm_Inf;
   rhoInf    = config->GetDensity_FreeStreamND();
-  VelInf    = config->GetVelocity_FreeStreamND();
+  VelInf    = config->GetModVel_FreeStreamND();
   muLamInf  = config->GetViscosity_FreeStreamND();
   Intensity = config->GetTurbulenceIntensity_FreeStream();
   viscRatio = config->GetTurb2LamViscRatio_FreeStream();
-  
-  su2double VelMag = 0;
-  for (iDim = 0; iDim < nDim; iDim++) {
-    VelMag += VelInf[iDim]*VelInf[iDim];
-  }
-
-  VelMag = sqrt(VelMag);
 
   su2double L_Inf = config->GetLength_Reynolds();
   su2double scale = 1.0e-8;
-  su2double scalar_min = scale/(VelMag*VelMag);
-  su2double tke_min = scalar_min*VelMag*VelMag;
-  su2double tdr_min = scalar_min*pow(VelMag,3.0)/L_Inf;
+  su2double scalar_min = scale/(VelInf*VelInf);
+  su2double tke_min = scalar_min*VelInf*VelInf;
+  su2double tdr_min = scalar_min*pow(VelInf,3.0)/L_Inf;
 
 
   // Freestream eddy visc
@@ -237,7 +230,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   const su2double nutInf = muT_Inf /rhoInf;
 
   // Freestream TKE
-  kine_Inf = 1.5*(VelMag*VelMag*Intensity*Intensity);
+  kine_Inf = 1.5*(VelInf*VelInf*Intensity*Intensity);
 
   // Freestream dissipation
   epsi_Inf = (2.0/3.0)*constants[0]*(kine_Inf*kine_Inf)/nutInf;
@@ -412,11 +405,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
   }
 
   su2double scale = EPS;
-  su2double* VelInf = config->GetVelocity_FreeStreamND();
-  su2double VelMag = 0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    VelMag += VelInf[iDim]*VelInf[iDim];
-  VelMag = sqrt(VelMag);
+  const su2double VelInf = config->GetModVel_FreeStreamND();
   const su2double L_inf = config->GetLength_Reynolds();
 
   CVariable** flow_node;
@@ -443,17 +432,17 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     // /*--- T & L ---*/
 
-    // kine = max(kine, scale*VelMag*VelMag);
+    // kine = max(kine, scale*VelInf*VelInf);
     // zeta = max(v2/kine, scale);
 
-    // node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
+    // node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf);
 
     tke = max(node[iPoint]->GetSolution(0), 0.0);
-    v2  = max(node[iPoint]->GetSolution(2), scale*VelMag*VelMag);
+    v2  = max(node[iPoint]->GetSolution(2), scale*VelInf*VelInf);
 
     /*--- T & L ---*/
 
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, limit_scales);
+    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales);
     node[iPoint]->SetKolKineticEnergyRatio(nu);
 
     const su2double Tm = node[iPoint]->GetTurbTimescale();
@@ -489,11 +478,7 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
     flow_node = solver_container[FLOW_SOL]->node;
   }
 
-  su2double* VelInf = config->GetVelocity_FreeStreamND();
-  su2double VelMag = 0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    VelMag += VelInf[iDim]*VelInf[iDim];
-  VelMag = sqrt(VelMag);
+  const su2double VelInf = config->GetModVel_FreeStreamND();
   const su2double L_inf = config->GetLength_Reynolds();
 
   const bool limit_scales =
@@ -504,7 +489,7 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
                           flow_node[iPoint]->GetDensity();
     const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, limit_scales);
+    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales);
   }
 }
 
