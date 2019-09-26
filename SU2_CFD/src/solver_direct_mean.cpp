@@ -5479,26 +5479,6 @@ void CEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_contain
       Dissipation_i = node[iPoint]->GetRoe_Dissipation();
       Dissipation_j = node[jPoint]->GetRoe_Dissipation();
 
-      if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-	// increase dissipation if resolution adequacy says we can't resolve
-	const su2double rMi = solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
-	const su2double rMj = solver_container[FLOW_SOL]->average_node[jPoint]->GetResolutionAdequacy();
-	if ( rMi > 1.0) {
-	  //Dissipation_i = max(Dissipation_i, 0.1);
-	  //Dissipation_i += 2.0*tanh(log10(rMi));
-	  Dissipation_i += tanh(log10(rMi));
-	  Dissipation_i = min(Dissipation_i, 1.0);
-	  node[iPoint]->SetRoe_Dissipation(Dissipation_i);
-	}
-	if ( rMj > 1.0 ){
-	  //Dissipation_j += 2.0*tanh(log10(rMj));
-	  Dissipation_j += tanh(log10(rMj));
-	  Dissipation_j = min(Dissipation_j, 1.0);
-	  node[jPoint]->SetRoe_Dissipation(Dissipation_j);
-	}
-
-      }
-
       numerics->SetDissipation(Dissipation_i, Dissipation_j);
             
       if (kind_dissipation == FD_DUCROS || kind_dissipation == NTS_DUCROS){
@@ -5540,10 +5520,10 @@ void CEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_contain
     
     /*--- Set the final value of the Roe dissipation coefficient ---*/
     
-    // if (kind_dissipation != NO_ROELOWDISS){
-    //   node[iPoint]->SetRoe_Dissipation(numerics->GetDissipation());
-    //   node[jPoint]->SetRoe_Dissipation(numerics->GetDissipation());      
-    // }
+    if (kind_dissipation != NO_ROELOWDISS){
+      node[iPoint]->SetRoe_Dissipation(numerics->GetDissipation());
+      node[jPoint]->SetRoe_Dissipation(numerics->GetDissipation());      
+    }
     
   }
 
