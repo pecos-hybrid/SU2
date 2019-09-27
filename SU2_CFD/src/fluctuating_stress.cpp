@@ -121,49 +121,6 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
     }
   }
 
-  /*--- Blend with the RANS eddy viscosity for high AR cells ---*/
-
-  /*--- Calculate the maximum aspect ratio ---*/
-  // TODO: Move this aspect ratio calc to the dual grid class.
-  const su2double* resolution_values = geometry->node[iPoint]->GetResolutionValues();
-  su2double min_distance = resolution_values[0];
-  su2double max_distance = resolution_values[0];
-  for (unsigned short iDim = 1; iDim < nDim; iDim++) {
-    min_distance = min(min_distance, resolution_values[iDim]);
-    max_distance = max(max_distance, resolution_values[iDim]);
-  }
-  const su2double aspect_ratio = max_distance / min_distance;
-  assert(aspect_ratio >= 1.00);
-
-  // //const su2double AR_switch = 50;
-  // //const su2double AR_switch = 32;
-  // const su2double AR_switch = 128;
-  // if (aspect_ratio > AR_switch) {
-  //   //const su2double blending = tanh((aspect_ratio - AR_switch)/10.0);
-  //   const su2double blending = tanh((aspect_ratio - AR_switch)/128.0);
-  //   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-  //     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-  //       eddy_viscosity[iDim][jDim] *= (1 - blending);
-  //       //eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
-  //     }
-  //   }
-  // }
-
-  //const su2double AR_switch = 50;
-  //const su2double AR_switch = 32;
-  //const su2double AR_switch = 64;
-  const su2double AR_switch = 128;
-  //const su2double AR_switch = 256;
-  //const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/128.0) + 1.0);
-  const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/16.0) + 1.0);
-  //const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/8.0) + 1.0);
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      eddy_viscosity[iDim][jDim] *= (1 - blending);
-      eddy_viscosity[iDim][jDim] += blending*delta[iDim][jDim]*mean_eddy_visc;
-    }
-  }
-
   /*--- Damp the fluctuating stress for high AR cells ---*/
 
   const unsigned short kind_damping =
@@ -183,10 +140,15 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
     const su2double aspect_ratio = max_distance / min_distance;
     assert(aspect_ratio >= 1.00);
 
-    /*--- AR_switch is the minimum AR where blending/damping will begin.
-     * Previous values have been 32, 50, and 128 ---*/
-    const su2double AR_switch = 32;
-    const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/16.0) + 1.0);
+    const su2double threshold = config->GetFluctStress_AR_Params()[0];
+    const su2double slope = config->GetFluctStress_AR_Params()[1];
+
+    /*--- The "slope" is the slope of the blending function at the
+     * threshold.  Since we have a factor of 0.5 sitting in front, the
+     * slope parameter needs to be multiplied by 2 to give the correct
+     * slope. ---*/
+
+    const su2double blending = 0.5*(tanh(2*slope*(aspect_ratio - threshold)) + 1.0);
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
         switch (kind_damping) {

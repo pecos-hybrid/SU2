@@ -530,6 +530,9 @@ private:
             Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
+  su2double* FluctStress_AR_Params; /*!< \brief The parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
+  su2double* default_fluct_stress_AR_params; /*!< \brief Default values of the parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
+
 
   bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
   unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
@@ -3805,6 +3808,19 @@ public:
    * \return Kind of damping for the fluctuating stress.
    */
   unsigned short GetKind_Hybrid_Fluct_Stress_Damping(void) const;
+
+
+  /*!
+   * \brief Get the parameters defining the damping applied to the
+   * fluctuating stress in high-AR cells.
+   *
+   * The first parameter is the threshold, where blending = 0.5.
+   * The second parameter is the slope of the blending function w.r.t.
+   * the aspect ratio, at the threshold.
+   *
+   * \return A pointer-to-array of length 2 containing the AR parameters.
+   */
+  const su2double* GetFluctStress_AR_Params(void) const;
 
   /*!
    * \brief Get the kind of hybrid RANS/LES resolution adequacy indicator.

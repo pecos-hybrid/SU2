@@ -612,6 +612,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_sineload_coeff     = new su2double[3];
   default_nacelle_location   = new su2double[5];
   default_hybrid_periodic_length = new su2double[3];
+  default_fluct_stress_AR_params = new su2double[2];
 
   // This config file is parsed by a number of programs to make it easy to write SU2
   // wrapper scripts (in python, go, etc.) so please do
@@ -639,6 +640,11 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*! \brief FLUCT_STRESS_DAMPING \n DESCRIPTION: Specify the damping that will occur for the fluctuating stress in high-AR cells \n Options: see \link Hybrid_Fluct_Stress_Damping_Map \endlink \n DEFAULT: BLEND_STRESS_TO_ZERO \ingroup Config */
   addEnumOption("FLUCT_STRESS_DAMPING", Kind_Hybrid_Fluct_Stress_Damping, Hybrid_Fluct_Stress_Damping_Map, BLEND_STRESS_TO_ZERO);
+
+  /*!\brief FLUCT_STRESS_AR_PARAM  \n DESCRIPTION: The threshold and the slope (at the threshold) of the high-aspect ratio blending applied to the damping.  Only used in the model-split hybrid RANS/LES, when high-AR fluctuating stress blending is on. \ingroup Config*/
+  default_fluct_stress_AR_params[0] = 128;     // Threshold
+  default_fluct_stress_AR_params[1] = 0.03125;  // The slope (at threshold)
+  addDoubleArrayOption("FLUCT_STRESS_AR_PARAM", 2, FluctStress_AR_Params, default_fluct_stress_AR_params);
   
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RDELTA_INDICATOR_FULLP_VELCON \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RDELTA_INDICATOR_FULLP_VELCON);
@@ -6825,6 +6831,7 @@ CConfig::~CConfig(void) {
   if (default_sineload_coeff!= NULL) delete [] default_sineload_coeff;
   if (default_nacelle_location    != NULL) delete [] default_nacelle_location;
   if (default_hybrid_periodic_length != NULL) delete [] default_hybrid_periodic_length;
+  if (default_fluct_stress_AR_params != NULL) delete [] default_fluct_stress_AR_params;
 
   if (FFDTag != NULL) delete [] FFDTag;
   if (nDV_Value != NULL) delete [] nDV_Value;
