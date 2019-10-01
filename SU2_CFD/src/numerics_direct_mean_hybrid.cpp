@@ -345,7 +345,8 @@ void CAvgGrad_Hybrid::AddTauSGETJacobian(su2double *val_Mean_PrimVar,
 	  tauSGET_mom[i][j] += -xi*mu[m][k]*nvec[m]*nvec[k]*delta[i][j];
 	}
 	tauSGET_mom[i][j] += -xi*mu[i][k]*nvec[j]*nvec[k];
-	//tauSGET_mom[i][j] -= -xi*TWO3*mu[j][k]*nvec[i]*nvec[k];
+	tauSGET_mom[i][j] -= -xi*mu[i][k]*nvec[j]*nvec[k]/3.0;
+	tauSGET_mom[i][j] -= -xi*mu[k][i]*nvec[j]*nvec[k]/3.0;
       }
       tau_jacobian_i[i][j+1] += tauSGET_mom[i][j];
     }
