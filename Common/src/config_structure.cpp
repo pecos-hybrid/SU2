@@ -513,6 +513,7 @@ void CConfig::SetPointersNull(void) {
   default_sineload_coeff     = NULL;
   default_nacelle_location   = NULL;
   default_hybrid_periodic_length = NULL;
+  default_fluct_stress_AR_params = NULL;
 
   Riemann_FlowDir       = NULL;
   Giles_FlowDir         = NULL;
