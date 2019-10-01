@@ -513,6 +513,7 @@ void CConfig::SetPointersNull(void) {
   default_sineload_coeff     = NULL;
   default_nacelle_location   = NULL;
   default_hybrid_periodic_length = NULL;
+  default_fluct_stress_AR_params = NULL;
 
   Riemann_FlowDir       = NULL;
   Giles_FlowDir         = NULL;
@@ -612,6 +613,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_sineload_coeff     = new su2double[3];
   default_nacelle_location   = new su2double[5];
   default_hybrid_periodic_length = new su2double[3];
+  default_fluct_stress_AR_params = new su2double[2];
 
   // This config file is parsed by a number of programs to make it easy to write SU2
   // wrapper scripts (in python, go, etc.) so please do
@@ -639,12 +641,18 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*! \brief FLUCT_STRESS_DAMPING \n DESCRIPTION: Specify the damping that will occur for the fluctuating stress in high-AR cells \n Options: see \link Hybrid_Fluct_Stress_Damping_Map \endlink \n DEFAULT: BLEND_STRESS_TO_ZERO \ingroup Config */
   addEnumOption("FLUCT_STRESS_DAMPING", Kind_Hybrid_Fluct_Stress_Damping, Hybrid_Fluct_Stress_Damping_Map, BLEND_STRESS_TO_ZERO);
+
+  /*!\brief FLUCT_STRESS_AR_PARAM  \n DESCRIPTION: The threshold and the slope (at the threshold) of the high-aspect ratio blending applied to the damping.  Only used in the model-split hybrid RANS/LES, when high-AR fluctuating stress blending is on. \ingroup Config*/
+  default_fluct_stress_AR_params[0] = 128;     // Threshold
+  default_fluct_stress_AR_params[1] = 0.03125;  // The slope (at threshold)
+  addDoubleArrayOption("FLUCT_STRESS_AR_PARAM", 2, FluctStress_AR_Params, default_fluct_stress_AR_params);
   
-  /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
-  addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RK_INDICATOR);
+  /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RDELTA_INDICATOR_FULLP_VELCON \ingroup Config */
+  addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RDELTA_INDICATOR_FULLP_VELCON);
 
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
+  addBoolOption("HYBRID_FORCING_AXI", Hybrid_Forcing_Axi, false);
 
 
   default_hybrid_periodic_length[0] = -1.0;
@@ -671,6 +679,12 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief USE_RESOLVED_TURB_STRESS \n DESCRIPTION: Use the resolved turbulent stress in stead of improved production for hybrid RANS/LES calculations. \ingroup Config*/
   addBoolOption("USE_RESOLVED_TURB_STRESS", Use_Resolved_Turb_Stress, YES);
+
+  /*!\brief V2F_TIMESCALE_LIMIT \n DESCRITPTION: For the v2-f RANS model, limit the timescale in the f-equation to 3/S, where S is the Frobenius norm of the mean rate-of-strain tensor. \ingroup Config */
+  addBoolOption("V2F_TIMESCALE_LIMIT", Use_v2f_Timescale_Limit, NO);
+
+  /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
+  addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
 
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
@@ -959,6 +973,12 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("DIVU_IN_TKE_PRODUCTION", DivU_inTKEProduction, true);
   addBoolOption("USE_V2F_RF_MOD", Use_v2f_Rf_mod, false);
   addBoolOption("USE_V2F_EXPLICIT_WALLBC", Use_v2f_Explicit_WallBC, true);
+
+  /*!\brief KEEP_PV2_NONNEGATIVE  \n DESCRIPTION: Limit the production of v2 to non-negative values in the v2-f RANS model. \n DEFAULT: True \ingroup Config*/
+  addBoolOption("KEEP_PV2_NONNEGATIVE", Pv2_nonnegative, true);
+
+  /*!\brief PRODUCTION_RELAXATION \n DESCRIPTION: When the averages are updated, relax the updates by this amount. \n DEFAULT: 0.5 \ingroup Config */
+  addDoubleOption("PRODUCTION_RELAXATION", Production_Relaxation, 0.5);
   
   /*!\brief SPATIAL_FOURIER \n DESCRIPTION: Option to compute the spatial fourier trasformation for the Giles BC. */
   addBoolOption("SPATIAL_FOURIER", SpatialFourier, false);
@@ -6812,6 +6832,7 @@ CConfig::~CConfig(void) {
   if (default_sineload_coeff!= NULL) delete [] default_sineload_coeff;
   if (default_nacelle_location    != NULL) delete [] default_nacelle_location;
   if (default_hybrid_periodic_length != NULL) delete [] default_hybrid_periodic_length;
+  if (default_fluct_stress_AR_params != NULL) delete [] default_fluct_stress_AR_params;
 
   if (FFDTag != NULL) delete [] FFDTag;
   if (nDV_Value != NULL) delete [] nDV_Value;

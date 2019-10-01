@@ -108,7 +108,7 @@ void CVolumetricMovement::UpdateDualGrid(CGeometry *geometry, CConfig *config) {
   
 	geometry->SetCoord_CG();
 	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-	  geometry->SetResolutionTensor();
+	  geometry->SetResolutionTensor(config);
 	}
 	geometry->SetControlVolume(config, UPDATE);
 	geometry->SetBoundControlVolume(config, UPDATE);

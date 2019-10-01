@@ -523,12 +523,21 @@ private:
   unsigned short Kind_Hybrid_Fluct_Stress_Damping; /*!< \brief Damping of the fluctuating stress in high-AR cells (only in model-split hybrid RANS/LES) */
   unsigned short Kind_Hybrid_Res_Ind; /*!< \brief Hybrid RANS/LES resolution adequacy indicator type */
   bool Hybrid_Forcing; /*!< \brief If true, the hybrid RANS/LES model will use turbulent forcing. */
+  bool Hybrid_Forcing_Axi; /*!< \brief If true, the hybrid RANS/LES model will use 'axisymmetric' version of forcing. */
   su2double *Hybrid_Forcing_Periodic_Length;  /*!< \brief Domain lengths in periodic directions for hybrid forcing */
   su2double *default_hybrid_periodic_length;  /*!< \brief Default for Hybrid_Forcing_Periodic_Length */
   su2double Hybrid_Forcing_Strength,  /*!< \brief An overall scaling coefficient for the periodic forcing .*/
             Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
+  su2double* FluctStress_AR_Params; /*!< \brief The parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
+  su2double* default_fluct_stress_AR_params; /*!< \brief Default values of the parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
+
+
+  bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
+  unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
+  unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
+
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_Giles;           /*!< \brief Kind of inlet boundary treatment. */
@@ -1014,6 +1023,8 @@ private:
   bool DivU_inTKEProduction;
   bool Use_v2f_Rf_mod;
   bool Use_v2f_Explicit_WallBC;
+  bool Pv2_nonnegative;
+  su2double Production_Relaxation;
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -3798,6 +3809,19 @@ public:
    */
   unsigned short GetKind_Hybrid_Fluct_Stress_Damping(void) const;
 
+
+  /*!
+   * \brief Get the parameters defining the damping applied to the
+   * fluctuating stress in high-AR cells.
+   *
+   * The first parameter is the threshold, where blending = 0.5.
+   * The second parameter is the slope of the blending function w.r.t.
+   * the aspect ratio, at the threshold.
+   *
+   * \return A pointer-to-array of length 2 containing the AR parameters.
+   */
+  const su2double* GetFluctStress_AR_Params(void) const;
+
   /*!
    * \brief Get the kind of hybrid RANS/LES resolution adequacy indicator.
    * \return Kind of blending scheme.
@@ -3809,6 +3833,8 @@ public:
    * \return True if the hybrid RANS/LES model is to be forced.
    */
   bool isHybrid_Forced(void);
+
+  bool isHybrid_Forced_Axi(void);
 
   /*!
    * \brief Get the array of domain lengths for use in hybrid forcing.
@@ -3851,6 +3877,20 @@ public:
    * \param[in] load_stress - True if the resolved turbulent stress is to be used.
    */
   void SetUse_Resolved_Turb_Stress(bool use_stress);
+
+  /*!
+   * \brief Check if the timescale limit should be used in the v2-f
+   *        RANS model.
+   * \return True if the timescale limit should be used.
+   */
+  bool GetUse_v2f_Timescale_Limit(void) const;
+
+  /*!
+   * \brief Get the kind of realizability limit to be used in the v2-f
+   *        RANS model.
+   * \return Kind of realizability limit to be used.
+   */
+  bool GetKind_v2f_Limit(void) const;
 
   /*!
    * \brief Get the kind of the turbulence model.
@@ -4507,6 +4547,21 @@ public:
    * \return boolean
    */
   bool GetBoolUse_v2f_Explicit_WallBC(void);
+
+  /*!
+   * \brief Limit the production of v2 to be non-negative.
+   * \return True if the production of v2 is limited to be non-negative.
+   */
+  bool GetBool_Pv2_Nonnegative(void) const;
+
+  /*!
+   * \brief Get the relaxation factor applied to updates of production
+   *
+   * This is only used in the model-split hybrid RANS/LES
+   *
+   * \return The relaxation factor.
+   */
+  su2double GetProduction_Relaxation(void) const;
 
   /*!
    * \brief number Turbomachinery performance option specified from config file.
@@ -8205,7 +8260,7 @@ public:
    * \brief Get the Kind of Hybrid RANS/LES.
    * \return Value of Hybrid RANS/LES method.
    */
-  unsigned short GetKind_HybridRANSLES(void);
+  unsigned short GetKind_HybridRANSLES(void) const;
 
   /*!
    * \brief Checks if a DES-based hybrid RANS/LES model is required.

@@ -1372,6 +1372,7 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
   
   unsigned short iMesh;
   geometry_container[MESH_0]->Set_MPI_Coord(config);
+  geometry_container[MESH_0]->Set_MPI_Coord(config); // twice for periodic??
   if (config->GetGrid_Movement()){
     geometry_container[MESH_0]->Set_MPI_GridVel(config);
   }
@@ -1381,7 +1382,7 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
   geometry_container[MESH_0]->SetBoundControlVolume(config, UPDATE);
   geometry_container[MESH_0]->SetMaxLength(config);
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-    geometry_container[MESH_0]->SetResolutionTensor();
+    geometry_container[MESH_0]->SetResolutionTensor(config);
   }
   
   for (iMesh = 1; iMesh <= config->GetnMGLevels(); iMesh++) {
@@ -11976,7 +11977,7 @@ void CPhysicalGeometry::SetCoord_CG(void) {
   }
 }
 
-void CGeometry::SetResolutionTensor(void) {
+void CGeometry::SetResolutionTensor(CConfig *config) {
 
   /*--- Compute the resolution tensor for primal mesh elements ---*/
 
@@ -12018,12 +12019,17 @@ void CGeometry::SetResolutionTensor(void) {
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         for (unsigned short jDim = 0; jDim < nDim; jDim++) {
           su2double temp_value = temp_tensor[iDim][jDim] / (node[iPoint]->GetnElem());
-          if (temp_value > EPS)
-             node[iPoint]->AddResolutionTensor(iDim, jDim, temp_value);
+	  // don't test positivity here... abs would be ok, but why?
+	  node[iPoint]->AddResolutionTensor(iDim, jDim, temp_value);
+          // if (temp_value > EPS)
+          //    node[iPoint]->AddResolutionTensor(iDim, jDim, temp_value);
         }
       }
     }
   }
+
+  // Communicate prior to computing eigendecomp
+  Set_MPI_Resolution_Tensor(config);
 
   /*--- Compute new eigvalues and eigvectors for the dual grid ---*/
 
@@ -14557,6 +14563,217 @@ void CPhysicalGeometry::Set_MPI_Coord(CConfig *config) {
   delete [] newCoord;
   
 }
+
+void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config) {
+
+  unsigned short iVar, iDim, jVar, jDim;
+  unsigned short iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned long iVertex, iPoint, nVertexS, nVertexR;
+  unsigned long nBufferS_Vector, nBufferR_Vector;
+  su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta;
+  su2double phi, cosPhi, sinPhi, psi, cosPsi, sinPsi;
+  su2double *Buffer_Receive_M = NULL, *Buffer_Send_M = NULL;
+
+  su2double **Mtensor = new su2double* [nDim];
+  su2double **MtensorTmp = new su2double* [nDim];
+  for (iDim = 0; iDim < nDim; iDim++) {
+    Mtensor[iDim] = new su2double[nDim];
+    MtensorTmp[iDim] = new su2double[nDim];
+  }
+
+  // std::cout << "Calling Set_MPI_Resolution_Tensor..." << std::endl;
+
+  // ofstream myfile;
+
+  // stringstream ss;
+  // ss << rank;
+  // string srank = ss.str();
+  // string fname("resolution_comm_rank_"+srank+".txt");
+  // myfile.open (fname.c_str());
+
+
+  
+#ifdef HAVE_MPI
+  int send_to, receive_from;
+  SU2_MPI::Status status;
+#endif
+
+  for (iMarker = 0; iMarker < nMarker; iMarker++) {
+
+    if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
+        (config->GetMarker_All_SendRecv(iMarker) > 0)) {
+
+      //std::cout << "On send-receive boundary!" << std::endl;
+
+      MarkerS = iMarker;  MarkerR = iMarker+1;
+
+#ifdef HAVE_MPI
+      send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
+      receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
+#endif
+
+      nVertexS = nVertex[MarkerS];
+      nVertexR = nVertex[MarkerR];
+
+      nBufferS_Vector = nVertexS*nDim*nDim;
+      nBufferR_Vector = nVertexR*nDim*nDim;
+
+      /*--- Allocate Receive and send buffers  ---*/
+      Buffer_Receive_M = new su2double [nBufferR_Vector];
+      Buffer_Send_M = new su2double[nBufferS_Vector];
+
+      /*--- Copy the solution old that should be sended ---*/
+      for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+        iPoint = vertex[MarkerS][iVertex]->GetNode();
+        for (iVar = 0; iVar < nDim; iVar++) {
+          for (iDim = 0; iDim < nDim; iDim++) {
+            int index = iDim*nDim*nVertexS+iVar*nVertexS+iVertex;
+            Buffer_Send_M[index] = node[iPoint]->GetResolutionTensor(iVar, iDim);
+          }
+        }
+      }
+
+#ifdef HAVE_MPI
+
+      /*--- Send/Receive information using Sendrecv ---*/
+      SU2_MPI::Sendrecv(Buffer_Send_M, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
+                        Buffer_Receive_M, nBufferR_Vector, MPI_DOUBLE, receive_from,
+                        0, MPI_COMM_WORLD, &status);
+
+#else
+
+      /*--- Receive information without MPI ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+        for (iVar = 0; iVar < nDim; iVar++) {
+          for (iDim = 0; iDim < nDim; iDim++) {
+            int index = iDim*nDim*nVertexR+iVar*nVertexR+iVertex;
+            Buffer_Receive_M[index] = Buffer_Send_M[index];
+          }
+        }
+      }
+
+#endif
+
+      /*--- Deallocate send buffer ---*/
+      delete [] Buffer_Send_M;
+
+      /*--- Do the coordinate transformation ---*/
+      for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+
+        /*--- Find point and its type of transformation ---*/
+        iPoint = vertex[MarkerR][iVertex]->GetNode();
+        iPeriodic_Index = vertex[MarkerR][iVertex]->GetRotation_Type();
+
+        /*--- Retrieve the supplied periodic information. ---*/
+        angles = config->GetPeriodicRotation(iPeriodic_Index);
+
+        /*--- Store angles separately for clarity. ---*/
+        theta    = angles[0];   phi    = angles[1];     psi    = angles[2];
+
+        // std::cout << "theta = " << theta << std::endl;
+        // std::cout << "phi   = " << phi   << std::endl;
+        // std::cout << "psi   = " << psi   << std::endl;
+
+        cosTheta = cos(theta);  cosPhi = cos(phi);      cosPsi = cos(psi);
+        sinTheta = sin(theta);  sinPhi = sin(phi);      sinPsi = sin(psi);
+
+        /*--- Compute the rotation matrix. Note that the implicit
+         ordering is rotation about the x-axis, y-axis,
+         then z-axis. Note that this is the transpose of the matrix
+         used during the preprocessing stage. ---*/
+        rotMatrix[0][0] = cosPhi*cosPsi;
+        rotMatrix[1][0] = sinTheta*sinPhi*cosPsi - cosTheta*sinPsi;
+        rotMatrix[2][0] = cosTheta*sinPhi*cosPsi + sinTheta*sinPsi;
+
+        rotMatrix[0][1] = cosPhi*sinPsi;
+        rotMatrix[1][1] = sinTheta*sinPhi*sinPsi + cosTheta*cosPsi;
+        rotMatrix[2][1] = cosTheta*sinPhi*sinPsi - sinTheta*cosPsi;
+
+        rotMatrix[0][2] = -sinPhi;
+        rotMatrix[1][2] = sinTheta*cosPhi;
+        rotMatrix[2][2] = cosTheta*cosPhi;
+
+        /*--- Copy resolution tensor before performing transformation. ---*/
+        for (iVar = 0; iVar < nDim; iVar++) {
+          for (iDim = 0; iDim < nDim; iDim++) {
+            int index = iDim*nDim*nVertexR+iVar*nVertexR+iVertex;
+            MtensorTmp[iVar][iDim] = Buffer_Receive_M[index];
+          }
+        }
+
+        /*--- Tensor rotation ---*/
+        for (iVar = 0; iVar < nDim; iVar++) {
+          for (iDim = 0; iDim < nDim; iDim++) {
+            Mtensor[iVar][iDim] = 0;
+            for (jVar = 0; jVar < nDim; jVar++) {
+              for (jDim = 0; jDim < nDim; jDim++) {
+                Mtensor[iVar][iDim] +=
+                  rotMatrix[iVar][jVar]*MtensorTmp[jVar][jDim]*rotMatrix[iDim][jDim];
+              }
+            }
+          }
+        }
+
+
+        // myfile << "----------------------------------------" << std::endl;
+        // myfile << "Mtensor WAS:" << std::endl;
+        // for (iVar = 0; iVar < nDim; iVar++) {
+        //   myfile << node[iPoint]->GetResolutionTensor(iVar, 0) << " "
+	// 	 << node[iPoint]->GetResolutionTensor(iVar, 1) << " "
+	// 	 << node[iPoint]->GetResolutionTensor(iVar, 2) << std::endl;
+        // }
+
+        // myfile << "MtensorTMP IS:" << std::endl;
+        // for (iVar = 0; iVar < nDim; iVar++) {
+        //   myfile << MtensorTmp[iVar][0] << " "
+	// 	 << MtensorTmp[iVar][1] << " "
+	// 	 << MtensorTmp[iVar][2] << std::endl;
+        // }
+
+        // myfile << "R IS:" << std::endl;
+        // for (iVar = 0; iVar < nDim; iVar++) {
+        //   myfile << rotMatrix[iVar][0] << " "
+	// 	 << rotMatrix[iVar][1] << " "
+	// 	 << rotMatrix[iVar][2] << std::endl;
+        // }
+
+        /*--- Store the received information ---*/
+        for (iVar = 0; iVar < nDim; iVar++) {
+          for (iDim = 0; iDim < nDim; iDim++) {
+            node[iPoint]->SetResolutionTensor(iVar, iDim, Mtensor[iVar][iDim]);
+          }
+        }
+
+        // myfile << "Mtensor IS:" << std::endl;
+        // for (iVar = 0; iVar < nDim; iVar++) {
+        //   myfile << node[iPoint]->GetResolutionTensor(iVar, 0) << " "
+	// 	 << node[iPoint]->GetResolutionTensor(iVar, 1) << " "
+	// 	 << node[iPoint]->GetResolutionTensor(iVar, 2) << std::endl;
+        // }
+
+        // myfile << "----------------------------------------" << std::endl;
+
+      }
+
+      /*--- Deallocate receive buffer ---*/
+      delete [] Buffer_Receive_M;
+
+    }
+
+  }
+
+
+  //myfile.close();
+  
+  for (iVar = 0; iVar < nDim; iVar++) {
+    delete [] Mtensor[iVar];
+    delete [] MtensorTmp[iVar];
+  }
+  delete [] Mtensor;
+  delete [] MtensorTmp;
+
+}
+
 
 void CPhysicalGeometry::Set_MPI_GridVel(CConfig *config) {
   

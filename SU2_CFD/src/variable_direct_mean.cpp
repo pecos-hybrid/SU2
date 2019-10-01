@@ -772,6 +772,13 @@ void CNSVariable::SetRoe_Dissipation_NTS(su2double val_delta,
   Aaux = ch2*max((val_const_DES*val_delta/Lturb)/Gaux -  0.5, 0.0);
   
   Roe_Dissipation = sigma_max * tanh(pow(Aaux, ch1)); 
+
+  if (!( (Roe_Dissipation>=0) && (Roe_Dissipation<=1))) {
+    std::cout << "Temperature = " << GetTemperature() << std::endl;
+    std::cout << "Lturb = " << Lturb << ", Density = " << GetDensity() << std::endl;
+    std::cout << "nu = " << nu << ", nu_t = " << nu_t << std::endl;
+    std::cout << "Kaux = " << Kaux << std::endl;
+  }
   
   AD::SetPreaccOut(Roe_Dissipation);
   AD::EndPreacc();
@@ -837,32 +844,39 @@ bool CNSVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel
   check_sos   = SetSoundSpeed(FluidModel->GetSoundSpeed2());
   check_temp  = SetTemperature(FluidModel->GetTemperature());
   
+  if (check_temp) {
+    std::cout << "Encountered invalid temperature!" << std::endl;
+    std::cout << "T = " << FluidModel->GetTemperature() << std::endl;
+    std::cout << "rho = " << density << std::endl;
+    std::cout << "with E = " << GetEnergy() << ", V2 = " << Velocity2 << ", tke = " << turb_ke << std::endl;
+  }
+
   /*--- Check that the solution has a physical meaning ---*/
   
   if (check_dens || check_press || check_sos  || check_temp) {
     
-    /*--- Copy the old solution ---*/
+    // /*--- Copy the old solution ---*/
     
-    for (iVar = 0; iVar < nVar; iVar++)
-      Solution[iVar] = Solution_Old[iVar];
+    // for (iVar = 0; iVar < nVar; iVar++)
+    //   Solution[iVar] = Solution_Old[iVar];
     
-    /*--- Recompute the primitive variables ---*/
+    // /*--- Recompute the primitive variables ---*/
     
-    SetVelocity(); // Computes velocity and velocity^2
-    density = GetDensity();
-    staticEnergy = GetEnergy()-0.5*Velocity2 - turb_ke;
+    // SetVelocity(); // Computes velocity and velocity^2
+    // density = GetDensity();
+    // staticEnergy = GetEnergy()-0.5*Velocity2 - turb_ke;
     
-    /*--- Check will be moved inside fluid model plus error description strings ---*/
+    // /*--- Check will be moved inside fluid model plus error description strings ---*/
     
-    FluidModel->SetTDState_rhoe(density, staticEnergy);
+    // FluidModel->SetTDState_rhoe(density, staticEnergy);
     
-    SetDensity();
-    SetPressure(FluidModel->GetPressure());
-    SetSoundSpeed(FluidModel->GetSoundSpeed2());
-    SetTemperature(FluidModel->GetTemperature());
+    // SetDensity();
+    // SetPressure(FluidModel->GetPressure());
+    // SetSoundSpeed(FluidModel->GetSoundSpeed2());
+    // SetTemperature(FluidModel->GetTemperature());
     
     RightVol = false;
-    
+    return RightVol;
   }
   
   /*--- Set enthalpy ---*/

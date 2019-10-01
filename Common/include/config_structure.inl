@@ -1150,6 +1150,10 @@ inline bool CConfig::GetBoolUse_v2f_Rf_mod(void) { return Use_v2f_Rf_mod; }
 
 inline bool CConfig::GetBoolUse_v2f_Explicit_WallBC(void) { return Use_v2f_Explicit_WallBC; }
 
+inline bool CConfig::GetBool_Pv2_Nonnegative(void) const { return Pv2_nonnegative; }
+
+inline double CConfig::GetProduction_Relaxation(void) const { return Production_Relaxation; }
+
 inline unsigned short CConfig::GetnMarker_MixingPlaneInterface(void) { return nMarker_MixingPlaneInterface;}
 
 inline unsigned short CConfig::GetnMarker_Turbomachinery(void) { return nMarker_Turbomachinery;}
@@ -1540,9 +1544,12 @@ inline unsigned short CConfig::GetKind_HybridRANSLES_Testing(void) { return Kind
 
 inline unsigned short CConfig::GetKind_Hybrid_Fluct_Stress_Damping(void) const { return Kind_Hybrid_Fluct_Stress_Damping; }
 
+inline const su2double* CConfig::GetFluctStress_AR_Params(void) const { return FluctStress_AR_Params; }
+
 inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { return Kind_Hybrid_Res_Ind; }
 
 inline bool CConfig::isHybrid_Forced(void) { return Hybrid_Forcing; }
+inline bool CConfig::isHybrid_Forced_Axi(void) { return Hybrid_Forcing_Axi; }
 
 inline su2double* CConfig::GetHybrid_Forcing_Periodic_Length(void) { return Hybrid_Forcing_Periodic_Length; }
 
@@ -1553,6 +1560,10 @@ inline su2double CConfig::GetHybrid_Forcing_Vortex_Length(void) const { return H
 inline unsigned short CConfig::GetKind_Hybrid_SGET_Model(void) {return Kind_Hybrid_SGET_Model; }
 
 inline bool CConfig::GetUse_Resolved_Turb_Stress(void) const { return Use_Resolved_Turb_Stress; }
+
+inline bool CConfig::GetUse_v2f_Timescale_Limit(void) const { return Use_v2f_Timescale_Limit; }
+
+inline bool CConfig::GetKind_v2f_Limit(void) const { return Kind_v2f_Limit; }
 
 inline void CConfig::SetUse_Resolved_Turb_Stress(bool use_stress) { Use_Resolved_Turb_Stress = use_stress; }
 
@@ -1852,7 +1863,7 @@ inline su2double* CConfig::GetFFD_BSplineOrder(){return FFD_BSpline_Order;}
 
 inline unsigned long CConfig::GetWrt_Surf_Freq_DualTime(void) { return Wrt_Surf_Freq_DualTime; }
 
-inline unsigned short CConfig::GetKind_HybridRANSLES(void) {return Kind_HybridRANSLES; }
+inline unsigned short CConfig::GetKind_HybridRANSLES(void) const {return Kind_HybridRANSLES; }
 
 inline bool CConfig::isDESBasedModel(void) {
   return ((Kind_HybridRANSLES == SA_DES)  || (Kind_HybridRANSLES == SA_DDES) ||

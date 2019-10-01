@@ -922,8 +922,11 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
-  if (config->GetKind_Averaging() != NO_AVERAGING)
+  Set_MPI_Solution(geometry, config);
+  if (config->GetKind_Averaging() != NO_AVERAGING){
     Set_MPI_Average_Solution(geometry, config);
+    Set_MPI_Average_Solution(geometry, config);
+  }
   
 }
 
@@ -2189,13 +2192,17 @@ void CEulerSolver::Set_MPI_Sensor(CGeometry *geometry, CConfig *config) {
 
 void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned short jDim, kDim, lDim;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
   *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
   
   su2double **Gradient = new su2double* [nVar];
-  for (iVar = 0; iVar < nVar; iVar++)
+  su2double **GradientTmp = new su2double* [nVar];
+  for (iVar = 0; iVar < nVar; iVar++) {
     Gradient[iVar] = new su2double[nDim];
+    GradientTmp[iVar] = new su2double[nDim];
+  }
   
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -2273,23 +2280,55 @@ void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *confi
         rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
         
         /*--- Copy conserved variables before performing transformation. ---*/
-        for (iVar = 0; iVar < nVar; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
+        for (iVar = 0; iVar < nVar; iVar++){
+          for (iDim = 0; iDim < nDim; iDim++){
+            //Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
+	    int index = iDim*nVar*nVertexR+iVar*nVertexR+iVertex;
+	    GradientTmp[iVar][iDim] = Buffer_Receive_Gradient[index];
+	  }
+	}
         
-        /*--- Need to rotate the gradients for all conserved variables. ---*/
-        for (iVar = 0; iVar < nVar; iVar++) {
-          if (nDim == 2) {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
-          }
-          else {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-          }
-        }
-        
+        // /*--- Need to rotate the gradients for all conserved variables. ---*/
+        // for (iVar = 0; iVar < nVar; iVar++) {
+        //   if (nDim == 2) {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        //   else {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        // }
+
+        /*--- Rotate the gradients for all SCALAR conserved variables. ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  Gradient[0][iDim] = Gradient[nDim+1][iDim] = 0;
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // Density iVar = 0
+	    Gradient[0][iDim] += rotMatrix[iDim][jDim]*GradientTmp[0][jDim];
+
+	    // Energy iVar = nDim+1
+	    Gradient[nDim+1][iDim] += rotMatrix[iDim][jDim]*GradientTmp[nDim+1][jDim];
+	  }
+	}
+	 
+        /*--- Rotate the gradients for momentum gradient (a tensor). ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // iDim momentum component gradient wrt jDim direction
+	    Gradient[iDim+1][jDim] = 0;
+
+	    for (kDim=0; kDim<nDim; kDim++) {
+	      for (lDim=0; lDim<nDim; lDim++) {
+		Gradient[iDim+1][jDim] +=
+		  rotMatrix[iDim][kDim]*GradientTmp[kDim+1][lDim]*rotMatrix[jDim][lDim];
+	      }
+	    }
+	  }
+	}
+
+
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nVar; iVar++)
           for (iDim = 0; iDim < nDim; iDim++)
@@ -2312,13 +2351,17 @@ void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *confi
 
 void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned short jDim, kDim, lDim;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
   *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
 
   su2double **Gradient = new su2double* [nVar];
-  for (iVar = 0; iVar < nVar; iVar++)
+  su2double **GradientTmp = new su2double* [nVar];
+  for (iVar = 0; iVar < nVar; iVar++) {
     Gradient[iVar] = new su2double[nDim];
+    GradientTmp[iVar] = new su2double[nDim];
+  }
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -2396,22 +2439,54 @@ void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfi
         rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
 
         /*--- Copy conserved variables before performing transformation. ---*/
-        for (iVar = 0; iVar < nVar; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
-
-        /*--- Need to rotate the gradients for all conserved variables. ---*/
         for (iVar = 0; iVar < nVar; iVar++) {
-          if (nDim == 2) {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
-          }
-          else {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-          }
-        }
+          for (iDim = 0; iDim < nDim; iDim++) {
+            //Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
+	    int index = iDim*nVar*nVertexR+iVar*nVertexR+iVertex;
+	    GradientTmp[iVar][iDim] = Buffer_Receive_Gradient[index];
+	  }
+	}
+
+        // /*--- Need to rotate the gradients for all conserved variables. ---*/
+        // for (iVar = 0; iVar < nVar; iVar++) {
+        //   if (nDim == 2) {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        //   else {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        // }
+
+        /*--- Rotate the gradients for all SCALAR conserved variables. ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  Gradient[0][iDim] = Gradient[nDim+1][iDim] = 0;
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // Density iVar = 0
+	    Gradient[0][iDim] += rotMatrix[iDim][jDim]*GradientTmp[0][jDim];
+
+	    // Energy iVar = nDim+1
+	    Gradient[nDim+1][iDim] += rotMatrix[iDim][jDim]*GradientTmp[nDim+1][jDim];
+	  }
+	}
+	 
+        /*--- Rotate the gradients for momentum gradient (a tensor). ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // iDim momentum component gradient wrt jDim direction
+	    Gradient[iDim+1][jDim] = 0;
+
+	    for (kDim=0; kDim<nDim; kDim++) {
+	      for (lDim=0; lDim<nDim; lDim++) {
+		Gradient[iDim+1][jDim] +=
+		  rotMatrix[iDim][kDim]*GradientTmp[kDim+1][lDim]*rotMatrix[jDim][lDim];
+	      }
+	    }
+	  }
+	}
+
 
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nVar; iVar++)
@@ -2556,13 +2631,17 @@ void CEulerSolver::Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *config
 
 void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned short jDim, kDim, lDim;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
   *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
   
   su2double **Gradient = new su2double* [nPrimVarGrad];
-  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+  su2double **GradientTmp = new su2double* [nPrimVarGrad];
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
     Gradient[iVar] = new su2double[nDim];
+    GradientTmp[iVar] = new su2double[nDim];
+  }
   
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -2640,22 +2719,61 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
         rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
         
         /*--- Copy conserved variables before performing transformation. ---*/
-        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-        
-        /*--- Need to rotate the gradients for all conserved variables. ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-          if (nDim == 2) {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-          }
-          else {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-          }
-        }
+          for (iDim = 0; iDim < nDim; iDim++) {
+            //Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+	    int index = iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex;
+	    GradientTmp[iVar][iDim] = Buffer_Receive_Gradient[index];
+	  }
+	}
+        
+        // /*--- Need to rotate the gradients for all conserved variables. ---*/
+        // for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+        //   if (nDim == 2) {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        //   else {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        // }
+
+        /*--- Rotate the gradients for all SCALAR primitive variables. ---*/
+	// Temperature
+	for (iDim=0; iDim<nDim; iDim++) {
+	  Gradient[0][iDim] = 0;
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    Gradient[0][iDim] += rotMatrix[iDim][jDim]*GradientTmp[0][jDim];
+	  }
+	}
+
+	// pressure, density, enthalpy,
+	for (iVar=nDim+1; iVar<nPrimVarGrad; iVar++) {
+	  for (iDim=0; iDim<nDim; iDim++) {
+	    Gradient[iVar][iDim] = 0;
+	    for (jDim=0; jDim<nDim; jDim++) {
+	      Gradient[iVar][iDim] += rotMatrix[iDim][jDim]*GradientTmp[iVar][jDim];
+	    }
+	  }
+	}
+	 
+        /*--- Rotate the gradients for velocity gradient (a tensor). ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // iDim momentum component gradient wrt jDim direction
+	    Gradient[iDim+1][jDim] = 0;
+
+	    for (kDim=0; kDim<nDim; kDim++) {
+	      for (lDim=0; lDim<nDim; lDim++) {
+		Gradient[iDim+1][jDim] +=
+		  rotMatrix[iDim][kDim]*GradientTmp[kDim+1][lDim]*rotMatrix[jDim][lDim];
+	      }
+	    }
+	  }
+	}
+
         
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
@@ -2679,13 +2797,17 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
 
 void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned short jDim, kDim, lDim;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
   *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
 
   su2double **Gradient = new su2double* [nPrimVarGrad];
-  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+  su2double **GradientTmp = new su2double* [nPrimVarGrad];
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
     Gradient[iVar] = new su2double[nDim];
+    GradientTmp[iVar] = new su2double[nDim];
+  }
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -2763,22 +2885,62 @@ void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConf
         rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
 
         /*--- Copy conserved variables before performing transformation. ---*/
-        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-
-        /*--- Need to rotate the gradients for all conserved variables. ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-          if (nDim == 2) {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-          }
-          else {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-          }
-        }
+          for (iDim = 0; iDim < nDim; iDim++) {
+            //Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+	    int index = iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex;
+            GradientTmp[iVar][iDim] = Buffer_Receive_Gradient[index];
+	  }
+	}
+
+        // /*--- Need to rotate the gradients for all conserved variables. ---*/
+        // for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+        //   if (nDim == 2) {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        //   else {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        // }
+
+
+        /*--- Rotate the gradients for all SCALAR primitive variables. ---*/
+	// Temperature
+	for (iDim=0; iDim<nDim; iDim++) {
+	  Gradient[0][iDim] = 0;
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    Gradient[0][iDim] += rotMatrix[iDim][jDim]*GradientTmp[0][jDim];
+	  }
+	}
+
+	// pressure, density, enthalpy,
+	for (iVar=nDim+1; iVar<nPrimVarGrad; iVar++) {
+	  for (iDim=0; iDim<nDim; iDim++) {
+	    Gradient[iVar][iDim] = 0;
+	    for (jDim=0; jDim<nDim; jDim++) {
+	      Gradient[iVar][iDim] += rotMatrix[iDim][jDim]*GradientTmp[iVar][jDim];
+	    }
+	  }
+	}
+	 
+        /*--- Rotate the gradients for velocity gradient (a tensor). ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // iDim momentum component gradient wrt jDim direction
+	    Gradient[iDim+1][jDim] = 0;
+
+	    for (kDim=0; kDim<nDim; kDim++) {
+	      for (lDim=0; lDim<nDim; lDim++) {
+		Gradient[iDim+1][jDim] +=
+		  rotMatrix[iDim][kDim]*GradientTmp[kDim+1][lDim]*rotMatrix[jDim][lDim];
+	      }
+	    }
+	  }
+	}
+
 
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
@@ -4660,8 +4822,9 @@ void CEulerSolver::SetInitialCondition(CGeometry **geometry, CSolver ***solver_c
         
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution_Old(geometry[iMesh], config);
-        if (config->GetKind_Averaging() != NO_AVERAGING)
+        if (config->GetKind_Averaging() != NO_AVERAGING) {
           solver_container[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
+	}
         
       }
       
@@ -5315,6 +5478,7 @@ void CEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_contain
       
       Dissipation_i = node[iPoint]->GetRoe_Dissipation();
       Dissipation_j = node[jPoint]->GetRoe_Dissipation();
+
       numerics->SetDissipation(Dissipation_i, Dissipation_j);
             
       if (kind_dissipation == FD_DUCROS || kind_dissipation == NTS_DUCROS){
@@ -10039,7 +10203,7 @@ void CEulerSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container
 
 void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
-  
+
   unsigned short iDim;
   unsigned long iVertex, iPoint, Point_Normal;
   
@@ -17113,8 +17277,11 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
-  if (runtime_averaging)
+  Set_MPI_Solution(geometry, config);
+  if (runtime_averaging) {
     Set_MPI_Average_Solution(geometry, config);
+    Set_MPI_Average_Solution(geometry, config);
+  }
   
 }
 
@@ -17213,6 +17380,19 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   /*--- Set the primitive variables ---*/
   
   ErrorCounter = SetPrimitive_Variables(solver_container, config, Output);
+
+  if (ErrorCounter > 0) {
+    for (unsigned int iPoint = 0; iPoint < nPoint; iPoint++) {
+      if ( (solver_container[FLOW_SOL]->node[iPoint]->GetDensity()<0) ||
+	   (solver_container[FLOW_SOL]->node[iPoint]->GetTemperature()<0) ) {
+	std::cout << "Negative density at x = "
+		  << geometry->node[iPoint]->GetCoord(0) << " "
+		  << geometry->node[iPoint]->GetCoord(1) << " "
+		  << geometry->node[iPoint]->GetCoord(2) << std::endl;
+      }
+    }
+  }
+
 
   /*--- Compute the engine properties ---*/
 
@@ -17381,9 +17561,12 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       const su2double tke_lim = max(k_total, 1.0E-8);
       //const su2double a_kol = 1.0E-2; // XXX: We should actually get the viscous limit here
       const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
-      const su2double alpha = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
-      average_node[iPoint]->SetKineticEnergyRatio(alpha);
-      assert(alpha == alpha);  // alpha should not be NaN
+      su2double alpha_set = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
+
+      // protect against negative alpha, just in case
+      alpha_set = max(alpha_set, 0.0);
+      average_node[iPoint]->SetKineticEnergyRatio(alpha_set);
+      assert(alpha_set == alpha_set);  // alpha should not be NaN
     }
 
     su2double alpha = 1.0;
@@ -17391,6 +17574,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
       if (tkeNeeded) {
         turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+	turb_ke = max(turb_ke, tke_min);
 
 	// account for resolved portion
 	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
@@ -17410,9 +17594,17 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
     
     RightSol = node[iPoint]->SetPrimVar(eddy_visc, alpha*turb_ke, FluidModel);
+    if (!RightSol) {
+	std::cout << "Error Setting instant primitive variables! " << alpha << std::endl;
+	std::cout << "instant: alpha = " << alpha << std::endl;
+    }
     node[iPoint]->SetSecondaryVar(FluidModel);
     if (runtime_averaging) {
-      average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      bool ierr = average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      if (!ierr) {
+	std::cout << "Error Setting average primitive variables! " << alpha << std::endl;
+	std::cout << "average: alpha = " << alpha << std::endl;
+      }
       // We don't need the secondary variables
     }
 
@@ -19151,6 +19343,281 @@ void CNSSolver::InitAverages() {
 
 }
 
+void CNSSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
+			     CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
+  
+  unsigned short iDim;
+  unsigned long iVertex, iPoint, Point_Normal;
+  
+  su2double *GridVel;
+  su2double Area, UnitNormal[3] = {0.0,0.0,0.0};
+  su2double Density, Pressure, Energy,  Velocity[3] = {0.0,0.0,0.0};
+  su2double Density_Bound, Pressure_Bound, Vel_Bound[3] = {0.0,0.0,0.0};
+  su2double Density_Infty, Pressure_Infty, Vel_Infty[3] = {0.0,0.0,0.0};
+  su2double SoundSpeed, Entropy, Velocity2, Vn;
+  su2double SoundSpeed_Bound, Entropy_Bound, Vel2_Bound, Vn_Bound;
+  su2double SoundSpeed_Infty, Entropy_Infty, Vel2_Infty, Vn_Infty, Qn_Infty;
+  su2double RiemannPlus, RiemannMinus;
+  su2double *V_infty, *V_domain;
+  
+  su2double Gas_Constant     = config->GetGas_ConstantND();
+  
+  bool implicit =
+    ((config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK && iRKStep == 0) ||
+     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91 && iRKStep == 0) );
+
+  bool grid_movement  = config->GetGrid_Movement();
+  bool viscous        = config->GetViscous();
+  bool tkeNeeded = (((config->GetKind_Solver() == RANS ) ||
+                     (config->GetKind_Solver() == DISC_ADJ_RANS))
+                    && ( (config->GetKind_Turb_Model() == SST) || (config->GetKind_Turb_Model() == KE)) );
+  
+  su2double *Normal = new su2double[nDim];
+  
+  /*--- Loop over all the vertices on this boundary marker ---*/
+  
+  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+    
+    /*--- Allocate the value at the infinity ---*/
+    V_infty = GetCharacPrimVar(val_marker, iVertex);
+    
+    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
+    
+    if (geometry->node[iPoint]->GetDomain()) {
+      
+      /*--- Index of the closest interior node ---*/
+      
+      Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+      
+      /*--- Normal vector for this vertex (negate for outward convention) ---*/
+      
+      geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
+      for (iDim = 0; iDim < nDim; iDim++) Normal[iDim] = -Normal[iDim];
+      conv_numerics->SetNormal(Normal);
+      
+      /*--- Retrieve solution at the farfield boundary node ---*/
+      V_domain = node[iPoint]->GetPrimitive();
+
+      /*--- Construct solution state at infinity for compressible flow by
+         using Riemann invariants, and then impose a weak boundary condition
+         by computing the flux using this new state for U. See CFD texts by
+         Hirsch or Blazek for more detail. Adapted from an original
+         implementation in the Stanford University multi-block (SUmb) solver
+         in the routine bcFarfield.f90 written by Edwin van der Weide,
+         last modified 06-12-2005. First, compute the unit normal at the
+         boundary nodes. ---*/
+
+      Area = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) Area += Normal[iDim]*Normal[iDim];
+      Area = sqrt(Area);
+
+      for (iDim = 0; iDim < nDim; iDim++)
+        UnitNormal[iDim] = Normal[iDim]/Area;
+
+      /*--- Store primitive variables (density, velocities, velocity squared,
+         energy, pressure, and sound speed) at the boundary node, and set some
+         other quantities for clarity. Project the current flow velocity vector
+         at this boundary node into the local normal direction, i.e. compute
+         v_bound.n.  ---*/
+
+      Density_Bound = V_domain[nDim+2];
+      Vel2_Bound = 0.0; Vn_Bound = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Vel_Bound[iDim] = V_domain[iDim+1];
+        Vel2_Bound     += Vel_Bound[iDim]*Vel_Bound[iDim];
+        Vn_Bound       += Vel_Bound[iDim]*UnitNormal[iDim];
+      }
+      Pressure_Bound   = node[iPoint]->GetPressure();
+      SoundSpeed_Bound = sqrt(Gamma*Pressure_Bound/Density_Bound);
+      Entropy_Bound    = pow(Density_Bound, Gamma)/Pressure_Bound;
+
+      /*--- Store the primitive variable state for the freestream. Project
+         the freestream velocity vector into the local normal direction,
+         i.e. compute v_infty.n. ---*/
+
+      Density_Infty = GetDensity_Inf();
+      Vel2_Infty = 0.0; Vn_Infty = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Vel_Infty[iDim] = GetVelocity_Inf(iDim);
+        Vel2_Infty     += Vel_Infty[iDim]*Vel_Infty[iDim];
+        Vn_Infty       += Vel_Infty[iDim]*UnitNormal[iDim];
+      }
+      Pressure_Infty   = GetPressure_Inf();
+      SoundSpeed_Infty = sqrt(Gamma*Pressure_Infty/Density_Infty);
+      Entropy_Infty    = pow(Density_Infty, Gamma)/Pressure_Infty;
+
+      /*--- Adjust the normal freestream velocity for grid movement ---*/
+
+      Qn_Infty = Vn_Infty;
+      if (grid_movement) {
+        GridVel = geometry->node[iPoint]->GetGridVel();
+        for (iDim = 0; iDim < nDim; iDim++)
+          Qn_Infty -= GridVel[iDim]*UnitNormal[iDim];
+      }
+
+      /*--- Compute acoustic Riemann invariants: R = u.n +/- 2c/(gamma-1).
+         These correspond with the eigenvalues (u+c) and (u-c), respectively,
+         which represent the acoustic waves. Positive characteristics are
+         incoming, and a physical boundary condition is imposed (freestream
+         state). This occurs when either (u.n+c) > 0 or (u.n-c) > 0. Negative
+         characteristics are leaving the domain, and numerical boundary
+         conditions are required by extrapolating from the interior state
+         using the Riemann invariants. This occurs when (u.n+c) < 0 or
+         (u.n-c) < 0. Note that grid movement is taken into account when
+         checking the sign of the eigenvalue. ---*/
+
+      /*--- Check whether (u.n+c) is greater or less than zero ---*/
+
+      if (Qn_Infty > -SoundSpeed_Infty) {
+        /*--- Subsonic inflow or outflow ---*/
+        RiemannPlus = Vn_Bound + 2.0*SoundSpeed_Bound/Gamma_Minus_One;
+      } else {
+        /*--- Supersonic inflow ---*/
+        RiemannPlus = Vn_Infty + 2.0*SoundSpeed_Infty/Gamma_Minus_One;
+      }
+
+      /*--- Check whether (u.n-c) is greater or less than zero ---*/
+
+      if (Qn_Infty > SoundSpeed_Infty) {
+        /*--- Supersonic outflow ---*/
+        RiemannMinus = Vn_Bound - 2.0*SoundSpeed_Bound/Gamma_Minus_One;
+      } else {
+        /*--- Subsonic outflow ---*/
+        RiemannMinus = Vn_Infty - 2.0*SoundSpeed_Infty/Gamma_Minus_One;
+      }
+
+      /*--- Compute a new value for the local normal velocity and speed of
+         sound from the Riemann invariants. ---*/
+
+      Vn = 0.5 * (RiemannPlus + RiemannMinus);
+      SoundSpeed = 0.25 * (RiemannPlus - RiemannMinus)*Gamma_Minus_One;
+
+      /*--- Construct the primitive variable state at the boundary for
+         computing the flux for the weak boundary condition. The values
+         that we choose to construct the solution (boundary or freestream)
+         depend on whether we are at an inflow or outflow. At an outflow, we
+         choose boundary information (at most one characteristic is incoming),
+         while at an inflow, we choose infinity values (at most one
+         characteristic is outgoing). ---*/
+
+      if (Qn_Infty > 0.0)   {
+        /*--- Outflow conditions ---*/
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Bound[iDim] + (Vn-Vn_Bound)*UnitNormal[iDim];
+        Entropy = Entropy_Bound;
+      } else  {
+        /*--- Inflow conditions ---*/
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Infty[iDim] + (Vn-Vn_Infty)*UnitNormal[iDim];
+        Entropy = Entropy_Infty;
+      }
+
+      /*--- Recompute the primitive variables. ---*/
+
+      Density = pow(Entropy*SoundSpeed*SoundSpeed/Gamma,1.0/Gamma_Minus_One);
+      Velocity2 = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Velocity2 += Velocity[iDim]*Velocity[iDim];
+      }
+      Pressure = Density*SoundSpeed*SoundSpeed/Gamma;
+      Energy   = Pressure/(Gamma_Minus_One*Density) + 0.5*Velocity2;
+      if (tkeNeeded) Energy += GetTke_Inf();
+
+      /*--- Store new primitive state for computing the flux. ---*/
+
+      V_infty[0] = Pressure/(Gas_Constant*Density);
+      for (iDim = 0; iDim < nDim; iDim++)
+        V_infty[iDim+1] = Velocity[iDim];
+      V_infty[nDim+1] = Pressure;
+      V_infty[nDim+2] = Density;
+      V_infty[nDim+3] = Energy + Pressure/Density;
+
+
+      
+      /*--- Set various quantities in the numerics class ---*/
+      
+      conv_numerics->SetPrimitive(V_domain, V_infty);
+      
+      if (grid_movement) {
+        conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(),
+                                  geometry->node[iPoint]->GetGridVel());
+      }
+      
+      /*--- Compute the convective residual using an upwind scheme ---*/
+
+      conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+      
+      /*--- Update residual value ---*/
+      
+      LinSysRes.AddBlock(iPoint, Residual);
+      
+      /*--- Convective Jacobian contribution for implicit integration ---*/
+      
+      if (implicit)
+        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
+      
+      /*--- Roe Turkel preconditioning, set the value of beta ---*/
+      
+      if (config->GetKind_Upwind() == TURKEL)
+        node[iPoint]->SetPreconditioner_Beta(conv_numerics->GetPrecond_Beta());
+      
+      /*--- Viscous residual contribution ---*/
+      
+      if (viscous) {
+        
+        /*--- Set laminar and eddy viscosity at the infinity ---*/
+        
+        V_infty[nDim+5] = node[iPoint]->GetLaminarViscosity();
+        V_infty[nDim+6] = node[iPoint]->GetEddyViscosity();
+        
+        /*--- Set the normal vector and the coordinates ---*/
+        
+        visc_numerics->SetNormal(Normal);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
+                                geometry->node[Point_Normal]->GetCoord());
+        
+        /*--- Primitive variables, and gradient ---*/
+        
+        visc_numerics->SetPrimitive(V_domain, V_infty);
+        visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(),
+                                          node[iPoint]->GetGradient_Primitive());
+        
+        /*--- Turbulent kinetic energy ---*/
+        
+        if (config->GetKind_Turb_Model() == SST)
+          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
+                                              solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+
+	/*--- Pass in relevant information from hybrid model ---*/
+	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+	  // TODO: This probably isn't really right
+	  HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
+						    visc_numerics, iPoint, iPoint);
+	}
+
+
+        /*--- Compute and update viscous residual ---*/
+        
+        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+        LinSysRes.SubtractBlock(iPoint, Residual);
+        
+        /*--- Viscous Jacobian contribution for implicit integration ---*/
+        
+        if (implicit)
+          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+        
+      }
+      
+    }
+  }
+  
+  /*--- Free locally allocated memory ---*/
+  delete [] Normal;
+  
+}
+
 void CNSSolver::UpdateAverage(const su2double weight,
                               const unsigned long iPoint,
                               su2double* buffer,
@@ -19161,83 +19628,97 @@ void CNSSolver::UpdateAverage(const su2double weight,
   // Call base first, to update averages of conserved variables
   CSolver::UpdateAverage(weight, iPoint, buffer, config);
 
-  const su2double* resolved_vars = node[iPoint]->GetSolution();
-  const su2double* average_vars = average_node[iPoint]->GetSolution();
-  su2double fluct_velocity[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
-  }
-  const su2double resolved_rho = resolved_vars[0];
-
-  if (config->GetUse_Resolved_Turb_Stress()) {
-
-    /*--- Update resolved Reynolds stress ---*/
-
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    const su2double* resolved_vars = node[iPoint]->GetSolution();
+    const su2double* average_vars = average_node[iPoint]->GetSolution();
+    su2double fluct_velocity[nDim];
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
-        const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
-        const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+      fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
+    }
+    const su2double resolved_rho = resolved_vars[0];
 
-        node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
-        average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
+    if (config->GetUse_Resolved_Turb_Stress()) {
+
+      /*--- Update resolved Reynolds stress ---*/
+
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+          const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
+          const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+
+          node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
+          average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
+        }
       }
-    }
 
-    /*--- Update resolved turbulent kinetic energy ---*/
+      /*--- Update resolved turbulent kinetic energy ---*/
 
-    average_node[iPoint]->SetResolvedKineticEnergy();
+      average_node[iPoint]->SetResolvedKineticEnergy();
 
-  } else {
+    } else {
 
-    /*--- Update improved production ---*/
+      /*--- Update improved production ---*/
 
-    const su2double* const* PrimVar_Grad = average_node[iPoint]->GetGradient_Primitive();
-    const su2double production = average_node[iPoint]->GetProduction();
-    su2double current_production = average_node[iPoint]->GetSGSProduction();
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
-        current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
+      const su2double* const* PrimVar_Grad = average_node[iPoint]->GetGradient_Primitive();
+      const su2double production = average_node[iPoint]->GetProduction();
+
+      //su2double current_production = average_node[iPoint]->GetSGSProduction();
+
+      // This should be more consistent with CDP
+      const su2double Savg = average_node[iPoint]->GetStrainMag();
+      const su2double Sinst = node[iPoint]->GetStrainMag();
+      const su2double mut = node[iPoint]->GetEddyViscosity();
+      const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
+      const su2double alpha_fac = alpha*(2.0 - alpha);
+      su2double current_production = Sinst*alpha_fac*mut*Savg;
+
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+          current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
+        }
       }
+
+      /*-- Give Pk a different averaging time than the rest of the terms ---*/
+
+      const su2double Pk_relaxation = config->GetProduction_Relaxation();
+      const su2double new_Pk = production + (current_production - production)*weight*Pk_relaxation;
+      average_node[iPoint]->SetProduction(new_Pk);
+
+      /*--- Update resolved kinetic energy ---*/
+
+      const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
+      su2double current_resolved_k = 0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
+      }
+      // TODO: Make this consistent with Favre averaging
+      const su2double new_resolved_k = resolved_k + (current_resolved_k - resolved_k)*weight;
+      average_node[iPoint]->SetResolvedKineticEnergy(new_resolved_k);
+
     }
 
-    /*-- Give Pk a different averaging time than the rest of the terms ---*/
+    /*--- We can't update alpha (the ratio of modeled to total turbulent
+     * kinetic energy) here because we don't have access to the RANS solver
+     * variables. ---*/
 
-    const su2double new_Pk = production + (current_production - production)*weight*0.25;
-    average_node[iPoint]->SetProduction(new_Pk);
+    /*--- Update the average of the resolution adequacy ---*/
+    const su2double mean_r_k = average_node[iPoint]->GetResolutionAdequacy();
+    const su2double inst_r_k = node[iPoint]->GetResolutionAdequacy();
+    const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
+    average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
 
-    /*--- Update resolved kinetic energy ---*/
-
-    const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
-    su2double current_resolved_k = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
-    }
-    // TODO: Make this consistent with Favre averaging
-    const su2double new_resolved_k = resolved_k + (current_resolved_k - resolved_k)*weight;
-    average_node[iPoint]->SetResolvedKineticEnergy(new_resolved_k);
-
+    /*--- Update the average of the forcing ---*/
+    const su2double* mean_F = average_node[iPoint]->GetForce();
+    assert(HybridMediator != NULL);
+    const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
+    su2double update_mean_F[3];
+    update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
+    update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
+    update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
+    average_node[iPoint]->SetForce(update_mean_F);
   }
-
-  /*--- We can't update alpha (the ratio of modeled to total turbulent
-   * kinetic energy) here because we don't have access to the RANS solver
-   * variables. ---*/
-
-  /*--- Update the average of the resolution adequacy ---*/
-  const su2double mean_r_k = average_node[iPoint]->GetResolutionAdequacy();
-  const su2double inst_r_k = node[iPoint]->GetResolutionAdequacy();
-  const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
-  average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
-
-  /*--- Update the average of the forcing ---*/
-  const su2double* mean_F = average_node[iPoint]->GetForce();
-  const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
-  su2double update_mean_F[3];
-  update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
-  update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
-  update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
-  average_node[iPoint]->SetForce(update_mean_F);
 }
 
 void CEulerSolver::SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfig *config) {
