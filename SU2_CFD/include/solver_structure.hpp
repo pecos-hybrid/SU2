@@ -4664,7 +4664,7 @@ protected:
   int **SlidingStateNodes;
 
   /*-- Bulk variables ---*/
-  su2double bulk_density, bulk_velocity, bulk_temperature;
+  su2double total_volume, bulk_density, bulk_velocity, bulk_temperature;
 
 public:
   

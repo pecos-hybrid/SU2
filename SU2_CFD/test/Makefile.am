@@ -53,11 +53,8 @@ check_PROGRAMS += viscous_proj_flux
 check_PROGRAMS += viscous_residual_test
 check_PROGRAMS += viscous_residual_2d_test
 check_PROGRAMS += viscous_model_split
-<<<<<<< HEAD
 check_PROGRAMS += bulk_forcing_test
-=======
 check_PROGRAMS += averaging_timescale_test
->>>>>>> pecos-hybrid-axibump-runs
 endif
 
 # Eventually these will likely be required
@@ -96,11 +93,8 @@ viscous_proj_flux_SOURCES              = viscous_proj_flux.cpp
 viscous_residual_test_SOURCES          = viscous_residual_test.cpp
 viscous_residual_2d_test_SOURCES       = viscous_residual_2d_test.cpp
 viscous_model_split_SOURCES            = viscous_model_split.cpp
-<<<<<<< HEAD
 bulk_forcing_test_SOURCES              = bulk_forcing_test.cpp
-=======
 averaging_timescale_test_SOURCES       = averaging_timescale_test.cpp
->>>>>>> pecos-hybrid-axibump-runs
 endif
 
 # Tests to be run
@@ -121,11 +115,8 @@ TESTS += viscous_proj_flux
 TESTS += viscous_residual_test
 TESTS += viscous_residual_2d_test
 TESTS += viscous_model_split
-<<<<<<< HEAD
 TESTS += bulk_forcing_test
-=======
 TESTS += averaging_timescale_test
->>>>>>> pecos-hybrid-axibump-runs
 endif
 
 # Any of above we expect to fail?

@@ -465,6 +465,9 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   LinSysSol.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysRes.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysAux.Initialize(nPoint, nPointDomain, nVar, 0.0);
+  if (true) {
+    LinSysDeltaU.Initialize(nPoint, nPointDomain, nVar, 0.0);
+  }
 
   if (implicit_rk) {
     std::cout << "For RK too..." << std::endl;
@@ -7073,14 +7076,104 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
       total_index = iPoint*nVar + iVar;
       LinSysRes[total_index] = 0.0;
       LinSysSol[total_index] = 0.0;
+      LinSysAux[total_index] = 0.0;
+      LinSysDeltaU[total_index] = 0.0;
     }
   }
   
   /*--- Solve or smooth the linear system ---*/
   
 
-  CSysSolve system;
-  IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+  if (true) {
+    CSysSolve system;
+    su2double* f_residual = new su2double[nVar];
+    su2double* f_weight = new su2double[nVar];
+
+    /*--- Solve x = A_inv R ---*/
+
+    IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysDeltaU, geometry, config);
+
+    /*--- Solve x = A_inv V
+     * Here, LinSysAux stores the weighting of the forcing at each node
+     * (e.g. the volume). ---*/
+
+    LinSysAux.SetValZero();
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+      const su2double Volume = geometry->node[iPoint]->GetVolume();
+      const su2double u_velocity = node[iPoint]->GetSolution(1) /
+                                   node[iPoint]->GetSolution(0);
+
+      f_weight[0] = 0.0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        f_weight[iDim+1] = Volume;
+      }
+
+      f_weight[nDim+1] = Volume * u_velocity;
+
+      LinSysAux.AddBlock(iPoint, f_weight);
+    }
+
+    IterLinSol = system.Solve(Jacobian, LinSysAux, LinSysSol, geometry, config);
+
+    /*--- Calculate forcing ---*/
+
+    LinSysAux.SetValZero();
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+      const su2double Volume = geometry->node[iPoint]->GetVolume();
+      const su2double u_velocity = node[iPoint]->GetSolution(1) /
+                                   node[iPoint]->GetSolution(0);
+
+      f_weight[0] = 0.0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        f_weight[iDim+1] = Volume;
+      }
+
+      /*--- We only want to solve for bulk velocity = constant ---*/
+
+      f_weight[nDim+1] = 0.0;
+
+      LinSysAux.AddBlock(iPoint, f_weight);
+    }
+
+    const su2double Momentum_Ref = config->GetVelocity_Ref() * config->GetDensity_Ref();
+    const su2double target_momentum = 0.28294334329 / Momentum_Ref;
+    const su2double delta_rhou = (target_momentum - bulk_density * bulk_velocity)*total_volume;
+    const su2double naive_force = -2 * dotProd(LinSysAux, LinSysDeltaU) / dotProd(LinSysAux, LinSysSol);
+    const su2double force = (delta_rhou - 2 * dotProd(LinSysAux, LinSysDeltaU)) / dotProd(LinSysAux, LinSysSol);
+    if (rank == MASTER_NODE) {
+      ofstream outfile;
+      outfile.open("f.log", ios::app);
+      outfile << total_volume << ", " << bulk_density << ", ";
+      outfile << bulk_velocity << ", " << bulk_temperature << ", ";
+      outfile << delta_rhou << ", ";
+      outfile << naive_force << ", ";
+      outfile << force << endl;
+      outfile.close();
+    }
+
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+      const su2double Volume = geometry->node[iPoint]->GetVolume();
+      const su2double u_velocity = node[iPoint]->GetSolution(1) /
+                                   node[iPoint]->GetSolution(0);
+
+      f_residual[0] = 0.0;
+      f_residual[1] = Volume * force;
+      for (unsigned short iDim = 1; iDim < nDim; iDim++) {
+        f_residual[iDim+1] = 0.0;
+      }
+      f_residual[nDim+1] = Volume * u_velocity * force;
+
+      LinSysRes.AddBlock(iPoint, f_residual);
+    }
+
+    IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+  } else {
+    CSysSolve system;
+    IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+  }
   
   /*--- The the number of iterations of the linear solver ---*/
   
@@ -16730,6 +16823,9 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   LinSysSol.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysRes.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysAux.Initialize(nPoint, nPointDomain, nVar, 0.0);
+  if (true) {
+    LinSysDeltaU.Initialize(nPoint, nPointDomain, nVar, 0.0);
+  }
 
   if (implicit_rk) {
     LinSysDeltaU.Initialize(nPoint, nPointDomain, nVar, 0.0);
@@ -19756,7 +19852,7 @@ void CEulerSolver::SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfi
     const su2double global_temp = local_temp;
 #endif
 
- 
+  total_volume = global_vol;
   bulk_density = global_mass / global_vol;
   bulk_velocity = global_momentum / (bulk_density * global_vol);
   bulk_temperature = global_temp /
