@@ -5601,23 +5601,8 @@ void CEulerSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
 
   if (body_force) {
 
-    const su2double target_momentum = 0.28294334329;
-    const su2double force = target_momentum - bulk_density * bulk_velocity;
-    config->SetBody_Force_Vector(0.0, 1);
-    config->SetBody_Force_Vector(0.0, 2);
-    if (rank == MASTER_NODE) {
-      ofstream outfile;
-      outfile.open("f.log", ios::app);
-      const su2double dt = node[0]->GetDelta_Time();
-      outfile << force/dt << "\n";
-      outfile.close();
-    }
-
     /*--- Loop over all points ---*/
     for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
-
-      const su2double dt = node[iPoint]->GetDelta_Time();
-      config->SetBody_Force_Vector(force/dt, 0);
 
       /*--- Load the conservative variables ---*/
       numerics->SetConservative(node[iPoint]->GetSolution(),
@@ -7013,6 +6998,7 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
   bool adjoint = config->GetContinuous_Adjoint();
   bool roe_turkel = config->GetKind_Upwind_Flow() == TURKEL;
   bool low_mach_prec = config->Low_Mach_Preconditioning();
+  const bool body_force = config->GetBody_Force();
   
   /*--- Set maximum residual to zero ---*/
   
@@ -7084,16 +7070,20 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
   /*--- Solve or smooth the linear system ---*/
   
 
-  if (true) {
-    CSysSolve system;
+  CSysSolve system;
+  if (body_force) {
+
     su2double* f_residual = new su2double[nVar];
     su2double* f_weight = new su2double[nVar];
 
-    /*--- Solve x = A_inv R ---*/
+    /*--- Solve x = A_inv R
+     * Here, LinSysDeltaU stores the "delta U" that would be used if no
+     * forcing were applied.
+     * ---*/
 
     IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysDeltaU, geometry, config);
 
-    /*--- Solve x = A_inv V
+    /*--- Solve y = A_inv V
      * Here, LinSysAux stores the weighting of the forcing at each node
      * (e.g. the volume). ---*/
 
@@ -7116,7 +7106,27 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
 
     IterLinSol = system.Solve(Jacobian, LinSysAux, LinSysSol, geometry, config);
 
-    /*--- Calculate forcing ---*/
+    /*--- Calculate forcing
+     *
+     * In order to maintain that the bulk mass flux doesn't change, we
+     * need to solve:
+     *   f = - <d, x> / <d, y>.
+     * where:
+     *   Ax = b
+     *   Ay = c
+     * and:
+     *   A = Jacobian matrix for backward Euler
+     *   b = negative residual (without forcing)
+     *   c = the weighting of the forcing at each node
+     *       (volume for momentum, volume*velocity for total energy)
+     *   d = volume of each cell.
+     *
+     * Note that the integral of the state is discretely equal to:
+     *   int = <d, u>
+     * where:
+     *   d = volume of that cell
+     *   u = density, momentum, or energy
+     * ---*/
 
     LinSysAux.SetValZero();
     for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
@@ -7137,11 +7147,37 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
       LinSysAux.AddBlock(iPoint, f_weight);
     }
 
+    /*--- We are only solving for the forcing to some finite precision.
+     * dThis will lead to the bulk momentum drifting away from the
+     * target bulk momentum.  To counteract this, we add in a force
+     * proportional to the difference between the target and the actual
+     * momentum.  This term should go to the precision of the linear
+     * solve after initial transients pass. ---*/
+
+    // TODO: Add a target momentum to the config options.
     const su2double Momentum_Ref = config->GetVelocity_Ref() * config->GetDensity_Ref();
     const su2double target_momentum = 0.28294334329 / Momentum_Ref;
     const su2double delta_rhou = (target_momentum - bulk_density * bulk_velocity)*total_volume;
-    const su2double naive_force = -2 * dotProd(LinSysAux, LinSysDeltaU) / dotProd(LinSysAux, LinSysSol);
-    const su2double force = (delta_rhou - 2 * dotProd(LinSysAux, LinSysDeltaU)) / dotProd(LinSysAux, LinSysSol);
+
+#ifdef HAVE_MPI
+    su2double send_buffer[2], recv_buffer[2];
+    send_buffer[0] = dotProd(LinSysAux, LinSysDeltaU);
+    send_buffer[1] = dotProd(LinSysAux, LinSysSol);
+    SU2_MPI::Reduce(send_buffer, recv_buffer, 2, MPI_DOUBLE, MPI_SUM, MASTER_NODE, MPI_COMM_WORLD);
+    SU2_MPI::Bcast(recv_buffer, 2, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+    const su2double V_Ainv_R = recv_buffer[0];
+    const su2double V_Ainv_V = recv_buffer[1];
+#else
+    const su2double V_Ainv_R = dotProd(LinSysAux, LinSysDeltaU);
+    const su2double V_Ainv_V = dotProd(LinSysAux, LinSysSol);
+#endif
+
+    // XXX: Not sure why we need a factor of 2, but it works
+    const su2double naive_force = -2 * V_Ainv_R / V_Ainv_V;
+    const su2double force = (delta_rhou - 2 * V_Ainv_R) / V_Ainv_V;
+
+    /*--- Output to a file ---*/
+
     if (rank == MASTER_NODE) {
       ofstream outfile;
       outfile.open("f.log", ios::app);
@@ -7152,6 +7188,9 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
       outfile << force << endl;
       outfile.close();
     }
+
+    /*--- Add the force to the residual and solve the new system ---*/
+    // TODO: Final linear solve is not necessary.  Just add vectors.
 
     for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
@@ -7170,9 +7209,14 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
     }
 
     IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+
+    delete [] f_residual;
+    delete [] f_weight;
+
   } else {
-    CSysSolve system;
+
     IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+
   }
   
   /*--- The the number of iterations of the linear solver ---*/
@@ -16615,6 +16659,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
                    (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   bool implicit_rk = ((config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
                       (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
+  const bool body_force = config->GetBody_Force();
   
   bool adjoint = (config->GetContinuous_Adjoint()) || (config->GetDiscrete_Adjoint());
   string filename_ = config->GetSolution_FlowFileName();
@@ -16823,7 +16868,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   LinSysSol.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysRes.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysAux.Initialize(nPoint, nPointDomain, nVar, 0.0);
-  if (true) {
+  if (body_force) {
     LinSysDeltaU.Initialize(nPoint, nPointDomain, nVar, 0.0);
   }
 
