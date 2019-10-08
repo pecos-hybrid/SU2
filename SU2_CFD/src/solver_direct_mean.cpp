@@ -1700,6 +1700,10 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
   unsigned short iVar, iMarker, iPeriodic_Index, MarkerS, MarkerR;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi, *Buffer_Receive_U = NULL, *Buffer_Send_U = NULL;
+  unsigned long nBufferS_Extra, nBufferR_Extra;
+  su2double *Buffer_Send_Extra = NULL, *Buffer_Receive_Extra = NULL;
+  const unsigned short nVar_Extra = 6;
+  const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -1725,6 +1729,12 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
       Buffer_Receive_U = new su2double [nBufferR_Vector];
       Buffer_Send_U = new su2double[nBufferS_Vector];
 
+      if (model_split) {
+        nBufferS_Extra = nVertexS*nVar_Extra;   nBufferR_Extra = nVertexS*nVar_Extra;
+        Buffer_Receive_Extra = new su2double [nBufferR_Extra];
+        Buffer_Send_Extra = new su2double[nBufferS_Extra];
+      }
+
       /*--- Copy the solution that should be sended ---*/
       for (iVertex = 0; iVertex < nVertexS; iVertex++) {
         iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
@@ -1732,11 +1742,34 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
           Buffer_Send_U[iVar*nVertexS+iVertex] = average_node[iPoint]->GetSolution(iVar);
       }
 
+      /*--- Extra model-split variables ---*/
+      if (model_split) {
+        assert(average_node);
+        for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+          iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
+          if (config->GetUse_Resolved_Turb_Stress()) {
+            SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
+          } else {
+            Buffer_Send_Extra[0*nVertexS + iVertex] = average_node[iPoint]->GetProduction();
+            Buffer_Send_Extra[1*nVertexS + iVertex] = average_node[iPoint]->GetResolvedKineticEnergy();
+          }
+          Buffer_Send_Extra[2*nVertexS + iVertex] = average_node[iPoint]->GetResolutionAdequacy();
+          const su2double* temp_force = average_node[iPoint]->GetForce();
+          Buffer_Send_Extra[3*nVertexS + iVertex] = temp_force[0];
+          Buffer_Send_Extra[4*nVertexS + iVertex] = temp_force[1];
+          Buffer_Send_Extra[5*nVertexS + iVertex] = temp_force[2];
+        }
+      }
+
 #ifdef HAVE_MPI
 
       /*--- Send/Receive information using Sendrecv ---*/
       SU2_MPI::Sendrecv(Buffer_Send_U, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
                         Buffer_Receive_U, nBufferR_Vector, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+      if (model_split) {
+        SU2_MPI::Sendrecv(Buffer_Send_Extra, nBufferS_Extra, MPI_DOUBLE, send_to, 0,
+                          Buffer_Receive_Extra, nBufferR_Extra, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+      }
 
 #else
 
@@ -1746,10 +1779,18 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
           Buffer_Receive_U[iVar*nVertexR+iVertex] = Buffer_Send_U[iVar*nVertexR+iVertex];
       }
 
+      if (model_split) {
+        for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+          for (iVar = 0; iVar < nVar_Extra; iVar++)
+            Buffer_Receive_Extra[iVar*nVertexR+iVertex] = Buffer_Send_Extra[iVar*nVertexR+iVertex];
+        }
+      }
+
 #endif
 
       /*--- Deallocate send buffer ---*/
       delete [] Buffer_Send_U;
+      if (Buffer_Send_Extra != NULL) delete [] Buffer_Send_Extra;
 
       /*--- Do the coordinate transformation ---*/
       for (iVertex = 0; iVertex < nVertexR; iVertex++) {
@@ -1803,8 +1844,35 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
 
       }
 
+      if (model_split) {
+        su2double temp_force[3];
+        /*--- Do the coordinate transformation ---*/
+        for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+
+          /*--- Find point and its type of transformation ---*/
+          iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
+
+          if (config->GetUse_Resolved_Turb_Stress()) {
+            SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
+          } else {
+            average_node[iPoint]->SetProduction(Buffer_Receive_Extra[0*nVertexS + iVertex]);
+            average_node[iPoint]->SetResolvedKineticEnergy(Buffer_Receive_Extra[1*nVertexS + iVertex]);
+          }
+
+          average_node[iPoint]->SetResolutionAdequacy(Buffer_Receive_Extra[2*nVertexS + iVertex]);
+
+          // TODO: Rotate force vector properly
+          /*--- Loop intentionally left unrolled ---*/
+          temp_force[0] = Buffer_Receive_Extra[3*nVertexS + iVertex];
+          temp_force[1] = Buffer_Receive_Extra[4*nVertexS + iVertex];
+          temp_force[2] = Buffer_Receive_Extra[5*nVertexS + iVertex];
+          average_node[iPoint]->SetForce(temp_force);
+        }
+      }
+
       /*--- Deallocate receive buffer ---*/
       delete [] Buffer_Receive_U;
+      if (Buffer_Receive_Extra != NULL) delete [] Buffer_Receive_Extra;
 
     }
 
@@ -19779,7 +19847,10 @@ void CNSSolver::UpdateAverage(const su2double weight,
   // Call base first, to update averages of conserved variables
   CSolver::UpdateAverage(weight, iPoint, buffer, config);
 
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT && iPoint < nPointDomain) {
+    // TODO: Update average solution on MPI halo nodes
+    // I don't think it's required right now, since we're only using average
+    // solution in the source residual.
     const su2double* resolved_vars = node[iPoint]->GetSolution();
     const su2double* average_vars = average_node[iPoint]->GetSolution();
     su2double fluct_velocity[nDim];
@@ -19844,8 +19915,18 @@ void CNSSolver::UpdateAverage(const su2double weight,
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
       }
-      // TODO: Make this consistent with Favre averaging
       const su2double new_resolved_k = resolved_k + (current_resolved_k - resolved_k)*weight;
+#ifndef NDEBUG
+      // This *shouldn't* happen, so it's wrapped in a NDEBUG flag
+      if (new_resolved_k < 0) {
+        ostringstream error_msg;
+        error_msg << "Resolved turbulent kinetic energy was < 0\n";
+        error_msg << "  new_resolved_k:     " << current_resolved_k << endl;
+        error_msg << "  resolved_k:         " << resolved_k << endl;
+        error_msg << "  current_resolved_k: " << current_resolved_k << endl;
+        error_msg << "  weight:             " << weight << endl;
+      }
+#endif
       average_node[iPoint]->SetResolvedKineticEnergy(new_resolved_k);
 
     }
