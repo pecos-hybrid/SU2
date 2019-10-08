@@ -304,7 +304,7 @@ inline su2double CVariable::GetProduction(void) const { return 0; }
 
 inline void CVariable::SetProduction(su2double val_production) { }
 
-inline su2double* CVariable::GetForce(void) const { return NULL; }
+inline const su2double* CVariable::GetForce(void) const { return NULL; }
 
 inline void CVariable::SetForce(su2double* val_force) { }
 
@@ -990,7 +990,7 @@ inline su2double CNSVariable::GetProduction(void) const { return TurbProduction;
 
 inline void CNSVariable::SetProduction(su2double val_production) { TurbProduction = val_production; }
 
-inline su2double* CNSVariable::GetForce(void) const { return Force; }
+inline const su2double* CNSVariable::GetForce(void) const { return Force; }
 
 inline void CNSVariable::SetForce(su2double* val_force) {
   Force[0] = val_force[0];  Force[1] = val_force[1];  Force[2] = val_force[2];

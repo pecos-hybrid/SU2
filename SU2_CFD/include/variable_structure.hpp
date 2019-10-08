@@ -1020,7 +1020,7 @@ public:
    * \brief Get the turbulent production
    * \return The turbulent production.
    */
-  virtual su2double* GetForce(void) const;
+  virtual const su2double* GetForce(void) const;
 
   /*!
    * \brief Set the turbulent production
@@ -4314,7 +4314,7 @@ public:
    */
   void SetProduction(su2double val_production);
 
-  su2double* GetForce(void) const;
+  const su2double* GetForce(void) const;
 
   void SetForce(su2double* val_force);
 
