@@ -17400,15 +17400,6 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     }
   }
   
-  /*--- Roe Low Dissipation Sensor ---*/
-  
-  if (roe_low_dissipation && iRKStep==0){
-    SetRoe_Dissipation(geometry, config);
-    if (kind_row_dissipation == FD_DUCROS || kind_row_dissipation == NTS_DUCROS){
-      SetUpwind_Ducros_Sensor(geometry, config);
-    }
-  }
-  
   /*--- Compute gradient of the primitive variables ---*/
   
   if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
@@ -17456,6 +17447,15 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     /*--- Setup the any portion of the hybrid RANS/LES model ---*/
     if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
       HybridMediator->SetupResolvedFlowSolver(geometry, solver_container, iPoint);
+    }
+  }
+  
+  /*--- Roe Low Dissipation Sensor ---*/
+  
+  if (roe_low_dissipation && iRKStep==0){
+    SetRoe_Dissipation(geometry, config);
+    if (kind_row_dissipation == FD_DUCROS || kind_row_dissipation == NTS_DUCROS){
+      SetUpwind_Ducros_Sensor(geometry, config);
     }
   }
 
