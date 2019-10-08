@@ -197,6 +197,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   bool fsi     = config->GetFSI_Simulation();
   string filename_ = config->GetSolution_FlowFileName();
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool body_force = config->GetBody_Force();
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -465,7 +466,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   LinSysSol.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysRes.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysAux.Initialize(nPoint, nPointDomain, nVar, 0.0);
-  if (true) {
+  if (body_force) {
     LinSysDeltaU.Initialize(nPoint, nPointDomain, nVar, 0.0);
   }
 
@@ -7062,8 +7063,16 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
       total_index = iPoint*nVar + iVar;
       LinSysRes[total_index] = 0.0;
       LinSysSol[total_index] = 0.0;
-      LinSysAux[total_index] = 0.0;
-      LinSysDeltaU[total_index] = 0.0;
+    }
+  }
+
+  if (body_force) {
+    for (iPoint = nPointDomain; iPoint < nPoint; iPoint++) {
+      for (iVar = 0; iVar < nVar; iVar++) {
+        total_index = iPoint*nVar + iVar;
+        LinSysAux[total_index] = 0.0;
+        LinSysDeltaU[total_index] = 0.0;
+      }
     }
   }
   
@@ -17513,6 +17522,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   unsigned short kind_row_dissipation = config->GetKind_RoeLowDiss();
   const bool roe_low_dissipation  = config->BlendUpwindCentralFluxes();
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool body_force = config->GetBody_Force();
 
   /*--- Update the angle of attack at the far-field for fixed CL calculations. ---*/
   
@@ -17628,7 +17638,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   if (implicit && !config->GetDiscrete_Adjoint()) Jacobian.SetValZero();
 
   /*--- Compute the bulk quantities ---*/
-  if (iMesh == 0) {
+  if (iMesh == 0 && body_force) {
     SetBulk_Forcing(geometry, solver_container, config);
   }
 
@@ -19866,7 +19876,7 @@ void CEulerSolver::SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfi
 
   // XXX: This only works in the x direction for now
 
-  su2double local_vol = 0, local_mass, local_momentum = 0, local_temp = 0;
+  su2double local_vol = 0, local_mass = 0, local_momentum = 0, local_temp = 0;
   for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
     const su2double cell_volume = geometry->node[iPoint]->GetVolume();
     if (cell_volume > 0.0) {
