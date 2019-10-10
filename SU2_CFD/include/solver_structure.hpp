@@ -4305,6 +4305,14 @@ public:
    * \return The average timescale
    */
   su2double GetAveragingTimescale(void) const;
+
+  virtual su2double GetBulkDensity(void) const;
+
+  virtual su2double GetBulkMomentum(void) const;
+
+  virtual su2double GetBulkTemperature(void) const;
+
+  virtual su2double GetBulkForce(void) const;
 };
 
 /*!
@@ -4664,7 +4672,8 @@ protected:
   int **SlidingStateNodes;
 
   /*-- Bulk variables ---*/
-  su2double total_volume, bulk_density, bulk_velocity, bulk_temperature;
+  su2double total_volume, bulk_density, bulk_velocity, bulk_temperature,
+            bulk_force;
 
 public:
   
@@ -6908,6 +6917,14 @@ public:
                     CGeometry** geometry);
 
   void SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfig *config);
+
+  su2double GetBulkDensity(void) const;
+
+  su2double GetBulkMomentum(void) const;
+
+  su2double GetBulkTemperature(void) const;
+
+  su2double GetBulkForce(void) const;
 };
 
   

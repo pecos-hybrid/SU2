@@ -7251,21 +7251,7 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
 
     // XXX: Not sure why we need a factor of nDim, but it works
     const su2double naive_force = -nDim*V_Ainv_R / V_Ainv_V;
-    const su2double force = (delta_rhou - nDim*V_Ainv_R) / V_Ainv_V;
-
-    /*--- Output to a file ---*/
-
-    if (rank == MASTER_NODE) {
-      ofstream outfile;
-      outfile.open("f.log", ios::app);
-      outfile << total_volume << ", " << bulk_density << ", ";
-      outfile << bulk_velocity << ", " << bulk_temperature << ", ";
-      outfile << delta_rhou << ", ";
-      outfile << delta_rhou / V_Ainv_V << ", ";
-      outfile << naive_force << ", ";
-      outfile << force << endl;
-      outfile.close();
-    }
+    bulk_force = (delta_rhou - nDim*V_Ainv_R) / V_Ainv_V;
 
     /*--- Add the force to the residual and solve the new system ---*/
     // TODO: Final linear solve is not necessary.  Just add vectors.
@@ -7277,11 +7263,11 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
                                    node[iPoint]->GetSolution(0);
 
       f_residual[0] = 0.0;
-      f_residual[1] = Volume * force;
+      f_residual[1] = Volume * bulk_force;
       for (unsigned short iDim = 1; iDim < nDim; iDim++) {
         f_residual[iDim+1] = 0.0;
       }
-      f_residual[nDim+1] = Volume * u_velocity * force;
+      f_residual[nDim+1] = Volume * u_velocity * bulk_force;
 
       LinSysRes.AddBlock(iPoint, f_residual);
     }

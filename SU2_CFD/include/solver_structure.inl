@@ -1142,6 +1142,14 @@ inline void CSolver::SetAveragingTimescale(su2double val_timescale) { AveragingT
 
 inline su2double CSolver::GetAveragingTimescale(void) const { return AveragingTimescale; }
 
+inline su2double CSolver::GetBulkDensity(void) const { return 0; }
+
+inline su2double CSolver::GetBulkMomentum(void) const { return 0; }
+
+inline su2double CSolver::GetBulkTemperature(void) const { return 0; }
+
+inline su2double CSolver::GetBulkForce(void) const { return 0; }
+
 inline su2double CEulerSolver::GetDensity_Inf(void) { return Density_Inf; }
 
 inline su2double CEulerSolver::GetModVelocity_Inf(void) { 
@@ -1628,6 +1636,14 @@ inline CFluidModel* CEulerSolver::GetFluidModel(void) { return FluidModel;}
 inline void CEulerSolver::SetPressure_Inf(su2double p_inf) {Pressure_Inf = p_inf;}
 
 inline void CEulerSolver::SetTemperature_Inf(su2double t_inf) {Temperature_Inf = t_inf;}
+
+inline su2double CEulerSolver::GetBulkDensity(void) const { return bulk_density; }
+
+inline su2double CEulerSolver::GetBulkMomentum(void) const { return bulk_density * bulk_velocity; }
+
+inline su2double CEulerSolver::GetBulkTemperature(void) const { return bulk_temperature; }
+
+inline su2double CEulerSolver::GetBulkForce(void) const { return bulk_force; }
 
 inline su2double CNSSolver::GetViscosity_Inf(void) { return Viscosity_Inf; }
 

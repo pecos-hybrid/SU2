@@ -4780,6 +4780,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
 
   bool thermal = false; /* Flag for whether to print heat flux values */
   bool weakly_coupled_heat = config->GetWeakly_Coupled_Heat();
+  const bool body_force = config->GetBody_Force();
 
   if (config->GetKind_Solver() == RANS || config->GetKind_Solver()  == NAVIER_STOKES) {
     thermal = true;
@@ -4896,6 +4897,8 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
   char wave_resid[]= ",\"Res_Wave[0]\",\"Res_Wave[1]\"";
   char fem_resid[]= ",\"Res_FEM[0]\",\"Res_FEM[1]\",\"Res_FEM[2]\"";
   char heat_resid[]= ",\"Res_Heat\"";
+  char forcing_terms[] =
+    ",\"Bulk_Density\",\"Bulk_Momentum\",\"Bulk_Temp\",\"Bulk_Force\"";
   
   /*--- End of the header ---*/
   
@@ -4939,6 +4942,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
         if (engine || actuator_disk) ConvHist_file[0] << d_engine;
       }
       if (output_comboObj) ConvHist_file[0] << combo_obj;
+      if (body_force) ConvHist_file[0] << forcing_terms;
       ConvHist_file[0] << end;
       
       break;
@@ -5114,6 +5118,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     adj_turb_resid[1000], wave_coeff[1000],
     begin_fem[1000], fem_coeff[1000], wave_resid[1000], heat_resid[1000], combo_obj[1000],
     fem_resid[1000], end[1000], end_fem[1000], surface_outputs[1000], d_direct_coeff[1000], turbo_coeff[10000];
+    char forcing_terms[1000];
 
     su2double dummy = 0.0, *Coord;
     unsigned short iVar, iMarker_Monitoring;
@@ -5151,6 +5156,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     bool nonlinear_analysis = (config[val_iZone]->GetGeometricConditions() == LARGE_DEFORMATIONS);  // Nonlinear analysis.
     bool fsi = (config[val_iZone]->GetFSI_Simulation());          // FEM structural solver.
     bool discadj_fem = (config[val_iZone]->GetKind_Solver() == DISC_ADJ_FEM);
+
+    const bool body_force = config[val_iZone]->GetBody_Force();
     
     bool turbo = config[val_iZone]->GetBoolTurbomachinery();
 
@@ -5204,6 +5211,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         D_Total_CFy = 0.0, D_Total_CFz = 0.0, D_Total_AeroCD = 0.0, D_Total_SolidCD = 0.0, D_Total_IDR = 0.0, D_Total_IDC = 0.0, D_Total_Custom_ObjFunc = 0.0,
         D_TotalPressure_Loss = 0.0, D_FlowAngle_Out = 0.0, D_TotalStaticEfficiency = 0.0,
         D_TotalTotalEfficiency = 0.0, D_EntropyGen = 0.0;
+
+    su2double bulk_density, bulk_momentum, bulk_temp, bulk_force;
     
     /*--- Residual arrays ---*/
     su2double *residual_flow         = NULL,
@@ -5497,6 +5506,13 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             }
           }
           
+        }
+
+        if (body_force) {
+          bulk_density = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkDensity();
+          bulk_momentum = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkMomentum();
+          bulk_temp = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkTemperature();
+          bulk_force = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkForce();
         }
         
         break;
@@ -5844,6 +5860,11 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
 
             if (weakly_coupled_heat) {
               SPRINTF (heat_resid, ", %14.8e", log10 (residual_heat[0]));
+            }
+
+            if (body_force) {
+              SPRINTF(forcing_terms, ", %14.8e, %14.8e, %14.8e, %14.8e", bulk_density,
+                      bulk_momentum, bulk_temp, bulk_force);
             }
             
             break;
@@ -6359,6 +6380,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             if (output_surface) ConvHist_file[0] << surface_outputs;
             if (direct_diff != NO_DERIVATIVE) ConvHist_file[0] << d_direct_coeff;
             if (output_comboObj) ConvHist_file[0] << combo_obj;
+            if (body_force) ConvHist_file[0] << forcing_terms;
             ConvHist_file[0] << end;
             ConvHist_file[0].flush();
           }
@@ -6446,6 +6468,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             if (output_surface) ConvHist_file[0] << surface_outputs;
             if (direct_diff != NO_DERIVATIVE) ConvHist_file[0] << d_direct_coeff;
             if (output_comboObj) ConvHist_file[0] << combo_obj;
+            if (body_force) ConvHist_file[0] << forcing_terms;
             ConvHist_file[0] << end;
             ConvHist_file[0].flush();
           }
