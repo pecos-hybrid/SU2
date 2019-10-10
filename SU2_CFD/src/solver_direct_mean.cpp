@@ -7249,9 +7249,9 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
     const su2double V_Ainv_V = dotProd(LinSysAux, LinSysSol);
 #endif
 
-    // XXX: Not sure why we need a factor of 2, but it works
-    const su2double naive_force = -2 * V_Ainv_R / V_Ainv_V;
-    const su2double force = (delta_rhou - 2 * V_Ainv_R) / V_Ainv_V;
+    // XXX: Not sure why we need a factor of nDim, but it works
+    const su2double naive_force = -nDim*V_Ainv_R / V_Ainv_V;
+    const su2double force = (delta_rhou - nDim*V_Ainv_R) / V_Ainv_V;
 
     /*--- Output to a file ---*/
 
@@ -7261,6 +7261,7 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
       outfile << total_volume << ", " << bulk_density << ", ";
       outfile << bulk_velocity << ", " << bulk_temperature << ", ";
       outfile << delta_rhou << ", ";
+      outfile << delta_rhou / V_Ainv_V << ", ";
       outfile << naive_force << ", ";
       outfile << force << endl;
       outfile.close();
