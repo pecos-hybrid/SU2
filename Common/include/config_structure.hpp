@@ -1013,6 +1013,10 @@ private:
   su2double *ExtraRelFacGiles; /*!< \brief coefficient for extra relaxation factor for Giles BC*/
   bool Body_Force;            /*!< \brief Flag to know if a body force is included in the formulation. */
   su2double *Body_Force_Vector;  /*!< \brief Values of the prescribed body force vector. */
+  bool Const_Mass_Flux_Forcing; /*!< \brief Flag determining if a constant mass flux is imposed by a time-varying body force. */
+  bool Const_Temp_Flux_Forcing; /*!< \brief Flag determining if a constant temperature flux is imposed by a time-varying volumetric heating. */
+  su2double Target_Bulk_Momentum; /*!< \brief Target bulk momentum used in constant mass flux forcing */
+  su2double Target_Bulk_Temperature; /*!< \brief Target bulk temperature used in constant temp flux forcing */
   su2double *FreeStreamTurboNormal; /*!< \brief Direction to initialize the flow in turbomachinery computation */
   ofstream *ConvHistFile;       /*!< \brief Store the pointer to each history file */
   unsigned short Kind_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
@@ -5674,6 +5678,43 @@ public:
    * \param[in] iDim - The component index
    */
   void SetBody_Force_Vector(su2double val_force, unsigned short iDim);
+
+  /*!
+   * \brief Check if forcing is applied to maintain a constant mass flux
+   * \return <code>TRUE</code> if it uses a body force; otherwise <code>FALSE</code>.
+   */
+  bool GetConst_Mass_Flux_Forcing(void) const;
+
+  /*!
+   * \brief Check if volumetric heating is applied to maintain a constant
+   *        temperature flux.
+   * \return <code>TRUE</code> if it uses a volumetric heating; otherwise <code>FALSE</code>.
+   */
+  bool GetConst_Temp_Flux_Forcing(void) const;
+
+  /*!
+   * \brief Find the target bulk momentum used in constant mass flux forcing.
+   * \return The target bulk momentum
+   */
+  su2double GetTarget_Bulk_Momentum(void) const;
+
+  /*!
+   * \brief Find the target bulk temperature used in constant mass flux forcing.
+   * \return The target bulk temperature
+   */
+  su2double GetTarget_Bulk_Temperature(void) const;
+
+  /*!
+   * \brief Find the target bulk momentum used in constant mass flux forcing.
+   * \return The target bulk momentum
+   */
+  void SetTarget_Bulk_Momentum(su2double val_momentum);
+
+  /*!
+   * \brief Find the target bulk temperature used in constant mass flux forcing.
+   * \return The target bulk temperature
+   */
+  void SetTarget_Bulk_Temperature(su2double val_temperature);
 
   /*!
    * \brief Get information about the rotational frame.

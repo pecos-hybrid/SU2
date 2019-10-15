@@ -4313,6 +4313,8 @@ public:
   virtual su2double GetBulkTemperature(void) const;
 
   virtual su2double GetBulkForce(void) const;
+
+  virtual su2double GetBulkHeating(void) const;
 };
 
 /*!
@@ -4673,7 +4675,7 @@ protected:
 
   /*-- Bulk variables ---*/
   su2double total_volume, bulk_density, bulk_velocity, bulk_temperature,
-            bulk_force;
+            bulk_force, bulk_heating;
 
 public:
   
@@ -6925,6 +6927,8 @@ public:
   su2double GetBulkTemperature(void) const;
 
   su2double GetBulkForce(void) const;
+
+  su2double GetBulkHeating(void) const;
 };
 
   

@@ -1150,6 +1150,8 @@ inline su2double CSolver::GetBulkTemperature(void) const { return 0; }
 
 inline su2double CSolver::GetBulkForce(void) const { return 0; }
 
+inline su2double CSolver::GetBulkHeating(void) const { return 0; }
+
 inline su2double CEulerSolver::GetDensity_Inf(void) { return Density_Inf; }
 
 inline su2double CEulerSolver::GetModVelocity_Inf(void) { 
@@ -1644,6 +1646,8 @@ inline su2double CEulerSolver::GetBulkMomentum(void) const { return bulk_density
 inline su2double CEulerSolver::GetBulkTemperature(void) const { return bulk_temperature; }
 
 inline su2double CEulerSolver::GetBulkForce(void) const { return bulk_force; }
+
+inline su2double CEulerSolver::GetBulkHeating(void) const { return bulk_heating; }
 
 inline su2double CNSSolver::GetViscosity_Inf(void) { return Viscosity_Inf; }
 

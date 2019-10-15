@@ -197,7 +197,8 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   bool fsi     = config->GetFSI_Simulation();
   string filename_ = config->GetSolution_FlowFileName();
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
-  const bool body_force = config->GetBody_Force();
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -466,7 +467,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   LinSysSol.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysRes.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysAux.Initialize(nPoint, nPointDomain, nVar, 0.0);
-  if (body_force) {
+  if (constant_bulk_momentum || constant_bulk_temperature) {
     LinSysDeltaU.Initialize(nPoint, nPointDomain, nVar, 0.0);
   }
 
@@ -7059,7 +7060,8 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
   bool adjoint = config->GetContinuous_Adjoint();
   bool roe_turkel = config->GetKind_Upwind_Flow() == TURKEL;
   bool low_mach_prec = config->Low_Mach_Preconditioning();
-  const bool body_force = config->GetBody_Force();
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
   
   /*--- Set maximum residual to zero ---*/
   
@@ -7126,7 +7128,7 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
     }
   }
 
-  if (body_force) {
+  if (constant_bulk_momentum || constant_bulk_temperature) {
     for (iPoint = nPointDomain; iPoint < nPoint; iPoint++) {
       for (iVar = 0; iVar < nVar; iVar++) {
         total_index = iPoint*nVar + iVar;
@@ -7140,10 +7142,14 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
   
 
   CSysSolve system;
-  if (body_force) {
+  if (constant_bulk_momentum || constant_bulk_temperature) {
 
     su2double* f_residual = new su2double[nVar];
     su2double* f_weight = new su2double[nVar];
+    for (iVar = 0; iVar < nVar; iVar++) {
+      f_residual[iVar] = 0.0;
+      f_weight[iVar] = 0.0;
+    }
 
     /*--- Solve x = A_inv R
      * Here, LinSysDeltaU stores the "delta U" that would be used if no
@@ -7223,9 +7229,8 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
      * momentum.  This term should go to the precision of the linear
      * solve after initial transients pass. ---*/
 
-    // TODO: Add a target momentum to the config options.
     const su2double Momentum_Ref = config->GetVelocity_Ref() * config->GetDensity_Ref();
-    const su2double target_momentum = 0.28294334329 / Momentum_Ref;
+    const su2double target_momentum = config->GetTarget_Bulk_Momentum() / Momentum_Ref;
     const su2double delta_rhou = (target_momentum - bulk_density * bulk_velocity)*total_volume;
 
 #ifdef HAVE_MPI
@@ -7242,8 +7247,96 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
 #endif
 
     // XXX: Not sure why we need a factor of nDim, but it works
-    const su2double naive_force = -nDim*V_Ainv_R / V_Ainv_V;
     bulk_force = (delta_rhou - nDim*V_Ainv_R) / V_Ainv_V;
+
+    /*--- Compute a volumetric heating ---*/
+
+    // TODO: Refactor this so that each type of forcing can be used independently
+
+    if (constant_bulk_temperature) {
+
+      /*--- Solve y = A_inv V
+       * Here, LinSysAux stores the weighting of the forcing at each node
+       * (e.g. the volume). ---*/
+
+      LinSysAux.SetValZero();
+      for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+        const su2double Volume = geometry->node[iPoint]->GetVolume();
+
+        f_weight[0] = 0.0;
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          f_weight[iDim+1] = 0.0;
+        }
+
+        f_weight[nDim+1] = Volume;
+
+        LinSysAux.AddBlock(iPoint, f_weight);
+      }
+
+      LinSysSol.SetValZero();
+      IterLinSol = system.Solve(Jacobian, LinSysAux, LinSysSol, geometry, config);
+
+      /*--- Calculate forcing
+       *
+       * In order to maintain that the bulk mass flux doesn't change, we
+       * need to solve:
+       *   f = - <d, x> / <d, y>.
+       * where:
+       *   Ax = b
+       *   Ay = c
+       * and:
+       *   A = Jacobian matrix for backward Euler
+       *   b = negative residual (without forcing)
+       *   c = the weighting of the forcing at each node
+       *       (volume for momentum, volume*velocity for total energy)
+       *   d = volume of each cell.
+       *
+       * Note that the integral of the state is discretely equal to:
+       *   int = <d, u>
+       * where:
+       *   d = volume of that cell
+       *   u = density, momentum, or energy
+       * ---*/
+
+      // TODO: Remove this.  It's the same as above.
+      LinSysAux.SetValZero();
+      for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+        const su2double Volume = geometry->node[iPoint]->GetVolume();
+
+        f_weight[0] = 0.0;
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          f_weight[iDim+1] = 0.0;
+        }
+
+        /*--- We only want to solve for bulk temp = constant ---*/
+
+        f_weight[nDim+1] = Volume;
+
+        LinSysAux.AddBlock(iPoint, f_weight);
+      }
+
+      // TODO: Add a target temperature to the config options.
+      const su2double target_temp =
+        config->GetTarget_Bulk_Temperature() / config->GetTemperature_Ref();
+      const su2double cv = config->GetGas_ConstantND() / (Gamma_Minus_One);
+      const su2double delta_rhoE = cv*bulk_density*(target_temp - bulk_temperature)*total_volume;
+
+#ifdef HAVE_MPI
+      send_buffer[0] = dotProd(LinSysAux, LinSysSol);
+      SU2_MPI::Reduce(send_buffer, recv_buffer, 1, MPI_DOUBLE, MPI_SUM, MASTER_NODE, MPI_COMM_WORLD);
+      SU2_MPI::Bcast(recv_buffer, 1, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+      const su2double V_Ainv_T = recv_buffer[0];
+#else
+      const su2double V_Ainv_T = dotProd(LinSysAux, LinSysSol);
+#endif
+
+      // XXX: Not sure why we need a factor of nDim, but it works
+      bulk_heating = (delta_rhoE - nDim*V_Ainv_R - bulk_force*nDim*V_Ainv_V) / V_Ainv_T;
+    } else {
+      bulk_heating = 0.0;
+    }
 
     /*--- Add the force to the residual and solve the new system ---*/
     // TODO: Final linear solve is not necessary.  Just add vectors.
@@ -7259,7 +7352,7 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
       for (unsigned short iDim = 1; iDim < nDim; iDim++) {
         f_residual[iDim+1] = 0.0;
       }
-      f_residual[nDim+1] = Volume * u_velocity * bulk_force;
+      f_residual[nDim+1] = Volume * u_velocity * bulk_force + Volume * bulk_heating;
 
       LinSysRes.AddBlock(iPoint, f_residual);
     }
@@ -16726,7 +16819,8 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
                    (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   bool implicit_rk = ((config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
                       (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
-  const bool body_force = config->GetBody_Force();
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
   
   bool adjoint = (config->GetContinuous_Adjoint()) || (config->GetDiscrete_Adjoint());
   string filename_ = config->GetSolution_FlowFileName();
@@ -16935,7 +17029,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   LinSysSol.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysRes.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysAux.Initialize(nPoint, nPointDomain, nVar, 0.0);
-  if (body_force) {
+  if (constant_bulk_momentum || constant_bulk_temperature) {
     LinSysDeltaU.Initialize(nPoint, nPointDomain, nVar, 0.0);
   }
 
@@ -17580,8 +17674,8 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   unsigned short kind_row_dissipation = config->GetKind_RoeLowDiss();
   const bool roe_low_dissipation  = config->BlendUpwindCentralFluxes();
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
-  const bool body_force = config->GetBody_Force();
-
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
   /*--- Update the angle of attack at the far-field for fixed CL calculations. ---*/
   
   if (fixed_cl) { SetFarfield_AoA(geometry, solver_container, config, iMesh, Output); }
@@ -17696,7 +17790,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   if (implicit && !config->GetDiscrete_Adjoint()) Jacobian.SetValZero();
 
   /*--- Compute the bulk quantities ---*/
-  if (iMesh == 0 && body_force) {
+  if (iMesh == 0 && (constant_bulk_momentum || constant_bulk_temperature)) {
     SetBulk_Forcing(geometry, solver_container, config);
   }
 
@@ -19984,5 +20078,12 @@ void CEulerSolver::SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfi
   bulk_velocity = global_momentum / (bulk_density * global_vol);
   bulk_temperature = global_temp /
       (bulk_density * bulk_velocity * global_vol);
+
+  if (config->GetTarget_Bulk_Momentum() == 0.0) {
+    config->SetTarget_Bulk_Momentum(bulk_density * bulk_velocity);
+  }
+  if (config->GetTarget_Bulk_Temperature() == 0.0) {
+    config->SetTarget_Bulk_Temperature(bulk_temperature);
+  }
 }
 

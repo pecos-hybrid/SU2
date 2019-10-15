@@ -4780,7 +4780,8 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
 
   bool thermal = false; /* Flag for whether to print heat flux values */
   bool weakly_coupled_heat = config->GetWeakly_Coupled_Heat();
-  const bool body_force = config->GetBody_Force();
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
 
   if (config->GetKind_Solver() == RANS || config->GetKind_Solver()  == NAVIER_STOKES) {
     thermal = true;
@@ -4898,7 +4899,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
   char fem_resid[]= ",\"Res_FEM[0]\",\"Res_FEM[1]\",\"Res_FEM[2]\"";
   char heat_resid[]= ",\"Res_Heat\"";
   char forcing_terms[] =
-    ",\"Bulk_Density\",\"Bulk_Momentum\",\"Bulk_Temp\",\"Bulk_Force\"";
+    ",\"Bulk_Density\",\"Bulk_Momentum\",\"Bulk_Temp\",\"Bulk_Force\",\"Bulk_Heating\"";
   
   /*--- End of the header ---*/
   
@@ -4942,7 +4943,9 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
         if (engine || actuator_disk) ConvHist_file[0] << d_engine;
       }
       if (output_comboObj) ConvHist_file[0] << combo_obj;
-      if (body_force) ConvHist_file[0] << forcing_terms;
+      if (constant_bulk_momentum || constant_bulk_temperature) {
+        ConvHist_file[0] << forcing_terms;
+      }
       ConvHist_file[0] << end;
       
       break;
@@ -5157,7 +5160,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     bool fsi = (config[val_iZone]->GetFSI_Simulation());          // FEM structural solver.
     bool discadj_fem = (config[val_iZone]->GetKind_Solver() == DISC_ADJ_FEM);
 
-    const bool body_force = config[val_iZone]->GetBody_Force();
+    const bool constant_bulk_momentum = config[val_iZone]->GetConst_Mass_Flux_Forcing();
+    const bool constant_bulk_temperature = config[val_iZone]->GetConst_Temp_Flux_Forcing();
     
     bool turbo = config[val_iZone]->GetBoolTurbomachinery();
 
@@ -5212,7 +5216,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         D_TotalPressure_Loss = 0.0, D_FlowAngle_Out = 0.0, D_TotalStaticEfficiency = 0.0,
         D_TotalTotalEfficiency = 0.0, D_EntropyGen = 0.0;
 
-    su2double bulk_density, bulk_momentum, bulk_temp, bulk_force;
+    su2double bulk_density, bulk_momentum, bulk_temp, bulk_force, bulk_heating;
     
     /*--- Residual arrays ---*/
     su2double *residual_flow         = NULL,
@@ -5508,11 +5512,12 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
           
         }
 
-        if (body_force) {
+      if (constant_bulk_momentum || constant_bulk_temperature) {
           bulk_density = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkDensity();
           bulk_momentum = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkMomentum();
           bulk_temp = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkTemperature();
           bulk_force = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkForce();
+          bulk_heating = solver_container[val_iZone][MESH_0][FLOW_SOL]->GetBulkHeating();
         }
         
         break;
@@ -5862,9 +5867,9 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               SPRINTF (heat_resid, ", %14.8e", log10 (residual_heat[0]));
             }
 
-            if (body_force) {
-              SPRINTF(forcing_terms, ", %14.8e, %14.8e, %14.8e, %14.8e", bulk_density,
-                      bulk_momentum, bulk_temp, bulk_force);
+            if (constant_bulk_momentum || constant_bulk_temperature) {
+              SPRINTF(forcing_terms, ", %14.8e, %14.8e, %14.8e, %14.8e, %14.8e", bulk_density,
+                      bulk_momentum, bulk_temp, bulk_force, bulk_heating);
             }
             
             break;
@@ -6380,7 +6385,9 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             if (output_surface) ConvHist_file[0] << surface_outputs;
             if (direct_diff != NO_DERIVATIVE) ConvHist_file[0] << d_direct_coeff;
             if (output_comboObj) ConvHist_file[0] << combo_obj;
-            if (body_force) ConvHist_file[0] << forcing_terms;
+            if (constant_bulk_momentum || constant_bulk_temperature) {
+              ConvHist_file[0] << forcing_terms;
+            }
             ConvHist_file[0] << end;
             ConvHist_file[0].flush();
           }
@@ -6468,7 +6475,9 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             if (output_surface) ConvHist_file[0] << surface_outputs;
             if (direct_diff != NO_DERIVATIVE) ConvHist_file[0] << d_direct_coeff;
             if (output_comboObj) ConvHist_file[0] << combo_obj;
-            if (body_force) ConvHist_file[0] << forcing_terms;
+            if (constant_bulk_momentum || constant_bulk_temperature) {
+              ConvHist_file[0] << forcing_terms;
+            }
             ConvHist_file[0] << end;
             ConvHist_file[0].flush();
           }
