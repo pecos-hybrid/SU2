@@ -75,6 +75,18 @@ CTurbKEVariable::CTurbKEVariable(su2double val_kine, su2double val_epsi,
   kol_time = 0.01 * timescale;
   kol_length = 0.01 * lengthscale;
 
+  // XXX: Rethink how all these terms are handled for halo nodes and the like:
+  //  - Production
+  //  - SGSProduction
+  //  - T, L
+  //  - alpha
+  //  - alpha_kol
+  //  Zero-initializing them is hacky
+
+  /*--- Initialize production ---*/
+
+  Production = 0;
+
   /*--- Allocate and initialize solution for the dual time strategy ---*/
   if (dual_time) {
     Solution_time_n[0]  = val_kine; Solution_time_n[1]  = val_epsi;

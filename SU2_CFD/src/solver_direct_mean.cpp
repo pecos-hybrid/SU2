@@ -17582,19 +17582,13 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 
   /*--- Compute the minimum value of TKE allowed ---*/
 
-  su2double tke_min;
-  if (model_split) {
-    su2double scale = 1.0e-8;  // XXX: This value is somewhat arbitrary.
-    su2double* VelInf = config->GetVelocity_FreeStreamND();
-    su2double VelMag = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      VelMag += VelInf[iDim]*VelInf[iDim];
-    VelMag = sqrt(VelMag);
-    if (VelMag == 0) {
-      SU2_MPI::Error("The model split method assumes the use of a nonzero freestream velocity.", CURRENT_FUNCTION);
-    }
-    tke_min = scale*0.5*VelMag*VelMag;
+  const su2double scale = 1.0e-8;  // XXX: This value is somewhat arbitrary.
+  su2double* VelInf = config->GetVelocity_FreeStreamND();
+  su2double VelMag = config->GetModVel_FreeStreamND();
+  if (VelMag == 0) {
+    SU2_MPI::Error("Nonzero free-stream velocity is necessary for RANS.", CURRENT_FUNCTION);
   }
+  const su2double tke_min = scale*0.5*VelMag*VelMag;
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
