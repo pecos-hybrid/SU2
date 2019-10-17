@@ -7569,6 +7569,7 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
         config->SetnPeriodicIndex(nPeriodic);
         
         /*--- Store center, rotation, & translation in that order for each. ---*/
+        unsigned short nonHalo_counter = 0;
         for (iPeriodic = 0; iPeriodic < nPeriodic; iPeriodic++) {
           getline (mesh_file, text_line);
           position = text_line.find ("PERIODIC_INDEX=",0);
@@ -7595,6 +7596,26 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
           config->SetPeriodicTranslate(iPeriodic, translate);
           
           delete [] center; delete [] rotation; delete [] translate;
+
+          /*--- Check for special periodic definitions ---*/
+
+          streampos oldpos = mesh_file.tellg();
+          getline(mesh_file, text_line);
+          position = text_line.find ("HALO=",0);
+          bool is_halo;
+          if (position != string::npos) {
+            text_line.erase(0, 5);
+            is_halo = atoi(text_line.c_str());
+          } else {
+            is_halo = ((iPeriodic > 0) && (iPeriodic % 2 == 1));
+            /*--- Rewind by one line ---*/
+            mesh_file.seekg(oldpos);
+          }
+          config->SetPeriodicHalo(iPeriodic, is_halo);
+          if (is_halo) nonHalo_counter++;
+        }
+        if (rank == MASTER_NODE) {
+          cout << "Found " << nonHalo_counter << " non-halo periodic transformations." << endl;
         }
       }
     }
@@ -10318,7 +10339,9 @@ void CPhysicalGeometry::ComputeNSpan(CConfig *config, unsigned short val_iZone, 
                     SendRecv = config->GetMarker_All_SendRecv(jMarker);
                     jVertex = node[iPoint]->GetVertex(jMarker);
                     if (jVertex != -1) {
-                      isPeriodic = ((vertex[jMarker][jVertex]->GetRotation_Type() > 0) && (vertex[jMarker][jVertex]->GetRotation_Type() % 2 == 1));
+                      const unsigned short iPeriodic =
+                        vertex[jMarker][jVertex]->GetRotation_Type();
+                      isPeriodic = config->GetPeriodicHalo(iPeriodic);
                       if (isPeriodic && (SendRecv < 0)){
                         nSpan++;
 
@@ -10367,7 +10390,9 @@ void CPhysicalGeometry::ComputeNSpan(CConfig *config, unsigned short val_iZone, 
                     SendRecv = config->GetMarker_All_SendRecv(jMarker);
                     jVertex = node[iPoint]->GetVertex(jMarker);
                     if (jVertex != -1) {
-                      isPeriodic = ((vertex[jMarker][jVertex]->GetRotation_Type() > 0) && (vertex[jMarker][jVertex]->GetRotation_Type() % 2 == 1));
+                      const unsigned short iPeriodic =
+                        vertex[jMarker][jVertex]->GetRotation_Type();
+                      isPeriodic = config->GetPeriodicHalo(iPeriodic);
                       if (isPeriodic && (SendRecv < 0)){
                         coord = node[iPoint]->GetCoord();
                         switch (config->GetKind_TurboMachinery(val_iZone)){
@@ -10503,7 +10528,9 @@ void CPhysicalGeometry::ComputeNSpan(CConfig *config, unsigned short val_iZone, 
                     SendRecv = config->GetMarker_All_SendRecv(jMarker);
                     jVertex = node[iPoint]->GetVertex(jMarker);
                     if (jVertex != -1) {
-                      isPeriodic = ((vertex[jMarker][jVertex]->GetRotation_Type() > 0) && (vertex[jMarker][jVertex]->GetRotation_Type() % 2 == 1));
+                      const unsigned short iPeriodic =
+                        vertex[jMarker][jVertex]->GetRotation_Type();
+                      isPeriodic = config->GetPeriodicHalo(iPeriodic);
                       if (isPeriodic && (SendRecv < 0)){
                         coord = node[iPoint]->GetCoord();
                         switch (config->GetKind_TurboMachinery(val_iZone)){

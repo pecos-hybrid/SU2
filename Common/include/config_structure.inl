@@ -1599,6 +1599,12 @@ inline bool CConfig::GetHold_GridFixed(void) { return Hold_GridFixed; }
 
 inline unsigned short CConfig::GetnPeriodicIndex(void) { return nPeriodic_Index; }
 
+inline bool CConfig::GetPeriodicHalo(unsigned short val_index) const { return Periodic_Halo[val_index]; }
+
+inline void CConfig::SetPeriodicHalo(unsigned short val_index, bool val_halo) {
+  Periodic_Halo[val_index] = val_halo;
+}
+
 inline su2double* CConfig::GetPeriodicCenter(unsigned short val_index) { return Periodic_Center[val_index]; }
 
 inline void CConfig::SetPeriodicCenter(unsigned short val_index, su2double* center) {
