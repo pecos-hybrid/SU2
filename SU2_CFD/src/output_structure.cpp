@@ -15509,6 +15509,7 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
   /*--- Loop through our elements and load the elems and their
    additional data that we will send to the other procs. ---*/
   
+  unsigned long jPoint = 0;
   for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
     
     /*--- We only write interior points and recovered periodic points. ---*/
@@ -15539,7 +15540,7 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
         /*--- Load the data values. ---*/
         
         for (unsigned short kk = 0; kk < VARS_PER_POINT; kk++) {
-          connSend[nn] = Local_Data[iPoint][kk]; nn++;
+          connSend[nn] = Local_Data[jPoint][kk]; nn++;
         }
         
         /*--- Load the global ID (minus offset) for sorting the
@@ -15552,8 +15553,9 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
         
         index[iProcessor]  += VARS_PER_POINT;
         idIndex[iProcessor]++;
-        
+
       }
+      jPoint++;
     }
   }
   
