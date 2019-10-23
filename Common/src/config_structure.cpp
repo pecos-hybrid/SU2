@@ -382,7 +382,6 @@ void CConfig::SetPointersNull(void) {
   
   Periodic_Translate   = NULL;   Periodic_Rotation  = NULL;   Periodic_Center    = NULL;
   Periodic_Translation = NULL;   Periodic_RotAngles = NULL;   Periodic_RotCenter = NULL;
-  Periodic_Halo = NULL;
 
   Dirichlet_Value           = NULL;     Exhaust_Temperature_Target  = NULL;     Exhaust_Temperature   = NULL;
   Exhaust_Pressure_Target   = NULL;     Inlet_Ttotal                = NULL;     Inlet_Ptotal          = NULL;
@@ -483,7 +482,6 @@ void CConfig::SetPointersNull(void) {
   MoveMotion_Origin   = NULL;
   Periodic_Translate  = NULL;    Periodic_Rotation   = NULL;    Periodic_Center     = NULL;
   Periodic_Translation= NULL;    Periodic_RotAngles  = NULL;    Periodic_RotCenter  = NULL;
-  Periodic_Halo = NULL;
 
 
   /* Harmonic Balance Frequency pointer */
@@ -6771,7 +6769,6 @@ CConfig::~CConfig(void) {
   if (Periodic_Center      != NULL) delete[] Periodic_Center;
   if (Periodic_Rotation    != NULL) delete[] Periodic_Rotation;
   if (Periodic_Translate   != NULL) delete[] Periodic_Translate;
-  if (Periodic_Halo != NULL) delete [] Periodic_Halo;
   
   if (MG_CorrecSmooth != NULL) delete[] MG_CorrecSmooth;
   if (PlaneTag != NULL)        delete[] PlaneTag;
@@ -7362,7 +7359,6 @@ void CConfig::SetnPeriodicIndex(unsigned short val_index) {
   Periodic_Center    = new su2double*[nPeriodic_Index];
   Periodic_Rotation  = new su2double*[nPeriodic_Index];
   Periodic_Translate = new su2double*[nPeriodic_Index];
-  Periodic_Halo = new bool[nPeriodic_Index];
   
   for (unsigned long i = 0; i < nPeriodic_Index; i++) {
     Periodic_Center[i]    = new su2double[3];

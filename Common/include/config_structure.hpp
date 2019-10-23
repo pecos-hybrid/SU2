@@ -371,7 +371,6 @@ private:
   su2double **Periodic_RotAngles;      /*!< \brief Rotation angles for each periodic boundary. */
   su2double **Periodic_Translation;      /*!< \brief Translation vector for each periodic boundary. */
   unsigned short nPeriodic_Index;     /*!< \brief Number of SEND_RECEIVE periodic transformations. */
-  bool *Periodic_Halo; /*!< \brief True if a periodic transformation defines some extra halo nodes. */
   su2double **Periodic_Center;         /*!< \brief Rotational center for each SEND_RECEIVE boundary. */
   su2double **Periodic_Rotation;      /*!< \brief Rotation angles for each SEND_RECEIVE boundary. */
   su2double **Periodic_Translate;      /*!< \brief Translation vector for each SEND_RECEIVE boundary. */
@@ -6238,20 +6237,6 @@ public:
    * \return Total number of transformations.
    */
   unsigned short GetnPeriodicIndex(void);
-
-  /*!
-   * \brief Set whether a periodic transformation defines a set of halo nodes
-   * \param[in] val_index - Index corresponding to the periodic transformation.
-   * \param[in] val_halo - Whether the transformation defines a set of halo nodes
-   */
-  void SetPeriodicHalo(unsigned short val_index, bool val_halo);
-  
-  /*!
-   * \brief Check whether a periodic transformation defines a set of halo nodes
-   * \param[in] val_index - Index corresponding to the periodic transformation.
-   * \return True if the transformation defines a set of halo nodes
-   */
-  bool GetPeriodicHalo(unsigned short val_index) const;
   
   /*!
    * \brief Set the rotation center for a periodic transformation.

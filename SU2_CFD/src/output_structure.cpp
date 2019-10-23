@@ -1404,10 +1404,10 @@ void COutput::MergeCoordinates(CConfig *config, CGeometry *geometry) {
 
         if (kind_SU2 == SU2_DEF) {
           isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
-        } else {
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+        }else {
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         }
 
         if (isPeriodic && (SendRecv < 0)) {
@@ -1505,10 +1505,10 @@ void COutput::MergeCoordinates(CConfig *config, CGeometry *geometry) {
 
           if (kind_SU2 == SU2_DEF) {
             isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
-          } else {
-            const unsigned short iPeriodic =
-                geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-            isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          }else {
+            // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+            //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+            isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
           }
           if (isPeriodic) {
             Local_Halo[iPoint] = false;
@@ -1767,10 +1767,9 @@ void COutput::MergeVolumetricConnectivity(CConfig *config, CGeometry *geometry, 
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
           
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
-          if ((iPeriodic > 0) && (!isPeriodic) && (SendRecv < 0)) {
+          if ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+              (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 0) &&
+              (SendRecv < 0)) {
             Added_Periodic.push_back(geometry->node[iPoint]->GetGlobalIndex());
           }
         }
@@ -1841,18 +1840,18 @@ void COutput::MergeVolumetricConnectivity(CConfig *config, CGeometry *geometry, 
         iGlobal_Index = geometry->node[iPoint]->GetGlobalIndex();
         
         /*--- We need to keep one copy of overlapping halo cells. ---*/
-
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        notHalo = ((iPeriodic == 0) && (SendRecv < 0) && (rank > RecvFrom));
+        notHalo = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() == 0) &&
+                   (SendRecv < 0) && (rank > RecvFrom));
         
         /*--- We want to keep the periodic nodes that were part of the original domain.
          For SU2_DEF we want to keep all periodic nodes. ---*/
         
-        if (config->GetKind_SU2() == SU2_DEF) {
-          isPeriodic = (iPeriodic > 0);
-        } else {
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+        if (kind_SU2 == SU2_DEF) {
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
+        }else {
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         }
         
         notPeriodic = (isPeriodic && (SendRecv < 0));
@@ -2139,10 +2138,9 @@ void COutput::MergeSurfaceConnectivity(CConfig *config, CGeometry *geometry, uns
       SendRecv = config->GetMarker_All_SendRecv(iMarker);
       for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
         iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        const bool isPeriodic = config->GetPeriodicHalo(iPeriodic);
-        if ((iPeriodic > 0) && (!isPeriodic) && (SendRecv < 0)) {
+        if ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+            (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 0) &&
+            (SendRecv < 0)) {
           Added_Periodic.push_back(geometry->node[iPoint]->GetGlobalIndex());
         }
       }
@@ -2212,12 +2210,13 @@ void COutput::MergeSurfaceConnectivity(CConfig *config, CGeometry *geometry, uns
         iGlobal_Index = geometry->node[iPoint]->GetGlobalIndex();
         
         /*--- We need to keep one copy of overlapping halo cells. ---*/
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        notHalo = ((iPeriodic == 0) && (SendRecv < 0) && (rank > RecvFrom));
+        notHalo = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() == 0) &&
+                   (SendRecv < 0) && (rank > RecvFrom));
         
         /*--- We want to keep the periodic nodes that were part of the original domain ---*/
-        notPeriodic = (config->GetPeriodicHalo(iPeriodic) && (SendRecv < 0));
+        notPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+                       (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1) &&
+                       (SendRecv < 0));
         
         /*--- Lastly, check that this isn't an added periodic point that
          we will forcibly remove. Use the communicated list of these points. ---*/
@@ -2623,9 +2622,9 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
           if (isPeriodic) Local_Halo[iPoint] = false;
         }
       }
@@ -4206,9 +4205,9 @@ void COutput::MergeBaselineSolution(CConfig *config, CGeometry *geometry, CSolve
       SendRecv = config->GetMarker_All_SendRecv(iMarker);
       for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
         iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        if (config->GetPeriodicHalo(iPeriodic) && (SendRecv < 0)) {
+        if ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+            (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1) &&
+            (SendRecv < 0)) {
           Local_Halo[iPoint] = false;
         }
       }
@@ -4284,9 +4283,9 @@ void COutput::MergeBaselineSolution(CConfig *config, CGeometry *geometry, CSolve
         
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
           if (isPeriodic) Local_Halo[iPoint] = false;
         }
       }
@@ -12921,9 +12920,9 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
           if (isPeriodic) Local_Halo[iPoint] = false;
         }
       }
@@ -13436,9 +13435,9 @@ void COutput::LoadLocalData_AdjFlow(CConfig *config, CGeometry *geometry, CSolve
         
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
           if (isPeriodic) Local_Halo[iPoint] = false;
         }
       }
@@ -13756,9 +13755,9 @@ void COutput::LoadLocalData_Elasticity(CConfig *config, CGeometry *geometry, CSo
         
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
           if (isPeriodic) Local_Halo[iPoint] = false;
         }
       }
@@ -13994,9 +13993,9 @@ void COutput::LoadLocalData_Base(CConfig *config, CGeometry *geometry, CSolver *
         
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
           if (isPeriodic) Local_Halo[iPoint] = false;
         }
       }
@@ -14189,10 +14188,10 @@ void COutput::SortVolumetricConnectivity(CConfig *config, CGeometry *geometry, u
         SendRecv = config->GetMarker_All_SendRecv(iMarker);
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
-          if ((iPeriodic > 0) && (!isPeriodic) && (SendRecv < 0)) {
+          
+          if ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+              (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 0) &&
+              (SendRecv < 0)) {
             Added_Periodic.push_back(geometry->node[iPoint]->GetGlobalIndex());
           }
         }
@@ -14265,20 +14264,22 @@ void COutput::SortVolumetricConnectivity(CConfig *config, CGeometry *geometry, u
         Global_Index = geometry->node[iPoint]->GetGlobalIndex();
         
         /*--- We need to keep one copy of overlapping halo cells. ---*/
-
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        notHalo = ((iPeriodic == 0) && (SendRecv < 0) && (rank > RecvFrom));
+        
+        notHalo = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() == 0) &&
+                   (SendRecv < 0) && (rank > RecvFrom));
         
         /*--- We want to keep the periodic nodes that were part of the original domain.
          For SU2_DEF we want to keep all periodic nodes. ---*/
         
         if (config->GetKind_SU2() == SU2_DEF) {
-          isPeriodic = (iPeriodic > 0);
-        } else {
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
+        }else {
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         }
         
+        //notPeriodic = (isPeriodic && (SendRecv < 0));
         notPeriodic = (isPeriodic && (SendRecv < 0));
         
         /*--- Lastly, check that this isn't an added periodic point that
@@ -14299,7 +14300,8 @@ void COutput::SortVolumetricConnectivity(CConfig *config, CGeometry *geometry, u
         
         /*--- If we found either of these types of nodes, flag them to be kept. ---*/
         
-        if ((notHalo || notPeriodic) && !addedPeriodic) {
+        //if ((notHalo || notPeriodic) && !addedPeriodic) {
+        if ((notHalo || isPeriodic)) {
           Local_Halo[iPoint] = false;
         }
         
@@ -14776,10 +14778,9 @@ void COutput::SortSurfaceConnectivity(CConfig *config, CGeometry *geometry, unsi
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
           
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
-          if ((iPeriodic > 0) && (!isPeriodic) && (SendRecv < 0)) {
+          if ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+              (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 0) &&
+              (SendRecv < 0)) {
             Added_Periodic.push_back(geometry->node[iPoint]->GetGlobalIndex());
           }
         }
@@ -14852,18 +14853,19 @@ void COutput::SortSurfaceConnectivity(CConfig *config, CGeometry *geometry, unsi
         Global_Index = geometry->node[iPoint]->GetGlobalIndex();
         
         /*--- We need to keep one copy of overlapping halo cells. ---*/
-
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        notHalo = ((iPeriodic == 0) && (SendRecv < 0) && (rank > RecvFrom));
+        
+        notHalo = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() == 0) &&
+                   (SendRecv < 0) && (rank > RecvFrom));
         
         /*--- We want to keep the periodic nodes that were part of the original domain.
          For SU2_DEF we want to keep all periodic nodes. ---*/
         
         if (config->GetKind_SU2() == SU2_DEF) {
-          isPeriodic = (iPeriodic > 0);
-        } else {
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
+        }else {
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         }
         
         notPeriodic = (isPeriodic && (SendRecv < 0));
@@ -15339,10 +15341,9 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
       
       for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
         iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-        const unsigned long global_index = geometry->node[iPoint]->GetGlobalIndex();
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        isPeriodic = config->GetPeriodicHalo(iPeriodic);
+        // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+        //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+        isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         if (isPeriodic) Local_Halo[iPoint] = false;
       }
     }
@@ -15427,11 +15428,6 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
       /*--- Get the global index of the current point. ---*/
       
       Global_Index = geometry->node[iPoint]->GetGlobalIndex();
-      if (Global_Index >= nTotalPoint) {
-        /*--- By convention, we expect all non-halo nodes (including
-         * recovered periodic nodes) to come before the halo nodes ---*/
-        SU2_MPI::Error("Something went wrong with the ordering of points. A non-halo point has a global index greater than the total number of non-halo nodes.", CURRENT_FUNCTION);
-      }
       
       /*--- Search for the processor that owns this point ---*/
       
@@ -15513,7 +15509,6 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
   /*--- Loop through our elements and load the elems and their
    additional data that we will send to the other procs. ---*/
   
-  unsigned long jPoint = 0;
   for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
     
     /*--- We only write interior points and recovered periodic points. ---*/
@@ -15544,7 +15539,7 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
         /*--- Load the data values. ---*/
         
         for (unsigned short kk = 0; kk < VARS_PER_POINT; kk++) {
-          connSend[nn] = Local_Data[jPoint][kk]; nn++;
+          connSend[nn] = Local_Data[iPoint][kk]; nn++;
         }
         
         /*--- Load the global ID (minus offset) for sorting the
@@ -15558,7 +15553,6 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
         index[iProcessor]  += VARS_PER_POINT;
         idIndex[iProcessor]++;
         
-        jPoint++;
       }
     }
   }
@@ -15778,9 +15772,9 @@ void COutput::SortOutputData_Surface(CConfig *config, CGeometry *geometry) {
       
       for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
         iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        isPeriodic = config->GetPeriodicHalo(iPeriodic);
+        // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+        //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+        isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         if (isPeriodic) Local_Halo[iPoint] = false;
       }
     }
@@ -16309,10 +16303,9 @@ void COutput::SortOutputData_Surface(CConfig *config, CGeometry *geometry) {
         for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
           iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
           
-          const unsigned short iPeriodic =
-              geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
-          if ((iPeriodic > 0) && (!isPeriodic) && (SendRecv < 0)) {
+          if ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+              (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 0) &&
+              (SendRecv < 0)) {
             Added_Periodic.push_back(geometry->node[iPoint]->GetGlobalIndex());
           }
         }
@@ -16385,17 +16378,18 @@ void COutput::SortOutputData_Surface(CConfig *config, CGeometry *geometry) {
         
         /*--- We need to keep one copy of overlapping halo cells. ---*/
         
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        notHalo = ((iPeriodic == 0) && (SendRecv < 0) && (rank > RecvFrom));
+        notHalo = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() == 0) &&
+                   (SendRecv < 0) && (rank > RecvFrom));
         
         /*--- We want to keep the periodic nodes that were part of the original domain.
          For SU2_DEF we want to keep all periodic nodes. ---*/
         
         if (config->GetKind_SU2() == SU2_DEF) {
-          isPeriodic = (iPeriodic > 0);
-        } else {
-          isPeriodic = config->GetPeriodicHalo(iPeriodic);
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
+        }else {
+          // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+          //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+          isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         }
         
         notPeriodic = (isPeriodic && (SendRecv < 0));
@@ -17326,9 +17320,9 @@ void COutput::WriteRestart_Parallel_Binary(CConfig *config, CGeometry *geometry,
 
       for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
         iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-        const unsigned short iPeriodic =
-            geometry->vertex[iMarker][iVertex]->GetRotation_Type();
-        isPeriodic = config->GetPeriodicHalo(iPeriodic);
+        // isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+        //               (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+        isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         if (isPeriodic) Local_Halo[iPoint] = false;
       }
     }
