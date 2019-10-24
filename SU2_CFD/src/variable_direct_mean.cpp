@@ -561,6 +561,16 @@ CNSVariable::CNSVariable(void) : CEulerVariable() {
   ResolvedTurbStress = NULL;
   AnisoEddyViscosity = NULL;
   ForcingVector = NULL;
+  SGSProduction = 0;
+  ResolutionAdequacy = 1;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      AnisoEddyViscosity[iDim][jDim] = 0.0;
+    }
+  }
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    ForcingVector[iDim] = 0;
+  }
 }
 
 CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2double val_energy,
@@ -601,6 +611,16 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
     ResolvedKineticEnergy = 0;
+    SGSProduction = 0;
+    ResolutionAdequacy = 1;
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        AnisoEddyViscosity[iDim][jDim] = 0.0;
+      }
+    }
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ForcingVector[iDim] = 0;
+    }
 
 }
 
@@ -640,6 +660,17 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
     ResolvedKineticEnergy = 0;
+    SGSProduction = 0;
+    ResolutionAdequacy = 1;
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        AnisoEddyViscosity[iDim][jDim] = 0.0;
+      }
+    }
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ForcingVector[iDim] = 0;
+    }
+    
 
 }
 
