@@ -395,6 +395,12 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
   su2double tke, v2, zeta, muT;
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
+  /*--- Update flow solution using new k
+   * Since T depends on k and viscosity depends on T, we need to update the
+   * flow primitives to get a consistent laminar viscosity ---*/
+
+  solver_container[FLOW_SOL]->Preprocessing(geometry, solver_container, config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
+
   /*--- Compute mean flow and turbulence gradients ---*/
   if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
     SetSolution_Gradient_GG(geometry, config);

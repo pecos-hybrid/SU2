@@ -17187,7 +17187,9 @@ void COutput::WriteRestart_Parallel_ASCII(CConfig *config, CGeometry *geometry, 
           /*--- Loop over the variables and write the values to file ---*/
           
           for (iVar = 0; iVar < nVar_Par; iVar++) {
-            restart_file << scientific << Parallel_Data[iVar][iPoint] << "\t";
+            restart_file << scientific;
+            restart_file << std::setprecision(std::numeric_limits<su2double>::digits10 + 2);
+            restart_file << Parallel_Data[iVar][iPoint] << "\t";
           }
           restart_file << "\n";
         }
