@@ -7129,13 +7129,8 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
   }
 
   if (constant_bulk_momentum || constant_bulk_temperature) {
-    for (iPoint = nPointDomain; iPoint < nPoint; iPoint++) {
-      for (iVar = 0; iVar < nVar; iVar++) {
-        total_index = iPoint*nVar + iVar;
-        LinSysAux[total_index] = 0.0;
-        LinSysDeltaU[total_index] = 0.0;
-      }
-    }
+    LinSysAux.SetValZero();
+    LinSysDeltaU.SetValZero();
   }
   
   /*--- Solve or smooth the linear system ---*/
