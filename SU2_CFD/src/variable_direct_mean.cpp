@@ -560,14 +560,20 @@ CNSVariable::CNSVariable(void) : CEulerVariable() {
 
   ResolvedTurbStress = NULL;
   AnisoEddyViscosity = NULL;
-  ForcingVector = NULL;
+  TurbProduction = 0;
   SGSProduction = 0;
   ResolutionAdequacy = 1;
+  AnisoEddyViscosity = new su2double*[nDim];
+  ResolvedTurbStress = new su2double*[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    AnisoEddyViscosity[iDim] = new su2double[nDim];
+    ResolvedTurbStress[iDim] = new su2double[nDim];
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       AnisoEddyViscosity[iDim][jDim] = 0.0;
+      ResolvedTurbStress[iDim][jDim] = 0.0;
     }
   }
+  Force = new su2double[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     ForcingVector[iDim] = 0;
   }
