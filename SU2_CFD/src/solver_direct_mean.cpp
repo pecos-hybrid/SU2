@@ -1731,7 +1731,7 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
       Buffer_Send_U = new su2double[nBufferS_Vector];
 
       if (model_split) {
-        nBufferS_Extra = nVertexS*nVar_Extra;   nBufferR_Extra = nVertexS*nVar_Extra;
+        nBufferS_Extra = nVertexS*nVar_Extra;   nBufferR_Extra = nVertexR*nVar_Extra;
         Buffer_Receive_Extra = new su2double [nBufferR_Extra];
         Buffer_Send_Extra = new su2double[nBufferS_Extra];
       }
@@ -1856,17 +1856,17 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
           if (config->GetUse_Resolved_Turb_Stress()) {
             SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
           } else {
-            average_node[iPoint]->SetProduction(Buffer_Receive_Extra[0*nVertexS + iVertex]);
-            average_node[iPoint]->SetResolvedKineticEnergy(Buffer_Receive_Extra[1*nVertexS + iVertex]);
+            average_node[iPoint]->SetProduction(Buffer_Receive_Extra[0*nVertexR + iVertex]);
+            average_node[iPoint]->SetResolvedKineticEnergy(Buffer_Receive_Extra[1*nVertexR + iVertex]);
           }
 
-          average_node[iPoint]->SetResolutionAdequacy(Buffer_Receive_Extra[2*nVertexS + iVertex]);
+          average_node[iPoint]->SetResolutionAdequacy(Buffer_Receive_Extra[2*nVertexR + iVertex]);
 
           // TODO: Rotate force vector properly
           /*--- Loop intentionally left unrolled ---*/
-          temp_force[0] = Buffer_Receive_Extra[3*nVertexS + iVertex];
-          temp_force[1] = Buffer_Receive_Extra[4*nVertexS + iVertex];
-          temp_force[2] = Buffer_Receive_Extra[5*nVertexS + iVertex];
+          temp_force[0] = Buffer_Receive_Extra[3*nVertexR + iVertex];
+          temp_force[1] = Buffer_Receive_Extra[4*nVertexR + iVertex];
+          temp_force[2] = Buffer_Receive_Extra[5*nVertexR + iVertex];
           average_node[iPoint]->SetForce(temp_force);
         }
       }
