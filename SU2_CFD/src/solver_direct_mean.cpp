@@ -15247,9 +15247,9 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
   }
 
   bool found_resolved_stress = false, found_production = false,
-       found_k_res = false, found_r_M = false;
+       found_k_res = false, found_r_M = false, found_mean_force = false;
   unsigned short resolved_stress_index, production_index, k_res_index,
-      r_M_index;
+      r_M_index, mean_force_index;
   if (model_split) {
     FindRestartVariable("\"Production\"", config->fields,
                         found_production, production_index);
@@ -15303,6 +15303,17 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
                             found_r_M, r_M_index);
         if (!found_r_M) {
           SU2_MPI::Error("Could not find average resolution adequacy in the restart file!", CURRENT_FUNCTION);
+        }
+      }
+      // Non-tecplot name
+      FindRestartVariable("\"Average_hyb_force_1\"", config->fields,
+                          found_mean_force, mean_force_index);
+      if (!found_mean_force) {
+        // Tecplot name
+        FindRestartVariable("\"avgF<sub>1</sub>\"", config->fields,
+                          found_mean_force, mean_force_index);
+        if (!found_mean_force) {
+          SU2_MPI::Error("Could not find the mean forcing vector in the restart file.", CURRENT_FUNCTION); 
         }
       }
     } else {
@@ -15390,9 +15401,20 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
               average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
             }
           }
+
+          /*--- Resolution adequacy ---*/
           assert(found_r_M);
           index = counter*Restart_Vars[1] + r_M_index;
           average_node[iPoint_Local]->SetResolutionAdequacy(Restart_Data[index]);
+
+          /*--- Mean forcing vector ---*/
+          assert(found_mean_force);
+          index = counter*Restart_Vars[1] + mean_force_index;
+          su2double temp_force[3];
+          temp_force[0] = Restart_Data[index];
+          temp_force[1] = Restart_Data[index+1];
+          temp_force[2] = Restart_Data[index+2];
+          average_node[iPoint_Local]->SetForcingVector(temp_force);
 
         } else {
           if (found_production) {
