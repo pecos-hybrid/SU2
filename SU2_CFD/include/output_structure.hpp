@@ -57,7 +57,7 @@
 #include "../../Common/include/config_structure.hpp"
 
 typedef su2double (CVariable::*DataAccessor)() const;
-typedef su2double* (CVariable::*VectorAccessor)() const;
+typedef const su2double* (CVariable::*VectorAccessor)() const;
 typedef su2double** (CVariable::*TensorAccessor)() const;
 
 /*--- Define a macro to make (()->*(function pointer)) more readable ---*/
