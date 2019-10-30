@@ -1750,7 +1750,7 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
             Buffer_Send_Extra[1*nVertexS + iVertex] = average_node[iPoint]->GetResolvedKineticEnergy();
           }
           Buffer_Send_Extra[2*nVertexS + iVertex] = average_node[iPoint]->GetResolutionAdequacy();
-          const su2double* temp_force = average_node[iPoint]->GetForce();
+          const su2double* temp_force = average_node[iPoint]->GetForcingVector();
           Buffer_Send_Extra[3*nVertexS + iVertex] = temp_force[0];
           Buffer_Send_Extra[4*nVertexS + iVertex] = temp_force[1];
           Buffer_Send_Extra[5*nVertexS + iVertex] = temp_force[2];
@@ -1862,7 +1862,7 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
           temp_force[0] = Buffer_Receive_Extra[3*nVertexR + iVertex];
           temp_force[1] = Buffer_Receive_Extra[4*nVertexR + iVertex];
           temp_force[2] = Buffer_Receive_Extra[5*nVertexR + iVertex];
-          average_node[iPoint]->SetForce(temp_force);
+          average_node[iPoint]->SetForcingVector(temp_force);
         }
       }
 
@@ -17978,7 +17978,7 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
       const su2double* U = average_node[iPoint]->GetSolution();
 
       const su2double* Force = HybridMediator->GetForcingVector(iPoint);
-      const su2double* MeanForce = average_node[iPoint]->GetForce();
+      const su2double* MeanForce = average_node[iPoint]->GetForcingVector();
 
       // Set forcing in variable class (for output purposes)
       node[iPoint]->SetForcingVector(Force);
@@ -19768,13 +19768,13 @@ void CNSSolver::UpdateAverage(const su2double weight,
     average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
 
     /*--- Update the average of the forcing ---*/
-    const su2double* mean_F = average_node[iPoint]->GetForce();
+    const su2double* mean_F = average_node[iPoint]->GetForcingVector();
     assert(HybridMediator != NULL);
     const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
     su2double update_mean_F[3];
     update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
     update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
     update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
-    average_node[iPoint]->SetForce(update_mean_F);
+    average_node[iPoint]->SetForcingVector(update_mean_F);
   }
 }

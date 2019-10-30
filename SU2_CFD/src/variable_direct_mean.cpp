@@ -573,7 +573,7 @@ CNSVariable::CNSVariable(void) : CEulerVariable() {
       ResolvedTurbStress[iDim][jDim] = 0.0;
     }
   }
-  Force = new su2double[nDim];
+  ForcingVector = new su2double[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     ForcingVector[iDim] = 0;
   }
@@ -600,19 +600,7 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
       AnisoEddyViscosity[iDim] = new su2double[nDim];
     }
 
-    // Why Forcing_Stress?  Is this correct name?
-    if (config->isHybrid_Forced()) {
-      Forcing_Stress = new su2double*[nDim];
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Forcing_Stress[iDim] = new su2double[nDim];
-    } else {
-      Forcing_Stress = NULL;
-    }
-
     ForcingVector = new su2double[nDim];
-
-    Force = new su2double[3];
-    Force[0] = Force[1] = Force[2] = 0;
 
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
@@ -650,18 +638,7 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
       AnisoEddyViscosity[iDim] = new su2double[nDim];
     }
 
-    // Why Forcing_Stress?  Is this correct name?
-    if (config->isHybrid_Forced()) {
-      Forcing_Stress = new su2double*[nDim];
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Forcing_Stress[iDim] = new su2double[nDim];
-    } else {
-      Forcing_Stress = NULL;
-    }
-
     ForcingVector = new su2double[nDim];
-    Force = new su2double[nDim];
-    Force[0] = Force[1] = Force[2] = 0;
 
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
@@ -693,16 +670,8 @@ CNSVariable::~CNSVariable(void) {
     }
     delete [] AnisoEddyViscosity;
   }
-  if (Forcing_Stress != NULL) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      delete [] Forcing_Stress[iDim];
-    delete [] Forcing_Stress;
-  }
   if (ForcingVector != NULL) {
     delete [] ForcingVector;
-  }
-  if (Force != NULL) {
-    delete [] Force;
   }
 }
 
