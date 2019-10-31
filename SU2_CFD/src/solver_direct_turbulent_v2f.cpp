@@ -426,6 +426,15 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
   const bool limit_scales = (realizability_limit == T_L_LIMIT);
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint ++) {
 
+    /*--- Copy over production from flow averages to turbulence variables
+     * This is sometimes redundant, but is essential after averages are
+     * updated. Otherwise the production in the flow nodes and the turbulence
+     * nodes are inconsistent.  ---*/
+
+    if (model_split && !(config->GetUse_Resolved_Turb_Stress())) {
+       node[iPoint]->SetProduction(flow_node[iPoint]->GetProduction());
+    }
+
     /*--- Compute turbulence scales ---*/
 
     rho = flow_node[iPoint]->GetDensity();
