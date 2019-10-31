@@ -610,6 +610,26 @@ void CFluidIteration::Update(COutput *output,
         (config_container[val_iZone]->GetKind_Solver() == DISC_ADJ_RANS)) {
       solver_container[val_iZone][MESH_0][TURB_SOL]->SetAverages(geometry_container[val_iZone][MESH_0],  solver_container[val_iZone][MESH_0], config_container[val_iZone]);
     }
+
+    if (config_container[val_iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+
+      /*--- Two calls needed for periodic cells ---*/
+      solver_container[val_iZone][MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry_container[val_iZone][MESH_0], config_container[val_iZone]);
+      solver_container[val_iZone][MESH_0][FLOW_SOL]->Set_MPI_Solution(geometry_container[val_iZone][MESH_0], config_container[val_iZone]);
+      solver_container[val_iZone][MESH_0][FLOW_SOL]->Set_MPI_Average_Solution(geometry_container[val_iZone][MESH_0], config_container[val_iZone]);
+      solver_container[val_iZone][MESH_0][FLOW_SOL]->Set_MPI_Average_Solution(geometry_container[val_iZone][MESH_0], config_container[val_iZone]);
+
+      /*--- Now that resolved flow is updated, temperature
+       * needs updating. Eddy viscosity depends on the laminar viscosity
+       * and laminar viscosity depends on temperature, so we need to
+       * update eddy viscosity too.  ---*/
+      solver_container[val_iZone][MESH_0][FLOW_SOL]->Preprocessing(geometry_container[val_iZone][MESH_0],solver_container[val_iZone][MESH_0], config_container[val_iZone], MESH_0, NO_RK_ITER, RUNTIME_FLOW_SYS, true);
+      solver_container[val_iZone][MESH_0][TURB_SOL]->Postprocessing(geometry_container[val_iZone][MESH_0],solver_container[val_iZone][MESH_0], config_container[val_iZone], MESH_0);
+
+      /*--- Propagate new eddy viscosity to halo nodes ---*/
+      solver_container[val_iZone][MESH_0][TURB_SOL]->Set_MPI_Solution(geometry_container[val_iZone][MESH_0], config_container[val_iZone]);
+      solver_container[val_iZone][MESH_0][TURB_SOL]->Set_MPI_Solution(geometry_container[val_iZone][MESH_0], config_container[val_iZone]);
+    }
   }
 }
 
