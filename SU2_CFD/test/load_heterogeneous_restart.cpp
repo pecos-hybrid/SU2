@@ -427,6 +427,8 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsProductionFromHybridRestart,
 
 
   const size_t nFields = sizeof(name_array)/sizeof(name_array[0]);
+
+  config->SetUse_Resolved_Turb_Stress(false);
   SetupRestart(name_array, nFields, restart_data);
   solver->LoadSolution(false, "dummy_string", config, geometry);
 
@@ -479,6 +481,7 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsResAdequacyFromHybridRestart,
 
 
   const size_t nFields = sizeof(name_array)/sizeof(name_array[0]);
+  config->SetUse_Resolved_Turb_Stress(false);
   SetupRestart(name_array, nFields, restart_data);
   solver->LoadSolution(false, "dummy_string", config, geometry);
 
