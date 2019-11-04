@@ -1749,7 +1749,9 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
         for (iVertex = 0; iVertex < nVertexS; iVertex++) {
           iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
           if (config->GetUse_Resolved_Turb_Stress()) {
-            SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
+            // SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
+            Buffer_Send_Extra[0*nVertexS + iVertex] = 0;
+            Buffer_Send_Extra[1*nVertexS + iVertex] = 0;
           } else {
             Buffer_Send_Extra[0*nVertexS + iVertex] = average_node[iPoint]->GetProduction();
             Buffer_Send_Extra[1*nVertexS + iVertex] = average_node[iPoint]->GetResolvedKineticEnergy();
@@ -1854,7 +1856,7 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
           iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
 
           if (config->GetUse_Resolved_Turb_Stress()) {
-            SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
+            // SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
           } else {
             average_node[iPoint]->SetProduction(Buffer_Receive_Extra[0*nVertexR + iVertex]);
             average_node[iPoint]->SetResolvedKineticEnergy(Buffer_Receive_Extra[1*nVertexR + iVertex]);
@@ -15250,86 +15252,115 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
        found_k_res = false, found_r_M = false, found_mean_force = false;
   unsigned short resolved_stress_index, production_index, k_res_index,
       r_M_index, mean_force_index;
+
+  /*--- Just look for all the variables.  This could be split up into the
+   * separate use cases, but it's only a string comparison and only run at
+   * the start of each run.  So it's best just to keep the code clean. ---*/
+
+  FindRestartVariable("\"Production\"", config->fields,
+                      found_production, production_index);
+  FindRestartVariable("\"tau_res_11\"", config->fields,
+      found_resolved_stress, resolved_stress_index);
+  if (!found_resolved_stress) {
+    FindRestartVariable("\"tau<sup>res</sup><sub>11</sub>\"", config->fields,
+        found_resolved_stress, resolved_stress_index);
+  }
+  FindRestartVariable("\"k_res\"", config->fields,
+      found_k_res, k_res_index);
+  if (!found_k_res) {
+    FindRestartVariable("\"k<sub>res</sub>\"", config->fields,
+        found_k_res, k_res_index);
+  }
+
+  bool start_hybrid_from_hybrid = false;
   if (model_split) {
-    FindRestartVariable("\"Production\"", config->fields,
-                        found_production, production_index);
-    if (found_average) {
+    if (config->GetUse_Resolved_Turb_Stress()) {
+      cout << "SU2 is set to track the resolved turbulent stress." << endl;
       // Non-tecplot name
-      FindRestartVariable("\"tau_res_11\"", config->fields,
-                          found_resolved_stress, resolved_stress_index);
-      if (!found_resolved_stress) {
-        // Tecplot name
-        FindRestartVariable("\"tau<sup>res</sup><sub>11</sub>\"", config->fields,
-                            found_resolved_stress, resolved_stress_index);
-      }
-     if (!found_resolved_stress && !found_production) {
-       SU2_MPI::Error("Found averages in the restart file, but could not find production nor the\nresolved turbulent stress in the restart. Starting a hybrid simulation\nfrom a URANS simulation is not currently supported.", CURRENT_FUNCTION);
-     } else if (config->GetUse_Resolved_Turb_Stress() && !found_resolved_stress) {
-        if (rank == MASTER_NODE) {
-          cout << "While the *.cfg file specifies that the resolved turbulent stress should be\n";
-          cout << "loaded, SU2 found only the production (not the resolved turbulent stress).\n";
-          cout << "SU2 will proceed using this turbulent production instead.\n";
+      if (found_resolved_stress) {
+        if (found_average) {
+          start_hybrid_from_hybrid = true;
+        } else {
+          stringstream errmsg;
+          errmsg << "Found the resolved stress in your restart file, but not the\n";
+          errmsg << "average density. Something is wrong. Check your restart file.\n";
+          SU2_MPI::Error(errmsg.str(), CURRENT_FUNCTION);
         }
-        config->SetUse_Resolved_Turb_Stress(false);
-      } else if (!(config->GetUse_Resolved_Turb_Stress()) && !found_production) {
-        if (rank == MASTER_NODE) {
-          cout << "While the *.cfg file specifies that the resolved turbulent stress should not\n";
-          cout << "be loaded, SU2 found only the resolved turbulent stress (not production).\n";
-          cout << "SU2 will proceed using this turbulent stress instead.\n";
-        }
-        config->SetUse_Resolved_Turb_Stress(true);
-      }
-      if (!config->GetUse_Resolved_Turb_Stress()) {
-        /*--- We need to load resolved kinetic energy if we're not loading
-         * the turbulent stress ---*/
-        // Non-tecplot name
-        FindRestartVariable("\"k_res\"", config->fields,
-                            found_k_res, k_res_index);
-        if (!found_k_res) {
-          // Tecplot name
-          FindRestartVariable("\"k<sub>res</sub>\"", config->fields,
-                              found_k_res, k_res_index);
-          if (!found_k_res) {
-            SU2_MPI::Error("Could not find resolved kinetic energy in the restart file!", CURRENT_FUNCTION);
+      } else {
+        if (found_k_res) {
+          /*--- This is a hybrid run, but one we can't support ---*/
+          stringstream errmsg;
+          errmsg << "Your cfg file specifies that the resolved stress should be used.\n";
+          errmsg << "SU2 found the resolved kinetic energy, but did not find the\n";
+          errmsg << "resolved stress. Changing a hybrid run from production to\n";
+          errmsg << "resolved stress in the middle of a run is not supported.\n";
+          SU2_MPI::Error(errmsg.str(), CURRENT_FUNCTION);
+        } else {
+          /*--- This looks like a RANS restart file ---*/
+          if (rank == MASTER_NODE) {
+            cout << "-------------------------------------------------------------------\n";
+            cout << "Your cfg file specifies that the resolved stress should be used.\n";
+            cout << "SU2 did not find the resolved stress in the restart file.\n";
+            cout << "The solution will be loaded from the (instantaneous) RANS\n";
+            cout << "solution, and the resolved stress will be initialized as zero.\n";
+            cout << "-------------------------------------------------------------------\n";
           }
         }
       }
+    } else {
+      cout << "SU2 is set to track the improved production." << endl;
+      if (found_production) {
+        if (found_average) {
+          if (found_resolved_stress) {
+            stringstream errmsg;
+            errmsg << "Your cfg file specifies that the production should be used.\n";
+            errmsg << "SU2 found averages and resolved stress in the restart file.\n";
+            errmsg << "Changing a hybrid run from resolved stres to production\n";
+            errmsg << "in the middle of a run is not supported.\n";
+            SU2_MPI::Error(errmsg.str(), CURRENT_FUNCTION);
+          } else {
+            start_hybrid_from_hybrid = true;
+            /*--- We need to load resolved kinetic energy if we're not loading
+             * the turbulent stress ---*/
+          }
+        }
+        // else leave `start_hybrid_from_hybrid` as false
+      } else {
+        // XXX: It would be nice to initialize production using the source
+        // numerics classes.
+        stringstream errmsg;
+        errmsg << "Could not find the production in the restart file.  Your cfg settings\n";
+        errmsg << "specify that the (improved) production should be used instead of the\n";
+        errmsg << "resolved turbulent stress. SU2 requires a production to be present in\n";
+        errmsg << "the restart file to initialize the production.\n";
+        SU2_MPI::Error(errmsg.str(), CURRENT_FUNCTION);
+      }
+    }
+
+    /*--- Checkc for all the other hybrid variables ---*/
+
+    if (start_hybrid_from_hybrid) {
       // Non-tecplot name
       FindRestartVariable("\"Average_r_M\"", config->fields,
-                          found_r_M, r_M_index);
+          found_r_M, r_M_index);
       if (!found_r_M) {
         // Tecplot name
         FindRestartVariable("\"avgr<sub>M</sub>\"", config->fields,
-                            found_r_M, r_M_index);
+            found_r_M, r_M_index);
         if (!found_r_M) {
           SU2_MPI::Error("Could not find average resolution adequacy in the restart file!", CURRENT_FUNCTION);
         }
       }
       // Non-tecplot name
       FindRestartVariable("\"Average_hyb_force_1\"", config->fields,
-                          found_mean_force, mean_force_index);
+          found_mean_force, mean_force_index);
       if (!found_mean_force) {
         // Tecplot name
         FindRestartVariable("\"avgF<sub>1</sub>\"", config->fields,
-                          found_mean_force, mean_force_index);
+            found_mean_force, mean_force_index);
         if (!found_mean_force) {
-          SU2_MPI::Error("Could not find the mean forcing vector in the restart file.", CURRENT_FUNCTION); 
+          SU2_MPI::Error("Could not find the mean forcing vector in the restart file.", CURRENT_FUNCTION);
         }
-      }
-    } else {
-      // TODO: Allow loading production
-      // config->SetUse_Resolved_Turb_Stress(true);
-      // if (rank == MASTER_NODE) {
-      //   cout << "Since no averages were found in the restart file, the hybrid model will\n";
-      //   cout << "be set to track the resolved turbulent stress as an average variable,\n";
-      //   cout << "rather than use the turbulent production.\n";
-      // }
-    }
-    if (rank == MASTER_NODE) {
-      if (config->GetUse_Resolved_Turb_Stress()) {
-        cout << "SU2 is set to track the resolved turbulent stress." << endl;
-      } else {
-        cout << "SU2 is set to track the improved production." << endl;
       }
     }
   }
@@ -15369,11 +15400,12 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
         }
       }
 
-      /*--- Read in the resolved turbulent stress ---*/
+      /*--- Read in the hybrid variables ---*/
 
       if (model_split) {
-        if (found_average) {
+        if (start_hybrid_from_hybrid) {
           if (config->GetUse_Resolved_Turb_Stress()) {
+
             // We should have gotten an error previously if this is not true.
             assert(found_resolved_stress);
             // Load resolved stress
@@ -15388,18 +15420,19 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
              * since it can be recomputed at every time step using the
              * resolved turb stress ---*/
             average_node[iPoint_Local]->SetResolvedKineticEnergy();
+
           } else {
+
             // We should have gotten an error previously if this is not true.
             assert(found_production);
             index = counter*Restart_Vars[1] + production_index;
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
             assert(average_node[iPoint_Local]->GetProduction() == Restart_Data[index]);
-            if (found_k_res) {
-              index = counter*Restart_Vars[1] + k_res_index;
-              average_node[iPoint_Local]->SetResolvedKineticEnergy(Restart_Data[index]);
-            } else {
-              average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
-            }
+
+            assert(found_k_res);
+            index = counter*Restart_Vars[1] + k_res_index;
+            average_node[iPoint_Local]->SetResolvedKineticEnergy(Restart_Data[index]);
+
           }
 
           /*--- Resolution adequacy ---*/
@@ -15417,21 +15450,23 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
           average_node[iPoint_Local]->SetForcingVector(temp_force);
 
         } else {
-          if (found_production) {
+
+          /*--- Start hybrid solution from RANS ---*/
+
+          if (config->GetUse_Resolved_Turb_Stress()) {
+            for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+              for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+                average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
+              }
+            }
+            average_node[iPoint_Local]->SetResolvedKineticEnergy();
+          } else {
+            assert(found_production);
             index = counter*Restart_Vars[1] + production_index;
             assert(Restart_Data[index] > -1E16);
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
-          } else {
-            // TODO: Fill in the option to set production from an instantaneous value
-            SU2_MPI::Error("If using production instead of resolved turbulent stress,\nrestarting without averages nor production is not currently supported.", CURRENT_FUNCTION);
+            average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
           }
-          /*--- No averages, so just set resolved turb. stress to 0 ---*/
-          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-              average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
-            }
-          }
-          average_node[iPoint_Local]->SetResolvedKineticEnergy();
         }
       }
 
