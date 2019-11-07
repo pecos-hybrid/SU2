@@ -15486,6 +15486,7 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
             index = counter*Restart_Vars[1] + production_index;
             assert(Restart_Data[index] > -1E16);
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
+            average_node[iPoint_Local]->SetSGSProduction(Restart_Data[index]);
             average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
           }
         }
@@ -20042,15 +20043,19 @@ void CNSSolver::UpdateAverage(const su2double weight,
       const su2double* const* PrimVar_Grad = average_node[iPoint]->GetGradient_Primitive();
       const su2double production = average_node[iPoint]->GetProduction();
 
-      //su2double current_production = average_node[iPoint]->GetSGSProduction();
-
-      // This should be more consistent with CDP
-      const su2double Savg = average_node[iPoint]->GetStrainMag();
-      const su2double Sinst = node[iPoint]->GetStrainMag();
-      const su2double mut = node[iPoint]->GetEddyViscosity();
-      const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
-      const su2double alpha_fac = alpha*(2.0 - alpha);
-      su2double current_production = Sinst*alpha_fac*mut*Savg;
+      /*--- Update improved production ---*/
+      su2double current_production;
+      // XXX: This is the wrong setting.  Remove option once comparison has been made
+      if (config->GetUse_v2f_Timescale_Limit()) {
+        current_production = average_node[iPoint]->GetSGSProduction();
+      } else {
+        const su2double Savg = average_node[iPoint]->GetStrainMag();
+        const su2double Sinst = node[iPoint]->GetStrainMag();
+        const su2double mut = node[iPoint]->GetEddyViscosity();
+        const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
+        const su2double alpha_fac = alpha*(2.0 - alpha);
+        current_production = Sinst*alpha_fac*mut*Savg;
+      }
 
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         for (unsigned short jDim = 0; jDim < nDim; jDim++) {

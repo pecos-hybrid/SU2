@@ -148,7 +148,10 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
      * slope parameter needs to be multiplied by 2 to give the correct
      * slope. ---*/
 
-    const su2double blending = 0.5*(tanh(2*slope*(aspect_ratio - threshold)) + 1.0);
+    // XXX: Hacked to be like Todd's local modifications
+    // const su2double blending = 0.5*(tanh(2*slope*(aspect_ratio - threshold)) + 1.0);
+    su2double blending = 0.0;
+    if (aspect_ratio > threshold) blending = tanh(slope*(aspect_ratio - threshold));
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
         switch (kind_damping) {
