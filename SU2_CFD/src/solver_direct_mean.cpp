@@ -7254,19 +7254,6 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
 
     bulk_force = (delta_rhou - d_Ainv_b) / d_Ainv_e;
 
-    if (rank == MASTER_NODE) {
-      ofstream outfile;
-      outfile.open("f.log", ofstream::app);
-      if (outfile.is_open()) {
-        outfile << bulk_density << "\t" << bulk_velocity << "\t";
-        outfile << delta_rhou << "\t" << (delta_rhou / d_Ainv_e) << "\t";
-        outfile << (d_Ainv_b / d_Ainv_e) << "\t";
-        outfile << (delta_rhou - d_Ainv_b) / d_Ainv_e << "\t";
-        outfile << (delta_rhou - nDim*d_Ainv_b) / d_Ainv_e << "\t";
-        outfile << endl;
-      }
-    }
-
     /*--- Compute a volumetric heating ---*/
 
     // TODO: Refactor this so that each type of forcing can be used independently
