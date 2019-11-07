@@ -174,6 +174,14 @@ public:
   CSysVector *LinSysKimp;    /*!< \brief vectors to store implicit part of IMEX substep residual. */
 
   CSysVector LinSysDeltaU;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_w;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_y;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_z;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_d;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_e;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_g;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_forcing_terms;
+  
 
   CSysMatrix Jacobian; /*!< \brief Complete sparse Jacobian structure for implicit computations. */
   
