@@ -1205,7 +1205,7 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
 
   unsigned short iDim;
   su2double alfa_blended, beta_blended;
-  su2double diverg, pk, pw, zeta;
+  su2double diverg, pw, zeta;
   
   if (incompressible) {
     AD::SetPreaccIn(V_i, nDim+5);
@@ -1239,19 +1239,70 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
     for (iDim = 0; iDim < nDim; iDim++)
       diverg += PrimVar_Grad_i[iDim+1][iDim];
     
-    //pk = Eddy_Viscosity_i*StrainMag_i*StrainMag_i - 2.0/3.0*Density_i*TurbVar_i[0]*diverg;
-    pk = Eddy_Viscosity_i*StrainMag_i*StrainMag_i;
+    SGSProduction = Eddy_Viscosity_i*StrainMag_i*StrainMag_i;
     if (config->GetBoolDivU_inTKEProduction()) {
-      pk -= 2.0/3.0*Density_i*TurbVar_i[0]*diverg;
+      SGSProduction -= 2.0/3.0*Density_i*TurbVar_i[0]*diverg;
     }
-    pk = min(pk,20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
-    pk = max(pk,0.0);
+    SGSProduction = min(SGSProduction, 20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
+    SGSProduction = max(SGSProduction, 0.0);
+
+    /*--- If using a hybrid method, include resolved production ---*/
+
+    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+      /*--- Limit alpha to protect from imbalance in k_model vs k_resolved. ---*/
+      if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
+        const su2double alpha = KineticEnergyRatio;
+        const su2double alpha_fac = alpha*(2.0 - alpha);
+        SGSProduction     = alpha_fac*Eddy_Viscosity_i*StrainMag_i*StrainMag_i
+          - 2.0/3.0*Density_i*alpha*TurbVar_i[0]*diverg;
+
+        SGSProduction = min(SGSProduction, alpha*20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
+        SGSProduction = max(SGSProduction, 0.0);
+
+        if (config->GetUse_Resolved_Turb_Stress()) {
+          su2double pk_resolved = 0;
+          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+              pk_resolved += PrimVar_Grad_i[iDim+1][jDim] * ResolvedTurbStress[iDim][jDim];
+            }
+          }
+          Production = SGSProduction + pk_resolved;
+        }
+        /*--- If using production instead of resolved turb. stress,
+         * the production (`Production`) has been set externally.  So we only need to
+         * make sure that SGSProduction has been properly calculated, since
+         * it will be pulled back out and passed to the averaging routine. ---*/
+      } else {
+        /*--- Don't allow resolved turb. stress to be added if alpha is not
+         * valid, in case the resolved flow data are bad. ---*/
+        Production = SGSProduction;
+      }
+    } else {
+      Production = SGSProduction;
+    }
     
     zeta = max(TurbVar_i[1], StrainMag_i*F2_i/a1);
     pw = StrainMag_i*StrainMag_i - 2.0/3.0*zeta*diverg;
     pw = max(pw,0.0);
+
+  // check for nans
+#ifndef NDEBUG
+  bool found_nan = ((Production != Production) ||
+                    (pw != pw) ||
+                    (CDkw_i != CDkw_i));
+
+  if (found_nan) {
+    cout << "Found a nan" << std::endl;
+    cout << "turb state = " << TurbVar_i[0] << ", " << TurbVar_i[1] << endl;
+    cout << "TKE eqn    = " << Production << " - ";
+    cout << beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0] << endl;
+    cout << "Omega eqn    = " << alfa_blended*Density_i*pw << " - ";
+    cout << beta_blended*Density_i*TurbVar_i[1]*TurbVar_i[1] << " + ";
+    cout << (1.0 - F1_i)*CDkw_i << endl;
+  }
+#endif
     
-    val_residual[0] += pk*Volume;
+    val_residual[0] += Production*Volume;
     val_residual[1] += alfa_blended*Density_i*pw*Volume;
     
     /*--- Dissipation ---*/

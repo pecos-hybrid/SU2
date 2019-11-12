@@ -1230,13 +1230,6 @@ public:
    */
   virtual void SetAnisoEddyViscosity(su2double** aniso_eddy_visc);
 
-  /*!
-   * \brief A virtual member.
-   * \param[in] val_turb_T - The turbulent timescale
-   * \param[in] val_turb_L - The turbulent lengthscale
-   */
-  virtual void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
-
   virtual void SetTurbScales(su2double nu,
                      su2double S,
                      su2double VelMag,
@@ -4732,9 +4725,15 @@ protected:
   su2double F1,    /*!< \brief Menter blending function for blending of k-w and k-eps. */
   F2,            /*!< \brief Menter blending function for stress limiter. */
   CDkw,           /*!< \brief Cross-diffusion. */
-  T,              /*!< \brief Turbulent timescale */
-  L;              /*!< \brief Turbulent lengthscale */
+  timescale,              /*!< \brief Turbulent timescale */
+  lengthscale;              /*!< \brief Turbulent lengthscale */
 
+  su2double typical_time,
+            typical_length,
+            kol_time,
+            kol_length;
+  su2double alpha_kol;
+  su2double Production;   /*!< \brief Production of TKE */
   
 public:
   /*!
@@ -4796,11 +4795,38 @@ public:
   su2double GetTurbLengthscale(void) const;
 
   /**
-   * \brief Sets the large-eddy lengthscale and the large-eddy timescale
-   * \param[in] val_turb_T - Large eddy timescale of the turbulence
-   * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
+   * \brief Set the length and timescales of the turbulence.
+   * \param[in] nu - Laminar viscosity
+   * \param[in] S - Magnitude of the Rate-of-strain tensor
+   * \param[in] VelMag - Freestream Velocity magnitude
+   * \param[in] L_inf - Freestream lengthscale
    */
-  void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
+  void SetTurbScales(su2double nu, su2double S, su2double VelMag,
+                     su2double L_inf);
+
+  /*!
+   * \brief Set the production of turbulent kinetic energy.
+   * \param[in] val_production - Production of turbulent kinetic energy.
+   */
+  void SetProduction(su2double val_production) { Production = val_production; }
+
+  /*!
+   * \brief Get the production of turbulent kinetic energy.
+   * \return Production of turbulent kinetic energy.
+   */
+  su2double GetProduction(void) const { return Production; }
+
+  su2double GetTypicalLengthscale(void) const { return typical_length; }
+
+  su2double GetTypicalTimescale(void) const { return typical_time; }
+
+  su2double GetKolLengthscale(void) const { return kol_length; }
+
+  su2double GetKolTimescale(void) const { return kol_time; }
+
+  su2double GetKolKineticEnergyRatio(void) const { return alpha_kol; };
+
+  void SetKolKineticEnergyRatio(su2double nu);
 };
 
 /*!

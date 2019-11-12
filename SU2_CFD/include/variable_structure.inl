@@ -494,8 +494,6 @@ inline void CVariable::SetEddyViscosity(su2double eddy_visc) { }
 
 inline void CVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) { }
 
-inline void CVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) { }
-
 inline void CVariable::SetTurbScales(su2double nu,
                                      su2double S,
                                      su2double VelMag,
@@ -1609,16 +1607,11 @@ inline su2double CNSVariable::GetForcingStress(unsigned short iDim,
 // FIXME: end 'these'
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() const {
-  return T;
+  return timescale;
 }
 
 inline su2double CTurbSSTVariable::GetTurbLengthscale() const {
- return L;
-}
-
-inline void CTurbSSTVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) {
-  T = val_turb_T;
-  L = val_turb_L;
+ return lengthscale;
 }
 
 inline su2double* CDiscAdjVariable::GetGeometry_Direct() { return Geometry_Direct; }
