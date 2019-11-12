@@ -9785,6 +9785,13 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetInlet(CConfig *config);
+
+  /*!
+   * \brief Calculates and stores the turbulent timescales and lengthscales
+   * \param[in] solver_container - Container vector with all the solutions
+   * \param[in] config - Definition of the particular problem.
+   */
+  void CalculateTurbScales(CSolver **solver_container, CConfig *config);
 };
 
 
