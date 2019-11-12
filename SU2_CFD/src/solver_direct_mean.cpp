@@ -14791,6 +14791,8 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
   unsigned short resolved_stress_index, production_index, k_res_index,
       r_M_index;
   if (model_split) {
+    FindRestartVariable("\"Production\"", config->fields,
+                        found_production, production_index);
     if (found_average) {
       // Non-tecplot name
       FindRestartVariable("\"tau_res_11\"", config->fields,
@@ -14800,8 +14802,6 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
         FindRestartVariable("\"tau<sup>res</sup><sub>11</sub>\"", config->fields,
                             found_resolved_stress, resolved_stress_index);
       }
-      FindRestartVariable("\"Production\"", config->fields,
-                          found_production, production_index);
      if (!found_resolved_stress && !found_production) {
        SU2_MPI::Error("Found averages in the restart file, but could not find production nor the\nresolved turbulent stress in the restart. Starting a hybrid simulation\nfrom a URANS simulation is not currently supported.", CURRENT_FUNCTION);
      } else if (config->GetUse_Resolved_Turb_Stress() && !found_resolved_stress) {
@@ -14847,12 +14847,12 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
       }
     } else {
       // TODO: Allow loading production
-      config->SetUse_Resolved_Turb_Stress(true);
-      if (rank == MASTER_NODE) {
-        cout << "Since no averages were found in the restart file, the hybrid model will\n";
-        cout << "be set to track the resolved turbulent stress as an average variable,\n";
-        cout << "rather than use the turbulent production.\n";
-      }
+      // config->SetUse_Resolved_Turb_Stress(true);
+      // if (rank == MASTER_NODE) {
+      //   cout << "Since no averages were found in the restart file, the hybrid model will\n";
+      //   cout << "be set to track the resolved turbulent stress as an average variable,\n";
+      //   cout << "rather than use the turbulent production.\n";
+      // }
     }
     if (rank == MASTER_NODE) {
       if (config->GetUse_Resolved_Turb_Stress()) {
@@ -14923,15 +14923,28 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
             index = counter*Restart_Vars[1] + production_index;
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
             assert(average_node[iPoint_Local]->GetProduction() == Restart_Data[index]);
-            assert(found_k_res);
-            index = counter*Restart_Vars[1] + k_res_index;
-            average_node[iPoint_Local]->SetResolvedKineticEnergy(Restart_Data[index]);
+            if (found_k_res) {
+              index = counter*Restart_Vars[1] + k_res_index;
+              average_node[iPoint_Local]->SetResolvedKineticEnergy(Restart_Data[index]);
+            } else {
+              average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
+            }
           }
+
+          /*--- Resolution adequacy ---*/
           assert(found_r_M);
           index = counter*Restart_Vars[1] + r_M_index;
           average_node[iPoint_Local]->SetResolutionAdequacy(Restart_Data[index]);
 
         } else {
+          if (found_production) {
+            index = counter*Restart_Vars[1] + production_index;
+            assert(Restart_Data[index] > -1E16);
+            average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
+          } else {
+            // TODO: Fill in the option to set production from an instantaneous value
+            SU2_MPI::Error("If using production instead of resolved turbulent stress,\nrestarting without averages nor production is not currently supported.", CURRENT_FUNCTION);
+          }
           /*--- No averages, so just set resolved turb. stress to 0 ---*/
           for (unsigned short iDim = 0; iDim < nDim; iDim++) {
             for (unsigned short jDim = 0; jDim < nDim; jDim++) {
