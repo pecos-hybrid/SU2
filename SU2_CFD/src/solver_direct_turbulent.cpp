@@ -554,6 +554,14 @@ void CTurbSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_containe
   bool limiter       = (config->GetKind_SlopeLimit_Turb() != NO_LIMITER);
   bool grid_movement = config->GetGrid_Movement();
   
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
   for (iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {
     
     /*--- Points in edge and normal vectors ---*/
@@ -564,8 +572,8 @@ void CTurbSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_containe
     
     /*--- Primitive variables w/o reconstruction ---*/
     
-    V_i = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
-    V_j = solver_container[FLOW_SOL]->node[jPoint]->GetPrimitive();
+    V_i = flow_node[iPoint]->GetPrimitive();
+    V_j = flow_node[jPoint]->GetPrimitive();
     numerics->SetPrimitive(V_i, V_j);
     
     /*--- Turbulent variables w/o reconstruction ---*/    
@@ -588,11 +596,11 @@ void CTurbSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_containe
       
       /*--- Mean flow primitive variables using gradient reconstruction and limiters ---*/      
       
-      Gradient_i = solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive();
-      Gradient_j = solver_container[FLOW_SOL]->node[jPoint]->GetGradient_Primitive();
+      Gradient_i = flow_node[iPoint]->GetGradient_Primitive();
+      Gradient_j = flow_node[jPoint]->GetGradient_Primitive();
       if (limiter) {
-        Limiter_i = solver_container[FLOW_SOL]->node[iPoint]->GetLimiter_Primitive();
-        Limiter_j = solver_container[FLOW_SOL]->node[jPoint]->GetLimiter_Primitive();
+        Limiter_i = flow_node[iPoint]->GetLimiter_Primitive();
+        Limiter_j = flow_node[jPoint]->GetLimiter_Primitive();
       }
       
       for (iVar = 0; iVar < solver_container[FLOW_SOL]->GetnPrimVarGrad(); iVar++) {
@@ -662,6 +670,14 @@ void CTurbSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_containe
 void CTurbSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics,
                                    CConfig *config, unsigned short iMesh, unsigned short iRKStep) {
   unsigned long iEdge, iPoint, jPoint;
+
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
   
   for (iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {
     
@@ -680,8 +696,8 @@ void CTurbSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_contain
 
     /*--- Conservative variables w/o reconstruction ---*/
     
-    numerics->SetPrimitive(solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive(),
-                           solver_container[FLOW_SOL]->node[jPoint]->GetPrimitive());
+    numerics->SetPrimitive(flow_node[iPoint]->GetPrimitive(),
+                           flow_node[jPoint]->GetPrimitive());
     
     /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
     
@@ -796,6 +812,14 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
     SetRes_RMS(iVar, 0.0);
     SetRes_Max(iVar, 0.0, 0);
   }
+
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
   
   /*--- Build implicit system ---*/  
   
@@ -873,12 +897,12 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
         for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
           
           if (compressible) {
-            density_old = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_Old(0);
-            density     = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+            density_old = flow_node[iPoint]->GetSolution_Old(0);
+            density     = flow_node[iPoint]->GetDensity();
           }
           if (incompressible) {
-            density_old = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-            density     = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+            density_old = flow_node[iPoint]->GetDensity();
+            density     = flow_node[iPoint]->GetDensity();
           }
           
           for (iVar = 0; iVar < nVar; iVar++) {
@@ -894,12 +918,12 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
         for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
           if (compressible) {
-            density_old = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_Old(0);
-            density     = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+            density_old = flow_node[iPoint]->GetSolution_Old(0);
+            density     = flow_node[iPoint]->GetDensity();
           }
           if (incompressible) {
-            density_old = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-            density     = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+            density_old = flow_node[iPoint]->GetDensity();
+            density     = flow_node[iPoint]->GetDensity();
           }
 
           for (iVar = 0; iVar < nVar; iVar++) {
@@ -949,10 +973,18 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
   
   TimeStep = config->GetDelta_UnstTimeND();
   
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+    
   /*--- Compute the dual time-stepping source term for static meshes ---*/
   
   if (!grid_movement) {
-    
+
     /*--- Loop over all nodes (excluding halos) ---*/
     
     for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
@@ -977,9 +1009,9 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
         
         /*--- If this is the SST model, we need to multiply by the density
          in order to get the conservative variables ---*/
-        Density_nM1 = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n1()[0];
-        Density_n   = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
-        Density_nP1 = solver_container[FLOW_SOL]->node[iPoint]->GetSolution()[0];
+        Density_nM1 = flow_node[iPoint]->GetSolution_time_n1()[0];
+        Density_n   = flow_node[iPoint]->GetSolution_time_n()[0];
+        Density_nP1 = flow_node[iPoint]->GetSolution()[0];
         
         for (iVar = 0; iVar < nVar; iVar++) {
           if (config->GetUnsteady_Simulation() == DT_STEPPING_1ST)
@@ -995,9 +1027,9 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
 
         /*--- If this is the KE model, we need to multiply by the density
          in order to get the conservative variables ---*/
-        Density_nM1 = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n1()[0];
-        Density_n   = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
-        Density_nP1 = solver_container[FLOW_SOL]->node[iPoint]->GetSolution()[0];
+        Density_nM1 = flow_node[iPoint]->GetSolution_time_n1()[0];
+        Density_n   = flow_node[iPoint]->GetSolution_time_n()[0];
+        Density_nP1 = flow_node[iPoint]->GetSolution()[0];
 
 	//        for (iVar = 0; iVar < 3; iVar++) {  // tke, epsi, zeta
         for (iVar = 0; iVar < nVar; iVar++) {  // all
@@ -1083,14 +1115,14 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
       /*--- Multiply by density at node i for the SST model ---*/
       
       if (config->GetKind_Turb_Model() == SST) {
-        Density_n = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
+        Density_n = flow_node[iPoint]->GetSolution_time_n()[0];
         for (iVar = 0; iVar < nVar; iVar++)
           Residual[iVar] = Density_n*U_time_n[iVar]*Residual_GCL;
       } 
 
       /*--- Multiply by density at node i for the KE model ---*/
       else if (config->GetKind_Turb_Model() == KE) {
-        Density_n = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
+        Density_n = flow_node[iPoint]->GetSolution_time_n()[0];
 	//        for (iVar = 0; iVar < 3; iVar++)
         for (iVar = 0; iVar < nVar; iVar++)
           Residual[iVar] = Density_n*U_time_n[iVar]*Residual_GCL;
@@ -1115,14 +1147,14 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
       /*--- Multiply by density at node j for the SST model ---*/
       
       if (config->GetKind_Turb_Model() == SST) {
-        Density_n = solver_container[FLOW_SOL]->node[jPoint]->GetSolution_time_n()[0];
+        Density_n = flow_node[jPoint]->GetSolution_time_n()[0];
         for (iVar = 0; iVar < nVar; iVar++)
           Residual[iVar] = Density_n*U_time_n[iVar]*Residual_GCL;
       } 
 
       /*--- Multiply by density at node j for the KE model ---*/
       else if (config->GetKind_Turb_Model() == KE) {
-        Density_n = solver_container[FLOW_SOL]->node[jPoint]->GetSolution_time_n()[0];
+        Density_n = flow_node[jPoint]->GetSolution_time_n()[0];
 	//        for (iVar = 0; iVar < 3; iVar++)
         for (iVar = 0; iVar < nVar; iVar++)
           Residual[iVar] = Density_n*U_time_n[iVar]*Residual_GCL;
@@ -1170,13 +1202,13 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
         /*--- Multiply by density at node i for the SST model ---*/
         
         if (config->GetKind_Turb_Model() == SST) {
-          Density_n = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
+          Density_n = flow_node[iPoint]->GetSolution_time_n()[0];
           for (iVar = 0; iVar < nVar; iVar++)
             Residual[iVar] = Density_n*U_time_n[iVar]*Residual_GCL;
         }
         /*--- Multiply by density at node i for the KE model ---*/
         else if (config->GetKind_Turb_Model() == KE) {
-          Density_n = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
+          Density_n = flow_node[iPoint]->GetSolution_time_n()[0];
 
           // k, epsi and zeta
 	  //          for (iVar = 0; iVar < 3; iVar++)
@@ -1226,9 +1258,9 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
         
         /*--- If this is the SST model, we need to multiply by the density
          in order to get the conservative variables ---*/
-        Density_nM1 = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n1()[0];
-        Density_n   = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
-        Density_nP1 = solver_container[FLOW_SOL]->node[iPoint]->GetSolution()[0];
+        Density_nM1 = flow_node[iPoint]->GetSolution_time_n1()[0];
+        Density_n   = flow_node[iPoint]->GetSolution_time_n()[0];
+        Density_nP1 = flow_node[iPoint]->GetSolution()[0];
         
         for (iVar = 0; iVar < nVar; iVar++) {
           if (config->GetUnsteady_Simulation() == DT_STEPPING_1ST)
@@ -1243,9 +1275,9 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
 
         /*--- If this is the KE model, we need to multiply by the density
          in order to get the conservative variables (k, epsi only!) ---*/
-        Density_nM1 = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n1()[0];
-        Density_n   = solver_container[FLOW_SOL]->node[iPoint]->GetSolution_time_n()[0];
-        Density_nP1 = solver_container[FLOW_SOL]->node[iPoint]->GetSolution()[0];
+        Density_nM1 = flow_node[iPoint]->GetSolution_time_n1()[0];
+        Density_n   = flow_node[iPoint]->GetSolution_time_n()[0];
+        Density_nP1 = flow_node[iPoint]->GetSolution()[0];
 
         // k, epsi, and zeta
 	//        for (iVar = 0; iVar < 3; iVar++) {
