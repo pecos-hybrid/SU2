@@ -942,11 +942,17 @@ inline unsigned long CSolver::GetPoint_Max_BGS(unsigned short val_var) { return 
 
 inline su2double* CSolver::GetPoint_Max_Coord_BGS(unsigned short val_var) { return Point_Max_Coord_BGS[val_var]; }
 
+// The loop should be over nPoints to guarantee that the boundaries are
+//  well updated
 inline void CSolver::Set_OldSolution(CGeometry *geometry) {
-  for (unsigned long iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++)
-    node[iPoint]->Set_OldSolution(); // The loop should be over nPoints
-                                     //  to guarantee that the boundaries are
-                                     //  well updated
+  for (unsigned long iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+    node[iPoint]->Set_OldSolution();
+  }
+  if (average_node != NULL) {
+    for (unsigned long iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+      average_node[iPoint]->Set_OldSolution();
+    }
+  }
 }
 
 inline void CSolver::Set_NewSolution(CGeometry *geometry) { }
