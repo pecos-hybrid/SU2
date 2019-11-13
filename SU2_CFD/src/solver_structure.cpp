@@ -3037,6 +3037,7 @@ void CSolver::InitAverages() {
   assert(average_node != NULL); // Check that the average nodes are set up
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     average_node[iPoint]->SetSolution(node[iPoint]->GetSolution());
+    average_node[iPoint]->SetSolution_Old(node[iPoint]->GetSolution());
   }
 }
 
