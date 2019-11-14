@@ -555,7 +555,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       invLengthTensor[iDim][jDim] =
-        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2));
+        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*rho*v2*sqrt(v2));
     }
   }
 
