@@ -99,6 +99,8 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
   switch (config->GetKind_Turb_Model()) {
     case KE:
      dissipation = max(0.0, TurbVar[1]); break;
+    case SST:
+     dissipation = max(0.0, 0.09*TurbVar[0]*TurbVar[1]); break;
     default:
       SU2_MPI::Error("The M43 model has not been set up for your RANS model.", CURRENT_FUNCTION);
   }
