@@ -3852,11 +3852,7 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     /*--- Compute T/L ---*/
 
     // Note: strMag is not actually used in the function
-<<<<<<< HEAD
     node[iPoint]->SetTurbScales(nu, strMag, VelMag, L_inf, false);
-=======
-    node[iPoint]->SetTurbScales(nu, strMag, VelMag, L_inf);
->>>>>>> 6756bc1f26dc7cf071198401f32abfdc526d1dd1
 
     /* Compute resolution adequacy */
     if (model_split) {
@@ -3888,11 +3884,7 @@ void CTurbSSTSolver::CalculateTurbScales(CSolver **solver_container,
                           flow_node[iPoint]->GetDensity();
     const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-<<<<<<< HEAD
     node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, false);
-=======
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
->>>>>>> 6756bc1f26dc7cf071198401f32abfdc526d1dd1
   }
 }
 

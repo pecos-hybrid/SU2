@@ -4777,7 +4777,6 @@ public:
   su2double GetTurbLengthscale(void) const;
 
   /**
-<<<<<<< HEAD
    * \brief Sets the turbulent length and timescales
    *
    * \param[in] nu - The kinematic viscosity
@@ -4794,21 +4793,6 @@ public:
    * \brief Set the production of turbulent kinetic energy.
    * \param[in] val_production - Production of turbulent kinetic energy.
    */
-=======
-   * \brief Set the length and timescales of the turbulence.
-   * \param[in] nu - Laminar viscosity
-   * \param[in] S - Magnitude of the Rate-of-strain tensor
-   * \param[in] VelMag - Freestream Velocity magnitude
-   * \param[in] L_inf - Freestream lengthscale
-   */
-  void SetTurbScales(su2double nu, su2double S, su2double VelMag,
-                     su2double L_inf);
-
-  /*!
-   * \brief Set the production of turbulent kinetic energy.
-   * \param[in] val_production - Production of turbulent kinetic energy.
-   */
->>>>>>> 6756bc1f26dc7cf071198401f32abfdc526d1dd1
   void SetProduction(su2double val_production) { Production = val_production; }
 
   /*!

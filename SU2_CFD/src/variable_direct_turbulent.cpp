@@ -268,7 +268,8 @@ void CTurbSSTVariable::SetBlendingFunc(su2double val_viscosity, su2double val_di
 void CTurbSSTVariable::SetTurbScales(const su2double nu,
                                     const su2double S,
                                     const su2double VelMag,
-                                    const su2double L_inf) {
+                                    const su2double L_inf,
+                                    const bool use_realizability) {
 
   /*--- Remember, omega := epsilon / (C_mu * k) . The C_mu is important if
    * you're going to be comparing k-epsilon type models with SST ---*/
