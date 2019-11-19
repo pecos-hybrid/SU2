@@ -15229,6 +15229,7 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
             index = counter*Restart_Vars[1] + production_index;
             assert(Restart_Data[index] > -1E16);
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
+            average_node[iPoint_Local]->SetSGSProduction(Restart_Data[index]);
             average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
           }
         }
