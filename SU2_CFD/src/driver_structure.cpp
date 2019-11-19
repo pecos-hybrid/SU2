@@ -744,7 +744,7 @@ void CDriver::Geometrical_Preprocessing() {
 
     if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT) {
       if (rank == MASTER_NODE) cout << "Computing cell resolution tensors." << endl;
-      geometry_container[iZone][MESH_0]->SetResolutionTensor();
+      geometry_container[iZone][MESH_0]->SetResolutionTensor(config_container[iZone]);
     }
 
     /*--- Identify closest normal neighbor ---*/
@@ -1075,13 +1075,22 @@ void CDriver::Solver_Preprocessing(CSolver ***solver_container, CGeometry **geom
 
   Solver_Restart(solver_container, geometry, config, update_geo);
 
-  // FIXME: This is a hack!
+
+  /*--- Load resolution adequacy properly ---*/
+  // XXX: How hybrid variables are computed should be refactored
+
   if (model_split_hybrid) {
-    unsigned long iPoint;
-    for(iPoint=0; iPoint<geometry[0]->GetnPoint();iPoint++) {
-      hybrid_mediator->ComputeResolutionAdequacy(geometry[0],solver_container[0],iPoint);
-      const su2double rk = solver_container[0][FLOW_SOL]->node[iPoint]->GetResolutionAdequacy();
-      solver_container[0][FLOW_SOL]->average_node[iPoint]->SetResolutionAdequacy(rk);
+    for (unsigned long iPoint=0; iPoint < geometry[MESH_0]->GetnPoint(); iPoint++) {
+      hybrid_mediator->ComputeResolutionAdequacy(geometry[MESH_0], solver_container[MESH_0], iPoint);
+      const su2double rk = solver_container[MESH_0][FLOW_SOL]->node[iPoint]->GetResolutionAdequacy();
+      assert(rk > 0);
+      if (!config->GetRestart() && !config->GetRestart_Flow()) {
+        solver_container[MESH_0][FLOW_SOL]->average_node[iPoint]->SetResolutionAdequacy(rk);
+      } else {
+        // Check that we've loaded the resolution adequacy
+        assert(solver_container[MESH_0][FLOW_SOL]->average_node[iPoint]);
+        assert(solver_container[MESH_0][FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy() > 0);
+      }
     }
   }
 

@@ -74,15 +74,14 @@ public:
 
   /*!
    * \overload
-   * \param[in] val_rho_kine - Turbulent variable value (initialization value).
-   * \param[in] val_rho_omega - Turbulent variable value (initialization value).
+   * \param[in] val_kine - Turbulent variable value (initialization value).
+   * \param[in] val_omega - Turbulent variable value (initialization value).
    * \param[in] val_muT - Turbulent variable value (initialization value).
    * \param[in] val_nDim - Number of dimensions of the problem.
    * \param[in] val_nvar - Number of variables of the problem.
-   * \param[in] constants -
    * \param[in] config - Definition of the particular problem.
    */
-  CTurbKEVariable(su2double val_rho_kine, su2double val_rho_epsi,
+  CTurbKEVariable(su2double val_kine, su2double val_epsi,
                   su2double val_zeta, su2double val_f,
                   su2double val_muT, su2double val_Tm, su2double val_Lm,
                   unsigned short val_nDim, unsigned short val_nvar,
@@ -125,11 +124,19 @@ public:
 
   /**
    * \brief Sets the turbulent length and timescales
+   *
+   * \param[in] nu - The kinematic viscosity
+   * \param[in] S - The magnitude of the deviatoric rate-of-strain
+   * \param[in] VelMag - The magntidue of the freestream velocity
+   * \param[in] L_inf - The freestream (or problem) lengthscale
+   * \param[in] use_realizability - Limit the time and lengthscales based
+   *     on realizability limits on the Reynolds stress tensor.
    */
   void SetTurbScales(su2double nu,
                      su2double S,
                      su2double VelMag,
-                     su2double L_inf);
+                     su2double L_inf,
+                     bool use_realizability);
 
   su2double GetTypicalLengthscale(void) const;
 

@@ -359,7 +359,10 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
     if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
       const su2double alpha = KineticEnergyRatio;
       const su2double alpha_fac = alpha*(2.0 - alpha);
-      SGSProduction     = alpha_fac*muT*S*S - 2.0/3.0*rho*alpha*tke*diverg;
+      SGSProduction = alpha_fac*muT*S*S;
+      if (config->GetBoolDivU_inTKEProduction()) {
+	SGSProduction -= 2.0/3.0*rho*alpha*tke*diverg;
+      }
 
       if (config->GetUse_Resolved_Turb_Stress()) {
         su2double Pk_resolved = 0;
@@ -424,6 +427,10 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   // ... production
   // Limit production of v2 based on max zeta = 2/3
   Pv2 = rho * min( tke*f, 2.0*Pk/3.0/rho + 5.0*v2/T1 );
+  if (config->GetBool_Pv2_Nonnegative()) {
+    Pv2 = max(Pv2, 0.0);
+  }
+  //Pv2 = rho * tke*f ;
 
   Pv2_rk  = 0.0;
   Pv2_re  = 0.0;

@@ -345,7 +345,8 @@ void CAvgGrad_Hybrid::AddTauSGETJacobian(su2double *val_Mean_PrimVar,
 	  tauSGET_mom[i][j] += -xi*mu[m][k]*nvec[m]*nvec[k]*delta[i][j];
 	}
 	tauSGET_mom[i][j] += -xi*mu[i][k]*nvec[j]*nvec[k];
-	tauSGET_mom[i][j] -= -xi*TWO3*mu[j][k]*nvec[i]*nvec[k];
+	tauSGET_mom[i][j] -= -xi*mu[i][k]*nvec[j]*nvec[k]/3.0;
+	tauSGET_mom[i][j] -= -xi*mu[k][i]*nvec[j]*nvec[k]/3.0;
       }
       tau_jacobian_i[i][j+1] += tauSGET_mom[i][j];
     }
@@ -380,8 +381,11 @@ void CAvgGrad_Hybrid::AddSGSHeatFlux(su2double **val_gradprimvar,
   assert(val_alpha >= 0.0);
   assert(val_alpha <= 1.0);
 
+  const su2double alpha_fac = val_alpha*(2.0 - val_alpha);
+
   const su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
-  const su2double heat_flux_factor = Cp * (val_alpha*val_eddy_viscosity/Prandtl_Turb);
+  //const su2double heat_flux_factor = Cp * (val_alpha*val_eddy_viscosity/Prandtl_Turb);
+  const su2double heat_flux_factor = Cp * (alpha_fac*val_eddy_viscosity/Prandtl_Turb);
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     heat_flux_vector[iDim] += heat_flux_factor*val_gradprimvar[0][iDim];

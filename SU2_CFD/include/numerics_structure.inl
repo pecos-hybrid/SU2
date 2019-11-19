@@ -349,8 +349,6 @@ inline void CNumerics::SetForcingRatio(su2double val_forcing_ratio) { }
 
 inline void CNumerics::SetSourceTerms(su2double* val_source_terms) { }
 
-inline void CNumerics::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) { }
-
 inline void CNumerics::SetTurbKineticEnergy(su2double val_turb_ke_i, su2double val_turb_ke_j) {
   turb_ke_i = val_turb_ke_i;
   turb_ke_j = val_turb_ke_j;
@@ -520,11 +518,6 @@ inline void CNumerics::SetDissipation(su2double diss_i, su2double diss_j) {
 
 inline su2double CNumerics::GetDissipation(){
   return Dissipation_ij;
-}
-
-inline void CAvgGrad_Flow::SetForcingStress(su2double** tau_F_i, su2double** tau_F_j) {
-  Forcing_Stress_i = tau_F_i;
-  Forcing_Stress_j = tau_F_j;
 }
 
 inline void CSourcePieceWise_TurbSST::SetF1blending(su2double val_F1_i, su2double val_F1_j) { 

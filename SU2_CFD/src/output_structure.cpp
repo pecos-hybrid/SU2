@@ -15477,6 +15477,7 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
   /*--- Loop through our elements and load the elems and their
    additional data that we will send to the other procs. ---*/
   
+  unsigned long jPoint = 0;
   for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
     
     /*--- We only write interior points and recovered periodic points. ---*/
@@ -15507,7 +15508,7 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
         /*--- Load the data values. ---*/
         
         for (unsigned short kk = 0; kk < VARS_PER_POINT; kk++) {
-          connSend[nn] = Local_Data[iPoint][kk]; nn++;
+          connSend[nn] = Local_Data[jPoint][kk]; nn++;
         }
         
         /*--- Load the global ID (minus offset) for sorting the
@@ -15520,8 +15521,9 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
         
         index[iProcessor]  += VARS_PER_POINT;
         idIndex[iProcessor]++;
-        
+
       }
+      jPoint++;
     }
   }
   
@@ -17185,7 +17187,9 @@ void COutput::WriteRestart_Parallel_ASCII(CConfig *config, CGeometry *geometry, 
           /*--- Loop over the variables and write the values to file ---*/
           
           for (iVar = 0; iVar < nVar_Par; iVar++) {
-            restart_file << scientific << Parallel_Data[iVar][iPoint] << "\t";
+            restart_file << scientific;
+            restart_file << std::setprecision(std::numeric_limits<su2double>::digits10 + 2);
+            restart_file << Parallel_Data[iVar][iPoint] << "\t";
           }
           restart_file << "\n";
         }

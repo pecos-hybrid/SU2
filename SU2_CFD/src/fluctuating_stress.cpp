@@ -140,10 +140,15 @@ void CM43Model::CalculateEddyViscosity(const CGeometry* geometry,
     const su2double aspect_ratio = max_distance / min_distance;
     assert(aspect_ratio >= 1.00);
 
-    /*--- AR_switch is the minimum AR where blending/damping will begin.
-     * Previous values have been 32, 50, and 128 ---*/
-    const su2double AR_switch = 32;
-    const su2double blending = 0.5*(tanh((aspect_ratio - AR_switch)/16.0) + 1.0);
+    const su2double threshold = config->GetFluctStress_AR_Params()[0];
+    const su2double slope = config->GetFluctStress_AR_Params()[1];
+
+    /*--- The "slope" is the slope of the blending function at the
+     * threshold.  Since we have a factor of 0.5 sitting in front, the
+     * slope parameter needs to be multiplied by 2 to give the correct
+     * slope. ---*/
+
+    const su2double blending = 0.5*(tanh(2*slope*(aspect_ratio - threshold)) + 1.0);
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       for (unsigned short jDim = 0; jDim < nDim; jDim++) {
         switch (kind_damping) {

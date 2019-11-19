@@ -3793,6 +3793,12 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
   
   bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
+
+  /*--- Update flow solution using new k
+   * Since T depends on k and viscosity depends on T, we need to update the
+   * flow primitives to get a consistent laminar viscosity ---*/
+
+  solver_container[FLOW_SOL]->Preprocessing(geometry, solver_container, config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
   
   /*--- Compute mean flow and turbulence gradients ---*/
   

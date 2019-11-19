@@ -223,13 +223,13 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
   }
   frobenius_norm = sqrt(frobenius_norm);
 
-  const su2double C_r = 1.0;
-  const su2double r_k_min = 1.0E-8;
-  const su2double r_k_max = 30;
-  r_k = C_r*min(max_eigval, frobenius_norm);
-  r_k = max(min(r_k, r_k_max), r_k_min);
+    const su2double C_r = 1.0;
+    const su2double r_k_min = 1.0E-8;
+    const su2double r_k_max = 30;
+    r_k = C_r*min(max_eigval, frobenius_norm);
+    r_k = max(min(r_k, r_k_max), r_k_min);
 
-  if (alpha > 1) r_k = min(r_k, 1.0);
+    if (alpha > 1) r_k = min(r_k, 1.0);
 
   // Set resolution adequacy in the CNSVariables class
   solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
@@ -249,7 +249,8 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
   if (fluct_stress_model) {
 
     const su2double* primvar =
-        solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetPrimitive();
+    //solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
     const su2double* turbvar =
         solver_container[TURB_SOL]->node[iPoint]->GetSolution();
     const su2double mean_eddy_visc =
@@ -309,6 +310,9 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
         solver_container[FLOW_SOL]->average_node[iPoint]->GetGradient_Primitive();
     su2double** primvar_grad_j =
         solver_container[FLOW_SOL]->average_node[jPoint]->GetGradient_Primitive();
+
+    assert(primvar_i != NULL);
+    assert(primvar_j != NULL);
 
     numerics->SetPrimitive_Average(primvar_i, primvar_j);
     numerics->SetPrimVarGradient_Average(primvar_grad_i, primvar_grad_j);
@@ -551,7 +555,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       invLengthTensor[iDim][jDim] =
-        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*v2*sqrt(v2));
+        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*rho*v2*sqrt(v2));
     }
   }
 

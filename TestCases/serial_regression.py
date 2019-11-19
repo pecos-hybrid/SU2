@@ -189,7 +189,7 @@ def main():
     turb_flatplate_v2f.cfg_dir   = "rans/flatplate"
     turb_flatplate_v2f.cfg_file  = "turb_v2f_flatplate.cfg"
     turb_flatplate_v2f.test_iter = 20
-    turb_flatplate_v2f.test_vals = [-0.294256, 5.447314, -0.176801, 0.056917] #last 4 columns
+    turb_flatplate_v2f.test_vals = [-0.295619, 5.435227, -0.176411, 0.057971] #last 4 columns
     turb_flatplate_v2f.su2_exec  = "SU2_CFD"
     turb_flatplate_v2f.timeout   = 1600
     turb_flatplate_v2f.tol       = 0.00001
@@ -233,7 +233,7 @@ def main():
     turb_naca0012_sst.cfg_dir   = "rans/naca0012"
     turb_naca0012_sst.cfg_file  = "turb_NACA0012_sst.cfg"
     turb_naca0012_sst.test_iter = 10
-    turb_naca0012_sst.test_vals = [-15.039675, -7.219913, 1.059622, 0.019138] #last 4 columns
+    turb_naca0012_sst.test_vals = [-15.039675, -7.220061, 1.059622, 0.019138] #last 4 columns
     turb_naca0012_sst.su2_exec  = "SU2_CFD"
     turb_naca0012_sst.timeout   = 3200
     turb_naca0012_sst.tol       = 0.00001
@@ -652,7 +652,7 @@ def main():
     pywrapper_turb_naca0012_sst.cfg_dir   = "rans/naca0012"
     pywrapper_turb_naca0012_sst.cfg_file  = "turb_NACA0012_sst.cfg"
     pywrapper_turb_naca0012_sst.test_iter = 10
-    pywrapper_turb_naca0012_sst.test_vals = [-15.039675, -7.219913, 1.059622, 0.019138] #last 4 columns
+    pywrapper_turb_naca0012_sst.test_vals = [-15.039675, -7.220061, 1.059622, 0.019138] #last 4 columns
     pywrapper_turb_naca0012_sst.su2_exec  = "SU2_CFD.py -f"
     pywrapper_turb_naca0012_sst.timeout   = 3200
     pywrapper_turb_naca0012_sst.tol       = 0.00001

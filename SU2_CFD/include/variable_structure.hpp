@@ -914,12 +914,6 @@ public:
    */
   virtual su2double** GetAnisoEddyViscosity(void) const;
 
-  virtual void SetForcingStress(su2double** val_tau_F);
-
-  virtual su2double** GetForcingStress();
-
-  virtual su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
-  
   /*!
    * \brief Get the trace of the anisotropic eddy-viscosity
    * \return The trace of the anisotropic eddy viscosity of the flow.
@@ -960,7 +954,7 @@ public:
    */
   virtual su2double GetResolutionAdequacy(void) const;
 
-  virtual su2double* GetForcingVector() const;
+  virtual const su2double* GetForcingVector() const;
 
   /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy
@@ -1015,18 +1009,6 @@ public:
    * \param[in] val_production - The turbulent production.
    */
   virtual void SetProduction(su2double val_production);
-
-  /*!
-   * \brief Get the turbulent production
-   * \return The turbulent production.
-   */
-  virtual su2double* GetForce(void) const;
-
-  /*!
-   * \brief Set the turbulent production
-   * \param[in] val_production - The turbulent production.
-   */
-  virtual void SetForce(su2double* val_force);
 
   /*!
    * \brief Get the subgrid production of turbulent kinetic energy.
@@ -1237,10 +1219,22 @@ public:
    */
   virtual void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
+  /**
+   * \brief Sets the turbulent length and timescales
+   *
+   * \param[in] nu - The kinematic viscosity
+   * \param[in] S - The magnitude of the deviatoric rate-of-strain
+   * \param[in] VelMag - The magntidue of the freestream velocity
+   * \param[in] L_inf - The freestream (or problem) lengthscale
+   * \param[in] use_realizability - Limit the time and lengthscales based
+   *     on realizability limits on the Reynolds stress tensor.
+   */
   virtual void SetTurbScales(su2double nu,
-                     su2double S,
-                     su2double VelMag,
-                     su2double L_inf);
+                             su2double S,
+                             su2double VelMag,
+                             su2double L_inf,
+                             bool use_realizability);
+
 
   virtual void SetKolKineticEnergyRatio(su2double nu);
 
@@ -4087,14 +4081,12 @@ private:
   su2double Vortex_Tilting;  /*!< \brief Value of the vortex tilting variable for DES length scale computation. */
   su2double** AnisoEddyViscosity; /*!< \brief Anisotropic eddy viscosity. */
   su2double KineticEnergyRatio; /*!< \brief Ratio of modeled to total turbulent kinetic energy */
-  su2double** Forcing_Stress;
   su2double ResolutionAdequacy;
-  su2double* ForcingVector;
+  su2double* ForcingVector;  /*!< \brief A spatially varying forcing field. Only used in model-split hybrid RANS/LES */
   su2double** ResolvedTurbStress; /*!< \brief The resolved portion of the Reynolds stress tensor */
   su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
   su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
   su2double SGSProduction; /*!< \brief The subgrid portion of the production of TKE */
-  su2double* Force;
   
 public:
   
@@ -4281,13 +4273,7 @@ public:
 
   su2double GetResolutionAdequacy(void) const;
 
-  su2double* GetForcingVector() const;
-
-  void SetForcingStress(su2double** val_tau_F);
-
-  su2double** GetForcingStress();
-
-  su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
+  const su2double* GetForcingVector() const;
 
   /*!
    * \brief Get the improved turbulent production term, including
@@ -4301,10 +4287,6 @@ public:
    * \param[in] val_production - The turbulent production.
    */
   void SetProduction(su2double val_production);
-
-  su2double* GetForce(void) const;
-
-  void SetForce(su2double* val_force);
 
   /*!
    * \brief Get the subgrid production of turbulent kinetic energy.
