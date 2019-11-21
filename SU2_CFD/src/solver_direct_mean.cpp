@@ -167,7 +167,9 @@ CEulerSolver::CEulerSolver(void) : CSolver() {
   CkInflow                      = NULL;
   CkOutflow1                    = NULL;
   CkOutflow2                    = NULL;
- 
+
+  bulk_force = 0;
+  bulk_heating = 0;
 }
 
 CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh) : CSolver() {
@@ -768,6 +770,9 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   Total_CL_Prev = 0.0;    Total_CD_Prev      = 0.0;
   Total_CMx_Prev      = 0.0; Total_CMy_Prev      = 0.0; Total_CMz_Prev      = 0.0;
   Total_AeroCD = 0.0;  Total_SolidCD = 0.0;   Total_IDR   = 0.0;    Total_IDC   = 0.0;
+
+  bulk_force = 0;
+  bulk_heating = 0;
 
   /*--- Read farfield conditions ---*/
   
@@ -17741,6 +17746,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   unsigned short kind_row_dissipation = config->GetKind_RoeLowDiss();
   const bool roe_low_dissipation  = config->BlendUpwindCentralFluxes();
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool steady_body_forcing = config->GetBody_Force();
   const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
   const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
   /*--- Update the angle of attack at the far-field for fixed CL calculations. ---*/
@@ -17857,7 +17863,8 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   if (implicit && !config->GetDiscrete_Adjoint()) Jacobian.SetValZero();
 
   /*--- Compute the bulk quantities ---*/
-  if (iMesh == 0 && (constant_bulk_momentum || constant_bulk_temperature)) {
+  if (iMesh == 0 &&
+      (constant_bulk_momentum || constant_bulk_temperature || steady_body_forcing)) {
     SetBulk_Forcing(geometry, solver_container, config);
   }
 
