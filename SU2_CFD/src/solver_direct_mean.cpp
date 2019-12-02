@@ -17980,9 +17980,12 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
     
     /*--- Turbulent kinetic energy ---*/
     
-    if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE)
+    if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
       numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                      solver_container[TURB_SOL]->node[jPoint]->GetSolution(0));
+      numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                   solver_container[TURB_SOL]->node[jPoint]->GetGradient());
+    }
     
     /*--- Pass in relevant information from hybrid model ---*/
     if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
