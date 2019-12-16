@@ -34,7 +34,6 @@ matrix:
           apt:
               packages:
                 - build-essential
-                - python3-pip
                 - swig
                 - libopenmpi-dev
     - env:
@@ -47,7 +46,6 @@ matrix:
           apt:
               packages:
                 - build-essential
-                - python3-pip
                 - swig
                 - libopenmpi-dev
     - env:
@@ -59,7 +57,6 @@ matrix:
           apt:
               packages:
                 - build-essential
-                - python3-pip
                 - swig
                 - libopenmpi-dev
                 - libboost-test-dev
@@ -72,7 +69,6 @@ matrix:
           apt:
               packages:
                 - build-essential
-                - python3-pip
                 - swig
                 - libopenmpi-dev
                 - libboost-test-dev
@@ -84,15 +80,14 @@ env:
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - export PATH=/usr/bin:$PATH
-    - alias python='python3'
-    - sudo pip3 install --upgrade pip
-    - sudo pip3 install setuptools
-    - sudo pip3 install numpy
-    - sudo pip3 install scipy
-    - sudo pip3 install wheel
+    - pip3 install --upgrade pip
+    - pip3 install setuptools
+    - pip3 install numpy
+    - pip3 install scipy
+    - pip3 install wheel
     - export MPICC=`which mpicc`
     - export MPICXX=`which mpicxx`
-    - sudo pip3 install mpi4py
+    - pip3 install mpi4py
 
     # to avoid interference with MPI
     - test -n $CC  && unset CC
