@@ -48,7 +48,8 @@ SWIG_SO_REAL = _pysu2.${SO_EXT}
 
 PYTHON_SITE_PACKAGES=$(shell python -c "import site; print(site.getsitepackages()[0])")
 #NUMPY_INCLUDE = /usr/lib/python2.7/dist-packages/numpy/core/include
-MPI4PY_INCLUDE = -I${PYTHON_SITE_PACKAGES}/mpi4py/include
+MPI4PY_DIR=$(shell python -c "import mpi4py; print(mpi4py.__path__[0])")
+MPI4PY_INCLUDE = -I${MPI4PY_DIR}/include
 
 SWIG = swig
 
