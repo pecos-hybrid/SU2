@@ -82,6 +82,7 @@ env:
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - export PATH=/usr/bin:$PATH
+    - alias python='python3'
     - sudo pip3 install --upgrade pip
     - sudo pip3 install setuptools
     - sudo pip3 install numpy
