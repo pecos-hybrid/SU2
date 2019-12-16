@@ -94,7 +94,7 @@ before_install:
       which mpicxx &&
       export MPICC='which mpicc' &&
       export MPICXX='which mpicxx' &&
-      sudo pip3 install mpi4py &&
+      sudo pip3 install mpi4py;
       fi
 
     # to avoid interference with MPI
