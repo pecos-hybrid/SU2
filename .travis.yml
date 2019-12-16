@@ -17,6 +17,7 @@ notifications:
 branches:
     only:
         - pecos-dev
+        - fix-travis-conda
 
 python:
     - 3.6
@@ -32,6 +33,10 @@ matrix:
           apt:
               packages:
                 - build-essential
+                - python-pip
+                - python-numpy
+                - python-scipy
+                - swig
     - env:
         # Parallel build and test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
@@ -41,6 +46,10 @@ matrix:
           apt:
               packages:
                 - build-essential
+                - python-pip
+                - python-numpy
+                - python-scipy
+                - swig
                 - libopenmpi-dev
     - env:
         # Serial build and unit-test
@@ -50,6 +59,10 @@ matrix:
           apt:
               packages:
                 - build-essential
+                - python-pip
+                - python-numpy
+                - python-scipy
+                - swig
                 - libboost-test-dev
     - env:
         # Parallel build and unit-test
@@ -59,6 +72,10 @@ matrix:
           apt:
               packages:
                 - build-essential
+                - python-pip
+                - python-numpy
+                - python-scipy
+                - swig
                 - libopenmpi-dev
                 - libboost-test-dev
 
@@ -69,16 +86,7 @@ env:
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - export PATH=/usr/bin:$PATH
- 
-    # Install Python dependencies
-    # http://conda.pydata.org/docs/travis.html#the-travis-yml-file
-    - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-    - bash miniconda.sh -b -p $HOME/miniconda
-    - export PATH="$HOME/miniconda/bin:$PATH"
-    - hash -r
-    - conda config --set always_yes yes --set changeps1 no
-    - conda update -q conda
-    - conda install -q -c anaconda python=$TRAVIS_PYTHON_VERSION numpy scipy mpi4py swig
+    - sudo pip install mpi4py
 
     # to avoid interference with MPI
     - test -n $CC  && unset CC
