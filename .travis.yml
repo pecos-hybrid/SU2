@@ -50,7 +50,7 @@ matrix:
                 - python-numpy
                 - python-scipy
                 - swig
-                - libopenmpi-dev
+                - mpich2
     - env:
         # Serial build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
@@ -76,7 +76,7 @@ matrix:
                 - python-numpy
                 - python-scipy
                 - swig
-                - libopenmpi-dev
+                - mpich2
                 - libboost-test-dev
 
 env:
