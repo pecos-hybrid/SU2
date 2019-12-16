@@ -36,6 +36,7 @@ matrix:
                 - build-essential
                 - python3-pip
                 - swig
+                - libopenmpi-dev
     - env:
         # Parallel build and test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
@@ -60,6 +61,7 @@ matrix:
                 - build-essential
                 - python3-pip
                 - swig
+                - libopenmpi-dev
                 - libboost-test-dev
     - env:
         # Parallel build and unit-test
@@ -88,15 +90,9 @@ before_install:
     - sudo pip3 install numpy
     - sudo pip3 install scipy
     - sudo pip3 install wheel
-    - if [[ "${PARALLEL}" == "ON" ]]; then
-      echo $MPICC &&
-      echo $MPICXX &&
-      which mpicc &&
-      which mpicxx &&
-      export MPICC=`which mpicc` &&
-      export MPICXX=`which mpicxx` &&
-      sudo pip3 install mpi4py;
-      fi
+    - export MPICC=`which mpicc`
+    - export MPICXX=`which mpicxx`
+    - sudo pip3 install mpi4py
 
     # to avoid interference with MPI
     - test -n $CC  && unset CC
