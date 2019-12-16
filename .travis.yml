@@ -86,7 +86,7 @@ env:
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - export PATH=/usr/bin:$PATH
-    - sudo pip install mpi4py
+    - sudo pip3 install mpi4py
 
     # to avoid interference with MPI
     - test -n $CC  && unset CC
