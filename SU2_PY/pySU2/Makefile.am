@@ -55,7 +55,7 @@ SWIG = swig
 pySU2_INCLUDE = -I${abs_top_srcdir}/Common/include \
 	-I${abs_top_srcdir}/SU2_CFD/include
 
-PY_INCLUDE = ${PYTHON_INCLUDE} -I${MPI4PY_INCLUDE}
+PY_INCLUDE = ${PYTHON_INCLUDE} ${MPI4PY_INCLUDE}
 
 PY_LIB = ${PYTHON_LIBS} \
          -L${PYTHON_EXEC_PREFIX}/lib \
