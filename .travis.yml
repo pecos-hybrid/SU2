@@ -29,6 +29,7 @@ matrix:
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=serial_regression.py
           REGRESSION_TESTS=ON
+          PARALLEL=OFF
       addons:
           apt:
               packages:
@@ -40,17 +41,19 @@ matrix:
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=parallel_regression.py
           REGRESSION_TESTS=ON
+          PARALLEL=ON
       addons:
           apt:
               packages:
                 - build-essential
                 - python3-pip
                 - swig
-                - mpich2
+                - libopenmpi-dev
     - env:
         # Serial build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
           UNIT_TESTS=ON
+          PARALLEL=OFF
       addons:
           apt:
               packages:
@@ -62,13 +65,14 @@ matrix:
         # Parallel build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
           UNIT_TESTS=ON
+          PARALLEL=ON
       addons:
           apt:
               packages:
                 - build-essential
                 - python3-pip
                 - swig
-                - mpich2
+                - libopenmpi-dev
                 - libboost-test-dev
 
 env:
@@ -78,16 +82,20 @@ env:
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - export PATH=/usr/bin:$PATH
-    - echo $MPICC
-    - echo $MPICXX
-    - which mpicc
-    - which mpicxx
     - sudo pip3 install --upgrade pip
     - sudo pip3 install setuptools
     - sudo pip3 install numpy
     - sudo pip3 install scipy
     - sudo pip3 install wheel
-    - sudo pip3 install mpi4py
+    - if [[ "${PARALLEL}" == "ON" ]]; then
+      echo $MPICC &&
+      echo $MPICXX &&
+      which mpicc &&
+      which mpicxx &&
+      export MPICC='which mpicc' &&
+      export MPICXX='which mpicxx' &&
+      sudo pip3 install mpi4py &&
+      fi
 
     # to avoid interference with MPI
     - test -n $CC  && unset CC
