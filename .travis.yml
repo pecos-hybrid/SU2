@@ -92,8 +92,8 @@ before_install:
       echo $MPICXX &&
       which mpicc &&
       which mpicxx &&
-      export MPICC='which mpicc' &&
-      export MPICXX='which mpicxx' &&
+      export MPICC=`which mpicc` &&
+      export MPICXX=`which mpicxx` &&
       sudo pip3 install mpi4py;
       fi
 
