@@ -28,31 +28,41 @@ matrix:
         # Serial build and test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=serial_regression.py
-          REGRESSION_TESTS=ON
-          PARALLEL=OFF
       addons:
           apt:
               packages:
                 - build-essential
                 - swig
                 - libopenmpi-dev
+      before_script:
+            git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+            cp -R ./TestData/* ./TestCases/
+            cd TestCases
+      script:
+          - echo `which python`
+          - echo `pip --version`
+          - travis_wait 90 && python $TEST_SCRIPT
     - env:
         # Parallel build and test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=parallel_regression.py
-          REGRESSION_TESTS=ON
-          PARALLEL=ON
       addons:
           apt:
               packages:
                 - build-essential
                 - swig
                 - libopenmpi-dev
+      before_script:
+            git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+            cp -R ./TestData/* ./TestCases/
+            cd TestCases
+      script:
+          - echo `which python`
+          - echo `pip --version`
+          - travis_wait 90 && python $TEST_SCRIPT
     - env:
         # Serial build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          UNIT_TESTS=ON
-          PARALLEL=OFF
       addons:
           apt:
               packages:
@@ -60,11 +70,15 @@ matrix:
                 - swig
                 - libopenmpi-dev
                 - libboost-test-dev
+      before_script:
+          - echo `which python`
+      script:
+          - echo `which python`
+          - cd $TRAVIS_BUILD_DIR
+          - make check -j4
     - env:
         # Parallel build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          UNIT_TESTS=ON
-          PARALLEL=ON
       addons:
           apt:
               packages:
@@ -72,6 +86,12 @@ matrix:
                 - swig
                 - libopenmpi-dev
                 - libboost-test-dev
+      before_script:
+          - echo `which python`
+      script:
+          - echo `which python`
+          - cd $TRAVIS_BUILD_DIR
+          - make check -j4
 
 env:
     global:
@@ -112,24 +132,3 @@ install:
     - export SU2_HOME=$TRAVIS_BUILD_DIR
     - export PATH=$PATH:$SU2_RUN
     - export PYTHONPATH=$PYTHONPATH:$SU2_RUN
-
-before_script:
-    # Get the test cases
-    - echo `which python`
-    - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
-      git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData &&
-      cp -R ./TestData/* ./TestCases/ &&
-      cd TestCases/;
-      fi
-
-script:
-    # Run the tests via the Python scripts
-    - echo `which python`
-    - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
-      travis_wait 90 && echo `which python` && echo `pip --version` && python $TEST_SCRIPT;
-      fi
-    # Run the unit tests
-    - echo `which python`
-    - if [[ "${UNIT_TESTS}" == "ON" ]]; then
-      cd $TRAVIS_BUILD_DIR && make check -j4;
-      fi
