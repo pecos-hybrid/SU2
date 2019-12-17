@@ -80,6 +80,9 @@ env:
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - echo `which python`
+    - echo $PATH
+    - echo $PYTHONPATH
+    - echo $VIRTUAL_ENV
     - export PATH=/usr/bin:$PATH
     - pip3 install --upgrade pip
     - pip3 install setuptools
