@@ -99,6 +99,7 @@ before_install:
 
 install:
     # Configure, make, and install SU2
+    - echo `which python`
     - echo $TRAVIS_BUILD_DIR
     - echo $CONFIGURE_COMMAND
     - ./bootstrap
@@ -114,6 +115,7 @@ install:
 
 before_script:
     # Get the test cases
+    - echo `which python`
     - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
       git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData &&
       cp -R ./TestData/* ./TestCases/ &&
@@ -122,10 +124,12 @@ before_script:
 
 script:
     # Run the tests via the Python scripts
+    - echo `which python`
     - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
       travis_wait 90 && echo `which python` && echo `pip --version` && python $TEST_SCRIPT;
       fi
     # Run the unit tests
+    - echo `which python`
     - if [[ "${UNIT_TESTS}" == "ON" ]]; then
       cd $TRAVIS_BUILD_DIR && make check -j4;
       fi
