@@ -28,13 +28,12 @@ branches:
 virtualenv:
   system_site_packages: true
 
-matrix:
-  include:
-    - env:
+env:
+    matrix:
         # Serial build and test
         - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled"
           TEST_SCRIPT=serial_regression.py
-    - env:
+
         # Parallel build and test
         - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
           TEST_SCRIPT=parallel_regression.py
@@ -66,7 +65,7 @@ install:
 
 before_script:
     # Get the test cases
-    - git clone -b v6.0.1 https://github.com/pecos-hybrid/TestCases.git ./TestData
+    - git clone --depth=1 -b v6.0.1 https://github.com/pecos-hybrid/TestCases.git ./TestData
     - cp -R ./TestData/* ./TestCases/
     
     # Enter the SU2/TestCases/ directory, which is now ready to run
