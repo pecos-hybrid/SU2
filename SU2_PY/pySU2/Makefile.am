@@ -51,8 +51,11 @@ PYTHON_VERSION=$(shell python --version)
 PIP_VERSION=$(shell pip --version)
 PYTHON_PATH=$(shell python -c "import sys; print(sys.path)")
 PYTHON_SITE_PACKAGES=$(shell python -c "import site; print(site.getsitepackages()[0])")
-#NUMPY_INCLUDE = /usr/lib/python2.7/dist-packages/numpy/core/include
-MPI4PY_DIR=$(shell python -c "import mpi4py; print(mpi4py.__path__[0])")
+if VIRTUAL_ENV
+  MPI4PY_DIR=$(shell python -c "import mpi4py; print(mpi4py.__path__[0]);")
+else
+  MPI4PY_DIR=$(shell source $VIRTUAL_ENV/bin/activate; python -c "import mpi4py; print(mpi4py.__path__[0]);")
+endif
 MPI4PY_INCLUDE = -I${MPI4PY_DIR}/include
 
 SWIG = swig
