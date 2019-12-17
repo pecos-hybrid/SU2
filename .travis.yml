@@ -4,7 +4,13 @@
 dist: xenial
 sudo: required
 
-language: python
+language: c++
+
+cache: 
+    - ccache
+    - pip
+    - directories: 
+      - $HOME/.pyenv_cache
 
 compiler:
     - gcc
@@ -17,81 +23,40 @@ notifications:
 branches:
     only:
         - pecos-dev
+        - meson-build-system
 
-python:
-    - 3.6
+virtualenv:
+  system_site_packages: true
 
 matrix:
   include:
     - env:
         # Serial build and test
-        - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
+        - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled"
           TEST_SCRIPT=serial_regression.py
-          REGRESSION_TESTS=ON
-      addons:
-          apt:
-              packages:
-                - build-essential
     - env:
         # Parallel build and test
-        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
+        - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
           TEST_SCRIPT=parallel_regression.py
-          REGRESSION_TESTS=ON
-      addons:
-          apt:
-              packages:
-                - build-essential
-                - libopenmpi-dev
-    - env:
-        # Serial build and unit-test
-        - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          UNIT_TESTS=ON
-      addons:
-          apt:
-              packages:
-                - build-essential
-                - libboost-test-dev
-    - env:
-        # Parallel build and unit-test
-        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          UNIT_TESTS=ON
-      addons:
-          apt:
-              packages:
-                - build-essential
-                - libopenmpi-dev
-                - libboost-test-dev
-
-env:
-    global:
-        CXXFLAGS="-O1 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
 
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - export PATH=/usr/bin:$PATH
- 
-    # Install Python dependencies
-    # http://conda.pydata.org/docs/travis.html#the-travis-yml-file
-    - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-    - bash miniconda.sh -b -p $HOME/miniconda
-    - export PATH="$HOME/miniconda/bin:$PATH"
-    - hash -r
-    - conda config --set always_yes yes --set changeps1 no
-    - conda update -q conda
-    - conda install -q -c anaconda python=$TRAVIS_PYTHON_VERSION numpy scipy mpi4py swig
-
+    - sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+    # Install the necessary packages using apt-get with sudo
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq build-essential python3-numpy python3-scipy libopenmpi-dev openmpi-bin swig python3-mpi4py  
     # to avoid interference with MPI
     - test -n $CC  && unset CC
     - test -n $CXX && unset CXX
 
 install:
-    # Configure, make, and install SU2
-    - echo $TRAVIS_BUILD_DIR
+    # build ninja
     - echo $CONFIGURE_COMMAND
-    - ./bootstrap
     - $CONFIGURE_COMMAND
-    - make -j 4
-    - make install
+    - ./meson.py build --reconfigure --optimization=2
+    - ./meson.py build --reconfigure --warnlevel=2
+    - ./ninja -C build install
 
     # Add environmental variables according to the configure step
     - export SU2_RUN=$TRAVIS_BUILD_DIR/bin
@@ -101,18 +66,12 @@ install:
 
 before_script:
     # Get the test cases
-    - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
-      git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData &&
-      cp -R ./TestData/* ./TestCases/ &&
-      cd TestCases/;
-      fi
+    - git clone -b v6.0.1 https://github.com/pecos-hybrid/TestCases.git ./TestData
+    - cp -R ./TestData/* ./TestCases/
+    
+    # Enter the SU2/TestCases/ directory, which is now ready to run
+    - cd TestCases/
 
 script:
     # Run the tests via the Python scripts
-    - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
-      travis_wait 90 python $TEST_SCRIPT;
-      fi
-    # Run the unit tests
-    - if [[ "${UNIT_TESTS}" == "ON" ]]; then
-      cd $TRAVIS_BUILD_DIR && make check -j4;
-      fi
+    - python $TEST_SCRIPT

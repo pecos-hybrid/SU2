@@ -1,5 +1,4 @@
 install_data(['continuous_adjoint.py',
-             'compute_uncertainty.py',
 	     'finite_differences.py',
 	     'mesh_deformation.py',
 	     'parallel_computation.py',

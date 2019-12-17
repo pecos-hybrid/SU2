@@ -9,8 +9,7 @@ if get_option('enable-normal')
                                          'output_physics.cpp',
                                          'output_su2.cpp',
                                          'output_tecplot.cpp',
-				         'variables/CBaselineVariable.cpp',
-				         'variables/CVariable.cpp'])
+				         'variable_structure.cpp'])
   su2_def = executable('SU2_DEF',
                        su2_def_src, 
                        install: true,

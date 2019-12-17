@@ -8,8 +8,7 @@ if get_option('enable-normal')
                                          'output_physics.cpp',
                                          'output_su2.cpp',
                                          'output_tecplot.cpp',
-				         'variables/CBaselineVariable.cpp',
-				         'variables/CVariable.cpp'])
+				         'variable_structure.cpp'])
   su2_dot = executable('SU2_DOT',
                        su2_dot_src, 
                        install: true,
@@ -28,8 +27,7 @@ if get_option('enable-autodiff')
                                        'output_physics.cpp',
                                        'output_su2.cpp',
                                        'output_tecplot.cpp',
-				       'variables/CBaselineVariable.cpp',
-				       'variables/CVariable.cpp'])
+				       'variable_structure.cpp'])
   su2_dot_ad = executable('SU2_DOT_AD',
                      su2_dot_src_ad, 
                      install: true,
