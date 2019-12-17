@@ -98,12 +98,10 @@ env:
         CXXFLAGS="-O1 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
 
 before_install:
-    # Temporarily fixes Travis CI issue with paths for Python packages
     - echo `which python`
     - echo $PATH
     - echo $PYTHONPATH
     - echo $VIRTUAL_ENV
-    - export PATH=/usr/bin:$PATH
     - pip install --upgrade pip
     - pip install setuptools
     - pip install numpy
