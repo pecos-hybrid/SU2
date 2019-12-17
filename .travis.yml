@@ -79,6 +79,7 @@ env:
 
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
+    - echo `which python`
     - export PATH=/usr/bin:$PATH
     - pip3 install --upgrade pip
     - pip3 install setuptools
