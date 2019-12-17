@@ -34,6 +34,7 @@ matrix:
                 - build-essential
                 - swig
                 - libopenmpi-dev
+                - openmpi-bin
       before_script:
           - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
           - cp -R ./TestData/* ./TestCases/
@@ -52,6 +53,7 @@ matrix:
                 - build-essential
                 - swig
                 - libopenmpi-dev
+                - openmpi-bin
       before_script:
           - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
           - cp -R ./TestData/* ./TestCases/
@@ -71,6 +73,7 @@ matrix:
                 - build-essential
                 - swig
                 - libopenmpi-dev
+                - openmpi-bin
                 - libboost-test-dev
       before_script:
           - echo `which python`
@@ -87,6 +90,7 @@ matrix:
                 - build-essential
                 - swig
                 - libopenmpi-dev
+                - openmpi-bin
                 - libboost-test-dev
       before_script:
           - echo `which python`
