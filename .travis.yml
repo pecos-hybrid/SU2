@@ -35,9 +35,9 @@ matrix:
                 - swig
                 - libopenmpi-dev
       before_script:
-            git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
-            cp -R ./TestData/* ./TestCases/
-            cd TestCases
+          - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+          - cp -R ./TestData/* ./TestCases/
+          - cd TestCases
       script:
           - echo `which python`
           - echo `pip --version`
@@ -53,9 +53,9 @@ matrix:
                 - swig
                 - libopenmpi-dev
       before_script:
-            git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
-            cp -R ./TestData/* ./TestCases/
-            cd TestCases
+          - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+          - cp -R ./TestData/* ./TestCases/
+          - cd TestCases
       script:
           - echo `which python`
           - echo `pip --version`
