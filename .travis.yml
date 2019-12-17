@@ -57,6 +57,8 @@ matrix:
           - cp -R ./TestData/* ./TestCases/
           - cd TestCases
       script:
+          - echo `printenv MPICC`
+          - echo `which mpicc`
           - echo `which python`
           - echo `pip --version`
           - travis_wait 90 && python $TEST_SCRIPT
@@ -89,6 +91,8 @@ matrix:
       before_script:
           - echo `which python`
       script:
+          - echo `printenv MPICC`
+          - echo `which mpicc`
           - echo `which python`
           - cd $TRAVIS_BUILD_DIR
           - make check -j4
