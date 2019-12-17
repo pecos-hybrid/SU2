@@ -1,5 +1,5 @@
 project('SU2', 'c', 'cpp', 
-        version: '6.2.0', 
+        version: '6.0.1', 
 	license: 'LGPL2',
 	default_options: ['buildtype=release', 
                           'warning_level=0', 
@@ -13,7 +13,6 @@ su2_cpp_args = []
 su2_deps     = []
 
 default_warning_flags = ['-Wno-unused-parameter',
-                         '-Wno-empty-body',
                          '-Wno-format-security',
                          '-Wno-deprecated-declarations',
 			 '-Wno-non-virtual-dtor']
