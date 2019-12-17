@@ -46,16 +46,13 @@ SWIG_SRC = ${abs_top_srcdir}/SU2_PY/pySU2/pySU2.i
 SWIG_WRAP_REAL = SU2_APIPYTHON_wrap
 SWIG_SO_REAL = _pysu2.${SO_EXT}
 
-PYTHON_LOCATION=$(shell which python)
-PYTHON_VERSION=$(shell python --version)
-PIP_VERSION=$(shell pip --version)
-PYTHON_PATH=$(shell python -c "import sys; print(sys.path)")
+PYTHON_LOCATION=$(shell source $VIRTUAL_ENV/bin/activate && which python)
+PYTHON_VERSION=$(shell source $VIRTUAL_ENV/bin/activate && python --version)
+PIP_VERSION=$(shell source $VIRTUAL_ENV/bin/activate && pip --version)
+PYTHON_PATH=$(shell source $VIRTUAL_ENV/bin/activate && python -c "import sys; print(sys.path)")
 PYTHON_SITE_PACKAGES=$(shell python -c "import site; print(site.getsitepackages()[0])")
-if VIRTUAL_ENV
-  MPI4PY_DIR=$(shell python -c "import mpi4py; print(mpi4py.__path__[0]);")
-else
-  MPI4PY_DIR=$(shell source $VIRTUAL_ENV/bin/activate; python -c "import mpi4py; print(mpi4py.__path__[0]);")
-endif
+#NUMPY_INCLUDE = /usr/lib/python2.7/dist-packages/numpy/core/include
+MPI4PY_DIR=$(shell source $VIRTUAL_ENV/bin/activate && python -c "import mpi4py; print(mpi4py.__path__[0])")
 MPI4PY_INCLUDE = -I${MPI4PY_DIR}/include
 
 SWIG = swig
