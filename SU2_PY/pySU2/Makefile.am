@@ -50,6 +50,7 @@ PYTHON_LOCATION=$(shell which python)
 PYTHON_VERSION=$(shell python --version)
 PIP_VERSION=$(shell pip --version)
 PYTHON_PATH=$(shell python -c "import sys; print(sys.path)")
+PYTHON_BACKTICK=`which python`
 PYTHON_SITE_PACKAGES=$(shell python -c "import site; print(site.getsitepackages()[0])")
 #NUMPY_INCLUDE = /usr/lib/python2.7/dist-packages/numpy/core/include
 MPI4PY_DIR=$(shell python -c "import mpi4py; print(mpi4py.__path__[0])")
@@ -77,7 +78,8 @@ all:
 	$(info PYTHON_VERSION is [${PYTHON_VERSION}])
 	$(info PIP_VERSION is [${PIP_VERSION}])
 	$(info PYTHON_PATH is [${PYTHON_PATH}])
-	${MAKE} real; 
+	$(info PYTHON_BACKTICK is [${PYTHON_BACKTICK}])
+	${MAKE} real;
 	
 # List the dependencies
 real: ${SWIG_SO_REAL}
