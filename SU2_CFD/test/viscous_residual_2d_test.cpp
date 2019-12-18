@@ -105,6 +105,15 @@ struct ViscousResidualFixture{
       primvar_grad_j[iVar] = new su2double[nDim];
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         primvar_grad_i[iVar][iDim] = 0.0;
+        primvar_grad_j[iVar][iDim] = 0.0;
+      }
+    }
+
+    turbvar_grad = new su2double*[1];
+    for (unsigned short iVar = 0; iVar < 1; iVar++) {
+      turbvar_grad[iVar] = new su2double[nDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        turbvar_grad[iVar][iDim] = 0.0;
       }
     }
 
@@ -145,6 +154,11 @@ struct ViscousResidualFixture{
     delete[] primvar_grad_i;
     delete[] primvar_grad_j;
 
+    for (unsigned short iVar = 0; iVar < 1; iVar++) {
+      delete[] turbvar_grad[iVar];
+    }
+    delete[] turbvar_grad;
+
     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
       delete[] Jacobian_i[iVar];
       delete[] Jacobian_j[iVar];
@@ -170,6 +184,7 @@ struct ViscousResidualFixture{
   su2double** primvar_grad_i, **primvar_grad_j;
   su2double primvar_i[nPrimVar];
   su2double primvar_j[nPrimVar];
+  su2double** turbvar_grad;
   su2double** Jacobian_i, **Jacobian_j;
   su2double* residual_i;
 
@@ -218,6 +233,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
   numerics->SetPrimitive(primvar_i, primvar_j);
   numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
   su2double expected_residual[nVar] = {0, -6, 12, 18};

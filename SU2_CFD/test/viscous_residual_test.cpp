@@ -128,6 +128,14 @@ struct ViscousResidualFixture{
       }
     }
 
+    turbvar_grad = new su2double*[1];
+    for (unsigned short iVar = 0; iVar < 1; iVar++) {
+      turbvar_grad[iVar] = new su2double[nDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        turbvar_grad[iVar][iDim] = 0.0;
+      }
+    }
+
     /*--- Outputs ---*/
 
     Jacobian_i = new su2double*[nVar];
@@ -158,6 +166,11 @@ struct ViscousResidualFixture{
     }
     delete[] primvar_grad;
 
+    for (unsigned short iVar = 0; iVar < 1; iVar++) {
+      delete[] turbvar_grad[iVar];
+    }
+    delete[] turbvar_grad;
+
     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
       delete[] Jacobian_i[iVar];
       delete[] Jacobian_j[iVar];
@@ -180,6 +193,7 @@ struct ViscousResidualFixture{
   su2double coord_i[nDim], coord_j[nDim];
   su2double normal[nDim];
   su2double** primvar_grad;
+  su2double** turbvar_grad;
   su2double primvar[nPrimVar];
   su2double** Jacobian_i, **Jacobian_j;
   su2double* residual_i;
@@ -221,6 +235,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithRotationOnly, ViscousResidualFixture)
   numerics->SetPrimitive(primvar, primvar);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
   su2double expected_residual[nVar] = {0, 0, 0, 0, 0};
@@ -277,6 +292,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithNoViscosity, ViscousResidualFixture) 
   numerics->SetPrimitive(primvar, primvar);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
   su2double expected_residual[nVar] = {0, 0, 0, 0, 0};
@@ -326,6 +342,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithTKEOnly, ViscousResidualFixture) {
   numerics->SetPrimitive(primvar, primvar);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
   su2double expected_residual[nVar] = {0, -6, 0, 0, 0};
@@ -395,6 +412,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
     numerics->SetPrimitive(primvar, primvar);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
   su2double expected_residual[nVar] = {0, -18, 12, 0, 6};
@@ -478,6 +496,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualNonIdeal, ViscousResidualFixture) {
   numerics->SetSecondary(secvar_i, secvar_j);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
   su2double expected_residual[nVar] = {0, -18, 12, 0, 6};
@@ -555,6 +574,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousTiming, ViscousResidualFixture) {
     numerics->SetPrimitive(primvar, primvar);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
   clock_t begin = clock();
   for (unsigned long i = 0; i < 1E6; i++)
     numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
@@ -611,6 +631,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithModelSplit, ViscousResidualFixture) {
   numerics->SetPrimitive(primvar, primvar);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
 
   // For simplicity, have average = resolved, with no fluctuating component
   hybrid_numerics->SetPrimitive_Average(primvar, primvar);
