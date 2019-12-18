@@ -17,6 +17,7 @@ notifications:
 branches:
     only:
         - pecos-dev
+        - fix-travis-conda
 
 python:
     - 3.6
@@ -27,58 +28,82 @@ matrix:
         # Serial build and test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=serial_regression.py
-          REGRESSION_TESTS=ON
       addons:
           apt:
               packages:
                 - build-essential
+                - swig
+                - libopenmpi-dev
+                - openmpi-bin
+      before_script:
+          - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+          - cp -R ./TestData/* ./TestCases/
+          - cd TestCases
+      script:
+          - travis_wait 90 && python $TEST_SCRIPT
     - env:
         # Parallel build and test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --enable-PY_WRAPPER --disable-tecio"
           TEST_SCRIPT=parallel_regression.py
-          REGRESSION_TESTS=ON
       addons:
           apt:
               packages:
                 - build-essential
+                - swig
                 - libopenmpi-dev
+                - openmpi-bin
+      before_script:
+          - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+          - cp -R ./TestData/* ./TestCases/
+          - cd TestCases
+      script:
+          - travis_wait 90 && python $TEST_SCRIPT
     - env:
         # Serial build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          UNIT_TESTS=ON
       addons:
           apt:
               packages:
                 - build-essential
+                - swig
+                - libopenmpi-dev
+                - openmpi-bin
                 - libboost-test-dev
+      before_script:
+          - echo `which python`
+      script:
+          - cd $TRAVIS_BUILD_DIR
+          - make check -j4
     - env:
         # Parallel build and unit-test
         - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-          UNIT_TESTS=ON
       addons:
           apt:
               packages:
                 - build-essential
+                - swig
                 - libopenmpi-dev
+                - openmpi-bin
                 - libboost-test-dev
+      before_script:
+          - echo `which python`
+      script:
+          - cd $TRAVIS_BUILD_DIR
+          - make check -j4
 
 env:
     global:
         CXXFLAGS="-O1 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
 
 before_install:
-    # Temporarily fixes Travis CI issue with paths for Python packages
-    - export PATH=/usr/bin:$PATH
- 
-    # Install Python dependencies
-    # http://conda.pydata.org/docs/travis.html#the-travis-yml-file
-    - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-    - bash miniconda.sh -b -p $HOME/miniconda
-    - export PATH="$HOME/miniconda/bin:$PATH"
-    - hash -r
-    - conda config --set always_yes yes --set changeps1 no
-    - conda update -q conda
-    - conda install -q -c anaconda python=$TRAVIS_PYTHON_VERSION numpy scipy mpi4py swig
+    - pip install --upgrade pip
+    - pip install setuptools
+    - pip install numpy
+    - pip install scipy
+    - pip install wheel
+    - export MPICC=`which mpicc`
+    - export MPICXX=`which mpicxx`
+    - pip3 install mpi4py
 
     # to avoid interference with MPI
     - test -n $CC  && unset CC
@@ -98,21 +123,3 @@ install:
     - export SU2_HOME=$TRAVIS_BUILD_DIR
     - export PATH=$PATH:$SU2_RUN
     - export PYTHONPATH=$PYTHONPATH:$SU2_RUN
-
-before_script:
-    # Get the test cases
-    - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
-      git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData &&
-      cp -R ./TestData/* ./TestCases/ &&
-      cd TestCases/;
-      fi
-
-script:
-    # Run the tests via the Python scripts
-    - if [[ "${REGRESSION_TESTS}" == "ON" ]]; then
-      travis_wait 90 python $TEST_SCRIPT;
-      fi
-    # Run the unit tests
-    - if [[ "${UNIT_TESTS}" == "ON" ]]; then
-      cd $TRAVIS_BUILD_DIR && make check -j4;
-      fi
