@@ -46,8 +46,6 @@ SWIG_SRC = ${abs_top_srcdir}/SU2_PY/pySU2/pySU2.i
 SWIG_WRAP_REAL = SU2_APIPYTHON_wrap
 SWIG_SO_REAL = _pysu2.${SO_EXT}
 
-PYTHON_SITE_PACKAGES=$(shell python -c "import site; print(site.getsitepackages()[0])")
-#NUMPY_INCLUDE = /usr/lib/python2.7/dist-packages/numpy/core/include
 MPI4PY_DIR=$(shell python -c "import mpi4py; print(mpi4py.__path__[0])")
 MPI4PY_INCLUDE = -I${MPI4PY_DIR}/include
 
@@ -69,13 +67,7 @@ SWIG_INCLUDE = ${PY_INCLUDE}
 SUBDIR_EXEC = ${bindir}
 
 all:	
-	$(info PYTHON_LOCATION is [${PYTHON_LOCATION}])
-	$(info PYTHON_VERSION is [${PYTHON_VERSION}])
-	$(info PIP_VERSION is [${PIP_VERSION}])
-	$(info PATH is [${PATH}])
-	$(info PYTHON_PATH is [${PYTHON_PATH}])
-	$(info VIRTUAL_ENV is [${VIRTUAL_ENV}])
-	${MAKE} real;
+	${MAKE} real; 
 	
 # List the dependencies
 real: ${SWIG_SO_REAL}

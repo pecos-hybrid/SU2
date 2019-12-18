@@ -40,8 +40,6 @@ matrix:
           - cp -R ./TestData/* ./TestCases/
           - cd TestCases
       script:
-          - echo `which python`
-          - echo `pip --version`
           - travis_wait 90 && python $TEST_SCRIPT
     - env:
         # Parallel build and test
@@ -59,10 +57,6 @@ matrix:
           - cp -R ./TestData/* ./TestCases/
           - cd TestCases
       script:
-          - echo `printenv MPICC`
-          - echo `which mpicc`
-          - echo `which python`
-          - echo `pip --version`
           - travis_wait 90 && python $TEST_SCRIPT
     - env:
         # Serial build and unit-test
@@ -78,7 +72,6 @@ matrix:
       before_script:
           - echo `which python`
       script:
-          - echo `which python`
           - cd $TRAVIS_BUILD_DIR
           - make check -j4
     - env:
@@ -95,9 +88,6 @@ matrix:
       before_script:
           - echo `which python`
       script:
-          - echo `printenv MPICC`
-          - echo `which mpicc`
-          - echo `which python`
           - cd $TRAVIS_BUILD_DIR
           - make check -j4
 
@@ -106,10 +96,6 @@ env:
         CXXFLAGS="-O1 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
 
 before_install:
-    - echo `which python`
-    - echo $PATH
-    - echo $PYTHONPATH
-    - echo $VIRTUAL_ENV
     - pip install --upgrade pip
     - pip install setuptools
     - pip install numpy
@@ -125,7 +111,6 @@ before_install:
 
 install:
     # Configure, make, and install SU2
-    - echo `which python`
     - echo $TRAVIS_BUILD_DIR
     - echo $CONFIGURE_COMMAND
     - ./bootstrap
