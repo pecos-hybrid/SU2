@@ -32,8 +32,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE ViscousResidual
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <cstdio> // std::remove
 #include <fstream>
@@ -45,6 +45,8 @@
 #include "../include/numerics_structure.hpp"
 #include "../include/numerics_direct_mean_hybrid.hpp"
 
+namespace viscous_residual_test {
+
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
 const unsigned short nPrimVar = nDim+10;
@@ -53,7 +55,7 @@ const unsigned short nSecVar  = 4;
 /**
  * Write a cfg file to be used in initializing the CConfig object.
  */
-void WriteCfgFile(const char* filename) {
+static void WriteCfgFile(const char* filename) {
 
   std::ofstream cfg_file;
 
@@ -191,7 +193,7 @@ struct ViscousResidualFixture{
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ViscousResidual);
 
 BOOST_FIXTURE_TEST_CASE(ViscousResidualwithRotationOnly, ViscousResidualFixture) {
 
@@ -663,3 +665,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithModelSplit, ViscousResidualFixture) {
   }
   delete [] aniso_eddy_viscosity;
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

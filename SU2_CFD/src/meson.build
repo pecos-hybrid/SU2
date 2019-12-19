@@ -1,3 +1,4 @@
+su2_cfd_include = include_directories('./')
 su2_cfd_src = files(['output_structure.cpp',
                      'output_cgns.cpp',
                      'output_fieldview.cpp',
@@ -69,29 +70,34 @@ su2_cfd_src = files(['output_structure.cpp',
                      'variable_direct_wave.cpp',
                      'variable_direct_elasticity.cpp',
                      'variable_structure.cpp',
-                     'variable_template.cpp',
-                     'SU2_CFD.cpp'])
+                     'variable_template.cpp'])
 
 if get_option('enable-normal')
-  su2_cfd = executable('SU2_CFD',
-                       su2_cfd_src, 
-      		       install : true, 
-		       dependencies : [su2_deps, common_dep], 
-		       cpp_args:  ['-fPIC'] + [default_warning_flags, su2_cpp_args])
+  su2_cfd_lib = static_library('SU2_CFD',
+                       su2_cfd_src,
+      		       install : false,
+		       dependencies : [su2_deps, common_dep],
+		       cpp_args:  [default_warning_flags, su2_cpp_args])
+  su2_cfd_dep = declare_dependency(link_with: su2_cfd_lib,
+                                   include_directories: su2_cfd_include)
+  su2_cfd = executable('SU2_CFD', 'SU2_CFD.cpp',
+                       install : true,
+                       dependencies : [su2_cfd_dep, common_dep, su2_deps],
+		       cpp_args: ['-fPIC'] + [default_warning_flags, su2_cpp_args])
 endif
 
 if get_option('enable-autodiff')
   su2_cfd_ad = executable('SU2_CFD_AD',
                           su2_cfd_src,
-			  install : true, 
-			  dependencies : [su2_deps, codi_dep, commonAD_dep], 
+			  install : true,
+			  dependencies : [su2_deps, codi_dep, commonAD_dep],
 			  cpp_args: ['-fPIC'] + [default_warning_flags, su2_cpp_args, codi_rev_args])
 endif
 
 if get_option('enable-directdiff')
   su2_cfd_dd = executable('SU2_CFD_DIRECTDIFF',
                           su2_cfd_src,
-			  install : true, 
-			  dependencies : [su2_deps, codi_dep, commonDD_dep], 
+			  install : true,
+			  dependencies : [su2_deps, codi_dep, commonDD_dep],
 			  cpp_args: ['-fPIC'] + [default_warning_flags, su2_cpp_args, codi_for_args])
 endif

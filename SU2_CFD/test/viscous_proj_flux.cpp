@@ -32,9 +32,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE ViscousProjFlux
-#include "MPI_global_fixture.hpp"
-
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <fstream>
 #include <iomanip>
@@ -44,6 +43,8 @@
 
 #include "../include/numerics_structure.hpp"
 
+namespace viscous_proj_flux {
+
 static const unsigned short nDim = 3;
 static const unsigned short nVar = 5;
 
@@ -51,7 +52,7 @@ static const unsigned short nVar = 5;
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ViscousProjFlux);
 
 BOOST_AUTO_TEST_CASE(IsotropicRANSFlux) {
 
@@ -108,5 +109,9 @@ BOOST_AUTO_TEST_CASE(IsotropicRANSFlux) {
     delete [] gradprimvar[iVar];
   }
   delete [] gradprimvar;
+
+}
+
+BOOST_AUTO_TEST_SUITE_END();
 
 }

@@ -43,17 +43,7 @@ check_PROGRAMS += zeta_unit_cell_test
 check_PROGRAMS += zeta_transform_test
 endif
 if HAVE_BOOST
-check_PROGRAMS += convective_blending_test
-check_PROGRAMS += hybrid_rdelta_test
-check_PROGRAMS += fluctuating_stress_test
-check_PROGRAMS += forcing_test
-check_PROGRAMS += load_heterogeneous_restart
-check_PROGRAMS += viscous_ideal_vs_general
-check_PROGRAMS += viscous_proj_flux
-check_PROGRAMS += viscous_residual_test
-check_PROGRAMS += viscous_residual_2d_test
-check_PROGRAMS += viscous_model_split
-check_PROGRAMS += averaging_timescale_test
+check_PROGRAMS += boost_test_runner
 endif
 
 # Eventually these will likely be required
@@ -69,7 +59,7 @@ AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ @BOOST_CXX@
 LDADD  =
 LDADD += $(top_builddir)/SU2_CFD/obj/libSU2Core.a
 LDADD += $(top_builddir)/Common/lib/libSU2.a
-LDADD += @su2_externals_LIBS@ @LAPACK_LD@
+LDADD += @su2_externals_LIBS@ @LAPACK_LD@ @BOOST_LD@
 if BUILD_LAPACK
 LDFLAGS  += -mkl
 endif
@@ -82,17 +72,18 @@ zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
 zeta_transform_test_SOURCES            = zeta_transform_test.cpp
 endif
 if HAVE_BOOST
-convective_blending_test_SOURCES       = convective_blending_test.cpp
-hybrid_rdelta_test_SOURCES             = hybrid_rdelta_test.cpp
-fluctuating_stress_test_SOURCES        = fluctuating_stress_test.cpp
-forcing_test_SOURCES                   = forcing_test.cpp
-load_heterogeneous_restart_SOURCES     = load_heterogeneous_restart.cpp
-viscous_ideal_vs_general_SOURCES       = viscous_ideal_vs_general.cpp
-viscous_proj_flux_SOURCES              = viscous_proj_flux.cpp
-viscous_residual_test_SOURCES          = viscous_residual_test.cpp
-viscous_residual_2d_test_SOURCES       = viscous_residual_2d_test.cpp
-viscous_model_split_SOURCES            = viscous_model_split.cpp
-averaging_timescale_test_SOURCES       = averaging_timescale_test.cpp
+boost_test_runner_SOURCES = convective_blending_test.cpp \
+                                   hybrid_rdelta_test.cpp \
+                                   fluctuating_stress_test.cpp \
+                                   forcing_test.cpp \
+                                   load_heterogeneous_restart.cpp \
+                                   viscous_ideal_vs_general.cpp \
+                                   viscous_proj_flux.cpp \
+                                   viscous_residual_test.cpp \
+                                   viscous_residual_2d_test.cpp \
+                                   viscous_model_split.cpp \
+                                   averaging_timescale_test.cpp \
+				   main.cpp
 endif
 
 # Tests to be run
@@ -103,17 +94,7 @@ TESTS += zeta_unit_cell_test
 TESTS += zeta_transform_test
 endif
 if HAVE_BOOST
-TESTS += convective_blending_test
-TESTS += hybrid_rdelta_test
-TESTS += fluctuating_stress_test
-TESTS += forcing_test
-TESTS += load_heterogeneous_restart
-TESTS += viscous_ideal_vs_general
-TESTS += viscous_proj_flux
-TESTS += viscous_residual_test
-TESTS += viscous_residual_2d_test
-TESTS += viscous_model_split
-TESTS += averaging_timescale_test
+TESTS += boost_test_runner
 endif
 
 # Any of above we expect to fail?

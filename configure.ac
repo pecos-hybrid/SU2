@@ -162,9 +162,9 @@ AC_ARG_ENABLE(complex,
 AC_ARG_ENABLE(normal,
     AS_HELP_STRING([--disable-normal], [build executables with normal datatype (default = yes)]),
     [build_NORMAL=$enableval], [build_NORMAL="yes"])
-AC_ARG_WITH(Boost-include,
-    AS_HELP_STRING([--with-Boost-include[=ARG]], [Boost include directory, ARG = path to ../boost/include]),
-    [with_Boost_include=$withval], [with_Boost_include="no"])
+AC_ARG_WITH(boost-utf,
+    AS_HELP_STRING([--with-boost-utf], [Enable Boost unit testing framework (default = no)]),
+    [with_boost_utf=$withval], [with_boost_utf="no"])
 
 
 # Check for the old  MPI option so that we can throw an error
@@ -454,27 +454,26 @@ AC_SUBST([JSONCPP_LD])
 
 
 # check Boost include folder for correctness
-Boostheader=boost/test/included/unit_test_framework.hpp
+Boostheader=boost/test/unit_test.hpp
 have_Boost="no"
-if test "$with_Boost_include" != "no"
+if test "$with_boost_utf" != "no"
 then
-    AC_CHECK_FILE([$with_Boost_include/$Boostheader],[have_Boost='yes'],[have_Boost='no'])
+    AC_CHECK_FILE([$with_boost_utf/include/$Boostheader],[have_Boost='yes'],[have_Boost='no'])
     if test "$have_Boost" == "no"
     then
         AC_MSG_ERROR([Boost include folder specified but header file not found.])
     fi
+    have_Boost="yes"
+    BOOST_CXX="-I"$with_boost_utf"/include"
+    BOOST_LD="-L"$with_boost_utf"/lib -lboost_unit_test_framework-mt-d-x64"
 else
-    have_Boost="no"
+    BOOST_CXX=""
+    BOOST_LD=""
 fi
 
-if test "$have_Boost" != "no"
-then
-    BOOST_CXX="-I"$with_Boost_include""
-else
-    BOOST_CXX=
-fi
 AM_CONDITIONAL([HAVE_BOOST],[test $have_Boost != "no"])
 AC_SUBST([BOOST_CXX])
+AC_SUBST([BOOST_LD])
 
 ##########################
 

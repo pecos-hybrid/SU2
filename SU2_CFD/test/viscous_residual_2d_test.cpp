@@ -32,9 +32,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Viscous2dResidual
-#include "MPI_global_fixture.hpp"
-
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <fstream>
 #include <iomanip>
@@ -44,11 +43,13 @@
 
 #include "../include/numerics_structure.hpp"
 
+namespace viscous_residual_2d_test {
+
 const unsigned short nDim = 2;
 const unsigned short nVar = 4;
 const unsigned short nPrimVar = nVar+5;
 
-void PrintInformation(su2double* residual_i,
+static void PrintInformation(su2double* residual_i,
                       su2double** Jacobian_i,
                       su2double** Jacobian_j) {
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
@@ -180,7 +181,7 @@ struct ViscousResidualFixture{
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ViscousResidual2dTest);
 
 BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
 
@@ -252,3 +253,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
     }
   }
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

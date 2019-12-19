@@ -32,8 +32,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE hybrid_rdelta
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <cstdio> // std::remove
 #include <fstream>
@@ -46,7 +46,9 @@
 #include "../include/variable_structure_v2f.hpp"
 #include "../include/hybrid_RANS_LES_model.hpp"
 
-void WriteCfgFile(unsigned short nDim, const char* filename) {
+namespace hybrid_rdelta_test {
+
+static void WriteCfgFile(unsigned short nDim, const char* filename) {
   std::ofstream cfg_file;
 
   cfg_file.open(filename, ios::out);
@@ -55,9 +57,6 @@ void WriteCfgFile(unsigned short nDim, const char* filename) {
   cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
   cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
   cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
-  cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA_STRAIN_ONLY" << std::endl;
-  // This option is deprecated
-  // cfg_file << "HYBRID_MODEL_CONSTANT= 1.0" << std::endl;
   cfg_file.close();
 
 }
@@ -124,7 +123,7 @@ struct HybridRdeltaFixture {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(HybridRDeltaTest);
 
 BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
@@ -329,3 +328,7 @@ BOOST_FIXTURE_TEST_CASE(PureRotation, HybridRdeltaFixture) {
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,2),0.0);
 
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

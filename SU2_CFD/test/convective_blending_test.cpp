@@ -31,8 +31,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE ConvectiveBlending
-#include "boost/test/included/unit_test.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <cstdio> // std::remove
 #include <fstream>
@@ -43,14 +43,12 @@
 
 #include "../include/numerics_structure.hpp"
 
-#include "../../Common/test/MPI_global_fixture.hpp"
-
 #include <cstdio> // std::remove
 #include <fstream>
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+namespace convective_blending_test {
 
-void WriteCfgFile(unsigned short nDim, const char* filename,
+static void WriteCfgFile(unsigned short nDim, const char* filename,
                   std::string blending) {
   std::ofstream cfg_file;
 
@@ -60,6 +58,8 @@ void WriteCfgFile(unsigned short nDim, const char* filename,
 
   cfg_file.close();
 }
+
+BOOST_AUTO_TEST_SUITE(ConvectiveBlendingTest);
 
 BOOST_AUTO_TEST_CASE(BadSensorsAllowedForNTS) {
 
@@ -131,3 +131,7 @@ BOOST_AUTO_TEST_CASE(NTSAndFDGiveSameAverageDissipation) {
   delete fd_config;
   delete nts_config;
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

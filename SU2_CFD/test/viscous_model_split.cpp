@@ -32,8 +32,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE ViscousModelSplit
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <cstdio> // std::remove
 #include <fstream>
@@ -46,6 +46,8 @@
 #include "../include/numerics_structure.hpp"
 #include "../include/numerics_direct_mean_hybrid.hpp"
 
+namespace viscous_model_split {
+
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
 // We don't need all the primitive variables
@@ -54,7 +56,7 @@ const unsigned short nPrimVar = nDim+3;
 /**
  * Write a cfg file to be used in initializing the CConfig object.
  */
-void WriteCfgFile(const char* filename) {
+static void WriteCfgFile(const char* filename) {
 
   std::ofstream cfg_file;
 
@@ -70,7 +72,7 @@ void WriteCfgFile(const char* filename) {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ViscousModelSplit);
 
 /**
  * Check that the typical RANS stress tensor matches the combination of
@@ -431,3 +433,7 @@ BOOST_AUTO_TEST_CASE(RansHeatFluxMatchesIsotropicEddyViscosityHeatFlux) {
   delete [] aniso_eddy_viscosity;
 
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

@@ -36,8 +36,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE ViscousIdealVsGeneral
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <cstdio> // std::remove
 #include <fstream>
@@ -48,6 +48,8 @@
 #include "../include/numerics_structure.hpp"
 #include "../include/fluid_model.hpp"
 
+namespace viscous_ideal_vs_general {
+
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
 const unsigned short nPrimVar = nDim+9;
@@ -56,7 +58,7 @@ const unsigned short nSecVar = 4;
 /**
  * Write a cfg file to be used in initializing the CConfig object.
  */
-void WriteCfgFile(const char* filename) {
+static void WriteCfgFile(const char* filename) {
 
   std::ofstream cfg_file;
 
@@ -221,8 +223,7 @@ void TestRunner::Run(CNumerics* numerics, su2double* residual_i,
 
 }
 
-// Setup MPI
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ViscousIdealVsGeneral);
 
 /**
  * Compare the viscous numerics for the ideal gas and the generalized gas
@@ -305,3 +306,7 @@ BOOST_AUTO_TEST_CASE(IdealVsGeneralComparison) {
   delete [] general_jacobian_i;
   delete [] general_jacobian_j;
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

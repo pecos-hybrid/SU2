@@ -1,8 +1,8 @@
-project('SU2', 'c', 'cpp', 
-        version: '6.0.1', 
+project('SU2', 'c', 'cpp',
+        version: '6.0.1',
 	license: 'LGPL2',
-	default_options: ['buildtype=release', 
-                          'warning_level=0', 
+	default_options: ['buildtype=release',
+                          'warning_level=0',
                           'cpp_std=c++11'])
 
 
@@ -17,8 +17,8 @@ default_warning_flags = ['-Wno-unused-parameter',
                          '-Wno-deprecated-declarations',
 			 '-Wno-non-virtual-dtor']
 
-# external dependencies 
-mpi_dep = [dependency('mpi', language:'c', required : get_option('with-mpi')), 
+# external dependencies
+mpi_dep = [dependency('mpi', language:'c', required : get_option('with-mpi')),
            dependency('mpi', language:'cpp', required : get_option('with-mpi'))]
 
 if get_option('enable-autodiff') or get_option('enable-directdiff')
@@ -34,27 +34,32 @@ if get_option('enable-cgns')
   su2_cpp_args += '-DHAVE_CGNS'
 endif
 
-# check if MPI dependencies are found and add them
-if mpi_dep[0].found() and mpi_dep[1].found() 
+# Add Boost UTF dependency
+if get_option('enable-boost-utf')
+  boost_dep = dependency('boost', modules : ['unit_test_framework'], static : false)
+endif
 
-  # add MPI dependency 
+# check if MPI dependencies are found and add them
+if mpi_dep[0].found() and mpi_dep[1].found()
+
+  # add MPI dependency
   su2_deps += mpi_dep
   su2_cpp_args += '-DHAVE_MPI'
-  
+
   # compile metis
   subdir('externals/metis')
-  
+
   # add metis dependency
   su2_deps     += metis_dep
-  su2_cpp_args += '-DHAVE_METIS' 
-  
+  su2_cpp_args += '-DHAVE_METIS'
+
   # compile parmetis
   subdir('externals/parmetis')
- 
+
   # add parmetis dependency
   su2_deps     += parmetis_dep
-  su2_cpp_args += '-DHAVE_PARMETIS' 
-  
+  su2_cpp_args += '-DHAVE_PARMETIS'
+
   # add medi dependency
   if get_option('enable-autodiff') or get_option('enable-directdiff')
     codi_dep += declare_dependency(include_directories: ['externals/medi/include', 'externals/medi/src'])
@@ -69,6 +74,8 @@ endif
 subdir('Common/src')
 # compile SU2_CFD executable
 subdir('SU2_CFD/src')
+# SU2_CFD tests
+subdir('SU2_CFD/test')
 # compile SU2_DOT executable
 subdir('SU2_DOT/src')
 # compile SU2_DEF executable
