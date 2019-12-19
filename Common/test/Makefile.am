@@ -37,9 +37,9 @@ check_PROGRAMS  =
 TESTS  =
 
 if HAVE_BOOST
-check_PROGRAMS += unit_test_config
+# check_PROGRAMS += unit_test_config
 if BUILD_LAPACK
-check_PROGRAMS += resolution_tensor_test
+# check_PROGRAMS += resolution_tensor_test
 endif
 endif
 
@@ -54,22 +54,22 @@ LDFLAGS  += -mkl
 endif
 
 # always link to built dependencies from ./externals
-AM_CPPFLAGS += @su2_externals_INCLUDES@ @BOOST_CXX@
-LDADD += @su2_externals_LIBS@
+AM_CPPFLAGS += @su2_externals_INCLUDES@
+LDADD += @su2_externals_LIBS@ @BOOST_LD@
 
 # Test sources
 if HAVE_BOOST
-unit_test_config_SOURCES = unit_test_config.cpp
+# unit_test_config_SOURCES = unit_test_config.cpp
 if BUILD_LAPACK
-resolution_tensor_test_SOURCES = resolution_tensor_test.cpp
+# resolution_tensor_test_SOURCES = resolution_tensor_test.cpp
 endif
 endif
 
 # Tests to be run
 if HAVE_BOOST
-TESTS += unit_test_config
+# TESTS += unit_test_config
 if BUILD_LAPACK
-TESTS += resolution_tensor_test
+# TESTS += resolution_tensor_test
 endif
 endif
 
