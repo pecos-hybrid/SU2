@@ -89,7 +89,7 @@ matrix:
       before_script:
         - echo `which python`
       script:
-        - ./ninja -C $BUILD_DIR test
+        - ./ninja -C $MESON_BUILD_DIR test
     - env:
         # Parallel build and unit-test
         - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
@@ -107,7 +107,7 @@ matrix:
       before_script:
         - echo `which python`
       script:
-        - ./ninja -C $BUILD_DIR test
+        - ./ninja -C $MESON_BUILD_DIR test
 
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
