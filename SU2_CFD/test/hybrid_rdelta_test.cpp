@@ -148,8 +148,14 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
 }
 
+// Decorators only supported in newer versions of Boost
+#if ((BOOST_VERSION / 100 % 1000) > 59)
 BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture,
                         *utf::expected_failures(16)) {
+#else
+BOOST_AUTO_TEST_CASE_EXPECTED_FAILURES(Shear_dudy, 16)
+BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
+#endif
 
   //------------------------------------------------------
   // Simplest possible case:
