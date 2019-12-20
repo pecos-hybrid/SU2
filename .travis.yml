@@ -75,7 +75,7 @@ matrix:
     - env:
         # Serial build and unit-test
         - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
-        - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled"
+        - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled -Denable-boost-utf=true"
       addons:
         apt:
           packages:
@@ -86,6 +86,7 @@ matrix:
             - openmpi-bin
             - swig
             - python3-mpi4py
+            - libboost-test-dev
       before_script:
         - echo `which python`
       script:
@@ -93,7 +94,7 @@ matrix:
     - env:
         # Parallel build and unit-test
         - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
-        - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
+        - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Denable-boost-utf=true"
       addons:
         apt:
           packages:
@@ -104,6 +105,7 @@ matrix:
             - openmpi-bin
             - swig
             - python3-mpi4py
+            - libboost-test-dev
       before_script:
         - echo `which python`
       script:
