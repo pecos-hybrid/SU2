@@ -86,8 +86,10 @@ matrix:
       before_script:
         - echo `which python`
       script:
+        - echo $PWD
         - cd $TRAVIS_BUILD_DIR
-        - ./ninja check
+        - echo $PWD
+        - ./ninja test
     - env:
         # Parallel build and unit-test
         - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
@@ -104,8 +106,10 @@ matrix:
       before_script:
         - echo `which python`
       script:
+        - echo $PWD
         - cd $TRAVIS_BUILD_DIR
-        - ./ninja check
+        - echo $PWD
+        - ./ninja test
 
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
@@ -117,6 +121,7 @@ before_install:
 
 install:
     # build ninja
+    - echo $PWD
     - echo $CONFIGURE_COMMAND
     - $CONFIGURE_COMMAND
     - ./meson.py build --reconfigure --optimization=2
