@@ -31,7 +31,7 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "boost/test/included/unit_test.hpp"
+#include <boost/test/unit_test.hpp>
 
 // If Boost isn't recent enough to support test info/context, ignore it
 #if ((BOOST_VERSION / 100 % 1000) < 59)

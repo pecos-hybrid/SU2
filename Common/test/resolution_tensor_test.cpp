@@ -32,9 +32,10 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Resolution Tensor
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
+#include "MPI_global_fixture.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -44,6 +45,8 @@
 
 #include "../../Common/include/config_structure.hpp"
 #include "../../Common/include/geometry_structure.hpp"
+
+namespace resolution_tensor_test {
 
 /* ----------------------------------------------------------------------------
  *  Functions for Grid Setup
@@ -650,7 +653,7 @@ struct ResolutionFixture {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ResolutionTensorTest);
 
 BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
 
@@ -901,3 +904,7 @@ BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
     BOOST_CHECK_CLOSE_FRACTION(C_M, correct_value, tolerance);
   }
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

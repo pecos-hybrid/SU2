@@ -43,7 +43,7 @@ check_PROGRAMS += zeta_unit_cell_test
 check_PROGRAMS += zeta_transform_test
 endif
 if HAVE_BOOST
-check_PROGRAMS += boost_test_runner
+check_PROGRAMS += test_driver
 endif
 
 # Eventually these will likely be required
@@ -72,18 +72,18 @@ zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
 zeta_transform_test_SOURCES            = zeta_transform_test.cpp
 endif
 if HAVE_BOOST
-boost_test_runner_SOURCES = convective_blending_test.cpp \
-                                   hybrid_rdelta_test.cpp \
-                                   fluctuating_stress_test.cpp \
-                                   forcing_test.cpp \
-                                   load_heterogeneous_restart.cpp \
-                                   viscous_ideal_vs_general.cpp \
-                                   viscous_proj_flux.cpp \
-                                   viscous_residual_test.cpp \
-                                   viscous_residual_2d_test.cpp \
-                                   viscous_model_split.cpp \
-                                   averaging_timescale_test.cpp \
-				   main.cpp
+test_driver_SOURCES = convective_blending_test.cpp \
+                      hybrid_rdelta_test.cpp \
+                      fluctuating_stress_test.cpp \
+                      forcing_test.cpp \
+                      load_heterogeneous_restart.cpp \
+                      viscous_ideal_vs_general.cpp \
+                      viscous_proj_flux.cpp \
+                      viscous_residual_test.cpp \
+                      viscous_residual_2d_test.cpp \
+                      viscous_model_split.cpp \
+                      averaging_timescale_test.cpp \
+		      main.cpp
 endif
 
 # Tests to be run
@@ -94,7 +94,7 @@ TESTS += zeta_unit_cell_test
 TESTS += zeta_transform_test
 endif
 if HAVE_BOOST
-TESTS += boost_test_runner
+TESTS += test_driver
 endif
 
 # Any of above we expect to fail?

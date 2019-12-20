@@ -74,9 +74,11 @@ endif
 
 # compile common library
 subdir('Common/src')
+# Common unit tests
+subdir('Common/test')
 # compile SU2_CFD executable
 subdir('SU2_CFD/src')
-# SU2_CFD tests
+# SU2_CFD unit tests
 subdir('SU2_CFD/test')
 # compile SU2_DOT executable
 subdir('SU2_DOT/src')
