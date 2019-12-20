@@ -6,6 +6,15 @@ load_hybrid_constants_test = executable('load_hybrid_constants_test',
                  cpp_args: test_cpp_args)
 test('load hybrid constants', load_hybrid_constants_test)
 
+if mkl_dep.found()
+  eigensolver_test = executable('eigensolver_test',
+                   'eigensolver_test.cpp',
+                   install : false,
+                   dependencies : [su2_cfd_dep, common_dep, su2_deps],
+                   cpp_args: test_cpp_args)
+  test('eigensolver test', eigensolver_test)
+endif
+
 SU2_CFD_boost_tests = files(['convective_blending_test.cpp',
                              'hybrid_rdelta_test.cpp',
                              'fluctuating_stress_test.cpp',

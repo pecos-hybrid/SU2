@@ -7,7 +7,7 @@ if mpi_dep[0].found() and mpi_dep[1].found()
     mpi4py_dir = get_option('python_path')
   else
     mpi4py_dir = run_command(python, '-c', 'import mpi4py; print(mpi4py.__path__[0])').stdout().strip()
-    message ('Looking for mpi4py in ' + mpi4py_dir)
+    message ('Using mpi4py directiory: ' + mpi4py_dir)
   endif
   mpi4py_include = mpi4py_dir + '/include'
 else
