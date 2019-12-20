@@ -32,7 +32,7 @@ matrix:
   include:
     - env:
         # Serial build and regression test
-        - MESON_BUILD_DIR = $TRAVIS_BUILD_DIR/build
+        - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
         - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled"
         - TEST_SCRIPT=serial_regression.py
       addons:
@@ -53,7 +53,7 @@ matrix:
         - travis_wait 90 && python $TEST_SCRIPT
     - env:
         # Parallel build and regression test
-        - MESON_BUILD_DIR = $TRAVIS_BUILD_DIR/build
+        - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
         - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
         - TEST_SCRIPT=parallel_regression.py
       addons:
@@ -74,7 +74,7 @@ matrix:
         - travis_wait 90 && python $TEST_SCRIPT
     - env:
         # Serial build and unit-test
-        - MESON_BUILD_DIR = $TRAVIS_BUILD_DIR/build
+        - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
         - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled"
       addons:
         apt:
@@ -92,7 +92,7 @@ matrix:
         - ./ninja -C $BUILD_DIR test
     - env:
         # Parallel build and unit-test
-        - MESON_BUILD_DIR = $TRAVIS_BUILD_DIR/build
+        - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
         - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
       addons:
         apt:
