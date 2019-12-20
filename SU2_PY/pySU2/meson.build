@@ -4,12 +4,12 @@ swig = find_program('swig')
 # add mpi4py include
 if mpi_dep[0].found() and mpi_dep[1].found()
   if get_option('python_path') != ''
-    python_dir = get_option('python_path')
+    mpi4py_dir = get_option('python_path')
   else
-    python_dir = run_command(python, '-c', 'from distutils.sysconfig import get_python_lib; print(get_python_lib())').stdout().strip()
-    message ('Looking for mpi4py in ' + python_dir)
+    mpi4py_dir = run_command(python, '-c', 'import mpi4py; print(mpi4py.__path__[0])').stdout().strip()
+    message ('Looking for mpi4py in ' + mpi4py_dir)
   endif
-  mpi4py_include = python_dir + '/mpi4py/include' 
+  mpi4py_include = mpi4py_dir + '/include'
 else
   mpi4py_include = ''
 endif
@@ -35,7 +35,7 @@ foreach swig_source: swig_sources
     swig_lib = shared_library(
        '_pysu2',
        cpp_source,
-       dependencies: [wrapper_deps, common_dep, su2_deps],
+       dependencies: [wrapper_deps, common_dep, su2_deps, su2_cfd_dep],
        objects: su2_cfd.extract_all_objects(),
        install: true,
        include_directories : mpi4py_include,
