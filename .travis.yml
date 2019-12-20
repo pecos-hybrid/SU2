@@ -28,39 +28,89 @@ branches:
 virtualenv:
   system_site_packages: true
 
-env:
-    matrix:
-        # Serial build and test
+matrix:
+  include:
+    - env:
+        # Serial build and regression test
         - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled"
           TEST_SCRIPT=serial_regression.py
-
-        # Parallel build and test
+      addons:
+        apt:
+          packages:
+            - build-essential
+            - python3-numpy
+            - python3-scipy
+            - libopenmpi-dev
+            - openmpi-bin
+            - swig
+            - python3-mpi4py
+      before_script:
+        - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+        - cp -R ./TestData/* ./TestCases/
+        - cd TestCases
+      script:
+        - travis_wait 90 && python $TEST_SCRIPT
+    - env:
+        # Parallel build and regression test
         - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
           TEST_SCRIPT=parallel_regression.py
+      addons:
+        apt:
+          packages:
+            - build-essential
+            - python3-numpy
+            - python3-scipy
+            - libopenmpi-dev
+            - openmpi-bin
+            - swig
+            - python3-mpi4py
+      before_script:
+        - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+        - cp -R ./TestData/* ./TestCases/
+        - cd TestCases
+      script:
+        - travis_wait 90 && python $TEST_SCRIPT
+    - env:
+        # Serial build and unit-test
+        - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled"
+      addons:
+        apt:
+          packages:
+            - build-essential
+            - python3-numpy
+            - python3-scipy
+            - libopenmpi-dev
+            - openmpi-bin
+            - swig
+            - python3-mpi4py
+      before_script:
+        - echo `which python`
+      script:
+        - cd $TRAVIS_BUILD_DIR
+        - ninja check
+    - env:
+        # Parallel build and unit-test
+        - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
+      addons:
+        apt:
+          packages:
+            - build-essential
+            - python3-numpy
+            - python3-scipy
+            - libopenmpi-dev
+            - openmpi-bin
+            - swig
+            - python3-mpi4py
+      before_script:
+        - echo `which python`
+      script:
+        - cd $TRAVIS_BUILD_DIR
+        - ninja check
 
 before_install:
     # Temporarily fixes Travis CI issue with paths for Python packages
     - export PATH=/usr/bin:$PATH
     - sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
-    # Install the necessary packages using apt-get with sudo
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq build-essential python3-numpy python3-scipy libopenmpi-dev openmpi-bin swig python3-mpi4py
-    # to avoid interference with MPI
-    - test -n $CC  && unset CC
-    - test -n $CXX && unset CXX
-
-install:
-        # Parallel build and test
-        - CONFIGURE_COMMAND="./meson.py build --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
-          TEST_SCRIPT=parallel_regression.py
-
-before_install:
-    # Temporarily fixes Travis CI issue with paths for Python packages
-    - export PATH=/usr/bin:$PATH
-    - sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
-    # Install the necessary packages using apt-get with sudo
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq build-essential python3-numpy python3-scipy libopenmpi-dev openmpi-bin swig python3-mpi4py
     # to avoid interference with MPI
     - test -n $CC  && unset CC
     - test -n $CXX && unset CXX
@@ -78,15 +128,3 @@ install:
     - export SU2_HOME=$TRAVIS_BUILD_DIR
     - export PATH=$PATH:$SU2_RUN
     - export PYTHONPATH=$PYTHONPATH:$SU2_RUN
-
-before_script:
-    # Get the test cases
-    - git clone --depth=1 -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
-    - cp -R ./TestData/* ./TestCases/
-
-    # Enter the SU2/TestCases/ directory, which is now ready to run
-    - cd TestCases/
-
-script:
-    # Run the tests via the Python scripts
-    - python $TEST_SCRIPT

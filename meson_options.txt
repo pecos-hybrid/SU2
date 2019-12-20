@@ -6,4 +6,4 @@ option('enable-directdiff',  type : 'boolean', value : false, description: 'enab
 option('enable-pywrapper',  type : 'boolean', value : false, description: 'enable Python wrapper support')
 option('enable-normal',  type : 'boolean', value : true, description: 'enable normal build')
 option('python_path',  type : 'string', value : '', description: 'Python path')
-option('enable-boost-utf', type : 'boolean', value : true, description : 'enable Boost unit testing')
+option('enable-boost-utf', type : 'boolean', value : false, description : 'enable Boost unit testing')

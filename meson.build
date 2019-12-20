@@ -37,6 +37,8 @@ endif
 # Add Boost UTF dependency
 if get_option('enable-boost-utf')
   boost_dep = dependency('boost', modules : ['unit_test_framework'], static : false)
+else
+  boost_dep = disabler()
 endif
 
 # check if MPI dependencies are found and add them
