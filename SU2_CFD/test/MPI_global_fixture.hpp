@@ -33,12 +33,6 @@
 
 #include <boost/test/unit_test.hpp>
 
-// If Boost isn't recent enough to support test info/context, ignore it
-#if ((BOOST_VERSION / 100 % 1000) < 59)
-#define BOOST_TEST_CONTEXT(X)
-#define BOOST_TEST_INFO(X)
-#endif
-
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif
