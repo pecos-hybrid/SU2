@@ -90,12 +90,18 @@ if get_option('enable-mkl')
   endif
   su2_deps += mkl_dep
 
-elif get_option('enable-openblas')
+else
 
-  su2_cpp_args += '-DHAVE_BLAS'
-  su2_cpp_args += '-DHAVE_LAPACK'
-  blas_dep = dependency(get_option('blas-name'))
-  su2_deps += blas_dep
+  mkl_dep = disabler()
+
+  if get_option('enable-openblas')
+
+    su2_cpp_args += '-DHAVE_BLAS'
+    su2_cpp_args += '-DHAVE_LAPACK'
+    blas_dep = dependency(get_option('blas-name'))
+    su2_deps += blas_dep
+
+  endif
 
 endif
 
