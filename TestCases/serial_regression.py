@@ -189,7 +189,7 @@ def main():
     turb_flatplate_v2f.cfg_dir   = "rans/flatplate"
     turb_flatplate_v2f.cfg_file  = "turb_v2f_flatplate.cfg"
     turb_flatplate_v2f.test_iter = 20
-    turb_flatplate_v2f.test_vals = [-0.295619, 5.435227, -0.176411, 0.057971] #last 4 columns
+    turb_flatplate_v2f.test_vals = [-0.295624, 5.435245, -0.176335, 0.057976] #last 4 columns
     turb_flatplate_v2f.su2_exec  = "SU2_CFD"
     turb_flatplate_v2f.timeout   = 1600
     turb_flatplate_v2f.tol       = 0.00001
@@ -233,7 +233,7 @@ def main():
     turb_naca0012_sst.cfg_dir   = "rans/naca0012"
     turb_naca0012_sst.cfg_file  = "turb_NACA0012_sst.cfg"
     turb_naca0012_sst.test_iter = 10
-    turb_naca0012_sst.test_vals = [-15.039675, -7.220061, 1.059622, 0.019138] #last 4 columns
+    turb_naca0012_sst.test_vals = [-12.589767, -5.489881, 1.059620, 0.019139] #last 4 columns
     turb_naca0012_sst.su2_exec  = "SU2_CFD"
     turb_naca0012_sst.timeout   = 3200
     turb_naca0012_sst.tol       = 0.00001
@@ -260,7 +260,7 @@ def main():
     turb_naca0012_sst_restart_mg.cfg_file  = "turb_NACA0012_sst_multigrid_restart.cfg"
     turb_naca0012_sst_restart_mg.test_iter = 50
     turb_naca0012_sst_restart_mg.ntest_vals = 5
-    turb_naca0012_sst_restart_mg.test_vals = [-6.459444, -4.595710, 1.201844, -0.007146, 0.080517] #last 5 columns
+    turb_naca0012_sst_restart_mg.test_vals = [-6.267158, -4.595713, 1.201841, -0.007147, 0.080528] #last 5 columns
     turb_naca0012_sst_restart_mg.su2_exec  = "SU2_CFD"
     turb_naca0012_sst_restart_mg.timeout   = 3200
     turb_naca0012_sst_restart_mg.tol       = 0.000001
@@ -503,7 +503,7 @@ def main():
     square_cylinder.cfg_dir   = "unsteady/square_cylinder"
     square_cylinder.cfg_file  = "turb_square.cfg"
     square_cylinder.test_iter = 3
-    square_cylinder.test_vals = [-1.166421, 0.076804, 1.398548, 2.197047] #last 4 columns
+    square_cylinder.test_vals = [-1.166421, 0.076808, 1.398547, 2.196986] #last 4 columns
     square_cylinder.su2_exec  = "SU2_CFD"
     square_cylinder.timeout   = 1600
     square_cylinder.tol       = 0.00001
@@ -652,7 +652,7 @@ def main():
     pywrapper_turb_naca0012_sst.cfg_dir   = "rans/naca0012"
     pywrapper_turb_naca0012_sst.cfg_file  = "turb_NACA0012_sst.cfg"
     pywrapper_turb_naca0012_sst.test_iter = 10
-    pywrapper_turb_naca0012_sst.test_vals = [-15.039675, -7.220061, 1.059622, 0.019138] #last 4 columns
+    pywrapper_turb_naca0012_sst.test_vals = [-12.589767, -5.489881, 1.059620, 0.019139] #last 4 columns
     pywrapper_turb_naca0012_sst.su2_exec  = "SU2_CFD.py -f"
     pywrapper_turb_naca0012_sst.timeout   = 3200
     pywrapper_turb_naca0012_sst.tol       = 0.00001
@@ -664,7 +664,7 @@ def main():
     pywrapper_square_cylinder.cfg_dir   = "unsteady/square_cylinder"
     pywrapper_square_cylinder.cfg_file  = "turb_square.cfg"
     pywrapper_square_cylinder.test_iter = 3
-    pywrapper_square_cylinder.test_vals = [-1.166421, 0.076804, 1.398548, 2.197047] #last 4 columns
+    pywrapper_square_cylinder.test_vals = [-1.166421, 0.076808, 1.398547, 2.196986] #last 4 columns
     pywrapper_square_cylinder.su2_exec  = "SU2_CFD.py -f"
     pywrapper_square_cylinder.timeout   = 1600
     pywrapper_square_cylinder.tol       = 0.00001
