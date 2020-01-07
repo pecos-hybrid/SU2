@@ -106,6 +106,7 @@ before_install:
     - pip install wheel
     - pip install numpy
     - pip install scipy
+    - pip install python-config
     # Make sure mpi4py finds the right mpicc and mpicxx
     - export MPICC=`which mpicc`
     - export MPICXX=`which mpicxx`
@@ -119,6 +120,7 @@ before_install:
 
 install:
     # build ninja
+    - echo `which python`
     - echo $CONFIGURE_COMMAND
     - ./bootstrap
     - $CONFIGURE_COMMAND
