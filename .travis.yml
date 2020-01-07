@@ -24,6 +24,16 @@ branches:
         - pecos-dev
         - meson-build-system
 
+addons:
+  apt:
+    update: true
+    packages:
+    - build-essential
+    - swig
+    - libopenmpi-dev
+    - openmpi-bin
+    - python3-venv
+
 matrix:
   include:
     - env:
@@ -31,14 +41,6 @@ matrix:
         - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
         - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled"
         - TEST_SCRIPT=serial_regression.py
-      addons:
-        apt:
-          packages:
-            - build-essential
-            - swig
-            - libopenmpi-dev
-            - openmpi-bin
-            - python3-venv
       before_script:
         - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
         - cp -R ./TestData/* ./TestCases/
@@ -50,14 +52,6 @@ matrix:
         - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
         - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true"
         - TEST_SCRIPT=parallel_regression.py
-      addons:
-        apt:
-          packages:
-            - build-essential
-            - swig
-            - libopenmpi-dev
-            - openmpi-bin
-            - python3-venv
       before_script:
         - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
         - cp -R ./TestData/* ./TestCases/
@@ -71,12 +65,7 @@ matrix:
       addons:
         apt:
           packages:
-            - build-essential
-            - swig
-            - libopenmpi-dev
-            - openmpi-bin
             - libboost-test-dev
-            - python3-venv
       before_script:
         - echo `which python`
       script:
@@ -88,12 +77,7 @@ matrix:
       addons:
         apt:
           packages:
-            - build-essential
-            - swig
-            - libopenmpi-dev
-            - openmpi-bin
             - libboost-test-dev
-            - python3-venv
       before_script:
         - echo `which python`
       script:
@@ -120,15 +104,13 @@ before_install:
 
 install:
     # build ninja
-    - echo $PWD
     - echo $CONFIGURE_COMMAND
     - $CONFIGURE_COMMAND
-    - ./meson.py $MESON_BUILD_DIR --reconfigure --optimization=2
-    - ./meson.py $MESON_BUILD_DIR --reconfigure --warnlevel=2
+    - ./meson.py $MESON_BUILD_DIR --reconfigure --optimization=2 --warnlevel=2
     - ./ninja -C $MESON_BUILD_DIR install
 
     # Add environmental variables according to the configure step
-    - export SU2_RUN=$TRAVIS_BUILD_DIR/bin
+    - export SU2_RUN=$MESON_BUILD_DIR/bin
     - export SU2_HOME=$TRAVIS_BUILD_DIR
     - export PATH=$PATH:$SU2_RUN
     - export PYTHONPATH=$PYTHONPATH:$SU2_RUN
