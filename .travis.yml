@@ -26,9 +26,6 @@ branches:
         - pecos-dev
         - meson-build-system
 
-python:
-    - 3.6
-
 matrix:
   include:
     - env:
@@ -105,21 +102,21 @@ matrix:
         - ./ninja -C $MESON_BUILD_DIR test
 
 before_install:
-    # Since language is not `python`, we need to create our own virtualenv
+    # Since the language is not `python`, we need to create our own virtualenv
+    - python3 -m venv $HOME/.pyenv_cache
+    - source $HOME/.pyenv_cache/bin/activate
     - echo `which python`
-    - echo `which python3`
-    - echo `python3 --version`
-    - python3 -m venv $HOME/.pyenv
-    - source $HOME/.pyenv/bin/activate
-    - echo `which python`
+    - echo `python --version`
     - pip install --upgrade pip
-    - pip install setuptools
     - pip install numpy
     - pip install scipy
     - pip install wheel
+    # Make sure mpi4py finds the right mpicc and mpicxx
     - export MPICC=`which mpicc`
     - export MPICXX=`which mpicxx`
     - pip install mpi4py
+    # Display the packages used
+    - echo `pip freeze`
 
     # to avoid interference with MPI
     - test -n $CC  && unset CC
