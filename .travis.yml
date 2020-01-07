@@ -7,11 +7,11 @@ sudo: required
 # Language = c or c++ is necessary for easy use of ccache and Travis caching
 language: c++
 
+# Can't cache pip directly (using "- pip") with language = c++
 cache:
     - ccache
-    - pip
     - directories:
-      - $HOME/.pyenv_cache
+      - $HOME/.cache/pip
 
 compiler:
     - gcc
@@ -103,8 +103,8 @@ matrix:
 
 before_install:
     # Since the language is not `python`, we need to create our own virtualenv
-    - python3 -m venv $HOME/.pyenv_cache
-    - source $HOME/.pyenv_cache/bin/activate
+    - python3 -m venv $HOME/.pyenv
+    - source $HOME/.pyenv/bin/activate
     - echo `which python`
     - echo `python --version`
     - pip install --upgrade pip
@@ -117,6 +117,7 @@ before_install:
     - pip install mpi4py
     # Display the packages used
     - echo `pip freeze`
+    - echo `ls $HOME/.cache/pip/`
 
     # to avoid interference with MPI
     - test -n $CC  && unset CC
