@@ -25,9 +25,6 @@ branches:
         - pecos-dev
         - meson-build-system
 
-virtualenv:
-  system_site_packages: true
-
 matrix:
   include:
     - env:
@@ -39,12 +36,9 @@ matrix:
         apt:
           packages:
             - build-essential
-            - python3-numpy
-            - python3-scipy
+            - swig
             - libopenmpi-dev
             - openmpi-bin
-            - swig
-            - python3-mpi4py
       before_script:
         - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
         - cp -R ./TestData/* ./TestCases/
@@ -60,12 +54,9 @@ matrix:
         apt:
           packages:
             - build-essential
-            - python3-numpy
-            - python3-scipy
+            - swig
             - libopenmpi-dev
             - openmpi-bin
-            - swig
-            - python3-mpi4py
       before_script:
         - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
         - cp -R ./TestData/* ./TestCases/
@@ -80,12 +71,9 @@ matrix:
         apt:
           packages:
             - build-essential
-            - python3-numpy
-            - python3-scipy
+            - swig
             - libopenmpi-dev
             - openmpi-bin
-            - swig
-            - python3-mpi4py
             - libboost-test-dev
       before_script:
         - echo `which python`
@@ -99,12 +87,9 @@ matrix:
         apt:
           packages:
             - build-essential
-            - python3-numpy
-            - python3-scipy
+            - swig
             - libopenmpi-dev
             - openmpi-bin
-            - swig
-            - python3-mpi4py
             - libboost-test-dev
       before_script:
         - echo `which python`
@@ -112,9 +97,21 @@ matrix:
         - ./ninja -C $MESON_BUILD_DIR test
 
 before_install:
-    # Temporarily fixes Travis CI issue with paths for Python packages
-    - export PATH=/usr/bin:$PATH
-    - sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+    - echo `which python`
+    - echo `which python3`
+    - echo `python3 --version`
+    - python3 -m venv $HOME/.pyenv
+    - source $HOME/.pyenv/bin/activate
+    - echo `which python`
+    - pip install --upgrade pip
+    - pip install setuptools
+    - pip install numpy
+    - pip install scipy
+    - pip install wheel
+    - export MPICC=`which mpicc`
+    - export MPICXX=`which mpicxx`
+    - pip install mpi4py
+
     # to avoid interference with MPI
     - test -n $CC  && unset CC
     - test -n $CXX && unset CXX
