@@ -10,8 +10,6 @@ language: c++
 # Can't cache pip directly (using "- pip") with language = c++
 cache:
     - ccache
-    - directories:
-      - $HOME/.cache/pip
 
 compiler:
     - gcc
