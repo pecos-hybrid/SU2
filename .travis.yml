@@ -39,6 +39,7 @@ matrix:
             - swig
             - libopenmpi-dev
             - openmpi-bin
+            - python3-venv
       before_script:
         - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
         - cp -R ./TestData/* ./TestCases/
@@ -57,6 +58,7 @@ matrix:
             - swig
             - libopenmpi-dev
             - openmpi-bin
+            - python3-venv
       before_script:
         - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
         - cp -R ./TestData/* ./TestCases/
@@ -75,6 +77,7 @@ matrix:
             - libopenmpi-dev
             - openmpi-bin
             - libboost-test-dev
+            - python3-venv
       before_script:
         - echo `which python`
       script:
@@ -91,6 +94,7 @@ matrix:
             - libopenmpi-dev
             - openmpi-bin
             - libboost-test-dev
+            - python3-venv
       before_script:
         - echo `which python`
       script:
