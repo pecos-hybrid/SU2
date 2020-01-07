@@ -81,8 +81,8 @@ matrix:
         - ./ninja -C $MESON_BUILD_DIR test
     - env:
         # Serial build and unit-test with autotools
-        - CONFIGURE_COMMAND="./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-        - INSTALL_COMMAND="./bootstrap && make install -j 4"
+        - CONFIGURE_COMMAND="bootstrap && ./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
+        - INSTALL_COMMAND="make install -j 4"
       before_script:
         - echo `which python`
       script:
@@ -90,8 +90,8 @@ matrix:
         - make check -j4
     - env:
         # Parallel build and unit-test with autotools
-        - CONFIGURE_COMMAND="./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
-        - INSTALL_COMMAND="./bootstrap && make install -j 4"
+        - CONFIGURE_COMMAND="./bootstrap && ./preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR --with-Boost-include=/usr/include/ --disable-tecio"
+        - INSTALL_COMMAND="make install -j 4"
       before_script:
         - echo `which python`
       script:
