@@ -52,7 +52,7 @@ namespace resolution_tensor_test {
  *  Functions for Grid Setup
  * --------------------------------------------------------------------------*/
 
-void WriteGradientMeshFile () {
+void WriteGradientMeshFile (const char* mesh_filename) {
   /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim, kDim;
@@ -76,7 +76,7 @@ void WriteGradientMeshFile () {
     kDim = 5;
 
     /*--- Open .su2 grid file ---*/
-    Mesh_File.open("test.su2", ios::out);
+    Mesh_File.open(mesh_filename, ios::out);
     Mesh_File << fixed << setprecision(15);
 
     /*--- Write the dimension of the problem and the number of interior elements ---*/
@@ -216,7 +216,7 @@ void WriteGradientMeshFile () {
     Mesh_File.close();
 }
 
-void WriteQuadMeshFile () {
+void WriteQuadMeshFile (const char* mesh_filename) {
   /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim;
@@ -241,7 +241,7 @@ void WriteQuadMeshFile () {
     ySpacing = 2.0;
 
     /*--- Open .su2 grid file ---*/
-    Mesh_File.open("test.su2", ios::out);
+    Mesh_File.open(mesh_filename, ios::out);
     Mesh_File << fixed << setprecision(15);
 
     /*--- Write the dimension of the problem and the number of interior elements ---*/
@@ -328,7 +328,7 @@ void WriteQuadMeshFile () {
     Mesh_File.close();
 }
 
-void WriteTriangleMeshFile () {
+void WriteTriangleMeshFile (const char* mesh_filename) {
   /*--- Local variables ---*/
     int KindElem, KindBound;
     int iElem, nNode, mNode;
@@ -345,7 +345,7 @@ void WriteTriangleMeshFile () {
 
     /*--- Open .su2 grid file ---*/
     Mesh_File.precision(15);
-    Mesh_File.open("test.su2", ios::out);
+    Mesh_File.open(mesh_filename, ios::out);
 
     /*--- Write the dimension of the problem and the number of interior elements ---*/
     Mesh_File << "%" << endl;
@@ -420,7 +420,7 @@ void WriteTriangleMeshFile () {
     Mesh_File.close();
 }
 
-void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) {
+void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z, const char* mesh_filename) {
     /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim, kDim;
@@ -441,7 +441,7 @@ void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) 
     kDim = 4;
 
     /*--- Open .su2 grid file ---*/
-    Mesh_File.open("test.su2", ios::out);
+    Mesh_File.open(mesh_filename, ios::out);
     Mesh_File << fixed << setprecision(15);
 
     /*--- Write the dimension of the problem and the number of interior elements ---*/
@@ -583,10 +583,11 @@ void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) 
     Mesh_File.close();
 }
 
-void WriteCfgFile(unsigned short nDim, const char* filename) {
+void WriteCfgFile(unsigned short nDim, const char* cfg_filename,
+                  const char* mesh_filename) {
   std::ofstream cfg_file;
 
-  cfg_file.open(filename, ios::out);
+  cfg_file.open(cfg_filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
   cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
@@ -595,7 +596,7 @@ void WriteCfgFile(unsigned short nDim, const char* filename) {
     cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
   else
     cfg_file << "MARKER_FAR= ( top bottom back front left right )"  << std::endl;
-  cfg_file << "MESH_FILENAME= test.su2" << std::endl;
+  cfg_file << "MESH_FILENAME= " << mesh_filename << std::endl;
   cfg_file << "MESH_FORMAT= SU2" << std::endl;
 
   cfg_file.close();
@@ -615,9 +616,9 @@ struct ResolutionFixture {
     delete config;
   }
 
-  void SetupConfig(unsigned short nDim) {
+  void SetupConfig(unsigned short nDim, const char* mesh_filename) {
     char cfg_filename[100] = "resolution_tensor_test.cfg";
-    WriteCfgFile(nDim, cfg_filename);
+    WriteCfgFile(nDim, cfg_filename, mesh_filename);
     config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
     std::remove(cfg_filename);
   }
@@ -659,8 +660,8 @@ BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 2;
-  WriteTriangleMeshFile();
-  SetupConfig(nDim);
+  WriteTriangleMeshFile("triangle_test.su2");
+  SetupConfig(nDim, "triangle_test.su2");
   SetupGeometry();
 
   unsigned short iPoint;
@@ -677,14 +678,16 @@ BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
     BOOST_CHECK_SMALL(Mij[0][1] - 0.0, machine_eps);
     BOOST_CHECK_SMALL(Mij[1][1] - 0.5, machine_eps);
   }
+
+  std::remove("triangle_test.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(Quads_Test, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 2;
-  WriteQuadMeshFile();
-  SetupConfig(nDim);
+  WriteQuadMeshFile("quad_test.su2");
+  SetupConfig(nDim, "quad_test.su2");
   SetupGeometry();
 
   unsigned short iPoint;
@@ -701,14 +704,15 @@ BOOST_FIXTURE_TEST_CASE(Quads_Test, ResolutionFixture) {
     BOOST_CHECK_SMALL(Mij[0][1] - 0.0, machine_eps);
     BOOST_CHECK_SMALL(Mij[1][1] - 2.0, machine_eps);
   }
+  std::remove("quad_test.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(Gradients_Test, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteGradientMeshFile();
-  SetupConfig(nDim);
+  WriteGradientMeshFile("gradient_test.su2");
+  SetupConfig(nDim, "gradient_test.su2");
   SetupGeometry();
 
   /**
@@ -788,14 +792,16 @@ BOOST_FIXTURE_TEST_CASE(Gradients_Test, ResolutionFixture) {
       }
     }
   }
+
+  std::remove("gradient_test.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile(3,2,1);
-  SetupConfig(nDim);
+  WriteHexMeshFile(3,2,1, "hex_mesh.su2");
+  SetupConfig(nDim, "hex_mesh.su2");
   SetupGeometry();
 
   geometry->SetResolutionTensor(config);
@@ -824,14 +830,16 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
       BOOST_CHECK_CLOSE_FRACTION(Mij[2][2], 1.0, machine_eps);
     }
   }
+
+  std::remove("hex_mesh.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile(3, 2, 1);
-  SetupConfig(nDim);
+  WriteHexMeshFile(3, 2, 1, "hex_mesh_2.cfg");
+  SetupConfig(nDim, "hex_mesh_2.cfg");
   SetupGeometry();
 
   geometry->SetResolutionTensor(config);
@@ -860,14 +868,16 @@ BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
       BOOST_CHECK_CLOSE_FRACTION(M43[2][2], 1.0, machine_eps);
     }
   }
+
+  std::remove("hex_mesh_2.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(ResolutionConstantEqualsOneForIsotropic, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile(1, 1, 1);
-  SetupConfig(nDim);
+  WriteHexMeshFile(1, 1, 1, "hex_mesh_isotropic.su2");
+  SetupConfig(nDim, "hex_mesh_isotropic.su2");
   SetupGeometry();
 
   geometry->SetResolutionTensor(config);
@@ -881,14 +891,16 @@ BOOST_FIXTURE_TEST_CASE(ResolutionConstantEqualsOneForIsotropic, ResolutionFixtu
     const su2double tolerance = 0.00000000001;
     BOOST_CHECK_SMALL(C_M - 1, tolerance);
   }
+
+  std::remove("hex_mesh_isotropic.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile(3, 2, 1);
-  SetupConfig(nDim);
+  WriteHexMeshFile(3, 2, 1, "hex_mesh_aniso.su2");
+  SetupConfig(nDim, "hex_mesh_aniso.su2");
   SetupGeometry();
 
   geometry->SetResolutionTensor(config);
@@ -903,6 +915,7 @@ BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
     const su2double tolerance = 0.00000000001;
     BOOST_CHECK_CLOSE_FRACTION(C_M, correct_value, tolerance);
   }
+  std::remove("hex_mesh_aniso.su2");
 }
 
 BOOST_AUTO_TEST_SUITE_END();

@@ -107,9 +107,10 @@ struct HybridRdeltaFixture {
 
   ~HybridRdeltaFixture() {
     delete mock_mediator;
-    delete mock_var_array[1];
-    delete mock_var_array[0];
-    delete mock_var_array;
+    for (unsigned short ii=0; ii < 3; ii++) {
+      if (mock_var_array[ii] != NULL) delete mock_var_array[ii];
+    }
+    delete [] mock_var_array;
     delete mock_config;
   }
 

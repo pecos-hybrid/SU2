@@ -133,6 +133,7 @@ class TestRunner {
   su2double coord_i[nDim], coord_j[nDim];
   su2double normal[nDim];
   su2double** primvar_grad;
+  su2double** turbvar_grad;
   su2double primvar[nPrimVar];
   su2double secvar[nSecVar];
 };
@@ -163,6 +164,14 @@ TestRunner::TestRunner(CConfig* config)
     primvar_grad[iVar] = new su2double[nDim];
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       primvar_grad[iVar][iDim] = 0.0;
+    }
+  }
+
+  turbvar_grad = new su2double*[1];
+  for (unsigned short iVar = 0; iVar < 1; iVar++) {
+    turbvar_grad[iVar] = new su2double[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      turbvar_grad[iVar][iDim] = 0.0;
     }
   }
 
@@ -202,6 +211,11 @@ TestRunner::~TestRunner() {
     delete [] primvar_grad[iVar];
   }
   delete [] primvar_grad;
+
+  for (unsigned short iVar = 0; iVar < 1; iVar++) {
+    delete [] turbvar_grad[iVar];
+  }
+  delete [] turbvar_grad;
 }
 
 void TestRunner::Run(CNumerics* numerics, su2double* residual_i,
@@ -216,6 +230,7 @@ void TestRunner::Run(CNumerics* numerics, su2double* residual_i,
   numerics->SetPrimitive(primvar, primvar);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(turb_ke, turb_ke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
 
   // Compute the residual and jacobians
 
