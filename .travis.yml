@@ -7,7 +7,7 @@ sudo: required
 # Language = c or c++ is necessary for easy use of ccache and Travis caching
 language: c++
 
-# Can't cache pip directly (using "- pip") with language = c++
+# Pip caching is not necessary.  It only saves a few seconds total.
 cache:
     - ccache
 
@@ -33,6 +33,7 @@ addons:
     - libopenmpi-dev
     - openmpi-bin
     - python3-venv
+    - libboost-test-dev
 
 matrix:
   include:
@@ -62,10 +63,6 @@ matrix:
         # Serial build and unit-test
         - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
         - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled -Denable-boost-utf=true"
-      addons:
-        apt:
-          packages:
-            - libboost-test-dev
       before_script:
         - echo `which python`
       script:
@@ -74,10 +71,6 @@ matrix:
         # Parallel build and unit-test
         - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
         - CONFIGURE_COMMAND="./meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Denable-boost-utf=true"
-      addons:
-        apt:
-          packages:
-            - libboost-test-dev
       before_script:
         - echo `which python`
       script:
@@ -110,7 +103,7 @@ install:
     - ./ninja -C $MESON_BUILD_DIR install
 
     # Add environmental variables according to the configure step
-    - export SU2_RUN=$MESON_BUILD_DIR/bin
+    - export SU2_RUN=$TRAVIS_BUILD_DIR/bin
     - export SU2_HOME=$TRAVIS_BUILD_DIR
     - export PATH=$PATH:$SU2_RUN
     - export PYTHONPATH=$PYTHONPATH:$SU2_RUN
