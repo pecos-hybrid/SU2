@@ -26,11 +26,14 @@ Note that the following guide works only on Linux/MacOS and on Windows using Cyg
     - [Compiler optimizations](#compiler-optimizations)
     - [Warning level](#warning-level)
     - [Linear algebra options](#linear-algebra-options)
+    - [Setting the compiler](#setting-the-compiler)
   - [Compilation](#compilation)
+  - [Running Unit Tests](#running-unit-tests)
   - [Setting environment variables](#setting-environment-variables)
 - [Troubleshooting](#troubleshooting)
   - [MPI installation is not found](#mpi-installation-is-not-found)
   - [mpi4py library is not found](#mpi4py-library-is-not-found)
+  - [MKL is not found](#mkl-is-not-found)
 
 ---
 
@@ -47,12 +50,12 @@ Short summary of the minimal requirements:
 
 If you have these tools installed, you can create a configuration using the `meson.py` found in the root source code folder:
 ```
-./meson.py build
+./meson.py builddir
 ```
 Use `ninja` to compile and install the code
 
 ```
-./ninja -C build install
+./ninja -C builddir install
 ```
 ---
 
@@ -172,7 +175,7 @@ For large structural FEA problems on highly anisotropic grids iterative linear s
 
 **Note:** The BLAS library needs to provide support for LAPACK functions.
 
-#### Setting the compiler
+#### Setting the compiler ####
 
 The preferred way to specify the compiler in meson is to use the `CC` and `CXX` environmental variables.  For example, if `'ccache mpicc'` is the C compiler and `'ccache mpicxx'` is the C++ compiler, then the meson command `meson builddir` would be replaced by:
 
@@ -194,9 +197,10 @@ ninja -C builddir
 ninja -C builddir test
 ninja -C builddir install
 ```
+This will compile, run unit tests, and then install SU2 in successive commands.
 
 
-### Running unit tests ###
+### Running Unit Tests ###
 
 Meson and ninja together offer a simple unit testing framework, very similar to that offered by autotools.  To compile and run the unit tests, just build `test` as a target:
 
@@ -204,7 +208,7 @@ Meson and ninja together offer a simple unit testing framework, very similar to 
 ninja -C builddir test
 ```
 
-Note that unlike autotools and its `make check`, `check` is not a valid meson build target.
+While autotools has the target `check` (e.g. `make check`), the target `check` is not a valid meson build target.
 
 
 ### Setting environment variables ###
@@ -233,4 +237,3 @@ export PKG_CONFIG_PATH=$MKLROOT/bin/pkgconfig
 ```
 
 Note that the pkg-config path is one of the variables cached by meson.  That means you'll need to clear your cache every time you change the pkg-config path.  Otherwise, pkg-config will fail to recognize the updated `PKG_CONFIG_PATH`. You can clear the meson build cache by typing `meson configure --clearcache builddir` or deleting the entire build directory.
-
