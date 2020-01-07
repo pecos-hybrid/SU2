@@ -4,6 +4,7 @@
 dist: xenial
 sudo: required
 
+# Language = c or c++ is necessary for easy use of ccache and Travis caching
 language: c++
 
 cache:
@@ -24,6 +25,9 @@ branches:
     only:
         - pecos-dev
         - meson-build-system
+
+python:
+    - 3.6
 
 matrix:
   include:
@@ -101,6 +105,7 @@ matrix:
         - ./ninja -C $MESON_BUILD_DIR test
 
 before_install:
+    # Since language is not `python`, we need to create our own virtualenv
     - echo `which python`
     - echo `which python3`
     - echo `python3 --version`
