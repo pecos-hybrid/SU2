@@ -5011,6 +5011,11 @@ void CGeneralAvgGrad_Flow::SetHeatFluxVector(const su2double* const *val_gradpri
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     heat_flux_vector[iDim] = heat_flux_factor*val_gradprimvar[0][iDim];
   }
+
+  // FIXME: TKE diffusion has not been implemented.
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    TKE_diffusion[iDim] = 0.0;
+  }
 }
 
 void CGeneralAvgGrad_Flow::SetHeatFluxJacobian(const su2double *val_Mean_PrimVar,
