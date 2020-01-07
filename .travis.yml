@@ -81,7 +81,7 @@ matrix:
         - ./ninja -C $MESON_BUILD_DIR test
     - env:
         # Serial build and unit-test with autotools
-        - CONFIGURE_COMMAND="bootstrap && ./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-boost-utf=/usr/ --disable-tecio"
+        - CONFIGURE_COMMAND="./bootstrap && ./preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-boost-utf=/usr/ --disable-tecio"
         - INSTALL_COMMAND="make install -j 4"
       before_script:
         - echo `which python`
