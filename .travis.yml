@@ -28,9 +28,8 @@ addons:
   apt:
     update: true
     packages:
-    - python3.6-dev
-    - python3.6-venv
     - build-essential
+    - python-dev
     - swig
     - libopenmpi-dev
     - openmpi-bin
