@@ -22,7 +22,7 @@ notifications:
 branches:
     only:
         - pecos-dev
-        - meson-build-system
+        - pecos-add-k-diffusion
 
 addons:
   apt:
