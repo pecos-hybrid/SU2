@@ -36,14 +36,14 @@
 check_PROGRAMS  =
 TESTS  =
 
-if HAVE_BOOST
+if HAVE_BOOST_UTF
 check_PROGRAMS += test_driver
 endif
 
 # Eventually these will likely be required
-AM_CPPFLAGS = -I$(top_srcdir)/Common/include @LAPACK_CXX@ @BOOST_CXX@
-LDADD = $(top_builddir)/Common/lib/libSU2.a @LAPACK_LD@ @BOOST_LD@
-LDADD +=  
+AM_CPPFLAGS = -I$(top_srcdir)/Common/include @LAPACK_CXX@ @BOOST_CPPFLAGS@
+LDADD = $(top_builddir)/Common/lib/libSU2.a @LAPACK_LD@ @BOOST_UNIT_TEST_FRAMEWORK_LIB@
+LDADD += @BOOST_LDFLAGS@ 
 if BUILD_LAPACK
 LDFLAGS  += -mkl
 endif
@@ -53,7 +53,7 @@ AM_CPPFLAGS += @su2_externals_INCLUDES@
 LDADD += @su2_externals_LIBS@
 
 # Test sources
-if HAVE_BOOST
+if HAVE_BOOST_UTF
 test_driver_SOURCES = unit_test_config.cpp \
 			     main.cpp
 if BUILD_LAPACK
@@ -62,7 +62,7 @@ endif
 endif
 
 # Tests to be run
-if HAVE_BOOST
+if HAVE_BOOST_UTF
 TESTS += test_driver
 endif
 

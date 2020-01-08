@@ -81,17 +81,16 @@ matrix:
     #     - ./ninja -C $MESON_BUILD_DIR test
     - env:
         # Serial build and unit-test with autotools
-        - CONFIGURE_COMMAND="python preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-boost-utf-include=/usr/include/ --with-boost-utf-lib=/usr/lib/ --disable-tecio"
+        - CONFIGURE_COMMAND="python preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-boost=yes --with-boost-unit-test-framework=yes --disable-tecio"
         - INSTALL_COMMAND="make install -j 4"
       before_script:
         - echo `which python`
-        - echo `locate libboost_unit_test_framework.so`
       script:
         - cd $TRAVIS_BUILD_DIR
         - make check -j4
     - env:
         # Parallel build and unit-test with autotools
-        - CONFIGURE_COMMAND="python preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR  --with-boost-utf-include=/usr/include/ --with-boost-utf-lib=/usr/lib/ --disable-tecio"
+        - CONFIGURE_COMMAND="python preconfigure.py --enable-mpi --with-cc=mpicc --with-cxx=mpicxx --prefix=$TRAVIS_BUILD_DIR  --with-boost=yes --with-boost-unit-test-framework=yes --disable-tecio"
         - INSTALL_COMMAND="make install -j 4"
       before_script:
         - echo `which python`

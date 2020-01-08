@@ -42,7 +42,7 @@ check_PROGRAMS += eigensolver_test
 check_PROGRAMS += zeta_unit_cell_test
 check_PROGRAMS += zeta_transform_test
 endif
-if HAVE_BOOST
+if HAVE_BOOST_UTF
 check_PROGRAMS += test_driver
 endif
 
@@ -51,7 +51,7 @@ AM_CPPFLAGS =
 AM_CPPFLAGS += -I$(top_srcdir)/Common/include
 AM_CPPFLAGS += -I$(top_srcdir)/Common/test
 AM_CPPFLAGS += -I$(top_srcdir)/SU2_CFD/include
-AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ @BOOST_CXX@
+AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ @BOOST_CPPFLAGS@
 
 #AM_LDFLAGS = 
 #LIBS = 
@@ -59,7 +59,8 @@ AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ @BOOST_CXX@
 LDADD  =
 LDADD += $(top_builddir)/SU2_CFD/obj/libSU2Core.a
 LDADD += $(top_builddir)/Common/lib/libSU2.a
-LDADD += @su2_externals_LIBS@ @LAPACK_LD@ @BOOST_LD@
+LDADD += @su2_externals_LIBS@ @LAPACK_LD@ @BOOST_UNIT_TEST_FRAMEWORK_LIB@
+LDFLAGS = @BOOST_LDFLAGS@
 if BUILD_LAPACK
 LDFLAGS  += -mkl
 endif
@@ -71,7 +72,7 @@ eigensolver_test_SOURCES               = eigensolver_test.cpp
 zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
 zeta_transform_test_SOURCES            = zeta_transform_test.cpp
 endif
-if HAVE_BOOST
+if HAVE_BOOST_UTF
 test_driver_SOURCES = convective_blending_test.cpp \
                       hybrid_rdelta_test.cpp \
                       fluctuating_stress_test.cpp \
@@ -93,7 +94,7 @@ TESTS += eigensolver_test
 TESTS += zeta_unit_cell_test
 TESTS += zeta_transform_test
 endif
-if HAVE_BOOST
+if HAVE_BOOST_UTF
 TESTS += test_driver
 endif
 
