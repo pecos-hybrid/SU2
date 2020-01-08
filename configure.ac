@@ -162,9 +162,12 @@ AC_ARG_ENABLE(complex,
 AC_ARG_ENABLE(normal,
     AS_HELP_STRING([--disable-normal], [build executables with normal datatype (default = yes)]),
     [build_NORMAL=$enableval], [build_NORMAL="yes"])
-AC_ARG_WITH(boost-utf,
-    AS_HELP_STRING([--with-boost-utf], [Enable Boost unit testing framework (default = no)]),
-    [with_boost_utf=$withval], [with_boost_utf="no"])
+AC_ARG_WITH(boost-utf-include,
+    AS_HELP_STRING([--with-boost-utf-include], [Boost include directory, ARG = path to Boost headers]),
+    [with_boost_utf_include=$withval], [with_boost_utf_include="no"])
+AC_ARG_WITH(boost-utf-lib,
+    AS_HELP_STRING([--with-boost-utf-lib], [Boost library directory, ARG = path to Boost libraries]),
+    [with_boost_utf_lib=$withval], [with_boost_utf_lib="no"])
 
 
 # Check for the old  MPI option so that we can throw an error
@@ -456,18 +459,40 @@ AC_SUBST([JSONCPP_LD])
 # check Boost include folder for correctness
 Boostheader=boost/test/unit_test.hpp
 have_Boost="no"
-if test "$with_boost_utf" != "no"
+if test "$with_boost_utf_include" != "no"
 then
-    AC_CHECK_FILE([$with_boost_utf/include/$Boostheader],[have_Boost='yes'],[have_Boost='no'])
+    AC_CHECK_FILE([$with_boost_utf_include/$Boostheader],[have_Boost='yes'],[have_Boost='no'])
     if test "$have_Boost" == "no"
     then
         AC_MSG_ERROR([Boost include folder specified but header file not found.])
     fi
     have_Boost="yes"
-    BOOST_CXX="-I"$with_boost_utf"/include"
-    BOOST_LD="-L"$with_boost_utf"/lib -lboost_unit_test_framework-mt-d-x64"
+    BOOST_CXX="-I"$with_boost_utf_include
 else
     BOOST_CXX=""
+fi
+
+Boostlibsimple=boost_unit_test_framework
+Boostlibmt=boost_unit_test_framework-mt-d-x64
+have_Boost="yes"
+if test "$with_boost_utf_lib" != "no"
+then
+    AC_CHECK_FILE([$with_boost_utf_lib/lib${Boostlibsimple}.so],[have_Boost='yes'],[have_Boost='no'])
+    if test "$have_Boost" == "yes"
+    then
+        Boostlib=$Boostlibsimple
+    else
+        AC_CHECK_FILE([$with_boost_utf_lib/lib${Boostlibmt}.so],[have_Boost='yes'],[have_Boost='no'])
+        if test "$have_Boost" == "yes"
+        then
+            Boostlib=$Boostlibmt
+        else
+            AC_MSG_ERROR([Boost lib folder specified but libraries not found.])
+        fi
+    fi
+    have_Boost="yes"
+    BOOST_LD="-L"$with_boost_utf_lib" -l"$Boostlib
+else
     BOOST_LD=""
 fi
 
