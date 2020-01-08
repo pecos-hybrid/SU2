@@ -98,6 +98,10 @@ matrix:
         - cd $TRAVIS_BUILD_DIR
         - make check -j4
 
+env:
+    global:
+        CXXFLAGS="-O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-empty-body -Wno-format-security"
+
 before_install:
     # Since the language is not `python`, we need to create our own virtualenv
     - echo `which python`
