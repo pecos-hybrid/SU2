@@ -477,18 +477,12 @@ Boostlibmt=boost_unit_test_framework-mt-d-x64
 have_Boost="yes"
 if test "$with_boost_utf_lib" != "no"
 then
-    AC_CHECK_FILE([$with_boost_utf_lib/lib${Boostlibsimple}.so],[have_Boost='yes'],[have_Boost='no'])
+    AC_CHECK_FILE([$with_boost_utf_lib/lib${Boostlibmt}.so],[have_Boost='yes'],[have_Boost='no'])
     if test "$have_Boost" == "yes"
     then
-        Boostlib=$Boostlibsimple
+        Boostlib=$Boostlibmt
     else
-        AC_CHECK_FILE([$with_boost_utf_lib/lib${Boostlibmt}.so],[have_Boost='yes'],[have_Boost='no'])
-        if test "$have_Boost" == "yes"
-        then
-            Boostlib=$Boostlibmt
-        else
-            AC_MSG_ERROR([Boost lib folder specified but libraries not found.])
-        fi
+        Boostlib=$Boostlibsimple
     fi
     have_Boost="yes"
     BOOST_LD="-L"$with_boost_utf_lib" -l"$Boostlib
