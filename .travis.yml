@@ -101,14 +101,14 @@ matrix:
 before_install:
     # Since the language is not `python`, we need to create our own virtualenv
     - echo `which python`
+    - echo `python -V`
     - echo `which pip`
     - echo `which python-config`
     # Create a new virtualenv
     - cd $TRAVIS_BUILD_DIR
-    - pyenv virtualenv 3.6 su2_venv
-    - pyenv local su2_venv
-    - pyenv activate su2_venv
+    - pyenv global 3.6
     - echo `which python`
+    - echo `python -V`
     - echo `which pip`
     - echo `which python-config`
     # Use pip to install packages
