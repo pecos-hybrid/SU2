@@ -28,7 +28,6 @@ addons:
   apt:
     update: true
     packages:
-    - python3-dev
     - python3-venv
     - build-essential
     - swig
@@ -38,48 +37,48 @@ addons:
 
 matrix:
   include:
-    - env:
-        # Serial build and regression test
-        - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
-        - CONFIGURE_COMMAND="python meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled --optimization=2 --warnlevel=2"
-        - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
-        - TEST_SCRIPT=serial_regression.py
-      before_script:
-        - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
-        - cp -R ./TestData/* ./TestCases/
-        - cd TestCases
-      script:
-        - travis_wait 90 && python $TEST_SCRIPT
-    - env:
-        # Parallel build and regression test
-        - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
-        - CONFIGURE_COMMAND="python meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true --optimization=2 --warnlevel=2"
-        - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
-        - TEST_SCRIPT=parallel_regression.py
-      before_script:
-        - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
-        - cp -R ./TestData/* ./TestCases/
-        - cd TestCases
-      script:
-        - travis_wait 90 && python $TEST_SCRIPT
-    - env:
-        # Serial build and unit-test with meson
-        - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
-        - CONFIGURE_COMMAND="python meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled -Denable-boost-utf=true --optimization=2 --warnlevel=2"
-        - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
-      before_script:
-        - echo `which python`
-      script:
-        - ./ninja -C $MESON_BUILD_DIR test
-    - env:
-        # Parallel build and unit-test with meson
-        - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
-        - CONFIGURE_COMMAND="python meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Denable-boost-utf=true --optimization=2 --warnlevel=2"
-        - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
-      before_script:
-        - echo `which python`
-      script:
-        - ./ninja -C $MESON_BUILD_DIR test
+    # - env:
+    #     # Serial build and regression test
+    #     - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
+    #     - CONFIGURE_COMMAND="python meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled --optimization=2 --warnlevel=2"
+    #     - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
+    #     - TEST_SCRIPT=serial_regression.py
+    #   before_script:
+    #     - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+    #     - cp -R ./TestData/* ./TestCases/
+    #     - cd TestCases
+    #   script:
+    #     - travis_wait 90 && python $TEST_SCRIPT
+    # - env:
+    #     # Parallel build and regression test
+    #     - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
+    #     - CONFIGURE_COMMAND="python meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true --optimization=2 --warnlevel=2"
+    #     - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
+    #     - TEST_SCRIPT=parallel_regression.py
+    #   before_script:
+    #     - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+    #     - cp -R ./TestData/* ./TestCases/
+    #     - cd TestCases
+    #   script:
+    #     - travis_wait 90 && python $TEST_SCRIPT
+    # - env:
+    #     # Serial build and unit-test with meson
+    #     - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
+    #     - CONFIGURE_COMMAND="python meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Dwith-mpi=disabled -Denable-boost-utf=true --optimization=2 --warnlevel=2"
+    #     - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
+    #   before_script:
+    #     - echo `which python`
+    #   script:
+    #     - ./ninja -C $MESON_BUILD_DIR test
+    # - env:
+    #     # Parallel build and unit-test with meson
+    #     - MESON_BUILD_DIR="$TRAVIS_BUILD_DIR/build"
+    #     - CONFIGURE_COMMAND="python meson.py $MESON_BUILD_DIR --prefix=$TRAVIS_BUILD_DIR -Denable-pywrapper=true -Denable-boost-utf=true --optimization=2 --warnlevel=2"
+    #     - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
+    #   before_script:
+    #     - echo `which python`
+    #   script:
+    #     - ./ninja -C $MESON_BUILD_DIR test
     - env:
         # Serial build and unit-test with autotools
         - CONFIGURE_COMMAND="python preconfigure.py --prefix=$TRAVIS_BUILD_DIR --with-boost-utf=/usr/ --disable-tecio"
@@ -101,8 +100,13 @@ matrix:
 
 before_install:
     # Since the language is not `python`, we need to create our own virtualenv
-    - python3 -m venv $HOME/.pyenv
-    - source $HOME/.pyenv/bin/activate
+    - echo `pyenv versions`
+    - echo `pyenv install --list`
+    - echo `pyenv versions`
+    - echo `pyenv which pip`
+    - pyenv global 3.5.2
+    - pyenv virtualenv travis_pyenv
+    - pyenv local travis_pyenv
     - pip install --upgrade pip
     - pip install wheel
     - pip install numpy
