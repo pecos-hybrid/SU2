@@ -32,8 +32,9 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE hybrid_rdelta
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
+namespace utf = boost::unit_test;
 
 #include <cstdio> // std::remove
 #include <fstream>
@@ -46,7 +47,9 @@
 #include "../include/variable_structure_v2f.hpp"
 #include "../include/hybrid_RANS_LES_model.hpp"
 
-void WriteCfgFile(unsigned short nDim, const char* filename) {
+namespace hybrid_rdelta_test {
+
+static void WriteCfgFile(unsigned short nDim, const char* filename) {
   std::ofstream cfg_file;
 
   cfg_file.open(filename, ios::out);
@@ -55,9 +58,6 @@ void WriteCfgFile(unsigned short nDim, const char* filename) {
   cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
   cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
   cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
-  cfg_file << "HYBRID_RESOLUTION_INDICATOR= RDELTA_STRAIN_ONLY" << std::endl;
-  // This option is deprecated
-  // cfg_file << "HYBRID_MODEL_CONSTANT= 1.0" << std::endl;
   cfg_file.close();
 
 }
@@ -107,9 +107,10 @@ struct HybridRdeltaFixture {
 
   ~HybridRdeltaFixture() {
     delete mock_mediator;
-    delete mock_var_array[1];
-    delete mock_var_array[0];
-    delete mock_var_array;
+    for (unsigned short ii=0; ii < 3; ii++) {
+      if (mock_var_array[ii] != NULL) delete mock_var_array[ii];
+    }
+    delete [] mock_var_array;
     delete mock_config;
   }
 
@@ -124,7 +125,7 @@ struct HybridRdeltaFixture {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(HybridRDeltaTest);
 
 BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
@@ -148,7 +149,14 @@ BOOST_FIXTURE_TEST_CASE(ZeroGradientTrivial, HybridRdeltaFixture) {
 
 }
 
+// Decorators only supported in newer versions of Boost
+#if ((BOOST_VERSION / 100 % 1000) > 59)
+BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture,
+                        *utf::expected_failures(16)) {
+#else
+BOOST_AUTO_TEST_CASE_EXPECTED_FAILURES(Shear_dudy, 16)
 BOOST_FIXTURE_TEST_CASE(Shear_dudy, HybridRdeltaFixture) {
+#endif
 
   //------------------------------------------------------
   // Simplest possible case:
@@ -329,3 +337,7 @@ BOOST_FIXTURE_TEST_CASE(PureRotation, HybridRdeltaFixture) {
   BOOST_CHECK_EQUAL(mock_mediator->GetInvLengthScale(2,2),0.0);
 
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

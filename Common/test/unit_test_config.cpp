@@ -31,12 +31,14 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Unit_test_config
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
-#include "../../Common/test/MPI_global_fixture.hpp"
+#include "MPI_global_fixture.hpp"
+
 #include "../../Common/include/config_structure.hpp"
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(UnitTestConfig);
 
 BOOST_AUTO_TEST_CASE(Unit_Test_Config) {
 
@@ -47,3 +49,5 @@ BOOST_AUTO_TEST_CASE(Unit_Test_Config) {
 
   delete test_config;
 }
+
+BOOST_AUTO_TEST_SUITE_END();
