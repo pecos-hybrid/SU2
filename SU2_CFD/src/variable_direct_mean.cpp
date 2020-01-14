@@ -604,7 +604,7 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
 
     ForcingVector = new su2double[nDim];
 
-  ForcingVector = new su2double[nDim];
+    /*--- Initialize this here so that preprocessing can run properly ---*/
 
     ResolvedKineticEnergy = 0;
     SGSProduction = 0;
