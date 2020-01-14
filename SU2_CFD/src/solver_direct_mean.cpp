@@ -10629,9 +10629,12 @@ void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container,
         /*--- Turbulent kinetic energy ---*/
         
         if (config->GetKind_Turb_Model() == SST ||
-            config->GetKind_Turb_Model() == KE)
+            config->GetKind_Turb_Model() == KE) {
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                               solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                            solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+        }
 
         /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
         
@@ -11119,9 +11122,12 @@ void CEulerSolver::BC_Riemann(CGeometry *geometry, CSolver **solver_container,
         visc_numerics->SetSecondary(S_domain, S_boundary);
         
         /*--- Turbulent kinetic energy ---*/
-
-        if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE)
-          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+        if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
+          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
+                                              solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                            solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+        }
         
         /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
         
@@ -11633,9 +11639,12 @@ void CEulerSolver::BC_TurboRiemann(CGeometry *geometry, CSolver **solver_contain
           visc_numerics->SetSecondary(S_domain, S_boundary);
 
           /*--- Turbulent kinetic energy ---*/
-          
-          if (config->GetKind_Turb_Model() == SST)
-            visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
+            visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
+                                                solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+            visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                              solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+          }
 
           /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
           
@@ -12533,9 +12542,12 @@ void CEulerSolver::BC_Giles(CGeometry *geometry, CSolver **solver_container,
         visc_numerics->SetSecondary(S_domain, S_boundary);
         
         /*--- Turbulent kinetic energy ---*/
-        
-        if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE)
-          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+        if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
+          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
+                                              solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                            solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+        }
         
         /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
         
@@ -14205,9 +14217,12 @@ void CEulerSolver::BC_Fluid_Interface(CGeometry *geometry, CSolver **solver_cont
 
               /*--- Turbulent kinetic energy ---*/
 
-              if (config->GetKind_Turb_Model() == SST ||
-                  config->GetKind_Turb_Model() == KE)
-                visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+              if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
+                visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
+                                                    solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+                visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                                  solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+              }
 
               /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
               
@@ -18109,9 +18124,12 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
     
     /*--- Turbulent kinetic energy ---*/
     
-    if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE)
+    if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
       numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                      solver_container[TURB_SOL]->node[jPoint]->GetSolution(0));
+      numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                   solver_container[TURB_SOL]->node[jPoint]->GetGradient());
+    }
     
     /*--- Pass in relevant information from hybrid model ---*/
     if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
@@ -19969,9 +19987,12 @@ void CNSSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CN
         
         /*--- Turbulent kinetic energy ---*/
         
-        if (config->GetKind_Turb_Model() == SST)
+        if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                               solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                            solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+        }
 
 	/*--- Pass in relevant information from hybrid model ---*/
 	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {

@@ -3194,10 +3194,12 @@ class CAvgGrad_Base : public CNumerics {
   bool implicit;               /*!< \brief Implicit calculus. */
   su2double *heat_flux_vector, /*!< \brief Flux of total energy due to molecular and turbulent diffusion */
   *heat_flux_jac_i,            /*!< \brief Jacobian of the molecular + turbulent heat flux vector, projected onto the normal vector. */
+  *TKE_diffusion,              /*!< \brief Diffusion of TKE by molecular and turbulent forces. */
   **tau_jacobian_i;            /*!< \brief Jacobian of the viscous + turbulent stress tensor, projected onto the normal vector. */
   su2double *Mean_PrimVar,     /*!< \brief Mean primitive variables. */
   *PrimVar_i, *PrimVar_j,      /*!< \brief Primitives variables at point i and 1. */
   **Mean_GradPrimVar,          /*!< \brief Mean value of the gradient. */
+  **Mean_GradTurbVar,          /*!< \brief Mean value of the gradient of the turbulence variables. */
   Mean_Laminar_Viscosity,      /*!< \brief Mean value of the viscosity. */
   Mean_Eddy_Viscosity,         /*!< \brief Mean value of the eddy viscosity. */
   Mean_turb_ke,                /*!< \brief Mean value of the turbulent kinetic energy. */
@@ -3457,6 +3459,20 @@ public:
                            su2double val_eddy_viscosity,
                            su2double val_dist_ij,
                            const su2double *val_normal);
+
+  /*!
+   * \brief Set diffusion of total energy due to molecular diffusion and
+   * turbulent transport.
+   *
+   * \param[in] val_gradturbvar - Mean value of the gradient of the
+   *     turbulence variables.
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   */
+  void SetTKE_Diffusion(const su2double* const *val_gradturbvar,
+                        su2double val_laminar_viscosity,
+                        su2double val_eddy_viscosity);
+
 };
 
 /*!

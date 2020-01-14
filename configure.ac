@@ -139,9 +139,6 @@ AC_ARG_ENABLE(PY_WRAPPER,
 AC_ARG_ENABLE(normal,
     AS_HELP_STRING([--disable-normal], [build executables with normal datatype (default = yes)]),
     [build_NORMAL=$enableval], [build_NORMAL="yes"])
-AC_ARG_WITH(Boost-include,
-    AS_HELP_STRING([--with-Boost-include[=ARG]], [Boost include directory, ARG = path to ../boost/include]),
-    [with_Boost_include=$withval], [with_Boost_include="no"])
 
 
 # Check for the old MPI option so that we can throw an error
@@ -284,29 +281,15 @@ fi
 
 ##########################
 
-
-# check Boost include folder for correctness
-Boostheader=boost/test/included/unit_test_framework.hpp
-have_Boost="no"
-if test "$with_Boost_include" != "no"
-then
-    AC_CHECK_FILE([$with_Boost_include/$Boostheader],[have_Boost='yes'],[have_Boost='no'])
-    if test "$have_Boost" == "no"
-    then
-        AC_MSG_ERROR([Boost include folder specified but header file not found.])
-    fi
+AX_BOOST_BASE
+AX_BOOST_UNIT_TEST_FRAMEWORK
+if test x"$BOOST_UNIT_TEST_FRAMEWORK_LIB" != x; then
+  have_boost=yes
+  AM_CONDITIONAL(HAVE_BOOST_UTF, true)
 else
-    have_Boost="no"
+  have_boost=no
+  AM_CONDITIONAL(HAVE_BOOST_UTF, false)
 fi
-
-if test "$have_Boost" != "no"
-then
-    BOOST_CXX="-I"$with_Boost_include""
-else
-    BOOST_CXX=
-fi
-AM_CONDITIONAL([HAVE_BOOST],[test $have_Boost != "no"])
-AC_SUBST([BOOST_CXX])
 
 ##########################
 

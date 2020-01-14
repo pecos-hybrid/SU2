@@ -4828,6 +4828,12 @@ CAvgGrad_Base::CAvgGrad_Base(unsigned short val_nDim,
   for (iVar = 0; iVar < nPrimVar; iVar++)
     Mean_GradPrimVar[iVar] = new su2double [nDim];
 
+  /*--- We only need gradients of k, so just 1 turb var ---*/
+  const unsigned short nTurbVar = 1;
+  Mean_GradTurbVar = new su2double* [nTurbVar];
+  for (iVar = 0; iVar < nTurbVar; iVar++)
+    Mean_GradTurbVar[iVar] = new su2double [nDim];
+
   Edge_Vector = new su2double[nDim];
 
   if (correct_gradient) {
@@ -4843,6 +4849,8 @@ CAvgGrad_Base::CAvgGrad_Base(unsigned short val_nDim,
   heat_flux_vector = new su2double[nDim];
   heat_flux_jac_i = new su2double[nVar];
 
+  TKE_diffusion = new su2double[nDim];
+
 }
 
 CAvgGrad_Base::~CAvgGrad_Base() {
@@ -4853,6 +4861,10 @@ CAvgGrad_Base::~CAvgGrad_Base() {
   for (unsigned short iVar = 0; iVar < nPrimVar; iVar++)
     delete [] Mean_GradPrimVar[iVar];
   delete [] Mean_GradPrimVar;
+
+  for (unsigned short iVar = 0; iVar < 1; iVar++)
+    delete [] Mean_GradTurbVar[iVar];
+  delete [] Mean_GradTurbVar;
 
   if (tau_jacobian_i != NULL) {
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
@@ -4865,6 +4877,10 @@ CAvgGrad_Base::~CAvgGrad_Base() {
   }
   if (heat_flux_jac_i != NULL) {
     delete [] heat_flux_jac_i;
+  }
+
+  if (TKE_diffusion != NULL) {
+    delete [] TKE_diffusion;
   }
 
   delete [] Edge_Vector;
@@ -5208,31 +5224,31 @@ void CAvgGrad_Base::GetViscousProjFlux(const su2double *val_primvar,
     Flux_Tensor[1][0] = tau[0][0];
     Flux_Tensor[2][0] = tau[0][1];
     Flux_Tensor[3][0] = tau[0][0]*val_primvar[1] + tau[0][1]*val_primvar[2]+
-        heat_flux_vector[0];
+        heat_flux_vector[0] + TKE_diffusion[0];
     Flux_Tensor[0][1] = 0.0;
     Flux_Tensor[1][1] = tau[1][0];
     Flux_Tensor[2][1] = tau[1][1];
     Flux_Tensor[3][1] = tau[1][0]*val_primvar[1] + tau[1][1]*val_primvar[2]+
-        heat_flux_vector[1];
+        heat_flux_vector[1] + TKE_diffusion[1];
   } else {
     Flux_Tensor[0][0] = 0.0;
     Flux_Tensor[1][0] = tau[0][0];
     Flux_Tensor[2][0] = tau[0][1];
     Flux_Tensor[3][0] = tau[0][2];
     Flux_Tensor[4][0] = tau[0][0]*val_primvar[1] + tau[0][1]*val_primvar[2] + tau[0][2]*val_primvar[3] +
-        heat_flux_vector[0];
+        heat_flux_vector[0] + TKE_diffusion[0];
     Flux_Tensor[0][1] = 0.0;
     Flux_Tensor[1][1] = tau[1][0];
     Flux_Tensor[2][1] = tau[1][1];
     Flux_Tensor[3][1] = tau[1][2];
     Flux_Tensor[4][1] = tau[1][0]*val_primvar[1] + tau[1][1]*val_primvar[2] + tau[1][2]*val_primvar[3] +
-        heat_flux_vector[1];
+        heat_flux_vector[1] + TKE_diffusion[1];
     Flux_Tensor[0][2] = 0.0;
     Flux_Tensor[1][2] = tau[2][0];
     Flux_Tensor[2][2] = tau[2][1];
     Flux_Tensor[3][2] = tau[2][2];
     Flux_Tensor[4][2] = tau[2][0]*val_primvar[1] + tau[2][1]*val_primvar[2] + tau[2][2]*val_primvar[3] +
-        heat_flux_vector[2];
+        heat_flux_vector[2] + TKE_diffusion[2];
   }
   
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
@@ -5360,6 +5376,11 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
 
   unsigned short iVar, jVar, iDim;
 
+  const bool turbulent = (config->GetKind_Solver() == RANS) ||
+      (config->GetKind_Solver() == DISC_ADJ_RANS);
+  const bool tkeNeeded = (config->GetKind_Turb_Model() == SST ||
+                          config->GetKind_Turb_Model() == KE) && turbulent;
+
   /*--- Normalized normal vector ---*/
   
   Area = 0.0;
@@ -5403,6 +5424,13 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
       Mean_GradPrimVar[iVar][iDim] = 0.5*(PrimVar_Grad_i[iVar][iDim] + PrimVar_Grad_j[iVar][iDim]);
     }
   }
+  if (tkeNeeded) {
+    for (iVar = 0; iVar < 1; iVar++) {
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Mean_GradTurbVar[iVar][iDim] = 0.5*(TurbVar_Grad_i[iVar][iDim] + TurbVar_Grad_j[iVar][iDim]);
+      }
+    }
+  }
 
   /*--- Projection of the mean gradient in the direction of the edge ---*/
 
@@ -5433,6 +5461,16 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
 
   SetHeatFluxVector(Mean_GradPrimVar, Mean_Laminar_Viscosity,
                     Mean_Eddy_Viscosity);
+
+  if (tkeNeeded) {
+    SetTKE_Diffusion(Mean_GradTurbVar,
+                     Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+  } else {
+    // XXX: This could be zero-initialized in the class constructor.
+    for (iDim = 0; iDim < nDim; iDim++) {
+      TKE_diffusion[iDim] = 0.0;
+    }
+  }
 
   GetViscousProjFlux(Mean_PrimVar, Normal);
 
@@ -5482,6 +5520,16 @@ void CAvgGrad_Flow::SetHeatFluxVector(const su2double* const *val_gradprimvar,
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     heat_flux_vector[iDim] = heat_flux_factor*val_gradprimvar[0][iDim];
+  }
+}
+
+void CAvgGrad_Flow::SetTKE_Diffusion(const su2double* const *val_gradturbvar,
+                                     const su2double val_laminar_viscosity,
+                                     const su2double val_eddy_viscosity) {
+  const su2double sigma_k = 1.0;
+  const su2double diffusivity = val_laminar_viscosity + val_eddy_viscosity/sigma_k;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    TKE_diffusion[iDim] = diffusivity*val_gradturbvar[0][iDim];
   }
 }
 
@@ -5557,6 +5605,11 @@ void CGeneralAvgGrad_Flow::SetHeatFluxVector(const su2double* const *val_gradpri
   /*--- Gradient of primitive variables -> [Temp vel_x vel_y vel_z Pressure] ---*/
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     heat_flux_vector[iDim] = heat_flux_factor*val_gradprimvar[0][iDim];
+  }
+
+  // FIXME: TKE diffusion has not been implemented.
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    TKE_diffusion[iDim] = 0.0;
   }
 }
 

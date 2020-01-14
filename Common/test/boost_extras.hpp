@@ -1,6 +1,6 @@
 /*!
- * \file MPI_global_fixture.hpp
- * \brief This header defines a global fixture that allows use of MPI
+ * \file boost_extras.hpp
+ * \brief This header defines useful functions and macros for boost unit tests
  * \author C. Pederson
  * \version 4.3.0 "Cardinal"
  *
@@ -33,47 +33,8 @@
 
 #include <boost/test/unit_test.hpp>
 
-#ifdef HAVE_MPI
-#include <mpi.h>
+// If Boost isn't recent enough to support test info/context, ignore it
+#if ((BOOST_VERSION / 100 % 1000) < 59)
+#define BOOST_TEST_CONTEXT(X)
+#define BOOST_TEST_INFO(X)
 #endif
-
-/*
- * After including this header, include the line:
- *
- * BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
- *
- * to use this fixture in addition to any other fixtures.  This macro will
- * have file scope, affecting all tests and test suites in the current file.
- */
-
-// A fixture to automate setup/teardown of MPI.
-struct MPIGlobalFixture {
-
-  /**
-   * Setup MPI
-   *
-   * When this fixture is used, MPI will be setup whenever a test starts.
-   */
-  MPIGlobalFixture() {
-#ifdef HAVE_MPI
-  MPI_Init(NULL,NULL);
-  BOOST_TEST_MESSAGE("Calling MPI_Init...");
-#endif
-  }
-
-  /**
-   * Tear down MPI
-   *
-   * When this fixture is used, MPI will be finalize whenever a test starts.
-   * This will happen whether or not a particular test fails or throws an
-   * exception.  If the test is expected to call MPI_Abort or MPI_Finalize
-   * itself, you probably shouldn't use this fixture.
-   */
-  ~MPIGlobalFixture() {
-#ifdef HAVE_MPI
-  MPI_Finalize();
-  BOOST_TEST_MESSAGE("Calling MPI_Finalize...");
-#endif
-  }
-
-};

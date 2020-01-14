@@ -35,8 +35,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE LoadRestart
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <iostream>
 #include <string>
@@ -44,10 +44,9 @@
 #include "../include/solver_structure.hpp"
 #include "../include/solver_structure_v2f.hpp"
 
-// Setup MPI
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
-
 /*--- Constants used in all of the tests ---*/
+
+namespace load_heterogeneous_restart {
 
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim + 2;
@@ -148,6 +147,8 @@ struct HetergeneousRestartFixture {
   CGeometry** geometry;
   TestSolver* solver;
 };
+
+BOOST_AUTO_TEST_SUITE(LoadHeterogeneousRestart);
 
 BOOST_FIXTURE_TEST_CASE(ResolvedSolutionLoadsFromResolvedRestart,
                         HetergeneousRestartFixture) {
@@ -490,3 +491,7 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsResAdequacyFromHybridRestart,
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   BOOST_CHECK_CLOSE_FRACTION(actual_res_adequacy, res_adequacy, tolerance);
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

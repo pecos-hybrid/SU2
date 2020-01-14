@@ -31,9 +31,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Hybrid_Model
-#include "boost/test/included/unit_test.hpp"
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <limits>
 
@@ -41,10 +40,9 @@
 #include "../include/solver_structure.hpp"
 #include "../include/variable_structure.hpp"
 
-// Setup MPI
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+namespace forcing_test {
 
-void WriteCfgFile(const char* filename) {
+static void WriteCfgFile(const char* filename) {
   std::ofstream cfg_file;
 
   cfg_file.open(filename, ios::out);
@@ -226,6 +224,8 @@ struct ForcingFixture {
   CConfig* config;
 };
 
+BOOST_AUTO_TEST_SUITE(ForcingTest);
+
 /*--- PINCH POINT 1 ---*/
 BOOST_FIXTURE_TEST_CASE(ForcingTest, ForcingFixture) {
 
@@ -298,5 +298,9 @@ BOOST_FIXTURE_TEST_CASE(TargetForcing, ForcingFixture) {
   const su2double true_F_target = 49.324157965434289;
   const su2double tolerance = 1E-4;
   BOOST_CHECK_CLOSE_FRACTION(F_target, true_F_target, tolerance);
+
+}
+
+BOOST_AUTO_TEST_SUITE_END();
 
 }
