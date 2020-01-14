@@ -52,7 +52,6 @@ su2_cfd_src = files(['output_structure.cpp',
                      'hybrid_RANS_LES_forcing.cpp',
                      'hybrid_RANS_LES_model.cpp',
                      'variable_adjoint_mean.cpp',
-                     'variable_adjoint_mean_inc.cpp',
                      'variable_adjoint_turbulent.cpp',
                      'variable_adjoint_discrete.cpp',
                      'variable_adjoint_elasticity.cpp',
@@ -64,7 +63,10 @@ su2_cfd_src = files(['output_structure.cpp',
                      'variable_direct_turbulent_v2f.cpp',
                      'variable_direct_elasticity.cpp',
                      'variable_structure.cpp',
-                     'variable_template.cpp'])
+                     'variable_template.cpp',
+                     'data_manufactured_solutions.cpp',
+                     'driver_direct_multizone.cpp',
+                     'driver_direct_singlezone.cpp'])
 
 if get_option('enable-normal')
   su2_cfd_lib = static_library('SU2_CFD',
