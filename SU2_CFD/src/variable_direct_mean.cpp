@@ -562,45 +562,61 @@ CNSVariable::CNSVariable(void) : CEulerVariable() {
 
   ResolvedTurbStress = NULL;
   AnisoEddyViscosity = NULL;
-  ForcingVector = NULL;
+  TurbProduction = 0;
+  SGSProduction = 0;
   ResolutionAdequacy = 1;
+  AnisoEddyViscosity = new su2double*[nDim];
+  ResolvedTurbStress = new su2double*[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    AnisoEddyViscosity[iDim] = new su2double[nDim];
+    ResolvedTurbStress[iDim] = new su2double[nDim];
+    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+      AnisoEddyViscosity[iDim][jDim] = 0.0;
+      ResolvedTurbStress[iDim][jDim] = 0.0;
+    }
+  }
+  ForcingVector = new su2double[nDim];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    ForcingVector[iDim] = 0;
+  }
 }
 
 CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2double val_energy,
                          unsigned short val_nDim, unsigned short val_nvar,
                          CConfig *config) : CEulerVariable(val_density, val_velocity, val_energy, val_nDim, val_nvar, config) {
   
-  Temperature_Ref = config->GetTemperature_Ref();
-  Viscosity_Ref   = config->GetViscosity_Ref();
-  Viscosity_Inf   = config->GetViscosity_FreeStreamND();
-  Prandtl_Lam     = config->GetPrandtl_Lam();
-  Prandtl_Turb    = config->GetPrandtl_Turb();
-  
-  inv_TimeScale   = config->GetModVel_FreeStream() / config->GetRefLength();
-  Roe_Dissipation = 0.0;
-  Vortex_Tilting  = 0.0;
-  Tau_Wall        = -1.0;
+    Temperature_Ref = config->GetTemperature_Ref();
+    Viscosity_Ref   = config->GetViscosity_Ref();
+    Viscosity_Inf   = config->GetViscosity_FreeStreamND();
+    Prandtl_Lam     = config->GetPrandtl_Lam();
+    Prandtl_Turb    = config->GetPrandtl_Turb();
+    
+    inv_TimeScale   = config->GetModVel_FreeStream() / config->GetRefLength();
+    Roe_Dissipation = 0.0;
+    Vortex_Tilting  = 0.0;
 
+    ResolvedTurbStress = new su2double*[nDim];
+    AnisoEddyViscosity = new su2double*[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ResolvedTurbStress[iDim] = new su2double[nDim];
+      AnisoEddyViscosity[iDim] = new su2double[nDim];
+    }
 
-  ResolvedTurbStress = new su2double*[nDim];
-  AnisoEddyViscosity = new su2double*[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    ResolvedTurbStress[iDim] = new su2double[nDim];
-    AnisoEddyViscosity[iDim] = new su2double[nDim];
-  }
-
-  // Why Forcing_Stress?  Is this correct name?
-  if (config->isHybrid_Forced()) {
-    Forcing_Stress = new su2double*[nDim];
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      Forcing_Stress[iDim] = new su2double[nDim];
-  } else {
-    Forcing_Stress = NULL;
-  }
+    ForcingVector = new su2double[nDim];
 
   ForcingVector = new su2double[nDim];
 
-  /*--- Initialize this here so that preprocessing can run properly ---*/
+    ResolvedKineticEnergy = 0;
+    SGSProduction = 0;
+    ResolutionAdequacy = 1;
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        AnisoEddyViscosity[iDim][jDim] = 0.0;
+      }
+    }
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ForcingVector[iDim] = 0;
+    }
 
   ResolvedKineticEnergy = 0;
   ResolutionAdequacy = 1;
@@ -609,39 +625,39 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
 CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
                          unsigned short val_nvar, CConfig *config) : CEulerVariable(val_solution, val_nDim, val_nvar, config) {
   
-  Temperature_Ref = config->GetTemperature_Ref();
-  Viscosity_Ref   = config->GetViscosity_Ref();
-  Viscosity_Inf   = config->GetViscosity_FreeStreamND();
-  Prandtl_Lam     = config->GetPrandtl_Lam();
-  Prandtl_Turb    = config->GetPrandtl_Turb();
-  
-  inv_TimeScale   = config->GetModVel_FreeStream() / config->GetRefLength();
-  Roe_Dissipation = 0.0;
-  Vortex_Tilting  = 0.0;
-  Tau_Wall        = -1.0;
+    Temperature_Ref = config->GetTemperature_Ref();
+    Viscosity_Ref   = config->GetViscosity_Ref();
+    Viscosity_Inf   = config->GetViscosity_FreeStreamND();
+    Prandtl_Lam     = config->GetPrandtl_Lam();
+    Prandtl_Turb    = config->GetPrandtl_Turb();
+    
+    inv_TimeScale   = config->GetModVel_FreeStream() / config->GetRefLength();
+    Roe_Dissipation = 0.0;
+    Vortex_Tilting  = 0.0;
 
-  ResolvedTurbStress = new su2double*[nDim];
-  AnisoEddyViscosity = new su2double*[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    ResolvedTurbStress[iDim] = new su2double[nDim];
-    AnisoEddyViscosity[iDim] = new su2double[nDim];
-  }
+    ResolvedTurbStress = new su2double*[nDim];
+    AnisoEddyViscosity = new su2double*[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ResolvedTurbStress[iDim] = new su2double[nDim];
+      AnisoEddyViscosity[iDim] = new su2double[nDim];
+    }
 
-  // Why Forcing_Stress?  Is this correct name?
-  if (config->isHybrid_Forced()) {
-    Forcing_Stress = new su2double*[nDim];
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      Forcing_Stress[iDim] = new su2double[nDim];
-  } else {
-    Forcing_Stress = NULL;
-  }
-
-  ForcingVector = new su2double[nDim];
+    ForcingVector = new su2double[nDim];
 
   /*--- Initialize this here so that preprocessing can run properly ---*/
 
-  ResolvedKineticEnergy = 0;
-  ResolutionAdequacy = 1;
+    ResolvedKineticEnergy = 0;
+    SGSProduction = 0;
+    ResolutionAdequacy = 1;
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+        AnisoEddyViscosity[iDim][jDim] = 0.0;
+      }
+    }
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ForcingVector[iDim] = 0;
+    }
+    
 
 }
 
@@ -657,11 +673,6 @@ CNSVariable::~CNSVariable(void) {
       delete [] AnisoEddyViscosity[iDim];
     }
     delete [] AnisoEddyViscosity;
-  }
-  if (Forcing_Stress != NULL) {
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      delete [] Forcing_Stress[iDim];
-    delete [] Forcing_Stress;
   }
   if (ForcingVector != NULL) {
     delete [] ForcingVector;
@@ -774,6 +785,13 @@ void CNSVariable::SetRoe_Dissipation_NTS(su2double val_delta,
   Aaux = ch2*max((val_const_DES*val_delta/Lturb)/Gaux -  0.5, 0.0);
   
   Roe_Dissipation = sigma_max * tanh(pow(Aaux, ch1)); 
+
+  if (!( (Roe_Dissipation>=0) && (Roe_Dissipation<=1))) {
+    std::cout << "Temperature = " << GetTemperature() << std::endl;
+    std::cout << "Lturb = " << Lturb << ", Density = " << GetDensity() << std::endl;
+    std::cout << "nu = " << nu << ", nu_t = " << nu_t << std::endl;
+    std::cout << "Kaux = " << Kaux << std::endl;
+  }
   
   AD::SetPreaccOut(Roe_Dissipation);
   AD::EndPreacc();
@@ -839,32 +857,39 @@ bool CNSVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel
   check_sos   = SetSoundSpeed(FluidModel->GetSoundSpeed2());
   check_temp  = SetTemperature(FluidModel->GetTemperature());
   
+  if (check_temp) {
+    std::cout << "Encountered invalid temperature!" << std::endl;
+    std::cout << "T = " << FluidModel->GetTemperature() << std::endl;
+    std::cout << "rho = " << density << std::endl;
+    std::cout << "with E = " << GetEnergy() << ", V2 = " << Velocity2 << ", tke = " << turb_ke << std::endl;
+  }
+
   /*--- Check that the solution has a physical meaning ---*/
   
   if (check_dens || check_press || check_sos  || check_temp) {
     
-    /*--- Copy the old solution ---*/
+    // /*--- Copy the old solution ---*/
     
-    for (iVar = 0; iVar < nVar; iVar++)
-      Solution[iVar] = Solution_Old[iVar];
+    // for (iVar = 0; iVar < nVar; iVar++)
+    //   Solution[iVar] = Solution_Old[iVar];
     
-    /*--- Recompute the primitive variables ---*/
+    // /*--- Recompute the primitive variables ---*/
     
-    SetVelocity(); // Computes velocity and velocity^2
-    density = GetDensity();
-    staticEnergy = GetEnergy()-0.5*Velocity2 - turb_ke;
+    // SetVelocity(); // Computes velocity and velocity^2
+    // density = GetDensity();
+    // staticEnergy = GetEnergy()-0.5*Velocity2 - turb_ke;
     
-    /*--- Check will be moved inside fluid model plus error description strings ---*/
+    // /*--- Check will be moved inside fluid model plus error description strings ---*/
     
-    FluidModel->SetTDState_rhoe(density, staticEnergy);
+    // FluidModel->SetTDState_rhoe(density, staticEnergy);
     
-    SetDensity();
-    SetPressure(FluidModel->GetPressure());
-    SetSoundSpeed(FluidModel->GetSoundSpeed2());
-    SetTemperature(FluidModel->GetTemperature());
+    // SetDensity();
+    // SetPressure(FluidModel->GetPressure());
+    // SetSoundSpeed(FluidModel->GetSoundSpeed2());
+    // SetTemperature(FluidModel->GetTemperature());
     
     RightVol = false;
-    
+    return RightVol;
   }
   
   /*--- Set enthalpy ---*/

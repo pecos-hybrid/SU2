@@ -640,7 +640,7 @@ public:
   /*!
    * \brief Sets the resolution tensor for each control volume in the dual mesh.
    */
-  void SetResolutionTensor(void);
+  void SetResolutionTensor(CConfig *config);
 
   /*!
    * \brief Computes the gradients of the resolution tensor for each control
@@ -927,6 +927,8 @@ public:
     * \param[in] config - Definition of the particular problem.
     */
    virtual void Set_MPI_Coord(CConfig *config);
+
+   virtual void Set_MPI_Resolution_Tensor(CConfig *config);
 
    /*!
     * \brief A virtual member.
@@ -2141,6 +2143,8 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
    * \param[in] config - Definition of the particular problem.
    */
   void Set_MPI_Coord(CConfig *config);
+
+  void Set_MPI_Resolution_Tensor(CConfig *config);
   
   /*!
    * \brief Perform the MPI communication for the grid velocities.

@@ -129,6 +129,11 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
                   const su2double* Lmesh, const su2double* D,
                   su2double dwall, su2double* h) const;
 
+  void SetAxiTGField(const su2double* x, const su2double Lsgs,
+		     const su2double* Lmesh, const su2double* D,
+		     const su2double dwall, su2double* h) const;
+
+
   su2double GetTargetProduction(su2double v2,
                                 su2double T,
                                 su2double alpha) const;

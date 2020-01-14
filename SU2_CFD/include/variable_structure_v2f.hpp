@@ -74,15 +74,14 @@ public:
 
   /*!
    * \overload
-   * \param[in] val_rho_kine - Turbulent variable value (initialization value).
-   * \param[in] val_rho_omega - Turbulent variable value (initialization value).
+   * \param[in] val_kine - Turbulent variable value (initialization value).
+   * \param[in] val_omega - Turbulent variable value (initialization value).
    * \param[in] val_muT - Turbulent variable value (initialization value).
    * \param[in] val_nDim - Number of dimensions of the problem.
    * \param[in] val_nvar - Number of variables of the problem.
-   * \param[in] constants -
    * \param[in] config - Definition of the particular problem.
    */
-  CTurbKEVariable(su2double val_rho_kine, su2double val_rho_epsi,
+  CTurbKEVariable(su2double val_kine, su2double val_epsi,
                   su2double val_zeta, su2double val_f,
                   su2double val_muT, su2double val_Tm, su2double val_Lm,
                   unsigned short val_nDim, unsigned short val_nvar,

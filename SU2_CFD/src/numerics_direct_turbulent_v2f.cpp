@@ -357,7 +357,13 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
     /*--- Limit alpha to protect from imbalance in k_model vs k_resolved. ---*/
     if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
-      SGSProduction *= KineticEnergyRatio;
+      const su2double alpha = KineticEnergyRatio;
+      const su2double alpha_fac = alpha*(2.0 - alpha);
+      SGSProduction = alpha_fac*muT*S*S;
+      if (config->GetBoolDivU_inTKEProduction()) {
+	SGSProduction -= 2.0/3.0*rho*alpha*tke*diverg;
+      }
+
       if (config->GetUse_Resolved_Turb_Stress()) {
         su2double Pk_resolved = 0;
         for (unsigned short iDim = 0; iDim < nDim; iDim++) {
@@ -434,6 +440,9 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   } else {
     Pv2 = rho * tke * f;
   }
+  if (config->GetBool_Pv2_Nonnegative()) {
+    Pv2 = max(Pv2, 0.0);
+  }
 
   Pv2_rk  = 0.0;
   Pv2_re  = 0.0;
@@ -458,11 +467,9 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   const su2double ttC1m1 = (2.0/3.0)*(C_1 - 1.0);
   const su2double C_2f = C_2p;
 
-  su2double Rf;
+  su2double Rf = 1.0/TurbT;
   if (config->GetBoolUse_v2f_Rf_mod()) {
     Rf = min(1.0/TurbT, S/(sqrt(2.0)*3.0));
-  } else {
-    Rf = 1.0/TurbT;
   }
 
   Pf = (C_2f*Pk/(rho*tke_lim) - Rf*(C1m6*zeta - ttC1m1)) / Lsq;

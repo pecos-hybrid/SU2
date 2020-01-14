@@ -914,12 +914,6 @@ public:
    */
   virtual su2double** GetAnisoEddyViscosity(void) const;
 
-  virtual void SetForcingStress(su2double** val_tau_F);
-
-  virtual su2double** GetForcingStress();
-
-  virtual su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
-  
   /*!
    * \brief Get the trace of the anisotropic eddy-viscosity
    * \return The trace of the anisotropic eddy viscosity of the flow.
@@ -960,7 +954,7 @@ public:
    */
   virtual su2double GetResolutionAdequacy(void) const;
 
-  virtual su2double* GetForcingVector() const;
+  virtual const su2double* GetForcingVector() const;
 
   /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy
@@ -4053,9 +4047,8 @@ private:
   su2double Vortex_Tilting;  /*!< \brief Value of the vortex tilting variable for DES length scale computation. */
   su2double** AnisoEddyViscosity; /*!< \brief Anisotropic eddy viscosity. */
   su2double KineticEnergyRatio; /*!< \brief Ratio of modeled to total turbulent kinetic energy */
-  su2double** Forcing_Stress;
   su2double ResolutionAdequacy;
-  su2double* ForcingVector;
+  su2double* ForcingVector;  /*!< \brief A spatially varying forcing field. Only used in model-split hybrid RANS/LES */
   su2double** ResolvedTurbStress; /*!< \brief The resolved portion of the Reynolds stress tensor */
   su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
   su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
@@ -4246,13 +4239,7 @@ public:
 
   su2double GetResolutionAdequacy(void) const;
 
-  su2double* GetForcingVector() const;
-
-  void SetForcingStress(su2double** val_tau_F);
-
-  su2double** GetForcingStress();
-
-  su2double GetForcingStress(unsigned short iDim, unsigned short jDim);
+  const su2double* GetForcingVector() const;
 
   /*!
    * \brief Get the improved turbulent production term, including

@@ -906,8 +906,12 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   if (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) euler_implicit = true;
   else euler_implicit = false;
 
-  if (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) rk_implicit = true;
-  else rk_implicit = false;
+  if( (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
+      (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) ){
+    rk_implicit = true;
+  } else {
+    rk_implicit = false;
+  }
   
   if (config->GetKind_Gradient_Method() == WEIGHTED_LEAST_SQUARES) least_squares = true;
   else least_squares = false;
@@ -915,8 +919,11 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
-  if (config->GetKind_Averaging() != NO_AVERAGING)
+  Set_MPI_Solution(geometry, config);
+  if (config->GetKind_Averaging() != NO_AVERAGING){
     Set_MPI_Average_Solution(geometry, config);
+    Set_MPI_Average_Solution(geometry, config);
+  }
   
 }
 
@@ -1693,6 +1700,10 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
   unsigned short iVar, iMarker, iPeriodic_Index, MarkerS, MarkerR;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi, *Buffer_Receive_U = NULL, *Buffer_Send_U = NULL;
+  unsigned long nBufferS_Extra, nBufferR_Extra;
+  su2double *Buffer_Send_Extra = NULL, *Buffer_Receive_Extra = NULL;
+  const unsigned short nVar_Extra = 6;
+  const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -1718,6 +1729,12 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
       Buffer_Receive_U = new su2double [nBufferR_Vector];
       Buffer_Send_U = new su2double[nBufferS_Vector];
 
+      if (model_split) {
+        nBufferS_Extra = nVertexS*nVar_Extra;   nBufferR_Extra = nVertexR*nVar_Extra;
+        Buffer_Receive_Extra = new su2double [nBufferR_Extra];
+        Buffer_Send_Extra = new su2double[nBufferS_Extra];
+      }
+
       /*--- Copy the solution that should be sended ---*/
       for (iVertex = 0; iVertex < nVertexS; iVertex++) {
         iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
@@ -1725,11 +1742,36 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
           Buffer_Send_U[iVar*nVertexS+iVertex] = average_node[iPoint]->GetSolution(iVar);
       }
 
+      /*--- Extra model-split variables ---*/
+      if (model_split) {
+        assert(average_node);
+        for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+          iPoint = geometry->vertex[MarkerS][iVertex]->GetNode();
+          if (config->GetUse_Resolved_Turb_Stress()) {
+            // SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
+            Buffer_Send_Extra[0*nVertexS + iVertex] = 0;
+            Buffer_Send_Extra[1*nVertexS + iVertex] = 0;
+          } else {
+            Buffer_Send_Extra[0*nVertexS + iVertex] = average_node[iPoint]->GetProduction();
+            Buffer_Send_Extra[1*nVertexS + iVertex] = average_node[iPoint]->GetResolvedKineticEnergy();
+          }
+          Buffer_Send_Extra[2*nVertexS + iVertex] = average_node[iPoint]->GetResolutionAdequacy();
+          const su2double* temp_force = average_node[iPoint]->GetForcingVector();
+          Buffer_Send_Extra[3*nVertexS + iVertex] = temp_force[0];
+          Buffer_Send_Extra[4*nVertexS + iVertex] = temp_force[1];
+          Buffer_Send_Extra[5*nVertexS + iVertex] = temp_force[2];
+        }
+      }
+
 #ifdef HAVE_MPI
 
       /*--- Send/Receive information using Sendrecv ---*/
       SU2_MPI::Sendrecv(Buffer_Send_U, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
                         Buffer_Receive_U, nBufferR_Vector, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+      if (model_split) {
+        SU2_MPI::Sendrecv(Buffer_Send_Extra, nBufferS_Extra, MPI_DOUBLE, send_to, 0,
+                          Buffer_Receive_Extra, nBufferR_Extra, MPI_DOUBLE, receive_from, 0, MPI_COMM_WORLD, &status);
+      }
 
 #else
 
@@ -1739,10 +1781,18 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
           Buffer_Receive_U[iVar*nVertexR+iVertex] = Buffer_Send_U[iVar*nVertexR+iVertex];
       }
 
+      if (model_split) {
+        for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+          for (iVar = 0; iVar < nVar_Extra; iVar++)
+            Buffer_Receive_Extra[iVar*nVertexR+iVertex] = Buffer_Send_Extra[iVar*nVertexR+iVertex];
+        }
+      }
+
 #endif
 
       /*--- Deallocate send buffer ---*/
       delete [] Buffer_Send_U;
+      if (Buffer_Send_Extra != NULL) delete [] Buffer_Send_Extra;
 
       /*--- Do the coordinate transformation ---*/
       for (iVertex = 0; iVertex < nVertexR; iVertex++) {
@@ -1796,8 +1846,35 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
 
       }
 
+      if (model_split) {
+        su2double temp_force[3];
+        /*--- Do the coordinate transformation ---*/
+        for (iVertex = 0; iVertex < nVertexR; iVertex++) {
+
+          /*--- Find point and its type of transformation ---*/
+          iPoint = geometry->vertex[MarkerR][iVertex]->GetNode();
+
+          if (config->GetUse_Resolved_Turb_Stress()) {
+            // SU2_MPI::Error("MPI communication for resolved turbulent stress has not been implemented.", CURRENT_FUNCTION);
+          } else {
+            average_node[iPoint]->SetProduction(Buffer_Receive_Extra[0*nVertexR + iVertex]);
+            average_node[iPoint]->SetResolvedKineticEnergy(Buffer_Receive_Extra[1*nVertexR + iVertex]);
+          }
+
+          average_node[iPoint]->SetResolutionAdequacy(Buffer_Receive_Extra[2*nVertexR + iVertex]);
+
+          // TODO: Rotate force vector properly
+          /*--- Loop intentionally left unrolled ---*/
+          temp_force[0] = Buffer_Receive_Extra[3*nVertexR + iVertex];
+          temp_force[1] = Buffer_Receive_Extra[4*nVertexR + iVertex];
+          temp_force[2] = Buffer_Receive_Extra[5*nVertexR + iVertex];
+          average_node[iPoint]->SetForcingVector(temp_force);
+        }
+      }
+
       /*--- Deallocate receive buffer ---*/
       delete [] Buffer_Receive_U;
+      if (Buffer_Receive_Extra != NULL) delete [] Buffer_Receive_Extra;
 
     }
 
@@ -2189,13 +2266,17 @@ void CEulerSolver::Set_MPI_Sensor(CGeometry *geometry, CConfig *config) {
 
 void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned short jDim, kDim, lDim;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
   *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
   
   su2double **Gradient = new su2double* [nVar];
-  for (iVar = 0; iVar < nVar; iVar++)
+  su2double **GradientTmp = new su2double* [nVar];
+  for (iVar = 0; iVar < nVar; iVar++) {
     Gradient[iVar] = new su2double[nDim];
+    GradientTmp[iVar] = new su2double[nDim];
+  }
   
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -2273,23 +2354,55 @@ void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *confi
         rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
         
         /*--- Copy conserved variables before performing transformation. ---*/
-        for (iVar = 0; iVar < nVar; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
+        for (iVar = 0; iVar < nVar; iVar++){
+          for (iDim = 0; iDim < nDim; iDim++){
+            //Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
+	    int index = iDim*nVar*nVertexR+iVar*nVertexR+iVertex;
+	    GradientTmp[iVar][iDim] = Buffer_Receive_Gradient[index];
+	  }
+	}
         
-        /*--- Need to rotate the gradients for all conserved variables. ---*/
-        for (iVar = 0; iVar < nVar; iVar++) {
-          if (nDim == 2) {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
-          }
-          else {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-          }
-        }
-        
+        // /*--- Need to rotate the gradients for all conserved variables. ---*/
+        // for (iVar = 0; iVar < nVar; iVar++) {
+        //   if (nDim == 2) {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        //   else {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        // }
+
+        /*--- Rotate the gradients for all SCALAR conserved variables. ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  Gradient[0][iDim] = Gradient[nDim+1][iDim] = 0;
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // Density iVar = 0
+	    Gradient[0][iDim] += rotMatrix[iDim][jDim]*GradientTmp[0][jDim];
+
+	    // Energy iVar = nDim+1
+	    Gradient[nDim+1][iDim] += rotMatrix[iDim][jDim]*GradientTmp[nDim+1][jDim];
+	  }
+	}
+	 
+        /*--- Rotate the gradients for momentum gradient (a tensor). ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // iDim momentum component gradient wrt jDim direction
+	    Gradient[iDim+1][jDim] = 0;
+
+	    for (kDim=0; kDim<nDim; kDim++) {
+	      for (lDim=0; lDim<nDim; lDim++) {
+		Gradient[iDim+1][jDim] +=
+		  rotMatrix[iDim][kDim]*GradientTmp[kDim+1][lDim]*rotMatrix[jDim][lDim];
+	      }
+	    }
+	  }
+	}
+
+
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nVar; iVar++)
           for (iDim = 0; iDim < nDim; iDim++)
@@ -2312,13 +2425,17 @@ void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *confi
 
 void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned short jDim, kDim, lDim;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
   *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
 
   su2double **Gradient = new su2double* [nVar];
-  for (iVar = 0; iVar < nVar; iVar++)
+  su2double **GradientTmp = new su2double* [nVar];
+  for (iVar = 0; iVar < nVar; iVar++) {
     Gradient[iVar] = new su2double[nDim];
+    GradientTmp[iVar] = new su2double[nDim];
+  }
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -2396,22 +2513,54 @@ void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfi
         rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
 
         /*--- Copy conserved variables before performing transformation. ---*/
-        for (iVar = 0; iVar < nVar; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
-
-        /*--- Need to rotate the gradients for all conserved variables. ---*/
         for (iVar = 0; iVar < nVar; iVar++) {
-          if (nDim == 2) {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
-          }
-          else {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
-          }
-        }
+          for (iDim = 0; iDim < nDim; iDim++) {
+            //Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nVar*nVertexR+iVar*nVertexR+iVertex];
+	    int index = iDim*nVar*nVertexR+iVar*nVertexR+iVertex;
+	    GradientTmp[iVar][iDim] = Buffer_Receive_Gradient[index];
+	  }
+	}
+
+        // /*--- Need to rotate the gradients for all conserved variables. ---*/
+        // for (iVar = 0; iVar < nVar; iVar++) {
+        //   if (nDim == 2) {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        //   else {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nVar*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nVar*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        // }
+
+        /*--- Rotate the gradients for all SCALAR conserved variables. ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  Gradient[0][iDim] = Gradient[nDim+1][iDim] = 0;
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // Density iVar = 0
+	    Gradient[0][iDim] += rotMatrix[iDim][jDim]*GradientTmp[0][jDim];
+
+	    // Energy iVar = nDim+1
+	    Gradient[nDim+1][iDim] += rotMatrix[iDim][jDim]*GradientTmp[nDim+1][jDim];
+	  }
+	}
+	 
+        /*--- Rotate the gradients for momentum gradient (a tensor). ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // iDim momentum component gradient wrt jDim direction
+	    Gradient[iDim+1][jDim] = 0;
+
+	    for (kDim=0; kDim<nDim; kDim++) {
+	      for (lDim=0; lDim<nDim; lDim++) {
+		Gradient[iDim+1][jDim] +=
+		  rotMatrix[iDim][kDim]*GradientTmp[kDim+1][lDim]*rotMatrix[jDim][lDim];
+	      }
+	    }
+	  }
+	}
+
 
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nVar; iVar++)
@@ -2556,13 +2705,17 @@ void CEulerSolver::Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *config
 
 void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned short jDim, kDim, lDim;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
   *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
   
   su2double **Gradient = new su2double* [nPrimVarGrad];
-  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+  su2double **GradientTmp = new su2double* [nPrimVarGrad];
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
     Gradient[iVar] = new su2double[nDim];
+    GradientTmp[iVar] = new su2double[nDim];
+  }
   
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -2640,22 +2793,61 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
         rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
         
         /*--- Copy conserved variables before performing transformation. ---*/
-        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-        
-        /*--- Need to rotate the gradients for all conserved variables. ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-          if (nDim == 2) {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-          }
-          else {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-          }
-        }
+          for (iDim = 0; iDim < nDim; iDim++) {
+            //Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+	    int index = iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex;
+	    GradientTmp[iVar][iDim] = Buffer_Receive_Gradient[index];
+	  }
+	}
+        
+        // /*--- Need to rotate the gradients for all conserved variables. ---*/
+        // for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+        //   if (nDim == 2) {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        //   else {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        // }
+
+        /*--- Rotate the gradients for all SCALAR primitive variables. ---*/
+	// Temperature
+	for (iDim=0; iDim<nDim; iDim++) {
+	  Gradient[0][iDim] = 0;
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    Gradient[0][iDim] += rotMatrix[iDim][jDim]*GradientTmp[0][jDim];
+	  }
+	}
+
+	// pressure, density, enthalpy,
+	for (iVar=nDim+1; iVar<nPrimVarGrad; iVar++) {
+	  for (iDim=0; iDim<nDim; iDim++) {
+	    Gradient[iVar][iDim] = 0;
+	    for (jDim=0; jDim<nDim; jDim++) {
+	      Gradient[iVar][iDim] += rotMatrix[iDim][jDim]*GradientTmp[iVar][jDim];
+	    }
+	  }
+	}
+	 
+        /*--- Rotate the gradients for velocity gradient (a tensor). ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // iDim momentum component gradient wrt jDim direction
+	    Gradient[iDim+1][jDim] = 0;
+
+	    for (kDim=0; kDim<nDim; kDim++) {
+	      for (lDim=0; lDim<nDim; lDim++) {
+		Gradient[iDim+1][jDim] +=
+		  rotMatrix[iDim][kDim]*GradientTmp[kDim+1][lDim]*rotMatrix[jDim][lDim];
+	      }
+	    }
+	  }
+	}
+
         
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
@@ -2679,13 +2871,17 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
 
 void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConfig *config) {
   unsigned short iVar, iDim, iMarker, iPeriodic_Index, MarkerS, MarkerR;
+  unsigned short jDim, kDim, lDim;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS_Vector, nBufferR_Vector;
   su2double rotMatrix[3][3], *angles, theta, cosTheta, sinTheta, phi, cosPhi, sinPhi, psi, cosPsi, sinPsi,
   *Buffer_Receive_Gradient = NULL, *Buffer_Send_Gradient = NULL;
 
   su2double **Gradient = new su2double* [nPrimVarGrad];
-  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+  su2double **GradientTmp = new su2double* [nPrimVarGrad];
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
     Gradient[iVar] = new su2double[nDim];
+    GradientTmp[iVar] = new su2double[nDim];
+  }
 
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -2763,22 +2959,62 @@ void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConf
         rotMatrix[0][2] = -sinPhi;          rotMatrix[1][2] = sinTheta*cosPhi;                              rotMatrix[2][2] = cosTheta*cosPhi;
 
         /*--- Copy conserved variables before performing transformation. ---*/
-        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-
-        /*--- Need to rotate the gradients for all conserved variables. ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-          if (nDim == 2) {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-          }
-          else {
-            Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-            Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
-          }
-        }
+          for (iDim = 0; iDim < nDim; iDim++) {
+            //Gradient[iVar][iDim] = Buffer_Receive_Gradient[iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+	    int index = iDim*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex;
+            GradientTmp[iVar][iDim] = Buffer_Receive_Gradient[index];
+	  }
+	}
+
+        // /*--- Need to rotate the gradients for all conserved variables. ---*/
+        // for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+        //   if (nDim == 2) {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        //   else {
+        //     Gradient[iVar][0] = rotMatrix[0][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[0][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][1] = rotMatrix[1][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[1][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //     Gradient[iVar][2] = rotMatrix[2][0]*Buffer_Receive_Gradient[0*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][1]*Buffer_Receive_Gradient[1*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex] + rotMatrix[2][2]*Buffer_Receive_Gradient[2*nPrimVarGrad*nVertexR+iVar*nVertexR+iVertex];
+        //   }
+        // }
+
+
+        /*--- Rotate the gradients for all SCALAR primitive variables. ---*/
+	// Temperature
+	for (iDim=0; iDim<nDim; iDim++) {
+	  Gradient[0][iDim] = 0;
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    Gradient[0][iDim] += rotMatrix[iDim][jDim]*GradientTmp[0][jDim];
+	  }
+	}
+
+	// pressure, density, enthalpy,
+	for (iVar=nDim+1; iVar<nPrimVarGrad; iVar++) {
+	  for (iDim=0; iDim<nDim; iDim++) {
+	    Gradient[iVar][iDim] = 0;
+	    for (jDim=0; jDim<nDim; jDim++) {
+	      Gradient[iVar][iDim] += rotMatrix[iDim][jDim]*GradientTmp[iVar][jDim];
+	    }
+	  }
+	}
+	 
+        /*--- Rotate the gradients for velocity gradient (a tensor). ---*/
+	for (iDim=0; iDim<nDim; iDim++) {
+	  for (jDim=0; jDim<nDim; jDim++) {
+	    // iDim momentum component gradient wrt jDim direction
+	    Gradient[iDim+1][jDim] = 0;
+
+	    for (kDim=0; kDim<nDim; kDim++) {
+	      for (lDim=0; lDim<nDim; lDim++) {
+		Gradient[iDim+1][jDim] +=
+		  rotMatrix[iDim][kDim]*GradientTmp[kDim+1][lDim]*rotMatrix[jDim][lDim];
+	      }
+	    }
+	  }
+	}
+
 
         /*--- Store the received information ---*/
         for (iVar = 0; iVar < nPrimVarGrad; iVar++)
@@ -4626,8 +4862,9 @@ void CEulerSolver::SetInitialCondition(CGeometry **geometry, CSolver ***solver_c
         
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution_Old(geometry[iMesh], config);
-        if (config->GetKind_Averaging() != NO_AVERAGING)
+        if (config->GetKind_Averaging() != NO_AVERAGING) {
           solver_container[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
+	}
         
       }
       
@@ -5281,6 +5518,7 @@ void CEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_contain
       
       Dissipation_i = node[iPoint]->GetRoe_Dissipation();
       Dissipation_j = node[jPoint]->GetRoe_Dissipation();
+
       numerics->SetDissipation(Dissipation_i, Dissipation_j);
             
       if (kind_dissipation == FD_DUCROS || kind_dissipation == NTS_DUCROS){
@@ -5319,14 +5557,6 @@ void CEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_contain
       node[iPoint]->SetPreconditioner_Beta(numerics->GetPrecond_Beta());
       node[jPoint]->SetPreconditioner_Beta(numerics->GetPrecond_Beta());
     }
-    
-    /*--- Set the final value of the Roe dissipation coefficient ---*/
-    
-    if (kind_dissipation != NO_ROELOWDISS){
-      node[iPoint]->SetRoe_Dissipation(numerics->GetDissipation());
-      node[jPoint]->SetRoe_Dissipation(numerics->GetDissipation());      
-    }
-    
   }
 
   /*--- Warning message about non-physical reconstructions ---*/
@@ -10157,7 +10387,7 @@ void CEulerSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container
 
 void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
-  
+
   unsigned short iDim;
   unsigned long iVertex, iPoint, Point_Normal;
   
@@ -14884,78 +15114,118 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
   }
 
   bool found_resolved_stress = false, found_production = false,
-       found_k_res = false, found_r_M = false;
+       found_k_res = false, found_r_M = false, found_mean_force = false;
   unsigned short resolved_stress_index, production_index, k_res_index,
-      r_M_index;
+      r_M_index, mean_force_index;
+
+  /*--- Just look for all the variables.  This could be split up into the
+   * separate use cases, but it's only a string comparison and only run at
+   * the start of each run.  So it's best just to keep the code clean. ---*/
+
+  FindRestartVariable("\"Production\"", config->fields,
+                      found_production, production_index);
+  FindRestartVariable("\"tau_res_11\"", config->fields,
+      found_resolved_stress, resolved_stress_index);
+  if (!found_resolved_stress) {
+    FindRestartVariable("\"tau<sup>res</sup><sub>11</sub>\"", config->fields,
+        found_resolved_stress, resolved_stress_index);
+  }
+  FindRestartVariable("\"k_res\"", config->fields,
+      found_k_res, k_res_index);
+  if (!found_k_res) {
+    FindRestartVariable("\"k<sub>res</sub>\"", config->fields,
+        found_k_res, k_res_index);
+  }
+
+  bool start_hybrid_from_hybrid = false;
   if (model_split) {
-    if (found_average) {
+    if (config->GetUse_Resolved_Turb_Stress()) {
+      cout << "SU2 is set to track the resolved turbulent stress." << endl;
       // Non-tecplot name
-      FindRestartVariable("\"tau_res_11\"", config->fields,
-                          found_resolved_stress, resolved_stress_index);
-      if (!found_resolved_stress) {
-        // Tecplot name
-        FindRestartVariable("\"tau<sup>res</sup><sub>11</sub>\"", config->fields,
-                            found_resolved_stress, resolved_stress_index);
-      }
-      FindRestartVariable("\"Production\"", config->fields,
-                          found_production, production_index);
-     if (!found_resolved_stress && !found_production) {
-       SU2_MPI::Error("Found averages in the restart file, but could not find production nor the\nresolved turbulent stress in the restart. Starting a hybrid simulation\nfrom a URANS simulation is not currently supported.", CURRENT_FUNCTION);
-     } else if (config->GetUse_Resolved_Turb_Stress() && !found_resolved_stress) {
-        if (rank == MASTER_NODE) {
-          cout << "While the *.cfg file specifies that the resolved turbulent stress should be\n";
-          cout << "loaded, SU2 found only the production (not the resolved turbulent stress).\n";
-          cout << "SU2 will proceed using this turbulent production instead.\n";
+      if (found_resolved_stress) {
+        if (found_average) {
+          start_hybrid_from_hybrid = true;
+        } else {
+          stringstream errmsg;
+          errmsg << "Found the resolved stress in your restart file, but not the\n";
+          errmsg << "average density. Something is wrong. Check your restart file.\n";
+          SU2_MPI::Error(errmsg.str(), CURRENT_FUNCTION);
         }
-        config->SetUse_Resolved_Turb_Stress(false);
-      } else if (!(config->GetUse_Resolved_Turb_Stress()) && !found_production) {
-        if (rank == MASTER_NODE) {
-          cout << "While the *.cfg file specifies that the resolved turbulent stress should not\n";
-          cout << "be loaded, SU2 found only the resolved turbulent stress (not production).\n";
-          cout << "SU2 will proceed using this turbulent stress instead.\n";
-        }
-        config->SetUse_Resolved_Turb_Stress(true);
-      }
-      if (!config->GetUse_Resolved_Turb_Stress()) {
-        /*--- We need to load resolved kinetic energy if we're not loading
-         * the turbulent stress ---*/
-        // Non-tecplot name
-        FindRestartVariable("\"k_res\"", config->fields,
-                            found_k_res, k_res_index);
-        if (!found_k_res) {
-          // Tecplot name
-          FindRestartVariable("\"k<sub>res</sub>\"", config->fields,
-                              found_k_res, k_res_index);
-          if (!found_k_res) {
-            SU2_MPI::Error("Could not find resolved kinetic energy in the restart file!", CURRENT_FUNCTION);
+      } else {
+        if (found_k_res) {
+          /*--- This is a hybrid run, but one we can't support ---*/
+          stringstream errmsg;
+          errmsg << "Your cfg file specifies that the resolved stress should be used.\n";
+          errmsg << "SU2 found the resolved kinetic energy, but did not find the\n";
+          errmsg << "resolved stress. Changing a hybrid run from production to\n";
+          errmsg << "resolved stress in the middle of a run is not supported.\n";
+          SU2_MPI::Error(errmsg.str(), CURRENT_FUNCTION);
+        } else {
+          /*--- This looks like a RANS restart file ---*/
+          if (rank == MASTER_NODE) {
+            cout << "-------------------------------------------------------------------\n";
+            cout << "Your cfg file specifies that the resolved stress should be used.\n";
+            cout << "SU2 did not find the resolved stress in the restart file.\n";
+            cout << "The solution will be loaded from the (instantaneous) RANS\n";
+            cout << "solution, and the resolved stress will be initialized as zero.\n";
+            cout << "-------------------------------------------------------------------\n";
           }
         }
       }
+    } else {
+      cout << "SU2 is set to track the improved production." << endl;
+      if (found_production) {
+        if (found_average) {
+          if (found_resolved_stress) {
+            stringstream errmsg;
+            errmsg << "Your cfg file specifies that the production should be used.\n";
+            errmsg << "SU2 found averages and resolved stress in the restart file.\n";
+            errmsg << "Changing a hybrid run from resolved stres to production\n";
+            errmsg << "in the middle of a run is not supported.\n";
+            SU2_MPI::Error(errmsg.str(), CURRENT_FUNCTION);
+          } else {
+            start_hybrid_from_hybrid = true;
+            /*--- We need to load resolved kinetic energy if we're not loading
+             * the turbulent stress ---*/
+          }
+        }
+        // else leave `start_hybrid_from_hybrid` as false
+      } else {
+        // XXX: It would be nice to initialize production using the source
+        // numerics classes.
+        stringstream errmsg;
+        errmsg << "Could not find the production in the restart file.  Your cfg settings\n";
+        errmsg << "specify that the (improved) production should be used instead of the\n";
+        errmsg << "resolved turbulent stress. SU2 requires a production to be present in\n";
+        errmsg << "the restart file to initialize the production.\n";
+        SU2_MPI::Error(errmsg.str(), CURRENT_FUNCTION);
+      }
+    }
+
+    /*--- Checkc for all the other hybrid variables ---*/
+
+    if (start_hybrid_from_hybrid) {
       // Non-tecplot name
       FindRestartVariable("\"Average_r_M\"", config->fields,
-                          found_r_M, r_M_index);
+          found_r_M, r_M_index);
       if (!found_r_M) {
         // Tecplot name
         FindRestartVariable("\"avgr<sub>M</sub>\"", config->fields,
-                            found_r_M, r_M_index);
+            found_r_M, r_M_index);
         if (!found_r_M) {
           SU2_MPI::Error("Could not find average resolution adequacy in the restart file!", CURRENT_FUNCTION);
         }
       }
-    } else {
-      // TODO: Allow loading production
-      config->SetUse_Resolved_Turb_Stress(true);
-      if (rank == MASTER_NODE) {
-        cout << "Since no averages were found in the restart file, the hybrid model will\n";
-        cout << "be set to track the resolved turbulent stress as an average variable,\n";
-        cout << "rather than use the turbulent production.\n";
-      }
-    }
-    if (rank == MASTER_NODE) {
-      if (config->GetUse_Resolved_Turb_Stress()) {
-        cout << "SU2 is set to track the resolved turbulent stress." << endl;
-      } else {
-        cout << "SU2 is set to track the improved production." << endl;
+      // Non-tecplot name
+      FindRestartVariable("\"Average_hyb_force_1\"", config->fields,
+          found_mean_force, mean_force_index);
+      if (!found_mean_force) {
+        // Tecplot name
+        FindRestartVariable("\"avgF<sub>1</sub>\"", config->fields,
+            found_mean_force, mean_force_index);
+        if (!found_mean_force) {
+          SU2_MPI::Error("Could not find the mean forcing vector in the restart file.", CURRENT_FUNCTION);
+        }
       }
     }
   }
@@ -14995,11 +15265,12 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
         }
       }
 
-      /*--- Read in the resolved turbulent stress ---*/
+      /*--- Read in the hybrid variables ---*/
 
       if (model_split) {
-        if (found_average) {
+        if (start_hybrid_from_hybrid) {
           if (config->GetUse_Resolved_Turb_Stress()) {
+
             // We should have gotten an error previously if this is not true.
             assert(found_resolved_stress);
             // Load resolved stress
@@ -15014,28 +15285,54 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
              * since it can be recomputed at every time step using the
              * resolved turb stress ---*/
             average_node[iPoint_Local]->SetResolvedKineticEnergy();
+
           } else {
+
             // We should have gotten an error previously if this is not true.
             assert(found_production);
             index = counter*Restart_Vars[1] + production_index;
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
             assert(average_node[iPoint_Local]->GetProduction() == Restart_Data[index]);
+
             assert(found_k_res);
             index = counter*Restart_Vars[1] + k_res_index;
             average_node[iPoint_Local]->SetResolvedKineticEnergy(Restart_Data[index]);
+
           }
+
+          /*--- Resolution adequacy ---*/
           assert(found_r_M);
           index = counter*Restart_Vars[1] + r_M_index;
           average_node[iPoint_Local]->SetResolutionAdequacy(Restart_Data[index]);
 
+          /*--- Mean forcing vector ---*/
+          assert(found_mean_force);
+          index = counter*Restart_Vars[1] + mean_force_index;
+          su2double temp_force[3];
+          temp_force[0] = Restart_Data[index];
+          temp_force[1] = Restart_Data[index+1];
+          temp_force[2] = Restart_Data[index+2];
+          average_node[iPoint_Local]->SetForcingVector(temp_force);
+
         } else {
-          /*--- No averages, so just set resolved turb. stress to 0 ---*/
-          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-            for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-              average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
+
+          /*--- Start hybrid solution from RANS ---*/
+
+          if (config->GetUse_Resolved_Turb_Stress()) {
+            for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+              for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+                average_node[iPoint_Local]->SetResolvedTurbStress(iDim, jDim, 0);
+              }
             }
+            average_node[iPoint_Local]->SetResolvedKineticEnergy();
+          } else {
+            assert(found_production);
+            index = counter*Restart_Vars[1] + production_index;
+            assert(Restart_Data[index] > -1E16);
+            average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
+            average_node[iPoint_Local]->SetSGSProduction(Restart_Data[index]);
+            average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
           }
-          average_node[iPoint_Local]->SetResolvedKineticEnergy();
         }
       }
 
@@ -17210,8 +17507,11 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   /*--- Perform the MPI communication of the solution ---*/
 
   Set_MPI_Solution(geometry, config);
-  if (runtime_averaging)
+  Set_MPI_Solution(geometry, config);
+  if (runtime_averaging) {
     Set_MPI_Average_Solution(geometry, config);
+    Set_MPI_Average_Solution(geometry, config);
+  }
   
 }
 
@@ -17321,6 +17621,19 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   
   ErrorCounter = SetPrimitive_Variables(solver_container, config, Output);
 
+  if (ErrorCounter > 0) {
+    for (unsigned int iPoint = 0; iPoint < nPoint; iPoint++) {
+      if ( (solver_container[FLOW_SOL]->node[iPoint]->GetDensity()<0) ||
+	   (solver_container[FLOW_SOL]->node[iPoint]->GetTemperature()<0) ) {
+	std::cout << "Negative density at x = "
+		  << geometry->node[iPoint]->GetCoord(0) << " "
+		  << geometry->node[iPoint]->GetCoord(1) << " "
+		  << geometry->node[iPoint]->GetCoord(2) << std::endl;
+      }
+    }
+  }
+
+
   /*--- Compute the engine properties ---*/
 
   if (engine) { GetPower_Properties(geometry, config, iMesh, Output); }
@@ -17347,15 +17660,6 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     if ((center_jst) && (iMesh == MESH_0)) {
       SetCentered_Dissipation_Sensor(geometry, config);
       SetUndivided_Laplacian(geometry, config);
-    }
-  }
-  
-  /*--- Roe Low Dissipation Sensor ---*/
-  
-  if (roe_low_dissipation){
-    SetRoe_Dissipation(geometry, config);
-    if (kind_row_dissipation == FD_DUCROS || kind_row_dissipation == NTS_DUCROS){
-      SetUpwind_Ducros_Sensor(geometry, config);
     }
   }
   
@@ -17414,6 +17718,15 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   if (wall_functions)
     SetTauWall_WF(geometry, solver_container, config);
 
+  /*--- Roe Low Dissipation Sensor ---*/
+  
+  if (roe_low_dissipation && iRKStep==0){
+    SetRoe_Dissipation(geometry, config);
+    if (kind_row_dissipation == FD_DUCROS || kind_row_dissipation == NTS_DUCROS){
+      SetUpwind_Ducros_Sensor(geometry, config);
+    }
+  }
+
   /*--- Initialize the Jacobian matrices ---*/
   
   if (implicit && !config->GetDiscrete_Adjoint()) Jacobian.SetValZero();
@@ -17458,28 +17771,49 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 
   /*--- Compute the minimum value of TKE allowed ---*/
 
-  su2double tke_min;
-  if (model_split) {
-    su2double scale = 1.0e-14; // XXX: This value is somewhat arbitrary.
-    su2double* VelInf = config->GetVelocity_FreeStreamND();
-    su2double VelMag = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      VelMag += VelInf[iDim]*VelInf[iDim];
-    VelMag = sqrt(VelMag);
-    if (VelMag <= scale) {
-      SU2_MPI::Error("The model split method assumes the use of a nonzero freestream velocity.", CURRENT_FUNCTION);
-    }
-    tke_min = scale*0.5*VelMag*VelMag;
+  const su2double scale = 1.0e-8;  // XXX: This value is somewhat arbitrary.
+  su2double VelMag = config->GetModVel_FreeStreamND();
+  if (VelMag == 0) {
+    SU2_MPI::Error("Nonzero free-stream velocity is necessary for RANS.", CURRENT_FUNCTION);
   }
+  const su2double tke_min = scale*0.5*VelMag*VelMag;
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
     /*--- Retrieve the value of the kinetic energy (if need it) ---*/
-    
+
+    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+
+      // TODO: Move this to the hybrid mediator to keep the CNSSolver cleaner
+      // TODO: Remove extra asserts after testing is complete.
+
+      const su2double k_total = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+      const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
+      assert(k_resolved >= 0);
+
+      const su2double tke_lim = max(k_total, 1.0E-8);
+      //const su2double a_kol = 1.0E-2; // XXX: We should actually get the viscous limit here
+      const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+      su2double alpha_set = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
+
+      // protect against negative alpha, just in case
+      alpha_set = max(alpha_set, 0.0);
+      average_node[iPoint]->SetKineticEnergyRatio(alpha_set);
+      assert(alpha_set == alpha_set);  // alpha should not be NaN
+    }
+
+    su2double alpha = 1.0;
     if (turb_model != NONE) {
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
-      if (tkeNeeded)
+      if (tkeNeeded) {
         turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+	turb_ke = max(turb_ke, tke_min);
+
+	// account for resolved portion
+	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+	  alpha = average_node[iPoint]->GetKineticEnergyRatio();
+	}
+      }
       
       if (config->isDESBasedModel()){
         DES_LengthScale = solver_container[TURB_SOL]->node[iPoint]->GetDES_LengthScale();
@@ -17492,27 +17826,19 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
     
-    RightSol = node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+    RightSol = node[iPoint]->SetPrimVar(eddy_visc, alpha*turb_ke, FluidModel);
+    if (!RightSol) {
+	std::cout << "Error Setting instant primitive variables! " << alpha << std::endl;
+	std::cout << "instant: alpha = " << alpha << std::endl;
+    }
     node[iPoint]->SetSecondaryVar(FluidModel);
     if (runtime_averaging) {
-      average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      bool ierr = average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      if (!ierr) {
+	std::cout << "Error Setting average primitive variables! " << alpha << std::endl;
+	std::cout << "average: alpha = " << alpha << std::endl;
+      }
       // We don't need the secondary variables
-    }
-
-    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-
-      // TODO: Move this to the hybrid mediator to keep the CNSSolver cleaner
-      // TODO: Remove extra asserts after testing is complete.
-
-      const su2double k_total = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-      const su2double k_resolved = average_node[iPoint]->GetResolvedKineticEnergy();
-      assert(k_resolved >= 0);
-
-      const su2double tke_lim = max(k_total, tke_min);
-      const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
-      const su2double alpha = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
-      average_node[iPoint]->SetKineticEnergyRatio(alpha);
-      assert(alpha == alpha);  // alpha should not be NaN
     }
 
     if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
@@ -17837,24 +18163,34 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
     for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
       const su2double Volume = geometry->node[iPoint]->GetVolume();
-      const su2double* U = node[iPoint]->GetSolution();
+
+      // Use mean density in forcing, to eliminate (as much as
+      // possible) effect of correlation between rho and Force
+      const su2double* U = average_node[iPoint]->GetSolution();
 
       const su2double* Force = HybridMediator->GetForcingVector(iPoint);
+      const su2double* MeanForce = average_node[iPoint]->GetForcingVector();
 
       // Set forcing in variable class (for output purposes)
       node[iPoint]->SetForcingVector(Force);
+      average_node[iPoint]->SetForcingVector(MeanForce);
 
       // mass (no forcing)
       Residual[0] = 0.0;
 
       // momentum
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Residual[iDim+1] = -Volume * U[0] * Force[iDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+	Residual[iDim+1] = -Volume * U[0] * (Force[iDim] - MeanForce[iDim]);
+      }
 
       // energy
       Residual[nDim+1] = 0.0;
-      for (unsigned short iDim = 0; iDim < nDim; iDim++)
-        Residual[nDim+1] += -Volume * U[iDim+1] * Force[iDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        /*--- There's no source in the energy equation because we're
+         * tracking the transport of total energy, while the forcing is due
+         * to interactions between resolved and unresolved scales. ---*/
+	Residual[nDim+1] += 0.0;
+      }
 
       // update residual
       LinSysRes.AddBlock(iPoint, Residual);
@@ -19390,6 +19726,281 @@ void CNSSolver::InitAverages() {
 
 }
 
+void CNSSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
+			     CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
+  
+  unsigned short iDim;
+  unsigned long iVertex, iPoint, Point_Normal;
+  
+  su2double *GridVel;
+  su2double Area, UnitNormal[3] = {0.0,0.0,0.0};
+  su2double Density, Pressure, Energy,  Velocity[3] = {0.0,0.0,0.0};
+  su2double Density_Bound, Pressure_Bound, Vel_Bound[3] = {0.0,0.0,0.0};
+  su2double Density_Infty, Pressure_Infty, Vel_Infty[3] = {0.0,0.0,0.0};
+  su2double SoundSpeed, Entropy, Velocity2, Vn;
+  su2double SoundSpeed_Bound, Entropy_Bound, Vel2_Bound, Vn_Bound;
+  su2double SoundSpeed_Infty, Entropy_Infty, Vel2_Infty, Vn_Infty, Qn_Infty;
+  su2double RiemannPlus, RiemannMinus;
+  su2double *V_infty, *V_domain;
+  
+  su2double Gas_Constant     = config->GetGas_ConstantND();
+  
+  bool implicit =
+    ((config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK && iRKStep == 0) ||
+     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91 && iRKStep == 0) );
+
+  bool grid_movement  = config->GetGrid_Movement();
+  bool viscous        = config->GetViscous();
+  bool tkeNeeded = (((config->GetKind_Solver() == RANS ) ||
+                     (config->GetKind_Solver() == DISC_ADJ_RANS))
+                    && ( (config->GetKind_Turb_Model() == SST) || (config->GetKind_Turb_Model() == KE)) );
+  
+  su2double *Normal = new su2double[nDim];
+  
+  /*--- Loop over all the vertices on this boundary marker ---*/
+  
+  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+    
+    /*--- Allocate the value at the infinity ---*/
+    V_infty = GetCharacPrimVar(val_marker, iVertex);
+    
+    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
+    
+    if (geometry->node[iPoint]->GetDomain()) {
+      
+      /*--- Index of the closest interior node ---*/
+      
+      Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+      
+      /*--- Normal vector for this vertex (negate for outward convention) ---*/
+      
+      geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
+      for (iDim = 0; iDim < nDim; iDim++) Normal[iDim] = -Normal[iDim];
+      conv_numerics->SetNormal(Normal);
+      
+      /*--- Retrieve solution at the farfield boundary node ---*/
+      V_domain = node[iPoint]->GetPrimitive();
+
+      /*--- Construct solution state at infinity for compressible flow by
+         using Riemann invariants, and then impose a weak boundary condition
+         by computing the flux using this new state for U. See CFD texts by
+         Hirsch or Blazek for more detail. Adapted from an original
+         implementation in the Stanford University multi-block (SUmb) solver
+         in the routine bcFarfield.f90 written by Edwin van der Weide,
+         last modified 06-12-2005. First, compute the unit normal at the
+         boundary nodes. ---*/
+
+      Area = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) Area += Normal[iDim]*Normal[iDim];
+      Area = sqrt(Area);
+
+      for (iDim = 0; iDim < nDim; iDim++)
+        UnitNormal[iDim] = Normal[iDim]/Area;
+
+      /*--- Store primitive variables (density, velocities, velocity squared,
+         energy, pressure, and sound speed) at the boundary node, and set some
+         other quantities for clarity. Project the current flow velocity vector
+         at this boundary node into the local normal direction, i.e. compute
+         v_bound.n.  ---*/
+
+      Density_Bound = V_domain[nDim+2];
+      Vel2_Bound = 0.0; Vn_Bound = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Vel_Bound[iDim] = V_domain[iDim+1];
+        Vel2_Bound     += Vel_Bound[iDim]*Vel_Bound[iDim];
+        Vn_Bound       += Vel_Bound[iDim]*UnitNormal[iDim];
+      }
+      Pressure_Bound   = node[iPoint]->GetPressure();
+      SoundSpeed_Bound = sqrt(Gamma*Pressure_Bound/Density_Bound);
+      Entropy_Bound    = pow(Density_Bound, Gamma)/Pressure_Bound;
+
+      /*--- Store the primitive variable state for the freestream. Project
+         the freestream velocity vector into the local normal direction,
+         i.e. compute v_infty.n. ---*/
+
+      Density_Infty = GetDensity_Inf();
+      Vel2_Infty = 0.0; Vn_Infty = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Vel_Infty[iDim] = GetVelocity_Inf(iDim);
+        Vel2_Infty     += Vel_Infty[iDim]*Vel_Infty[iDim];
+        Vn_Infty       += Vel_Infty[iDim]*UnitNormal[iDim];
+      }
+      Pressure_Infty   = GetPressure_Inf();
+      SoundSpeed_Infty = sqrt(Gamma*Pressure_Infty/Density_Infty);
+      Entropy_Infty    = pow(Density_Infty, Gamma)/Pressure_Infty;
+
+      /*--- Adjust the normal freestream velocity for grid movement ---*/
+
+      Qn_Infty = Vn_Infty;
+      if (grid_movement) {
+        GridVel = geometry->node[iPoint]->GetGridVel();
+        for (iDim = 0; iDim < nDim; iDim++)
+          Qn_Infty -= GridVel[iDim]*UnitNormal[iDim];
+      }
+
+      /*--- Compute acoustic Riemann invariants: R = u.n +/- 2c/(gamma-1).
+         These correspond with the eigenvalues (u+c) and (u-c), respectively,
+         which represent the acoustic waves. Positive characteristics are
+         incoming, and a physical boundary condition is imposed (freestream
+         state). This occurs when either (u.n+c) > 0 or (u.n-c) > 0. Negative
+         characteristics are leaving the domain, and numerical boundary
+         conditions are required by extrapolating from the interior state
+         using the Riemann invariants. This occurs when (u.n+c) < 0 or
+         (u.n-c) < 0. Note that grid movement is taken into account when
+         checking the sign of the eigenvalue. ---*/
+
+      /*--- Check whether (u.n+c) is greater or less than zero ---*/
+
+      if (Qn_Infty > -SoundSpeed_Infty) {
+        /*--- Subsonic inflow or outflow ---*/
+        RiemannPlus = Vn_Bound + 2.0*SoundSpeed_Bound/Gamma_Minus_One;
+      } else {
+        /*--- Supersonic inflow ---*/
+        RiemannPlus = Vn_Infty + 2.0*SoundSpeed_Infty/Gamma_Minus_One;
+      }
+
+      /*--- Check whether (u.n-c) is greater or less than zero ---*/
+
+      if (Qn_Infty > SoundSpeed_Infty) {
+        /*--- Supersonic outflow ---*/
+        RiemannMinus = Vn_Bound - 2.0*SoundSpeed_Bound/Gamma_Minus_One;
+      } else {
+        /*--- Subsonic outflow ---*/
+        RiemannMinus = Vn_Infty - 2.0*SoundSpeed_Infty/Gamma_Minus_One;
+      }
+
+      /*--- Compute a new value for the local normal velocity and speed of
+         sound from the Riemann invariants. ---*/
+
+      Vn = 0.5 * (RiemannPlus + RiemannMinus);
+      SoundSpeed = 0.25 * (RiemannPlus - RiemannMinus)*Gamma_Minus_One;
+
+      /*--- Construct the primitive variable state at the boundary for
+         computing the flux for the weak boundary condition. The values
+         that we choose to construct the solution (boundary or freestream)
+         depend on whether we are at an inflow or outflow. At an outflow, we
+         choose boundary information (at most one characteristic is incoming),
+         while at an inflow, we choose infinity values (at most one
+         characteristic is outgoing). ---*/
+
+      if (Qn_Infty > 0.0)   {
+        /*--- Outflow conditions ---*/
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Bound[iDim] + (Vn-Vn_Bound)*UnitNormal[iDim];
+        Entropy = Entropy_Bound;
+      } else  {
+        /*--- Inflow conditions ---*/
+        for (iDim = 0; iDim < nDim; iDim++)
+          Velocity[iDim] = Vel_Infty[iDim] + (Vn-Vn_Infty)*UnitNormal[iDim];
+        Entropy = Entropy_Infty;
+      }
+
+      /*--- Recompute the primitive variables. ---*/
+
+      Density = pow(Entropy*SoundSpeed*SoundSpeed/Gamma,1.0/Gamma_Minus_One);
+      Velocity2 = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++) {
+        Velocity2 += Velocity[iDim]*Velocity[iDim];
+      }
+      Pressure = Density*SoundSpeed*SoundSpeed/Gamma;
+      Energy   = Pressure/(Gamma_Minus_One*Density) + 0.5*Velocity2;
+      if (tkeNeeded) Energy += GetTke_Inf();
+
+      /*--- Store new primitive state for computing the flux. ---*/
+
+      V_infty[0] = Pressure/(Gas_Constant*Density);
+      for (iDim = 0; iDim < nDim; iDim++)
+        V_infty[iDim+1] = Velocity[iDim];
+      V_infty[nDim+1] = Pressure;
+      V_infty[nDim+2] = Density;
+      V_infty[nDim+3] = Energy + Pressure/Density;
+
+
+      
+      /*--- Set various quantities in the numerics class ---*/
+      
+      conv_numerics->SetPrimitive(V_domain, V_infty);
+      
+      if (grid_movement) {
+        conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(),
+                                  geometry->node[iPoint]->GetGridVel());
+      }
+      
+      /*--- Compute the convective residual using an upwind scheme ---*/
+
+      conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+      
+      /*--- Update residual value ---*/
+      
+      LinSysRes.AddBlock(iPoint, Residual);
+      
+      /*--- Convective Jacobian contribution for implicit integration ---*/
+      
+      if (implicit)
+        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
+      
+      /*--- Roe Turkel preconditioning, set the value of beta ---*/
+      
+      if (config->GetKind_Upwind() == TURKEL)
+        node[iPoint]->SetPreconditioner_Beta(conv_numerics->GetPrecond_Beta());
+      
+      /*--- Viscous residual contribution ---*/
+      
+      if (viscous) {
+        
+        /*--- Set laminar and eddy viscosity at the infinity ---*/
+        
+        V_infty[nDim+5] = node[iPoint]->GetLaminarViscosity();
+        V_infty[nDim+6] = node[iPoint]->GetEddyViscosity();
+        
+        /*--- Set the normal vector and the coordinates ---*/
+        
+        visc_numerics->SetNormal(Normal);
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
+                                geometry->node[Point_Normal]->GetCoord());
+        
+        /*--- Primitive variables, and gradient ---*/
+        
+        visc_numerics->SetPrimitive(V_domain, V_infty);
+        visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(),
+                                          node[iPoint]->GetGradient_Primitive());
+        
+        /*--- Turbulent kinetic energy ---*/
+        
+        if (config->GetKind_Turb_Model() == SST)
+          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
+                                              solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+
+	/*--- Pass in relevant information from hybrid model ---*/
+	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+	  // TODO: This probably isn't really right
+	  HybridMediator->SetupResolvedFlowNumerics(geometry, solver_container,
+						    visc_numerics, iPoint, iPoint);
+	}
+
+
+        /*--- Compute and update viscous residual ---*/
+        
+        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+        LinSysRes.SubtractBlock(iPoint, Residual);
+        
+        /*--- Viscous Jacobian contribution for implicit integration ---*/
+        
+        if (implicit)
+          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+        
+      }
+      
+    }
+  }
+  
+  /*--- Free locally allocated memory ---*/
+  delete [] Normal;
+  
+}
+
 void CNSSolver::UpdateAverage(const su2double weight,
                               const unsigned long iPoint,
                               su2double* buffer,
@@ -19397,75 +20008,105 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
   assert(average_node != NULL);
 
-  const su2double* resolved_prim_vars = node[iPoint]->GetPrimitive();
-  const su2double* average_prim_vars = average_node[iPoint]->GetPrimitive();
-  su2double fluct_velocity[nDim];
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    fluct_velocity[iDim] = resolved_prim_vars[iDim+1] - average_prim_vars[iDim+1];
-  }
-  const su2double resolved_rho = resolved_prim_vars[nDim+2];
-
-  if (config->GetUse_Resolved_Turb_Stress()) {
-
-    /*--- Update resolved Reynolds stress ---*/
-
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
-        const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
-        const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
-
-        node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
-        average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
-      }
-    }
-
-    /*--- Update resolved turbulent kinetic energy ---*/
-
-    average_node[iPoint]->SetResolvedKineticEnergy();
-
-  } else {
-
-    /*--- Update improved production ---*/
-
-    const su2double* const* PrimVar_Grad = average_node[iPoint]->GetGradient_Primitive();
-    const su2double production = average_node[iPoint]->GetProduction();
-    su2double current_production = average_node[iPoint]->GetSGSProduction();
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-        const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
-        current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
-      }
-    }
-    const su2double new_Pk = production + (current_production - production)*weight;
-    average_node[iPoint]->SetProduction(new_Pk);
-
-    /*--- Update resolved kinetic energy ---*/
-
-    const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
-    su2double current_resolved_k = 0;
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
-    }
-    // TODO: Make this consistent with Favre averaging
-    const su2double new_resolved_k = resolved_k + (current_resolved_k - resolved_k)*weight;
-    average_node[iPoint]->SetResolvedKineticEnergy(new_resolved_k);
-
-  }
-
-  /*--- We can't update alpha (the ratio of modeled to total turbulent
-   * kinetic energy) here because we don't have access to the RANS solver
-   * variables. ---*/
-
-  /*--- Update the average of the resolution adequacy ---*/
-  const su2double mean_r_k = average_node[iPoint]->GetResolutionAdequacy();
-  const su2double inst_r_k = node[iPoint]->GetResolutionAdequacy();
-  const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
-  average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
-
-  /*--- Make sure the average of the solution variables is updated too --*/
-
+  // Call base first, to update averages of conserved variables
   CSolver::UpdateAverage(weight, iPoint, buffer, config);
+
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT && iPoint < nPointDomain) {
+    // TODO: Update average solution on MPI halo nodes
+    // I don't think it's required right now, since we're only using average
+    // solution in the source residual.
+    const su2double* resolved_vars = node[iPoint]->GetSolution();
+    const su2double* average_vars = average_node[iPoint]->GetSolution();
+    su2double fluct_velocity[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
+    }
+    const su2double resolved_rho = resolved_vars[0];
+
+    if (config->GetUse_Resolved_Turb_Stress()) {
+
+      /*--- Update resolved Reynolds stress ---*/
+
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+          const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
+          const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+
+          node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
+          average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
+        }
+      }
+
+      /*--- Update resolved turbulent kinetic energy ---*/
+
+      average_node[iPoint]->SetResolvedKineticEnergy();
+
+    } else {
+
+      /*--- Update improved production ---*/
+
+      const su2double* const* PrimVar_Grad = average_node[iPoint]->GetGradient_Primitive();
+      const su2double production = average_node[iPoint]->GetProduction();
+
+      su2double current_production = average_node[iPoint]->GetSGSProduction();
+
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
+          current_production += PrimVar_Grad[iDim+1][jDim]*current_uiuj;
+        }
+      }
+
+      /*-- Give Pk a different averaging time than the rest of the terms ---*/
+
+      const su2double Pk_relaxation = config->GetProduction_Relaxation();
+      const su2double new_Pk = production + (current_production - production)*weight*Pk_relaxation;
+      average_node[iPoint]->SetProduction(new_Pk);
+
+      /*--- Update resolved kinetic energy ---*/
+
+      const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
+      su2double current_resolved_k = 0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
+      }
+      const su2double new_resolved_k = resolved_k + (current_resolved_k - resolved_k)*weight;
+#ifndef NDEBUG
+      // This *shouldn't* happen, so it's wrapped in a NDEBUG flag
+      if (new_resolved_k < 0) {
+        ostringstream error_msg;
+        error_msg << "Resolved turbulent kinetic energy was < 0\n";
+        error_msg << "  new_resolved_k:     " << current_resolved_k << endl;
+        error_msg << "  resolved_k:         " << resolved_k << endl;
+        error_msg << "  current_resolved_k: " << current_resolved_k << endl;
+        error_msg << "  weight:             " << weight << endl;
+      }
+#endif
+      average_node[iPoint]->SetResolvedKineticEnergy(new_resolved_k);
+
+    }
+
+    /*--- We can't update alpha (the ratio of modeled to total turbulent
+     * kinetic energy) here because we don't have access to the RANS solver
+     * variables. ---*/
+
+    /*--- Update the average of the resolution adequacy ---*/
+    const su2double mean_r_k = average_node[iPoint]->GetResolutionAdequacy();
+    const su2double inst_r_k = node[iPoint]->GetResolutionAdequacy();
+    const su2double update_mean_r_k = (inst_r_k - mean_r_k)*weight + mean_r_k;
+    average_node[iPoint]->SetResolutionAdequacy(update_mean_r_k);
+
+    /*--- Update the average of the forcing ---*/
+    const su2double* mean_F = average_node[iPoint]->GetForcingVector();
+    assert(HybridMediator != NULL);
+    const su2double* inst_F = HybridMediator->GetForcingVector(iPoint);
+    su2double update_mean_F[3];
+    update_mean_F[0] = (inst_F[0] - mean_F[0])*weight + mean_F[0];
+    update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
+    update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
+    average_node[iPoint]->SetForcingVector(update_mean_F);
+  }
 }
 
 void CNSSolver::SetTauWall_WF(CGeometry *geometry, CSolver **solver_container, CConfig *config) {

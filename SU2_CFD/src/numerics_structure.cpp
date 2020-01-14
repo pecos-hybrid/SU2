@@ -1887,17 +1887,32 @@ void CNumerics::SetRoe_Dissipation(const su2double Dissipation_i,
 
   const unsigned short roe_low_diss = config->GetKind_RoeLowDiss();
 
+  if (!((Dissipation_i >= 0) && (Dissipation_i <= 1))) {
+    std::cout << "Error: Dissipation_i = " << Dissipation_i << std::endl;
+    Dissipation_ij = 1.0;
+    return;
+  }
+
+  if (!((Dissipation_j >= 0) && (Dissipation_j <= 1))) {
+    std::cout << "Error: Dissipation_j = " << Dissipation_j << std::endl;
+    Dissipation_ij = 1.0;
+    return;
+  }
+
   assert((Dissipation_i >= 0) && (Dissipation_i <= 1));
   assert((Dissipation_j >= 0) && (Dissipation_j <= 1));
-  if (roe_low_diss == FD_DUCROS || roe_low_diss == NTS_DUCROS) {
+  // if (roe_low_diss == FD_DUCROS || roe_low_diss == NTS_DUCROS) {
+  //   assert((Sensor_i >= 0) && (Sensor_i <= 1));
+  //   assert((Sensor_j >= 0) && (Sensor_j <= 1));
+  // }
+  if (roe_low_diss == NTS_DUCROS) {
     assert((Sensor_i >= 0) && (Sensor_i <= 1));
     assert((Sensor_j >= 0) && (Sensor_j <= 1));
   }
 
   /*--- A minimum level of upwinding is used to enhance stability ---*/
 
-  const su2double Min_Dissipation = 0.05;
-  
+  const su2double Min_Dissipation = config->GetRoe_Min_Dissipation();
   const su2double Mean_Dissipation = 0.5*(Dissipation_i + Dissipation_j);
   const su2double Mean_Sensor = 0.5*(Sensor_i + Sensor_j);
   

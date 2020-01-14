@@ -617,6 +617,8 @@ void CConfig::SetPointersNull(void) {
   MuPolyCoefficientsND  = NULL;
   KtPolyCoefficientsND  = NULL;
   
+  default_fluct_stress_AR_params = NULL;
+
   Riemann_FlowDir       = NULL;
   Giles_FlowDir         = NULL;
   CoordFFDBox           = NULL;
@@ -743,6 +745,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
     KtPolyCoefficientsND[iVar]  = 0.0;
   }
 
+  default_fluct_stress_AR_params = new su2double[2];
+
   // This config file is parsed by a number of programs to make it easy to write SU2
   // wrapper scripts (in python, go, etc.) so please do
   // the best you can to follow the established format. It's very hard to parse c++ code
@@ -768,12 +772,21 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
     /*! \brief HYBRID_TESTING_SCHEME \n DESCRIPTION: Use an optional scheme for testing the model-split hybridization. \n Options: see \link Hybrid_Testing_Map \endlink \n DEFAULT: FULL_HYBRID_RANS_LES \ingroup Config */
   addEnumOption("HYBRID_RANS_LES_TESTING", Kind_HybridRANSLES_Testing, Hybrid_Testing_Map, FULL_HYBRID_RANS_LES);
+
+  /*! \brief FLUCT_STRESS_DAMPING \n DESCRIPTION: Specify the damping that will occur for the fluctuating stress in high-AR cells \n Options: see \link Hybrid_Fluct_Stress_Damping_Map \endlink \n DEFAULT: BLEND_STRESS_TO_ZERO \ingroup Config */
+  addEnumOption("FLUCT_STRESS_DAMPING", Kind_Hybrid_Fluct_Stress_Damping, Hybrid_Fluct_Stress_Damping_Map, BLEND_STRESS_TO_ZERO);
+
+  /*!\brief FLUCT_STRESS_AR_PARAM  \n DESCRIPTION: The threshold and the slope (at the threshold) of the high-aspect ratio blending applied to the damping.  Only used in the model-split hybrid RANS/LES, when high-AR fluctuating stress blending is on. \ingroup Config*/
+  default_fluct_stress_AR_params[0] = 128;     // Threshold
+  default_fluct_stress_AR_params[1] = 0.03125;  // The slope (at threshold)
+  addDoubleArrayOption("FLUCT_STRESS_AR_PARAM", 2, FluctStress_AR_Params, default_fluct_stress_AR_params);
   
-  /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RK_INDICATOR \ingroup Config */
-  addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RK_INDICATOR);
+  /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RDELTA_INDICATOR_FULLP_VELCON \ingroup Config */
+  addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RDELTA_INDICATOR_FULLP_VELCON);
 
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
+  addBoolOption("HYBRID_FORCING_AXI", Hybrid_Forcing_Axi, false);
 
 
   default_hybrid_periodic_length[0] = -1.0;
@@ -800,6 +813,12 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief USE_RESOLVED_TURB_STRESS \n DESCRIPTION: Use the resolved turbulent stress in stead of improved production for hybrid RANS/LES calculations. \ingroup Config*/
   addBoolOption("USE_RESOLVED_TURB_STRESS", Use_Resolved_Turb_Stress, YES);
+
+  /*!\brief V2F_TIMESCALE_LIMIT \n DESCRITPTION: For the v2-f RANS model, limit the timescale in the f-equation to 3/S, where S is the Frobenius norm of the mean rate-of-strain tensor. \ingroup Config */
+  addBoolOption("V2F_TIMESCALE_LIMIT", Use_v2f_Timescale_Limit, NO);
+
+  /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
+  addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
 
   /*!\brief KIND_TURB_MODEL \n DESCRIPTION: Specify turbulence model \n Options: see \link Turb_Model_Map \endlink \n DEFAULT: NO_TURB_MODEL \ingroup Config*/
   addEnumOption("KIND_TURB_MODEL", Kind_Turb_Model, Turb_Model_Map, NO_TURB_MODEL);
@@ -1151,10 +1170,15 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("DIVU_IN_TKE_PRODUCTION", DivU_inTKEProduction, true);
   addBoolOption("USE_V2F_RF_MOD", Use_v2f_Rf_mod, false);
   addBoolOption("USE_V2F_EXPLICIT_WALLBC", Use_v2f_Explicit_WallBC, true);
-  /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
-  addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
+
   /*!\brief V2F_REALIZABILITY_CONSTANT \n DESCRIPTION: The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. \n DEFAULT: 0.6 \ingroup Config */
   addDoubleOption("V2F_REALIZABILITY_CONSTANT", v2f_Realizability_Constant, 0.6);
+
+  /*!\brief KEEP_PV2_NONNEGATIVE  \n DESCRIPTION: Limit the production of v2 to non-negative values in the v2-f RANS model. \n DEFAULT: True \ingroup Config*/
+  addBoolOption("KEEP_PV2_NONNEGATIVE", Pv2_nonnegative, true);
+
+  /*!\brief PRODUCTION_RELAXATION \n DESCRIPTION: When the averages are updated, relax the updates by this amount. \n DEFAULT: 0.5 \ingroup Config */
+  addDoubleOption("PRODUCTION_RELAXATION", Production_Relaxation, 0.5);
   
   /*!\brief SPATIAL_FOURIER \n DESCRIPTION: Option to compute the spatial fourier trasformation for the Giles BC. */
   addBoolOption("SPATIAL_FOURIER", SpatialFourier, false);
@@ -1398,8 +1422,10 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("LINEAR_SOLVER_ERROR_HEAT", Linear_Solver_Error_Heat, 1E-8);
   /* DESCRIPTION: Maximum number of iterations of the linear solver for the implicit formulation */
   addUnsignedLongOption("LINEAR_SOLVER_ITER", Linear_Solver_Iter, 10);
-  /* DESCRIPTION: Display an error and exit if the linear solver exceeds the max iterations \n DEFAULT: False */
+  /* DESCRIPTION: Display an error and exit if the linear solver exceeds the max iterations \n DEFAULT: False \ingroup Config */
   addBoolOption("LINEAR_SOLVER_MAX_ITER_ERROR", Linear_Solver_Max_Iter_Error, false);
+  /* DESCRIPTION: Print out the residual history of the linear solver during runtime. \n DEFAULT: False \ingroup Config */
+  addBoolOption("LINEAR_SOLVER_VERBOSE", Linear_Solver_Verbose, false);
   /* DESCRIPTION: Max iterations of the linear solver for the FVM heat solver. */
   addUnsignedLongOption("LINEAR_SOLVER_ITER_HEAT", Linear_Solver_Iter_Heat, 10);
   /* DESCRIPTION: Fill in level for the ILU preconditioner */
@@ -2432,6 +2458,11 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
     
   /* DESCRIPTION: Roe with low dissipation for unsteady flows */
   addEnumOption("ROE_LOW_DISSIPATION", Kind_RoeLowDiss, RoeLowDiss_Map, NO_ROELOWDISS);
+
+  /* DESCRIPTION:  In a Roe-like scheme with upwind/central blending, this
+   * is the minimum weight given to the upwinding. Values below 0.005 have
+   * been observed to be unstable for some simulations. */
+  addDoubleOption("ROE_LOW_DISSIPATION_MIN", Roe_Min_Dissipation, 0.01);
 
   /* DESCRIPTION: Activate SA Quadratic Constitutive Relation, 2000 version */
   addBoolOption("SA_QCR", QCR, false);
@@ -3855,84 +3886,197 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
   for (iCFL = 1; iCFL < nCFL; iCFL++)
     CFL[iCFL] = CFL[iCFL-1];
 
-  // If set number of RK steps or any of coefficient vectors, check
-  // for consistency and put Butcher tableau coefficients into matrix
-  if (nRKStep != 0 || nRKBvec != 0 || nRKCvec != 0 || nRKAmat != 0) {
-    // check for consistency
-    if (nRKStep != nRKBvec) {
-      cout << "Number of RK steps inconsistent with RK_BVEC entry." << endl;
-      cout << "nRKStep = " << nRKStep << ", nRKBvec = " << nRKBvec << endl;
-      exit(EXIT_FAILURE);
-    }
-    if (nRKStep != nRKCvec) {
-      cout << "Number of RK steps inconsistent with RK_CVEC entry." << endl;
-      exit(EXIT_FAILURE);
-    }
+  if ((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) ||
+      (Kind_Solver == RANS) || (Kind_Solver == DISC_ADJ_EULER) ||
+      (Kind_Solver == DISC_ADJ_NAVIER_STOKES) ||
+      (Kind_Solver == DISC_ADJ_RANS)) {
+    switch (Kind_TimeIntScheme_Flow) {
+      case RUNGE_KUTTA_EXPLICIT:
+        if (nRKStep == 0) {
+          if (rank == MASTER_NODE) {
+            cout << "No RK coefficients specified.  Defaulting to classical RK4." << endl;
+          }
+          nRKStep = 4;
 
-    unsigned short namat_expected = (nRKStep*nRKStep - nRKStep)/2;
-    if (nRKAmat != namat_expected) {
-      cout << "Number of RK steps inconsistent with RK_AMAT_LOWER entry." << endl;
-      exit(EXIT_FAILURE);
-    }
+          // alloc and zero out space for coefficients
+          RK_aMat = new su2double* [nRKStep];
+          RK_bVec = new su2double[nRKStep];
+          RK_cVec = new su2double[nRKStep];
+          for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
+            RK_bVec[iRKStep] = 0.0;
+            RK_cVec[iRKStep] = 0.0;
 
-    // If consistent, translate A mat input to full matrix
-    unsigned short count = 0;
-    RK_aMat = new su2double* [nRKStep];
-    for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
-      RK_aMat[iRKStep] = new su2double [nRKStep];
-      for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
-        if (iRKStep>jRKStep) {
-          RK_aMat[iRKStep][jRKStep] = RK_aMat_read[count];
-          count++;
-        } else {
-          RK_aMat[iRKStep][jRKStep] = 0.0;
+            RK_aMat[iRKStep] = new su2double [nRKStep];
+            for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
+              RK_aMat[iRKStep][jRKStep] = 0.0;
+            }
+          }
+
+          // set them
+          RK_aMat[1][0] = 0.5;
+          RK_aMat[2][1] = 0.5;
+          RK_aMat[3][2] = 1.0;
+
+          RK_bVec[0] = 1.0/6.0;
+          RK_bVec[1] = 1.0/3.0;
+          RK_bVec[2] = 1.0/3.0;
+          RK_bVec[3] = 1.0/6.0;
+
+          RK_cVec[1] = 0.5;
+          RK_cVec[2] = 0.5;
+          RK_cVec[3] = 1.0;
         }
-      }
-    }
+      case RUNGE_KUTTA_LIMEX_EDIRK:
+        if (nRKStep == 0) {
+          if (rank == MASTER_NODE) {
+            cout << "No RK coefficients specified.  Defaulting to a 3 stage, 2nd order scheme." << endl;
+          }
+          nRKStep = 3;
 
+          // alloc and zero out space for explicit coefficients
+          RK_aMat = new su2double* [nRKStep];
+          RK_bVec = new su2double[nRKStep];
+          RK_cVec = new su2double[nRKStep];
+          for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
+            RK_bVec[iRKStep] = 0.0;
+            RK_cVec[iRKStep] = 0.0;
+
+            RK_aMat[iRKStep] = new su2double [nRKStep];
+            for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
+              RK_aMat[iRKStep][jRKStep] = 0.0;
+            }
+          }
+
+          // set coeffs for explicit part of scheme
+          const su2double alpha = 1.0 - sqrt(2)/2.0;
+          const su2double delta = -2.0*sqrt(2.0)/3.0;
+
+          RK_aMat[1][0] = alpha;
+          RK_aMat[2][0] = delta;
+          RK_aMat[2][1] = 1.0 - delta;
+
+          RK_bVec[1] = 1.0 - alpha;
+          RK_bVec[2] = alpha;
+
+          RK_cVec[1] = alpha;
+          RK_cVec[2] = 1.0;
+
+          // alloc and zero out space for implicit coefficients
+          unsigned short int nImp = nRKStep - 1;
+          RK_aMat_imp = new su2double* [nImp];
+          RK_bVec_imp = new su2double[nImp];
+          RK_cVec_imp = new su2double[nImp];
+          for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
+            RK_bVec_imp[iRKStep] = 0.0;
+            RK_cVec_imp[iRKStep] = 0.0;
+
+            RK_aMat_imp[iRKStep] = new su2double [nImp];
+            for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
+              RK_aMat_imp[iRKStep][jRKStep] = 0.0;
+            }
+          }
+
+          // set coeffs for implicit part
+          RK_aMat_imp[0][0] = alpha;
+          RK_aMat_imp[1][0] = 1.0 - alpha;
+          RK_aMat_imp[1][1] = alpha;
+
+          RK_bVec_imp[0] = 1.0 - alpha;
+          RK_bVec_imp[1] = alpha;
+
+          RK_cVec[0] = alpha;
+          RK_cVec[1] = 1.0;
+        }
+        break;
+      case RUNGE_KUTTA_LIMEX_SMR91:
+        nRKStep = 3;
+        break;
+    }
   }
 
-  // If set any of implicit coefficient vectors, check
-  // for consistency and put Butcher tableau coefficients into matrix
-  if (nRKBvecImp != 0 || nRKCvecImp != 0 || nRKAmatImp != 0) {
-    // check for consistency
+  /*--- We don't check SMR91 because the coefficients are hardcoded. ---*/
 
-    // Used for EDIRK s.t. the number of implicit steps is one less
-    // than total number of steps
-    unsigned short nImp = nRKStep - 1;
+  if (Kind_TimeIntScheme_Flow == RUNGE_KUTTA_LIMEX_EDIRK ||
+      Kind_TimeIntScheme_Flow == RUNGE_KUTTA_EXPLICIT) {
+    // If set number of RK steps or any of coefficient vectors, check
+    // for consistency and put Butcher tableau coefficients into matrix
+    if (nRKStep != 0 || nRKBvec != 0 || nRKCvec != 0 || nRKAmat != 0) {
+      // check for consistency
+      if (nRKStep != nRKBvec) {
+        cout << "Number of RK steps inconsistent with RK_BVEC entry." << endl;
+        cout << "nRKStep = " << nRKStep << ", nRKBvec = " << nRKBvec << endl;
+        exit(EXIT_FAILURE);
+      }
+      if (nRKStep != nRKCvec) {
+        cout << "Number of RK steps inconsistent with RK_CVEC entry." << endl;
+        exit(EXIT_FAILURE);
+      }
 
-    if (nImp != nRKBvecImp) {
-      cout << "Number of RK steps inconsistent with RK_BVEC_IMP entry." << endl;
-      cout << "nRKStep = " << nRKStep << ", nRKBvecImp = " << nRKBvecImp << endl;
-      exit(EXIT_FAILURE);
-    }
-    if (nImp != nRKCvecImp) {
-      cout << "Number of RK steps inconsistent with RK_CVEC_IMP entry." << endl;
-      cout << "nRKStep = " << nRKStep << ", nRKCvecImp = " << nRKCvecImp << endl;
-      exit(EXIT_FAILURE);
-    }
+      unsigned short namat_expected = (nRKStep*nRKStep - nRKStep)/2;
+      if (nRKAmat != namat_expected) {
+        cout << "Number of RK steps inconsistent with RK_AMAT_LOWER entry." << endl;
+        exit(EXIT_FAILURE);
+      }
 
-    unsigned short namat_expected = (nImp*nImp + nImp)/2;
-    if (nRKAmatImp != namat_expected) {
-      cout << "Number of RK steps inconsistent with RK_AMAT_LOWER_IMP entry." << endl;
-      exit(EXIT_FAILURE);
-    }
-
-    // If consistent, translate A mat input to full matrix
-    unsigned short count = 0;
-    RK_aMat_imp = new su2double* [nImp];
-    for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
-      RK_aMat_imp[iRKStep] = new su2double [nImp];
-      for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
-        if (iRKStep>=jRKStep) {
-          RK_aMat_imp[iRKStep][jRKStep] = RK_aMat_read_imp[count];
-          count++;
-        } else {
-          RK_aMat_imp[iRKStep][jRKStep] = 0.0;
+      // If consistent, translate A mat input to full matrix
+      unsigned short count = 0;
+      RK_aMat = new su2double* [nRKStep];
+      for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
+        RK_aMat[iRKStep] = new su2double [nRKStep];
+        for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
+          if (iRKStep>jRKStep) {
+            RK_aMat[iRKStep][jRKStep] = RK_aMat_read[count];
+            count++;
+          } else {
+            RK_aMat[iRKStep][jRKStep] = 0.0;
+          }
         }
       }
+
     }
 
+    // If set any of implicit coefficient vectors, check
+    // for consistency and put Butcher tableau coefficients into matrix
+    if (nRKBvecImp != 0 || nRKCvecImp != 0 || nRKAmatImp != 0) {
+      // check for consistency
+
+      // Used for EDIRK s.t. the number of implicit steps is one less
+      // than total number of steps
+      unsigned short nImp = nRKStep - 1;
+
+      if (nImp != nRKBvecImp) {
+        cout << "Number of RK steps inconsistent with RK_BVEC_IMP entry." << endl;
+        cout << "nRKStep = " << nRKStep << ", nRKBvecImp = " << nRKBvecImp << endl;
+        exit(EXIT_FAILURE);
+      }
+      if (nImp != nRKCvecImp) {
+        cout << "Number of RK steps inconsistent with RK_CVEC_IMP entry." << endl;
+        cout << "nRKStep = " << nRKStep << ", nRKCvecImp = " << nRKCvecImp << endl;
+        exit(EXIT_FAILURE);
+      }
+
+      unsigned short namat_expected = (nImp*nImp + nImp)/2;
+      if (nRKAmatImp != namat_expected) {
+        cout << "Number of RK steps inconsistent with RK_AMAT_LOWER_IMP entry." << endl;
+        exit(EXIT_FAILURE);
+      }
+
+      // If consistent, translate A mat input to full matrix
+      unsigned short count = 0;
+      RK_aMat_imp = new su2double* [nImp];
+      for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
+        RK_aMat_imp[iRKStep] = new su2double [nImp];
+        for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
+          if (iRKStep>=jRKStep) {
+            RK_aMat_imp[iRKStep][jRKStep] = RK_aMat_read_imp[count];
+            count++;
+          } else {
+            RK_aMat_imp[iRKStep][jRKStep] = 0.0;
+          }
+        }
+      }
+
+    }
   }
 
   /* Check if the byte alignment of the matrix multiplications is a
@@ -4005,6 +4149,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
       WeightsIntegrationADER_DG[i] = GLWeights[i];
     }
   }
+
 
   if (nIntCoeffs == 0) {
     nIntCoeffs = 2;
@@ -6028,39 +6173,8 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
         (Kind_Solver == DISC_ADJ_FEM_EULER) || (Kind_Solver == DISC_ADJ_FEM_NS) || (Kind_Solver == DISC_ADJ_FEM_RANS)) {
       switch (Kind_TimeIntScheme_Flow) {
         case RUNGE_KUTTA_EXPLICIT:
-          if (nRKStep == 0) {
-            cout << "No RK coefficients specified.  Defaulting to classical RK4." << endl;
-            nRKStep = 4;
-
-            // alloc and zero out space for coefficients
-            RK_aMat = new su2double* [nRKStep];
-            RK_bVec = new su2double[nRKStep];
-            RK_cVec = new su2double[nRKStep];
-            for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
-              RK_bVec[iRKStep] = 0.0;
-              RK_cVec[iRKStep] = 0.0;
-
-              RK_aMat[iRKStep] = new su2double [nRKStep];
-              for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
-                RK_aMat[iRKStep][jRKStep] = 0.0;
-              }
-            }
-
-            // set them
-            RK_aMat[1][0] = 0.5;
-            RK_aMat[2][1] = 0.5;
-            RK_aMat[3][2] = 1.0;
-
-            RK_bVec[0] = 1.0/6.0;
-            RK_bVec[1] = 1.0/3.0;
-            RK_bVec[2] = 1.0/3.0;
-            RK_bVec[3] = 1.0/6.0;
-
-            RK_cVec[1] = 0.5;
-            RK_cVec[2] = 0.5;
-            RK_cVec[3] = 1.0;
-          }
-
+          /*--- Don't set any RK variables here.  SetOutput is only called
+           * on the master rank. ---*/
           cout << "Runge-Kutta explicit method for the flow equations." << endl;
           cout << "Number of steps: " << nRKStep << endl;
           cout << "RK coefficients: " << endl;
@@ -6084,65 +6198,6 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           cout << "]" << endl;
           break;
         case RUNGE_KUTTA_LIMEX_EDIRK:
-          if (nRKStep == 0) {
-            cout << "No RK coefficients specified.  Defaulting to a 3 stage, 2nd order scheme." << endl;
-            nRKStep = 3;
-
-            // alloc and zero out space for explicit coefficients
-            RK_aMat = new su2double* [nRKStep];
-            RK_bVec = new su2double[nRKStep];
-            RK_cVec = new su2double[nRKStep];
-            for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
-              RK_bVec[iRKStep] = 0.0;
-              RK_cVec[iRKStep] = 0.0;
-
-              RK_aMat[iRKStep] = new su2double [nRKStep];
-              for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
-                RK_aMat[iRKStep][jRKStep] = 0.0;
-              }
-            }
-
-            // set coeffs for explicit part of scheme
-            const su2double alpha = 1.0 - sqrt(2)/2.0;
-            const su2double delta = -2.0*sqrt(2.0)/3.0;
-
-            RK_aMat[1][0] = alpha;
-            RK_aMat[2][0] = delta;
-            RK_aMat[2][1] = 1.0 - delta;
-
-            RK_bVec[1] = 1.0 - alpha;
-            RK_bVec[2] = alpha;
-
-            RK_cVec[1] = alpha;
-            RK_cVec[2] = 1.0;
-
-            // alloc and zero out space for implicit coefficients
-            unsigned short int nImp = nRKStep - 1;
-            RK_aMat_imp = new su2double* [nImp];
-            RK_bVec_imp = new su2double[nImp];
-            RK_cVec_imp = new su2double[nImp];
-            for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
-              RK_bVec_imp[iRKStep] = 0.0;
-              RK_cVec_imp[iRKStep] = 0.0;
-
-              RK_aMat_imp[iRKStep] = new su2double [nImp];
-              for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
-                RK_aMat_imp[iRKStep][jRKStep] = 0.0;
-              }
-            }
-
-            // set coeffs for implicit part
-            RK_aMat_imp[0][0] = alpha;
-            RK_aMat_imp[1][0] = 1.0 - alpha;
-            RK_aMat_imp[1][1] = alpha;
-
-            RK_bVec_imp[0] = 1.0 - alpha;
-            RK_bVec_imp[1] = alpha;
-
-            RK_cVec[0] = alpha;
-            RK_cVec[1] = 1.0;
-          }
-
           cout << "Linearized IMEX w/ EDIRK for the flow equations." << endl;
           cout << "Number of steps: " << nRKStep << endl;
           cout << "Explicit RK coefficients: " << endl;
@@ -7666,6 +7721,8 @@ CConfig::~CConfig(void) {
   if (CpPolyCoefficientsND  != NULL) delete [] CpPolyCoefficientsND;
   if (MuPolyCoefficientsND  != NULL) delete [] MuPolyCoefficientsND;
   if (KtPolyCoefficientsND  != NULL) delete [] KtPolyCoefficientsND;
+
+  if (default_fluct_stress_AR_params != NULL) delete [] default_fluct_stress_AR_params;
 
   if (FFDTag != NULL) delete [] FFDTag;
   if (nDV_Value != NULL) delete [] nDV_Value;

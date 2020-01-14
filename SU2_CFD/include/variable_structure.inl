@@ -283,7 +283,7 @@ inline su2double CVariable::GetAnisoRatio(void) {return 1; }
 
 inline su2double CVariable::GetResolutionAdequacy(void) const { return 1; }
 
-inline su2double* CVariable::GetForcingVector() const { return NULL; }
+inline const su2double* CVariable::GetForcingVector() const { return NULL; }
 
 inline su2double CVariable::GetKineticEnergyRatio(void) const { return 1; }
 
@@ -292,13 +292,6 @@ inline su2double CVariable::GetResolvedTurbStress(unsigned short iDim, unsigned 
 inline su2double** CVariable::GetResolvedTurbStress(void) const { return NULL; }
 
 inline su2double CVariable::GetResolvedKineticEnergy(void) const { return 0; }
-
-inline su2double** CVariable::GetForcingStress(void) { return NULL; }
-
-inline su2double CVariable::GetForcingStress(unsigned short iDim,
-                                             unsigned short jDim) {
-  return 0.0;
-}
 
 inline su2double CVariable::GetProduction(void) const { return 0; }
 
@@ -517,8 +510,6 @@ inline void CVariable::SetResolvedTurbStress(unsigned short iDim,
                                                su2double val_stress) { }
 
 inline void CVariable::SetResolvedKineticEnergy(void) { }
-
-inline void CVariable::SetForcingStress(su2double** val_tau_F) { }
 
 inline void CVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) { }
 
@@ -986,7 +977,7 @@ inline su2double CNSVariable::GetResolutionAdequacy(void) const {
   return ResolutionAdequacy;
 }
 
-inline su2double* CNSVariable::GetForcingVector() const {
+inline const su2double* CNSVariable::GetForcingVector() const {
   return ForcingVector;
 }
 
@@ -1575,26 +1566,6 @@ inline void CDiscAdjVariable::SetSolution_Direct(su2double *val_solution_direct)
     Solution_Direct[iVar] = val_solution_direct[iVar];
   }
 }
-
-// FIXME: Still need these?
-inline void CNSVariable::SetForcingStress(su2double** val_tau_F) {
-    // Copy values instead of copying pointers to values that may change
-    for (unsigned short iDim = 0; iDim < nDim; iDim++)
-      for (unsigned short jDim = 0; jDim < nDim; jDim++)
-        Forcing_Stress[iDim][jDim] = val_tau_F[iDim][jDim];
-}
-
-inline su2double** CNSVariable::GetForcingStress(void) { return Forcing_Stress; }
-
-inline su2double CNSVariable::GetForcingStress(unsigned short iDim,
-                                               unsigned short jDim) {
-  if (Forcing_Stress != NULL)
-    return Forcing_Stress[iDim][jDim];
-  else
-    SU2_MPI::Error("Attempted to access forcing stress before forcing stress is properly initialized!", CURRENT_FUNCTION);
-    return 0;   // This return is here to make static checkers happy
-}
-// FIXME: end 'these'
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() const {
   return T;

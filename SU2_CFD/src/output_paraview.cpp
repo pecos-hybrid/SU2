@@ -316,6 +316,8 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
   /*--- Write the header ---*/
   if (surf_sol) Paraview_File << "POINTS "<< nSurf_Poin <<" double\n";
   else Paraview_File << "POINTS "<< nGlobal_Poin <<" double\n";
+
+  Paraview_File << setprecision(16);
   
   /*--- Write surface and volumetric solution data. ---*/
   for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {

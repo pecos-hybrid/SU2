@@ -177,6 +177,18 @@ public:
   void AddTauSGET(su2double **val_gradprimvar,
                   su2double **val_eddy_viscosity);
 
+  void AddTauSGETJacobian(su2double *val_Mean_PrimVar,
+			  su2double **mu,
+			  const su2double val_dist_ij,
+			  const su2double *nvec);
+
+  void AddSGETHeatFluxJacobian(su2double *val_Mean_PrimVar,
+			       su2double **mu,
+			       const su2double val_dist_ij,
+			       const su2double *val_normal);
+
+
+
   /*!
    * \brief Set the anisotropic eddy viscosity from the energy transfer model.
    * \param[in] aniso_eddy_viscosity_i - The eddy viscosity at point i

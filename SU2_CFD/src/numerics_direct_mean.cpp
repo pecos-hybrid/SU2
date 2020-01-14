@@ -3179,6 +3179,7 @@ CUpwRoe_Flow::CUpwRoe_Flow(unsigned short val_nDim, unsigned short val_nVar, CCo
   implicit = ( (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
                (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
                (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
+
   grid_movement = config->GetGrid_Movement();
   kappa = config->GetRoe_Kappa(); // 1 is unstable
 
@@ -3396,8 +3397,8 @@ void CUpwRoe_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jaco
 
         val_residual[iVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Diff_U[jVar]*Area*Dissipation_ij;
         if(implicit){
-          val_Jacobian_i[iVar][jVar] += (1.0-kappa)*Proj_ModJac_Tensor_ij*Area;
-          val_Jacobian_j[iVar][jVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Area;
+          val_Jacobian_i[iVar][jVar] += (1.0-kappa)*Proj_ModJac_Tensor_ij*Area*Dissipation_ij;
+          val_Jacobian_j[iVar][jVar] -= (1.0-kappa)*Proj_ModJac_Tensor_ij*Area*Dissipation_ij;
         }
     }
   }

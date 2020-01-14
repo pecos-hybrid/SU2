@@ -208,25 +208,18 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
 
   /*--- Flow infinity initialization stuff ---*/
-  su2double rhoInf, *VelInf, muLamInf, Intensity, viscRatio, muT_Inf, Tm_Inf, Lm_Inf;
+  su2double rhoInf, VelInf, muLamInf, Intensity, viscRatio, muT_Inf, Tm_Inf, Lm_Inf;
   rhoInf    = config->GetDensity_FreeStreamND();
-  VelInf    = config->GetVelocity_FreeStreamND();
+  VelInf    = config->GetModVel_FreeStreamND();
   muLamInf  = config->GetViscosity_FreeStreamND();
   Intensity = config->GetTurbulenceIntensity_FreeStream();
   viscRatio = config->GetTurb2LamViscRatio_FreeStream();
-  
-  su2double VelMag = 0;
-  for (iDim = 0; iDim < nDim; iDim++) {
-    VelMag += VelInf[iDim]*VelInf[iDim];
-  }
-
-  VelMag = sqrt(VelMag);
 
   su2double L_Inf = config->GetLength_Reynolds();
-  su2double scale = 1.0e-14;
-  su2double scalar_min = scale/(VelMag*VelMag);
-  su2double tke_min = scalar_min*VelMag*VelMag;
-  su2double tdr_min = scalar_min*pow(VelMag,3.0)/L_Inf;
+  su2double scale = 1.0e-8;
+  su2double scalar_min = scale/(VelInf*VelInf);
+  su2double tke_min = scalar_min*VelInf*VelInf;
+  su2double tdr_min = scalar_min*pow(VelInf,3.0)/L_Inf;
 
 
   // Freestream eddy visc
@@ -237,7 +230,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   const su2double nutInf = muT_Inf /rhoInf;
 
   // Freestream TKE
-  kine_Inf = 1.5*(VelMag*VelMag*Intensity*Intensity);
+  kine_Inf = 1.5*(VelInf*VelInf*Intensity*Intensity);
 
   // Freestream dissipation
   epsi_Inf = (2.0/3.0)*constants[0]*(kine_Inf*kine_Inf)/nutInf;
@@ -419,6 +412,12 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
   su2double tke, v2, zeta, muT;
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
+  /*--- Update flow solution using new k
+   * Since T depends on k and viscosity depends on T, we need to update the
+   * flow primitives to get a consistent laminar viscosity ---*/
+
+  solver_container[FLOW_SOL]->Preprocessing(geometry, solver_container, config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, true);
+
   /*--- Compute mean flow and turbulence gradients ---*/
   if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
     SetSolution_Gradient_GG(geometry, config);
@@ -428,11 +427,8 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     SetSolution_Gradient_LS(geometry, config);
   }
 
-  su2double* VelInf = config->GetVelocity_FreeStreamND();
-  su2double VelMag = 0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    VelMag += VelInf[iDim]*VelInf[iDim];
-  VelMag = sqrt(VelMag);
+  su2double scale = EPS;
+  const su2double VelInf = config->GetModVel_FreeStreamND();
   const su2double L_inf = config->GetLength_Reynolds();
 
   CVariable** flow_node;
@@ -446,6 +442,15 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
   const unsigned short realizability_limit = config->GetKind_v2f_Limit();
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint ++) {
 
+    /*--- Copy over production from flow averages to turbulence variables
+     * This is sometimes redundant, but is essential after averages are
+     * updated. Otherwise the production in the flow nodes and the turbulence
+     * nodes are inconsistent.  ---*/
+
+    if (model_split && !(config->GetUse_Resolved_Turb_Stress())) {
+       node[iPoint]->SetProduction(flow_node[iPoint]->GetProduction());
+    }
+
     /*--- Compute turbulence scales ---*/
 
     rho = flow_node[iPoint]->GetDensity();
@@ -455,11 +460,12 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     /*--- Scalars ---*/
 
     tke = max(node[iPoint]->GetSolution(0), 0.0);
-    v2  = max(node[iPoint]->GetSolution(2), 0.0);
+    v2  = max(node[iPoint]->GetSolution(2), scale*VelInf*VelInf);
 
     /*--- T & L ---*/
 
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, config);
+    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, config);
+
     node[iPoint]->SetKolKineticEnergyRatio(nu);
 
     const su2double Tm = node[iPoint]->GetTurbTimescale();
@@ -469,7 +475,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     muT = constants[0]*rho*v2*Tm;
     if (realizability_limit == EDDY_VISC_LIMIT) {
       const su2double C_lim = config->Getv2f_Realizability_Constant();
-      muT = min(muT, C_lim*rho*tke/(sqrt(3)*max(S, 1E-16)));
+      muT = min(muT, C_lim*rho*tke/(sqrt(3)*S));
     }
 
     node[iPoint]->SetmuT(muT);
@@ -483,7 +489,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 }
 
 void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
-                                        CConfig *config) {
+                                        const CConfig *config) {
 
   CVariable** flow_node;
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
@@ -493,11 +499,7 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
     flow_node = solver_container[FLOW_SOL]->node;
   }
 
-  su2double* VelInf = config->GetVelocity_FreeStreamND();
-  su2double VelMag = 0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    VelMag += VelInf[iDim]*VelInf[iDim];
-  VelMag = sqrt(VelMag);
+  const su2double VelInf = config->GetModVel_FreeStreamND();
   const su2double L_inf = config->GetLength_Reynolds();
 
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
@@ -506,7 +508,7 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
                           flow_node[iPoint]->GetDensity();
     const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, config);
+    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, config);
   }
 }
 
@@ -628,14 +630,8 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
       distance = sqrt(distance);
 
       /*--- Set wall values ---*/
-      if (compressible) {
-        density = flow_node[iPoint]->GetDensity();
-        laminar_viscosity = flow_node[iPoint]->GetLaminarViscosity();
-      }
-      if (incompressible) {
-        density = flow_node[iPoint]->GetDensity();
-        laminar_viscosity = flow_node[iPoint]->GetLaminarViscosity();
-      }
+      density = flow_node[jPoint]->GetDensity();
+      laminar_viscosity = flow_node[jPoint]->GetLaminarViscosity();
 
       if (config->GetBoolUse_v2f_Explicit_WallBC()) {
 

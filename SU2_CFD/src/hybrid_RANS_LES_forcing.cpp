@@ -135,7 +135,8 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double v2 = max(solver[TURB_SOL]->node[iPoint]->GetSolution(2), V2_MIN);
 
     // ratio of modeled to total TKE
-    const su2double alpha = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+    su2double alpha = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+    alpha = max(alpha, 1e-8);
 
     // average of r_M
     const su2double resolution_adequacy =
@@ -166,8 +167,13 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     // Get dwall
     dwall = geometry->node[iPoint]->GetWall_Distance();
 
-    // Compute TG velocity at this point
-    this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
+    if (config->isHybrid_Forced_Axi()) {
+      // Angular periodic version 
+      this->SetAxiTGField(x, Lsgs, Lmesh, D, dwall, h);
+    } else {
+      // Compute TG velocity at this point
+      this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
+    }
 
     const su2double Ftar = this->GetTargetProduction(v2, Tsgs, alpha);
 

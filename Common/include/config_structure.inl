@@ -497,9 +497,9 @@ inline su2double CConfig::GetDensity_FreeStream(void) { return Density_FreeStrea
 
 inline su2double CConfig::GetDensity_Solid(void) { return Density_Solid; }
 
-inline su2double CConfig::GetModVel_FreeStream(void) { return ModVel_FreeStream; }
+inline su2double CConfig::GetModVel_FreeStream(void) const { return ModVel_FreeStream; }
 
-inline su2double CConfig::GetModVel_FreeStreamND(void) { return ModVel_FreeStreamND; }
+inline su2double CConfig::GetModVel_FreeStreamND(void) const { return ModVel_FreeStreamND; }
 
 inline su2double CConfig::GetPressure_FreeStream(void) { return Pressure_FreeStream; }
 
@@ -583,7 +583,7 @@ inline su2double CConfig::GetTurbLength_FreeStream(void) { return TurbLength_Fre
 
 inline su2double* CConfig::GetMassFrac_FreeStream(void) { return MassFrac_FreeStream; }
 
-inline su2double CConfig::GetLength_Reynolds(void) { return Length_Reynolds; }
+inline su2double CConfig::GetLength_Reynolds(void) const { return Length_Reynolds; }
 
 inline unsigned short CConfig::GetnStartUpIter(void) { return nStartUpIter; }
 
@@ -1051,7 +1051,9 @@ inline su2double CConfig::GetDeform_Linear_Solver_Error(void) { return Deform_Li
 
 inline unsigned long CConfig::GetLinear_Solver_Iter(void) { return Linear_Solver_Iter; }
 
-inline bool CConfig::GetLinear_Solver_Max_Iter_Error(void) { return Linear_Solver_Max_Iter_Error; }
+inline bool CConfig::GetLinear_Solver_Max_Iter_Error(void) const { return Linear_Solver_Max_Iter_Error; }
+
+inline bool CConfig::GetLinear_Solver_Verbose(void) const { return Linear_Solver_Verbose; }
 
 inline unsigned long CConfig::GetDeform_Linear_Solver_Iter(void) { return Deform_Linear_Solver_Iter; }
 
@@ -1297,9 +1299,15 @@ inline bool CConfig::GetBoolUse_v2f_Rf_mod(void) { return Use_v2f_Rf_mod; }
 
 inline bool CConfig::GetBoolUse_v2f_Explicit_WallBC(void) { return Use_v2f_Explicit_WallBC; }
 
+inline bool CConfig::GetUse_v2f_Timescale_Limit(void) const { return Use_v2f_Timescale_Limit; }
+
 inline unsigned short CConfig::GetKind_v2f_Limit(void) const { return Kind_v2f_Limit; }
 
 inline su2double CConfig::Getv2f_Realizability_Constant(void) const { return v2f_Realizability_Constant; }
+
+inline bool CConfig::GetBool_Pv2_Nonnegative(void) const { return Pv2_nonnegative; }
+
+inline double CConfig::GetProduction_Relaxation(void) const { return Production_Relaxation; }
 
 inline unsigned short CConfig::GetnMarker_MixingPlaneInterface(void) { return nMarker_MixingPlaneInterface;}
 
@@ -1685,9 +1693,14 @@ inline void CConfig::SetSmoothNumGrid(bool val_smoothnumgrid) { SmoothNumGrid = 
 
 inline unsigned short CConfig::GetKind_HybridRANSLES_Testing(void) { return Kind_HybridRANSLES_Testing; }
 
+inline unsigned short CConfig::GetKind_Hybrid_Fluct_Stress_Damping(void) const { return Kind_Hybrid_Fluct_Stress_Damping; }
+
+inline const su2double* CConfig::GetFluctStress_AR_Params(void) const { return FluctStress_AR_Params; }
+
 inline unsigned short CConfig::GetKind_Hybrid_Resolution_Indicator(void) { return Kind_Hybrid_Res_Ind; }
 
 inline bool CConfig::isHybrid_Forced(void) { return Hybrid_Forcing; }
+inline bool CConfig::isHybrid_Forced_Axi(void) { return Hybrid_Forcing_Axi; }
 
 inline su2double* CConfig::GetHybrid_Forcing_Periodic_Length(void) { return Hybrid_Forcing_Periodic_Length; }
 
@@ -2071,7 +2084,7 @@ inline su2double CConfig::GetRestart_Bandwidth_Agg(void) { return Restart_Bandwi
 
 inline unsigned long CConfig::GetWrt_Surf_Freq_DualTime(void) { return Wrt_Surf_Freq_DualTime; }
 
-inline unsigned short CConfig::GetKind_HybridRANSLES(void) {return Kind_HybridRANSLES; }
+inline unsigned short CConfig::GetKind_HybridRANSLES(void) const {return Kind_HybridRANSLES; }
 
 inline bool CConfig::isDESBasedModel(void) {
   return ((Kind_HybridRANSLES == SA_DES)  || (Kind_HybridRANSLES == SA_DDES) ||
@@ -2079,6 +2092,8 @@ inline bool CConfig::isDESBasedModel(void) {
 }
 
 inline unsigned short CConfig::GetKind_RoeLowDiss(void) {return Kind_RoeLowDiss; }
+
+inline su2double CConfig::GetRoe_Min_Dissipation(void) const {return Roe_Min_Dissipation; }
 
 inline bool CConfig::BlendUpwindCentralFluxes(void) const {
   const bool scheme_supports_blending = (Kind_Upwind_Flow == ROE) ||

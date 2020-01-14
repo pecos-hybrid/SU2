@@ -156,6 +156,7 @@ BOOST_FIXTURE_TEST_CASE(ResolvedSolutionLoadsFromResolvedRestart,
       "\"x\"", "\"y\"", "\"z\"",
       "\"Density\"", "\"X-Momentum\"", "\"Y-Momentum\"", "\"Z-Momentum\"", "\"Energy\"",
       "\"TKE\"", "\"Dissipation\"", "\"v2\"", "\"f\"",
+      "\"Production\"",
       "\"Pressure\"", "\"Temperature\"", "\"Mach\"",
       "\"Pressure_Coefficient\"", "\"Laminar_Viscosity\"",
       "\"Skin_Friction_Coefficient_X\"", "\"Skin_Friction_Coefficient_Y\"",
@@ -169,6 +170,7 @@ BOOST_FIXTURE_TEST_CASE(ResolvedSolutionLoadsFromResolvedRestart,
          /* Dissipation */ 0.17797,
          /* v2 */ 0,
          /* f */ 0,
+         /* Production */ 0,
          /* Other variables */ 116372, 303.772, 0, 0.598286, 1.86371e-05,
          1.1907e-06, 0, -9.30875e-15, -0.286451, 1276.33, 3.76891e-31, 0.0246201,
          0.0531493};
@@ -204,7 +206,8 @@ BOOST_FIXTURE_TEST_CASE(AverageSolutionLoadsFromAverageRestart,
       "\"tau_res_22\"", "\"tau_res_23\"", "\"tau_res_31\"", "\"tau_res_32\"",
       "\"tau_res_33\"", "\"mu_SGET_11\"", "\"mu_SGET_12\"", "mu_SGET_13\"",
       "\"mu_SGET_21\"", "\"mu_SGET_22\"", "\"mu_SGET_23\"", "\"mu_SGET_31\"",
-      "\"mu_SGET_32\"", "\"mu_SGET_33\"", "\"Average_r_M\""};
+      "\"mu_SGET_32\"", "\"mu_SGET_33\"", "\"Average_r_M\"",
+      "\"Average_hyb_force_1\"", "\"Average_hyb_force_2\"", "\"Average_hyb_force_3\""};
 
   passivedouble restart_data[] =
         {/* x */ 0, /* y */ 0, /* z */ 0,
@@ -221,7 +224,8 @@ BOOST_FIXTURE_TEST_CASE(AverageSolutionLoadsFromAverageRestart,
          /* k_res */ 0,
          /* tau_res */ 0, 0, 0, 0, 0, 0, 0, 0, 0,
          /* mu_SGET */ 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         /* average r_M */ 1};
+         /* average r_M */ 1,
+         /* average mean force */ 1, 1, 1};
 
 
   const size_t nFields = sizeof(name_array)/sizeof(name_array[0]);
@@ -244,6 +248,7 @@ BOOST_FIXTURE_TEST_CASE(AverageSolutionLoadsFromResolvedRestart,
       "\"x\"", "\"y\"", "\"z\"",
       "\"Density\"", "\"X-Momentum\"", "\"Y-Momentum\"", "\"Z-Momentum\"", "\"Energy\"",
       "\"TKE\"", "\"Dissipation\"", "\"v2\"", "\"f\"",
+      "\"Production\"",
       "\"Pressure\"", "\"Temperature\"", "\"Mach\"",
       "\"Pressure_Coefficient\"", "\"Laminar_Viscosity\"",
       "\"Skin_Friction_Coefficient_X\"", "\"Skin_Friction_Coefficient_Y\"",
@@ -257,6 +262,7 @@ BOOST_FIXTURE_TEST_CASE(AverageSolutionLoadsFromResolvedRestart,
          /* Dissipation */ 0.17797,
          /* v2 */ 0,
          /* f */ 0,
+         /* Production */ 0,
          /* Other variables */ 116372, 303.772, 0, 0.598286, 1.86371e-05,
          1.1907e-06, 0, -9.30875e-15, -0.286451, 1276.33, 3.76891e-31, 0.0246201,
          0.0531493};
@@ -281,6 +287,7 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsProperlyFromRANSRestart,
       "\"x\"", "\"y\"", "\"z\"",
       "\"Density\"", "\"X-Momentum\"", "\"Y-Momentum\"", "\"Z-Momentum\"", "\"Energy\"",
       "\"TKE\"", "\"Dissipation\"", "\"v2\"", "\"f\"",
+      "\"Production\"",
       "\"Pressure\"", "\"Temperature\"", "\"Mach\"",
       "\"Pressure_Coefficient\"", "\"Laminar_Viscosity\"",
       "\"Skin_Friction_Coefficient_X\"", "\"Skin_Friction_Coefficient_Y\"",
@@ -294,6 +301,7 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsProperlyFromRANSRestart,
          /* Dissipation */ 0.17797,
          /* v2 */ 0,
          /* f */ 0,
+         /* Production */ 1.0,
          /* Other variables */ 116372, 303.772, 0, 0.598286, 1.86371e-05,
          1.1907e-06, 0, -9.30875e-15, -0.286451, 1276.33, 3.76891e-31, 0.0246201,
          0.0531493};
@@ -333,7 +341,8 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsFromHybridRestart,
       "\"tau_res_22\"", "\"tau_res_23\"", "\"tau_res_31\"", "\"tau_res_32\"",
       "\"tau_res_33\"", "\"mu_SGET_11\"", "\"mu_SGET_12\"", "mu_SGET_13\"",
       "\"mu_SGET_21\"", "\"mu_SGET_22\"", "\"mu_SGET_23\"", "\"mu_SGET_31\"",
-      "\"mu_SGET_32\"", "\"mu_SGET_33\"", "\"Average_r_M\""};
+      "\"mu_SGET_32\"", "\"mu_SGET_33\"", "\"Average_r_M\"",
+      "\"Average_hyb_force_1\"", "\"Average_hyb_force_2\"", "\"Average_hyb_force_3\""};
 
   const su2double resolved_stress = -4;
   const su2double k_resolved = -0.5*(3*resolved_stress)/density;
@@ -354,7 +363,8 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsFromHybridRestart,
          resolved_stress, resolved_stress, resolved_stress,
          resolved_stress, resolved_stress, resolved_stress,
          /* mu_SGET */ 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         /* average r_M */ 1};
+         /* average r_M */ 1,
+         /* average mean force */ 1, 1, 1};
 
 
 
@@ -392,7 +402,8 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsProductionFromHybridRestart,
       "\"Eddy_Viscosity\"", "\"L_m\"", "\"T_m\"",
       "\"alpha\"", "\"k_res\"", "\"Production\"", "\"mu_SGET_11\"", "\"mu_SGET_12\"", "mu_SGET_13\"",
       "\"mu_SGET_21\"", "\"mu_SGET_22\"", "\"mu_SGET_23\"", "\"mu_SGET_31\"",
-      "\"mu_SGET_32\"", "\"mu_SGET_33\"", "\"Average_r_M\""};
+      "\"mu_SGET_32\"", "\"mu_SGET_33\"", "\"Average_r_M\"",
+      "\"Average_hyb_force_1\"", "\"Average_hyb_force_2\"", "\"Average_hyb_force_3\""};
 
   const su2double production = 4;
   const su2double k_resolved = 0.5;
@@ -411,10 +422,13 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsProductionFromHybridRestart,
          /* k_res */ k_resolved,
          /* improved production */ production,
          /* mu_SGET */ 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         /* average r_M */ 1};
+         /* average r_M */ 1,
+         /* average mean force */ 1, 1, 1};
 
 
   const size_t nFields = sizeof(name_array)/sizeof(name_array[0]);
+
+  config->SetUse_Resolved_Turb_Stress(false);
   SetupRestart(name_array, nFields, restart_data);
   solver->LoadSolution(false, "dummy_string", config, geometry);
 
@@ -441,7 +455,8 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsResAdequacyFromHybridRestart,
       "\"Eddy_Viscosity\"", "\"L_m\"", "\"T_m\"",
       "\"alpha\"", "\"k_res\"", "\"Production\"", "\"mu_SGET_11\"", "\"mu_SGET_12\"", "mu_SGET_13\"",
       "\"mu_SGET_21\"", "\"mu_SGET_22\"", "\"mu_SGET_23\"", "\"mu_SGET_31\"",
-      "\"mu_SGET_32\"", "\"mu_SGET_33\"", "\"Average_r_M\""};
+      "\"mu_SGET_32\"", "\"mu_SGET_33\"", "\"Average_r_M\"",
+      "\"Average_hyb_force_1\"", "\"Average_hyb_force_2\"", "\"Average_hyb_force_3\""};
 
   const su2double production = 4;
   const su2double k_resolved = 0.5;
@@ -461,10 +476,12 @@ BOOST_FIXTURE_TEST_CASE(HybridSolutionLoadsResAdequacyFromHybridRestart,
          /* k_res */ k_resolved,
          /* improved production */ production,
          /* mu_SGET */ 0, 0, 0, 0, 0, 0, 0, 0, 0,
-         /* average r_M */ res_adequacy};
+         /* average r_M */ res_adequacy,
+         /* average mean force */ 1, 1, 1};
 
 
   const size_t nFields = sizeof(name_array)/sizeof(name_array[0]);
+  config->SetUse_Resolved_Turb_Stress(false);
   SetupRestart(name_array, nFields, restart_data);
   solver->LoadSolution(false, "dummy_string", config, geometry);
 

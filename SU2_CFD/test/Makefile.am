@@ -53,6 +53,7 @@ check_PROGRAMS += viscous_proj_flux
 check_PROGRAMS += viscous_residual_test
 check_PROGRAMS += viscous_residual_2d_test
 check_PROGRAMS += viscous_model_split
+check_PROGRAMS += averaging_timescale_test
 endif
 
 # Eventually these will likely be required
@@ -68,11 +69,9 @@ AM_CPPFLAGS += @su2_externals_INCLUDES@ @LAPACK_CXX@ @BOOST_CXX@
 LDADD  =
 LDADD += $(top_builddir)/SU2_CFD/obj/libSU2Core.a
 LDADD += $(top_builddir)/Common/lib/libSU2.a
-#LDADD += @su2_externals_LIBS@ @LAPACK_LD@
-LDADD += @su2_externals_LIBS@ @LAPACK_LDALL@
+LDADD += @su2_externals_LIBS@ @LAPACK_LD@
 if BUILD_LAPACK
-#LDFLAGS  += -mkl
-LDFLAGS  += @LAPACK_LDALL@
+LDFLAGS  += -mkl
 endif
 
 # Test sources
@@ -93,6 +92,7 @@ viscous_proj_flux_SOURCES              = viscous_proj_flux.cpp
 viscous_residual_test_SOURCES          = viscous_residual_test.cpp
 viscous_residual_2d_test_SOURCES       = viscous_residual_2d_test.cpp
 viscous_model_split_SOURCES            = viscous_model_split.cpp
+averaging_timescale_test_SOURCES       = averaging_timescale_test.cpp
 endif
 
 # Tests to be run
@@ -113,6 +113,7 @@ TESTS += viscous_proj_flux
 TESTS += viscous_residual_test
 TESTS += viscous_residual_2d_test
 TESTS += viscous_model_split
+TESTS += averaging_timescale_test
 endif
 
 # Any of above we expect to fail?
