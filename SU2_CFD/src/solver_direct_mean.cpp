@@ -14061,10 +14061,12 @@ void CEulerSolver::BC_Sym_Plane(CGeometry *geometry,
         visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), Grad_Reflected);
         
         /*--- Turbulent kinetic energy. ---*/
-        if (config->GetKind_Turb_Model() == SST ||
-            config->GetKind_Turb_Model() == KE)
+        if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                               solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                            solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+        }
         
         /*--- Compute and update residual. Note that the viscous shear stress tensor is computed in the 
               following routine based upon the velocity-component gradients. ---*/
