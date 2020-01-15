@@ -1026,8 +1026,7 @@ su2double* CTurbKESolver::GetConstants() {
 
 void CTurbKESolver::SetInletAtVertex(su2double *val_inlet,
                                      unsigned short iMarker,
-                                     unsigned long iVertex,
-                                     CConfig* config) {
+                                     unsigned long iVertex) {
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
     Inlet_TurbVars[iMarker][iVertex][iVar] = val_inlet[nDim+2+nDim + iVar];
   }

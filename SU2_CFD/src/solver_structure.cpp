@@ -3452,7 +3452,7 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
               if (min_dist < tolerance) {
 
-                solver[MESH_0][KIND_SOLVER]->SetInletAtVertex(Inlet_Values, iMarker, iVertex, config);
+                solver[MESH_0][KIND_SOLVER]->SetInletAtVertex(Inlet_Values, iMarker, iVertex);
 
               } else {
 
@@ -3534,7 +3534,7 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
             /*--- Set the boundary area-averaged inlet values for the coarse point. ---*/
 
-            solver[iMesh][KIND_SOLVER]->SetInletAtVertex(Inlet_Values, iMarker, iVertex, config);
+            solver[iMesh][KIND_SOLVER]->SetInletAtVertex(Inlet_Values, iMarker, iVertex);
 
           }
         }

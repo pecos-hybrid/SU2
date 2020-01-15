@@ -3819,8 +3819,7 @@ void CTurbSASolver::SetDES_LengthScale(CSolver **solver, CGeometry *geometry, CC
 
 void CTurbSASolver::SetInletAtVertex(su2double *val_inlet,
                                     unsigned short iMarker,
-                                    unsigned long iVertex,
-                                    CConfig* config) {
+                                    unsigned long iVertex) {
 
   Inlet_TurbVars[iMarker][iVertex][0] = val_inlet[nDim+2+nDim];
 
@@ -5044,8 +5043,7 @@ su2double* CTurbSSTSolver::GetConstants() {
 
 void CTurbSSTSolver::SetInletAtVertex(su2double *val_inlet,
                                      unsigned short iMarker,
-                                     unsigned long iVertex,
-                                     CConfig* config) {
+                                     unsigned long iVertex) {
 
   Inlet_TurbVars[iMarker][iVertex][0] = val_inlet[nDim+2+nDim];
   Inlet_TurbVars[iMarker][iVertex][1] = val_inlet[nDim+2+nDim+1];

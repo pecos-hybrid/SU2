@@ -566,7 +566,7 @@ inline void CSolver::SetInlet_TurbVar(unsigned short val_marker, unsigned long v
 
 inline void CSolver::SetUniformInlet(CConfig* config, unsigned short iMarker) {};
 
-inline void CSolver::SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex, CConfig* config) { };
+inline void CSolver::SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex) { };
 
 inline su2double CSolver::GetInletAtVertex(su2double *val_inlet, unsigned long val_inlet_point, unsigned short val_kind_marker, string val_marker, CGeometry *geometry, CConfig *config) { return 0; }
 
