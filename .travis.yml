@@ -44,7 +44,7 @@ matrix:
         - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
         - TEST_SCRIPT=serial_regression.py
       before_script:
-        - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+        - git clone -b v6.2.0 https://github.com/su2code/TestCases.git ./TestData
         - cp -R ./TestData/* ./TestCases/
         - cd TestCases
       script:
@@ -56,7 +56,7 @@ matrix:
         - INSTALL_COMMAND="./ninja -C $MESON_BUILD_DIR install"
         - TEST_SCRIPT=parallel_regression.py
       before_script:
-        - git clone -b v6.0.1 https://github.com/su2code/TestCases.git ./TestData
+        - git clone -b v6.2.0 https://github.com/su2code/TestCases.git ./TestData
         - cp -R ./TestData/* ./TestCases/
         - cd TestCases
       script:
