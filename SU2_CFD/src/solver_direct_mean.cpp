@@ -18098,6 +18098,7 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
   
   unsigned long iPoint, jPoint, iEdge;
   
+  const bool wall_functions = config->GetWall_Functions();
   bool implicit =
     ((config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
      (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK && iRKStep == 0) ||
@@ -18139,7 +18140,8 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
     
     /*--- Wall shear stress values (wall functions) ---*/
     
-    numerics->SetTauWall(node[iPoint]->GetTauWall(), node[iPoint]->GetTauWall());
+    if (wall_functions)
+      numerics->SetTauWall(node[iPoint]->GetTauWall(), node[iPoint]->GetTauWall());
 
     /*--- Compute and update residual ---*/
     
