@@ -1147,6 +1147,7 @@ private:
   bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
   unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
   su2double v2f_Realizability_Constant; /*!< \brief The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. */
+  bool Use_TKE_Diffusion; /*!< \brief Add TKE diffusion model for the molecular and turbulent transport of total energy. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -5156,6 +5157,13 @@ public:
    * \return The realizability model constant
    */
   su2double Getv2f_Realizability_Constant(void) const;
+
+  /*!
+   * \brief  Add TKE diffusion model for the molecular and turbulent
+   *         transport of total energy.
+   * \return True if the TKE diffusion model is to be used.
+   */
+  bool GetUse_TKE_Diffusion(void) const;
 
   /*!
    * \brief number Turbomachinery performance option specified from config file.

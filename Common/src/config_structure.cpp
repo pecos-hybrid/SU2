@@ -1179,6 +1179,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief PRODUCTION_RELAXATION \n DESCRIPTION: When the averages are updated, relax the updates by this amount. \n DEFAULT: 0.5 \ingroup Config */
   addDoubleOption("PRODUCTION_RELAXATION", Production_Relaxation, 0.5);
+
+  /*!\brief USE_TKE_DIFFUSION \n DESCRIPTION:  Add TKE diffusion model for the molecular and turbulent transport of total energy. \n DEFAULT: False \ingroup Config */
+  addBoolOption("USE_TKE_DIFFUSION", Use_TKE_Diffusion, false);
   
   /*!\brief SPATIAL_FOURIER \n DESCRIPTION: Option to compute the spatial fourier trasformation for the Giles BC. */
   addBoolOption("SPATIAL_FOURIER", SpatialFourier, false);

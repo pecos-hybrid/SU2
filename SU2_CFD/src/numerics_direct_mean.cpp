@@ -5462,7 +5462,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   SetHeatFluxVector(Mean_GradPrimVar, Mean_Laminar_Viscosity,
                     Mean_Eddy_Viscosity);
 
-  if (tkeNeeded) {
+  if (tkeNeeded && config->GetUse_TKE_Diffusion()) {
     SetTKE_Diffusion(Mean_GradTurbVar,
                      Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
   } else {

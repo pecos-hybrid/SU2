@@ -1309,6 +1309,8 @@ inline bool CConfig::GetBool_Pv2_Nonnegative(void) const { return Pv2_nonnegativ
 
 inline double CConfig::GetProduction_Relaxation(void) const { return Production_Relaxation; }
 
+inline bool CConfig::GetUse_TKE_Diffusion(void) const { return Use_TKE_Diffusion; }
+
 inline unsigned short CConfig::GetnMarker_MixingPlaneInterface(void) { return nMarker_MixingPlaneInterface;}
 
 inline unsigned short CConfig::GetnMarker_Turbomachinery(void) { return nMarker_Turbomachinery;}

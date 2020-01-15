@@ -222,8 +222,10 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   AddSGSHeatFlux(Mean_GradPrimVar_Average, Mean_Alpha, Mean_Eddy_Viscosity);
   AddSGETHeatFlux(Mean_GradPrimVar_Fluct, Mean_Aniso_Eddy_Viscosity);
 
-  SetLaminar_TKE_Diffusion(Mean_GradTurbVar, Mean_Laminar_Viscosity);
-  AddSGS_TKE_Diffusion(Mean_GradTurbVar, Mean_Alpha, Mean_Eddy_Viscosity);
+  if (config->GetUse_TKE_Diffusion()) {
+    SetLaminar_TKE_Diffusion(Mean_GradTurbVar, Mean_Laminar_Viscosity);
+    AddSGS_TKE_Diffusion(Mean_GradTurbVar, Mean_Alpha, Mean_Eddy_Viscosity);
+  }
 
   GetViscousProjFlux(Mean_PrimVar, Normal);
 
