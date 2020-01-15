@@ -82,10 +82,17 @@ def main():
     wedge.timeout   = 1600
     wedge.tol       = 0.00001
     test_list.append(wedge)
-    
-    # Polar sweep of the inviscid NACA0012
-    polar_naca0012           = TestCase('polar_naca0012')
-    polar_naca0012.cfg_dir   = "polar/naca0012"
+
+    # ONERA M6 Wing
+    oneram6           = TestCase('oneram6')
+    oneram6.cfg_dir   = "euler/oneram6"
+    oneram6.cfg_file  = "inv_ONERAM6.cfg"
+    oneram6.test_iter = 10
+    oneram6.test_vals = [-10.384532, -9.835738, 0.282580, 0.012694] #last 4 columns
+    oneram6.su2_exec  = "SU2_CFD"
+    oneram6.timeout   = 9600
+    oneram6.tol       = 0.00001
+    test_list.append(oneram6)
     
     # Polar sweep of the inviscid NACA0012
     polar_naca0012           = TestCase('polar_naca0012')
@@ -99,6 +106,17 @@ def main():
     polar_naca0012.tol       = 0.00001
     test_list.append(polar_naca0012)
 
+    # HYPERSONIC FLOW PAST BLUNT BODY
+    bluntbody           = TestCase('bluntbody')
+    bluntbody.cfg_dir   = "euler/bluntbody"
+    bluntbody.cfg_file  = "blunt.cfg"
+    bluntbody.test_iter = 20
+    bluntbody.test_vals = [0.626808, 7.014695, -0.000000, 1.648024] #last 4 columns
+    bluntbody.su2_exec  = "SU2_CFD"
+    bluntbody.timeout   = 1600
+    bluntbody.tol       = 0.00001
+    test_list.append(bluntbody)
+
     ##########################
     ###  Compressible N-S  ###
     ##########################
@@ -108,7 +126,7 @@ def main():
     flatplate.cfg_dir   = "navierstokes/flatplate"
     flatplate.cfg_file  = "lam_flatplate.cfg"
     flatplate.test_iter = 20
-    flatplate.test_vals = [-4.680896, 0.781111, -0.135957, 0.022978] #last 4 columns
+    flatplate.test_vals = [-4.680777, 0.781234, -0.135957, 0.022977] #last 4 columns
     flatplate.su2_exec  = "SU2_CFD"
     flatplate.timeout   = 1600
     flatplate.tol       = 0.00001
@@ -189,7 +207,7 @@ def main():
     turb_flatplate.cfg_dir   = "rans/flatplate"
     turb_flatplate.cfg_file  = "turb_SA_flatplate.cfg"
     turb_flatplate.test_iter = 20
-    turb_flatplate.test_vals = [-4.158303, -6.737135, -0.176244, 0.057446] #last 4 columns
+    turb_flatplate.test_vals = [-4.157169, -6.737133, -0.176253, 0.057446] #last 4 columns
     turb_flatplate.su2_exec  = "SU2_CFD"
     turb_flatplate.timeout   = 1600
     turb_flatplate.tol       = 0.00001
@@ -211,7 +229,7 @@ def main():
     turb_oneram6.cfg_dir   = "rans/oneram6"
     turb_oneram6.cfg_file  = "turb_ONERAM6.cfg"
     turb_oneram6.test_iter = 10
-    turb_oneram6.test_vals = [-2.327523, -6.564349, 0.230471, 0.155843]#last 4 columns
+    turb_oneram6.test_vals = [-2.327431, -6.564331, 0.230257, 0.155839]#last 4 columns
     turb_oneram6.su2_exec  = "SU2_CFD"
     turb_oneram6.timeout   = 3200
     turb_oneram6.tol       = 0.00001
@@ -331,7 +349,7 @@ def main():
     schubauer_klebanoff_transition.cfg_dir      = "transition/Schubauer_Klebanoff"
     schubauer_klebanoff_transition.cfg_file     = "transitional_BC_model_ConfigFile.cfg"
     schubauer_klebanoff_transition.test_iter    = 10
-    schubauer_klebanoff_transition.test_vals    = [-8.287490, -14.278189, 0.000050, 0.007986] #last 4 columns
+    schubauer_klebanoff_transition.test_vals    = [-8.029756, -14.278066, 0.000053, 0.007986] #last 4 columns
     schubauer_klebanoff_transition.su2_exec     = "SU2_CFD"
     schubauer_klebanoff_transition.timeout      = 1600
     schubauer_klebanoff_transition.tol          = 0.00001
@@ -520,7 +538,7 @@ def main():
     ddes_flatplate.cfg_dir   = "ddes/flatplate"
     ddes_flatplate.cfg_file  = "ddes_flatplate.cfg"
     ddes_flatplate.test_iter = 10
-    ddes_flatplate.test_vals = [-2.714721, -5.883008, -0.214968, 0.023783] #last 4 columns
+    ddes_flatplate.test_vals = [-2.714758, -5.883004, -0.215005, 0.023783] #last 4 columns
     ddes_flatplate.su2_exec  = "SU2_CFD"
     ddes_flatplate.timeout   = 1600
     ddes_flatplate.tol       = 0.00001

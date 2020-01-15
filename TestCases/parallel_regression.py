@@ -90,7 +90,7 @@ def main():
     oneram6.cfg_dir   = "euler/oneram6"
     oneram6.cfg_file  = "inv_ONERAM6.cfg"
     oneram6.test_iter = 10
-    oneram6.test_vals = [-13.393796, -12.922372, 0.282557, 0.012706] #last 4 columns
+    oneram6.test_vals = [-10.392429, -9.840519, 0.282580, 0.012694] #last 4 columns
     oneram6.su2_exec  = "parallel_computation.py -f"
     oneram6.timeout   = 3200
     oneram6.tol       = 0.00001
@@ -128,7 +128,7 @@ def main():
     flatplate.cfg_dir   = "navierstokes/flatplate"
     flatplate.cfg_file  = "lam_flatplate.cfg"
     flatplate.test_iter = 20
-    flatplate.test_vals = [-4.648345, 0.813157, -0.130644, 0.024357] #last 4 columns
+    flatplate.test_vals = [-4.648252, 0.813253, -0.130643, 0.024357] #last 4 columns
     flatplate.su2_exec  = "parallel_computation.py -f"
     flatplate.timeout   = 1600
     flatplate.tol       = 0.00001
@@ -140,9 +140,6 @@ def main():
     cylinder.cfg_file  = "lam_cylinder.cfg"
     cylinder.test_iter = 25
     cylinder.test_vals = [-6.759137, -1.291223, 0.107133, 0.853339] #last 4 columns
-    cylinder.su2_exec  = "parallel_computation.py -f"
-    cylinder.timeout   = 1600
-    cylinder.tol       = 0.00001
     cylinder.su2_exec  = "parallel_computation.py -f"
     cylinder.timeout   = 1600
     cylinder.tol       = 0.00001
@@ -212,7 +209,7 @@ def main():
     turb_flatplate.cfg_dir   = "rans/flatplate"
     turb_flatplate.cfg_file  = "turb_SA_flatplate.cfg"
     turb_flatplate.test_iter = 20
-    turb_flatplate.test_vals = [-4.146812, -6.734016, -0.176480, 0.057451] #last 4 columns
+    turb_flatplate.test_vals = [-4.145487, -6.734014, -0.176490, 0.057451] #last 4 columns
     turb_flatplate.su2_exec  = "parallel_computation.py -f"
     turb_flatplate.timeout   = 1600
     turb_flatplate.tol       = 0.00001
@@ -223,7 +220,7 @@ def main():
     turb_oneram6.cfg_dir   = "rans/oneram6"
     turb_oneram6.cfg_file  = "turb_ONERAM6.cfg"
     turb_oneram6.test_iter = 10
-    turb_oneram6.test_vals = [-2.327522, -6.564350, 0.230471, 0.155843] #last 4 columns
+    turb_oneram6.test_vals = [-2.327430, -6.564331, 0.230257, 0.155839] #last 4 columns
     turb_oneram6.su2_exec  = "parallel_computation.py -f"
     turb_oneram6.timeout   = 3200
     turb_oneram6.tol       = 0.00001
@@ -297,7 +294,7 @@ def main():
     schubauer_klebanoff_transition.cfg_dir      = "transition/Schubauer_Klebanoff"
     schubauer_klebanoff_transition.cfg_file     = "transitional_BC_model_ConfigFile.cfg"
     schubauer_klebanoff_transition.test_iter    = 10
-    schubauer_klebanoff_transition.test_vals    = [-8.219132, -14.278207, 0.000041, 0.007987] #last 4 columns
+    schubauer_klebanoff_transition.test_vals    = [-7.994738, -14.278082, 0.000046, 0.007987] #last 4 columns
     schubauer_klebanoff_transition.su2_exec     = "parallel_computation.py -f"
     schubauer_klebanoff_transition.timeout      = 1600
     schubauer_klebanoff_transition.tol          = 0.00001
@@ -457,6 +454,18 @@ def main():
     aeroelastic.tol       = 0.000001
     aeroelastic.unsteady  = True
     test_list.append(aeroelastic)
+
+    # Delayed Detached Eddy Simulation
+    ddes_flatplate        = TestCase('ddes_flatplate')
+    ddes_flatplate.cfg_dir   = "ddes/flatplate"
+    ddes_flatplate.cfg_file  = "ddes_flatplate.cfg"
+    ddes_flatplate.test_iter = 10
+    ddes_flatplate.test_vals = [-2.714758, -5.883004, -0.215005, 0.023783] #last 4 columns
+    ddes_flatplate.su2_exec  = "parallel_computation.py -f"
+    ddes_flatplate.timeout   = 1600
+    ddes_flatplate.tol       = 0.00001
+    ddes_flatplate.unsteady  = True
+    test_list.append(ddes_flatplate)    
 
     ##########################
     ###   Python wrapper   ###
