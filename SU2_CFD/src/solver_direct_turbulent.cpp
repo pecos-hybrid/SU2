@@ -1007,7 +1007,8 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
       /*--- Compute the dual time-stepping source term based on the chosen
        time discretization scheme (1st- or 2nd-order).---*/
       
-      if (config->GetKind_Turb_Model() == SST) {
+      if (config->GetKind_Turb_Model() == SST ||
+          config->GetKind_Turb_Model() == KE) {
         
         /*--- If this is the SST model, we need to multiply by the density
          in order to get the conservative variables ---*/
@@ -1127,7 +1128,8 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
       
       /*--- Multiply by density at node i for the SST model ---*/
       
-      if (config->GetKind_Turb_Model() == SST) {
+      if (config->GetKind_Turb_Model() == SST ||
+          config->GetKind_Turb_Model() == KE) {
         if (incompressible) Density_n = flow_node[iPoint]->GetDensity(); // Temporary fix
         else Density_n = flow_node[iPoint]->GetSolution_time_n()[0];
         for (iVar = 0; iVar < nVar; iVar++)
@@ -1160,7 +1162,8 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
       
       /*--- Multiply by density at node j for the SST model ---*/
       
-      if (config->GetKind_Turb_Model() == SST) {
+      if (config->GetKind_Turb_Model() == SST ||
+          config->GetKind_Turb_Model() == KE) {
         if (incompressible) Density_n = flow_node[jPoint]->GetDensity(); // Temporary fix
         else Density_n = flow_node[jPoint]->GetSolution_time_n()[0];
         for (iVar = 0; iVar < nVar; iVar++)
@@ -1216,7 +1219,8 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
         
         /*--- Multiply by density at node i for the SST model ---*/
         
-        if (config->GetKind_Turb_Model() == SST) {
+      if (config->GetKind_Turb_Model() == SST ||
+          config->GetKind_Turb_Model() == KE) {
           if (incompressible) Density_n = flow_node[iPoint]->GetDensity(); // Temporary fix
           else Density_n = flow_node[iPoint]->GetSolution_time_n()[0];
           for (iVar = 0; iVar < nVar; iVar++)
@@ -1270,7 +1274,8 @@ void CTurbSolver::SetResidual_DualTime(CGeometry *geometry, CSolver **solver_con
        introduction of the GCL term above, the remainder of the source residual
        due to the time discretization has a new form.---*/
       
-      if (config->GetKind_Turb_Model() == SST) {
+      if (config->GetKind_Turb_Model() == SST ||
+          config->GetKind_Turb_Model() == KE) {
         
         /*--- If this is the SST model, we need to multiply by the density
          in order to get the conservative variables ---*/

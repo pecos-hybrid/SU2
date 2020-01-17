@@ -603,8 +603,6 @@ void CTurbKESolver::BC_HeatFlux_Wall(CGeometry *geometry,
   su2double distance, wall_k;
   su2double density = 0.0, laminar_viscosity = 0.0;
 
-  bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
-  bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
   CVariable** flow_node;
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
     /*--- Use explicit average values instead of fluctuating values ---*/

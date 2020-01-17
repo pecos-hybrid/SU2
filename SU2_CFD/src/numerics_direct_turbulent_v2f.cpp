@@ -30,7 +30,8 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * Lesser General Public License for more details.
- * * You should have received a copy of the GNU Lesser General Public
+ *
+ * You should have received a copy of the GNU Lesser General Public
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -412,7 +413,7 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
    * all y+ > .07. So we can set a relatively low limit (e.g. 100) to enforce
    * our desired behavior. This should not affect converged solution. ---*/
   const su2double inv_zeta = max(tke/v2_lim, 0.5);
-  const su2double C_e1 = min(C_e1o*(1.0+0.05*sqrt(inv_zeta)), 100.0);
+  const su2double C_e1 = min(C_e1o*(1.0+0.045*sqrt(inv_zeta)), 100.0);
 
   // ... production
   Pe = C_e1*Pk/TurbT;

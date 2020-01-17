@@ -594,6 +594,7 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     inv_TimeScale   = config->GetModVel_FreeStream() / config->GetRefLength();
     Roe_Dissipation = 0.0;
     Vortex_Tilting  = 0.0;
+    Tau_Wall        = -1.0;
 
     ResolvedTurbStress = new su2double*[nDim];
     AnisoEddyViscosity = new su2double*[nDim];
