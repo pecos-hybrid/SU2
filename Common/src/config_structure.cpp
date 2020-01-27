@@ -4492,6 +4492,48 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
       }
     }
   }
+  /*--- Check to make sure averaging options are appropriate ---*/
+
+  if (Kind_Averaging != NO_AVERAGING) {
+
+    if (Unsteady_Simulation == STEADY) {
+      SU2_MPI::Error("Runtime averaging cannot be used with a steady-state problem.", CURRENT_FUNCTION);
+    }
+
+    /*--- Check that a flow solver is being used ---*/
+
+    const unsigned short supported_solvers[] =
+        {EULER, ADJ_EULER, DISC_ADJ_EULER,
+         NAVIER_STOKES, ADJ_NAVIER_STOKES, DISC_ADJ_NAVIER_STOKES,
+         RANS, ADJ_RANS, DISC_ADJ_RANS};
+    const unsigned short nSolvers =
+        sizeof(supported_solvers)/sizeof(supported_solvers[0]);
+    bool supported = false;
+    for (unsigned short iSolver=0; iSolver < nSolvers; iSolver++) {
+      if (Kind_Solver == supported_solvers[iSolver]) {
+        supported = true;
+        break;
+      }
+    }
+    if (not(supported)) {
+      SU2_MPI::Error("Your problem definition is not compatible with averaging!", CURRENT_FUNCTION);
+    }
+
+    if (Kind_Averaging_Period == TURB_TIMESCALE ||
+        Kind_Averaging_Period == MAX_TURB_TIMESCALE) {
+      if (Kind_Solver != RANS && Kind_Solver != ADJ_RANS &&
+          Kind_Solver != DISC_ADJ_RANS) {
+        SU2_MPI::Error("You must use a RANS model to average over turbulent timescales.", CURRENT_FUNCTION);
+      }
+      if (not((Kind_Turb_Model == KE) || (Kind_Turb_Model == SST))) {
+        SU2_MPI::Error("Only KE and SST models currently support the use of a turbulent timescale.", CURRENT_FUNCTION);
+      }
+    }
+
+    if (nAveragingPeriods <= 0) {
+      SU2_MPI::Error("The number of averaging periods must be greater than zero.", CURRENT_FUNCTION);
+    }
+  }
 
   /*--- Check that the hybrid RANS/LES options are appropriate ---*/
 
