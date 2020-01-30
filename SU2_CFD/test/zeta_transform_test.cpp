@@ -2,7 +2,7 @@
  * \file zeta_transform_test.cpp
  * \brief Checks the zeta transformation for the hybrid filtering
  * \author C. Pederson
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  *
  * SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
  *                      Dr. Thomas D. Economon (economon@stanford.edu).

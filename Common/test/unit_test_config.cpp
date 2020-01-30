@@ -2,7 +2,7 @@
  * \file unit_test_config.cpp
  * \brief Test CConfig ctor that gives valid config object without input file.
  * \author T. A. Oliver
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  *
  * SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
  *                      Dr. Thomas D. Economon (economon@stanford.edu).

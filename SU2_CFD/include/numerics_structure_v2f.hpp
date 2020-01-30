@@ -5,7 +5,7 @@
  *        <i>numerics_convective.cpp</i>, <i>numerics_viscous.cpp</i>, and
  *        <i>numerics_source.cpp</i> files.
  * \author F. Palacios, T. Economon
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -47,7 +47,7 @@
  * \brief Upwind convective flux for the zeta-f KE turbulence model equations.
  * \ingroup ConvDiscr
  * \author S. Haering.
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  */
 class CUpwSca_TurbKE : public CUpwScalar {
 private:

@@ -2,7 +2,7 @@
  * \file hybrid_RANS_LES_model.cpp
  * \brief Describes the hybrid RANS/LES models
  * \author C. Pederson
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  *
  * SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
  *                      Dr. Thomas D. Economon (economon@stanford.edu).

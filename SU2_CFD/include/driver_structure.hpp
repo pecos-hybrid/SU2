@@ -1520,7 +1520,7 @@ public:
  * \class CSinglezoneDriver
  * \brief Class for driving single-zone solvers.
  * \author R. Sanchez
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  */
 class CSinglezoneDriver : public CDriver {
 protected:
@@ -1588,7 +1588,7 @@ public:
  * \class CMultizoneDriver
  * \brief Class for driving zone-specific iterations.
  * \author R. Sanchez, O. Burghardt
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  */
 class CMultizoneDriver : public CDriver {
 protected:
