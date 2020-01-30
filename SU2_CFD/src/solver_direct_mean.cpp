@@ -10577,10 +10577,6 @@ void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container,
                                             solver_container[TURB_SOL]->node[iPoint]->GetGradient());
         }
 
-        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-        
-        visc_numerics->SetTauWall(-1.0, -1.0);
-
         /*--- Compute and update viscous residual ---*/
         
         visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
@@ -11070,10 +11066,6 @@ void CEulerSolver::BC_Riemann(CGeometry *geometry, CSolver **solver_container,
                                             solver_container[TURB_SOL]->node[iPoint]->GetGradient());
         }
         
-        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-        
-        visc_numerics->SetTauWall(-1.0, -1.0);
-
         /*--- Compute and update residual ---*/
   
         visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
@@ -11586,10 +11578,6 @@ void CEulerSolver::BC_TurboRiemann(CGeometry *geometry, CSolver **solver_contain
             visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
                                               solver_container[TURB_SOL]->node[iPoint]->GetGradient());
           }
-
-          /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-          
-          visc_numerics->SetTauWall(-1.0, -1.0);
 
           /*--- Compute and update residual ---*/
           
@@ -12490,12 +12478,7 @@ void CEulerSolver::BC_Giles(CGeometry *geometry, CSolver **solver_container,
                                             solver_container[TURB_SOL]->node[iPoint]->GetGradient());
         }
         
-        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-        
-        visc_numerics->SetTauWall(-1.0, -1.0);
-
         /*--- Compute and update residual ---*/
-        
         visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
         LinSysRes.SubtractBlock(iPoint, Residual);
         
@@ -12970,9 +12953,6 @@ void CEulerSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container,
 //        if (config->GetKind_Turb_Model() == SST)
 //          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
 //
-//        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-//        visc_numerics->SetTauWall(-1.0, -1.0);
-//
 //        /*--- Compute and update residual ---*/
 //
 //        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
@@ -13213,10 +13193,6 @@ void CEulerSolver::BC_Supersonic_Outlet(CGeometry *geometry,
  //       if (config->GetKind_Turb_Model() == SST)
  //         visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
 //
-//        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-//
-//        visc_numerics->SetTauWall(-1.0, -1.0);
-//
 //        /*--- Compute and update residual ---*/
 //
 //        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
@@ -13444,10 +13420,6 @@ void CEulerSolver::BC_Engine_Inflow(CGeometry *geometry, CSolver **solver_contai
 //
 //        if (config->GetKind_Turb_Model() == SST)
 //          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
-//
-//        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-//
-//        visc_numerics->SetTauWall(-1.0, -1.0);
 //
 //        /*--- Compute and update residual ---*/
 //
@@ -13705,10 +13677,6 @@ void CEulerSolver::BC_Engine_Exhaust(CGeometry *geometry, CSolver **solver_conta
 //        if (config->GetKind_Turb_Model() == SST)
 //          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
 //
-//        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-//
-//        visc_numerics->SetTauWall(-1.0, -1.0);
-//
 //        /*--- Compute and update residual ---*/
 //
 //        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
@@ -13739,7 +13707,10 @@ void CEulerSolver::BC_Sym_Plane(CGeometry *geometry,
   unsigned short iDim, iVar;
   unsigned long iVertex, iPoint;
   
-  bool implicit = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
+  bool implicit =
+    ((config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
+     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK && iRKStep == 0) ||
+     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91 && iRKStep == 0) );
   
   /*--- Allocation of variables necessary for convective fluxes. ---*/
   su2double Area, ProjVelocity_i;
@@ -14116,10 +14087,6 @@ void CEulerSolver::BC_Fluid_Interface(CGeometry *geometry, CSolver **solver_cont
                 visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
                                                   solver_container[TURB_SOL]->node[iPoint]->GetGradient());
               }
-
-              /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-              
-              visc_numerics->SetTauWall(-1.0, -1.0);
 
               /*--- Compute and update residual ---*/
 
@@ -14686,10 +14653,6 @@ void CEulerSolver::BC_ActDisk(CGeometry *geometry, CSolver **solver_container, C
 //
 //        if (config->GetKind_Turb_Model() == SST)
 //          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0), solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
-//
-//        /*--- Set the wall shear stress values (wall functions) to -1 (no evaluation using wall functions) ---*/
-//
-//        visc_numerics->SetTauWall(-1.0, -1.0);
 //
 //        /*--- Compute and update residual ---*/
 //
@@ -18022,13 +17985,8 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
     
     /*--- Wall shear stress values (wall functions) ---*/
     
-    if (wall_functions) {
+    if (wall_functions)
       numerics->SetTauWall(node[iPoint]->GetTauWall(), node[iPoint]->GetTauWall());
-    } else {
-      // XXX: Necessary?
-      numerics->SetTauWall(-1, -1);
-    }
-
     /*--- Compute and update residual ---*/
     
     numerics->ComputeResidual(Res_Visc, Jacobian_i, Jacobian_j, config);

@@ -1001,14 +1001,6 @@ void CDriver::Geometrical_Preprocessing() {
 
       if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
       geometry_container[iZone][iInst][MESH_0]->SetMaxLength(config_container[iZone]);
-#ifdef HAVE_MPI
-      SU2_MPI::Barrier(MPI_COMM_WORLD);
-#endif
-
-      /*--- Compute the max length. ---*/
-
-      if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
-      geometry_container[iZone][iInst][MESH_0]->SetMaxLength(config_container[iZone]);
 
       /*--- Compute cell resolution tensors ---*/
 

@@ -619,8 +619,6 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
       ForcingVector[iDim] = 0;
     }
 
-  ResolvedKineticEnergy = 0;
-  ResolutionAdequacy = 1;
 }
 
 CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
