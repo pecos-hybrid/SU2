@@ -2,7 +2,7 @@
  * fluid_model_pig.cpp
  * \brief Source of the ideal gas model.
  * \author S. Vitale, G. Gori, M. Pini, A. Guardone, P. Colonna
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -51,8 +51,18 @@ CIdealGas::CIdealGas(su2double gamma, su2double R ) : CFluidModel() {
   Gamma_Minus_One = Gamma - 1.0;
   Gas_Constant = R;
   Cp = Gamma/Gamma_Minus_One*Gas_Constant;
+
+  ComputeEntropy = true;
 }
 
+CIdealGas::CIdealGas(su2double gamma, su2double R, bool CompEntropy) : CFluidModel() {
+  Gamma = gamma;
+  Gamma_Minus_One = Gamma - 1.0;
+  Gas_Constant = R;
+  Cp = Gamma/Gamma_Minus_One*Gas_Constant;
+
+  ComputeEntropy = CompEntropy;
+}
 
 CIdealGas::~CIdealGas(void) {
 
@@ -65,12 +75,13 @@ void CIdealGas::SetTDState_rhoe (su2double rho, su2double e ) {
   Pressure = Gamma_Minus_One*Density*StaticEnergy;
   Temperature = Gamma_Minus_One*StaticEnergy/Gas_Constant;
   SoundSpeed2 = Gamma*Pressure/Density;
-  Entropy = (1.0/Gamma_Minus_One*log(Temperature) + log(1.0/Density))*Gas_Constant;
   dPdrho_e = Gamma_Minus_One*StaticEnergy;
   dPde_rho = Gamma_Minus_One*Density;
   dTdrho_e = 0.0;
   dTde_rho = Gamma_Minus_One/Gas_Constant;
 
+  if( ComputeEntropy )
+    Entropy = (1.0/Gamma_Minus_One*log(Temperature) + log(1.0/Density))*Gas_Constant;
 }
 
 void CIdealGas::SetTDState_PT (su2double P, su2double T ) {

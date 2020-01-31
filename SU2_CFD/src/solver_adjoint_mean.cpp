@@ -2,7 +2,7 @@
  * \file solution_adjoint_mean.cpp
  * \brief Main subroutines for solving adjoint problems (Euler, Navier-Stokes, etc.).
  * \author F. Palacios, T. Economon, H. Kline
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -1817,7 +1817,7 @@ void CAdjEulerSolver::Set_MPI_Interface(CGeometry *geometry, CConfig *config) {
           /*--- Recv the data by probing for the current sender, jDomain,
            first and then receiving the values from it. ---*/
           
-          MPI_Probe(jDomain, rank, MPI_COMM_WORLD, &status);
+          SU2_MPI::Probe(jDomain, rank, MPI_COMM_WORLD, &status);
           SU2_MPI::Recv(&nPointTotal_r[jDomain], 1, MPI_UNSIGNED_LONG, jDomain, rank, MPI_COMM_WORLD, &status);
           
 #endif
@@ -3081,43 +3081,9 @@ void CAdjEulerSolver::SetCentered_Dissipation_Sensor(CGeometry *geometry, CConfi
 void CAdjEulerSolver::ExplicitRK_Iteration(CGeometry *geometry, CSolver **solver_container,
                                            CConfig *config, unsigned short iRKStep) {
 
-  std::cout << "CAdjEulerSolver::ExplicitRK_Iteration is not currently working!" << std::endl;
-  exit(EXIT_FAILURE);
-
-  // su2double *Residual, *Res_TruncError, Vol, Delta, Res;
-  // unsigned short iVar;
-  // unsigned long iPoint;
-  
-  // su2double RK_AlphaCoeff = config->Get_Alpha_RKStep(iRKStep);
-  
-  // for (iVar = 0; iVar < nVar; iVar++) {
-  //   SetRes_RMS(iVar, 0.0);
-  //   SetRes_Max(iVar, 0.0, 0);
-  // }
-  
-  // /*--- Update the solution ---*/
-  // for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
-  //   Vol = geometry->node[iPoint]->GetVolume();
-  //   Delta = solver_container[FLOW_SOL]->node[iPoint]->GetDelta_Time() / Vol;
-    
-  //   Res_TruncError = node[iPoint]->GetResTruncError();
-  //   Residual = LinSysRes.GetBlock(iPoint);
-    
-  //   for (iVar = 0; iVar < nVar; iVar++) {
-  //     Res = Residual[iVar] + Res_TruncError[iVar];
-  //     node[iPoint]->AddSolution(iVar, -Res*Delta*RK_AlphaCoeff);
-  //     AddRes_RMS(iVar, Res*Res);
-  //     AddRes_Max(iVar, fabs(Res), geometry->node[iPoint]->GetGlobalIndex(), geometry->node[iPoint]->GetCoord());
-  //   }
-    
-  // }
-  
-  // /*--- MPI solution ---*/
-  // Set_MPI_Solution(geometry, config);
-  
-  // /*--- Compute the root mean square residual ---*/
-  // SetResidual_RMS(geometry, config);
-  
+  /*--- XXX: Due to our own overhaul of the explicit RK configuation and
+   * methods, this doesn't work.  ---*/
+  SU2_MPI::Error("Explicit RK is not currently implemented for the adjoint solver!", CURRENT_FUNCTION);
 }
 
 void CAdjEulerSolver::ExplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_container, CConfig *config) {

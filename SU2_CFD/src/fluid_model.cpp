@@ -2,7 +2,7 @@
  * fluid_model.cpp
  * \brief Source of the main thermo-physical subroutines of the SU2 solvers.
  * \author S.Vitale, M.Pini, G.Gori, A.Guardone, P.Colonna
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -52,6 +52,9 @@ CFluidModel::CFluidModel(void) {
   dTdrho_e = 0.0;
   dTde_rho = 0.0;
   Cp       = 0.0;
+  Cv       = 0.0;
+  Mu       = 0.0;
+  Mu_Turb  = 0.0;
 
   LaminarViscosity = NULL;
   ThermalConductivity = NULL;
@@ -66,12 +69,18 @@ CFluidModel::~CFluidModel(void) {
 void CFluidModel::SetLaminarViscosityModel (CConfig *config) {
   
   switch (config->GetKind_ViscosityModel()) {
-  case CONSTANT_VISCOSITY:
-    LaminarViscosity = new CConstantViscosity(config->GetMu_ConstantND());
-    break;
-  case SUTHERLAND:
-    LaminarViscosity = new CSutherland(config->GetMu_RefND(), config->GetMu_Temperature_RefND(), config->GetMu_SND());
-    break;
+    case CONSTANT_VISCOSITY:
+      LaminarViscosity = new CConstantViscosity(config->GetMu_ConstantND());
+      break;
+    case SUTHERLAND:
+      LaminarViscosity = new CSutherland(config->GetMu_RefND(), config->GetMu_Temperature_RefND(), config->GetMu_SND());
+      break;
+    case POLYNOMIAL_VISCOSITY:
+      LaminarViscosity = new CPolynomialViscosity(config->GetnPolyCoeffs(), config->GetMu_PolyCoeffND());
+      break;
+    default:
+      SU2_MPI::Error("Viscosity model not available.", CURRENT_FUNCTION);
+      break;
   }
   
 }
@@ -79,12 +88,30 @@ void CFluidModel::SetLaminarViscosityModel (CConfig *config) {
 void CFluidModel::SetThermalConductivityModel (CConfig *config) {
   
   switch (config->GetKind_ConductivityModel()) {
-  case CONSTANT_CONDUCTIVITY:
-    ThermalConductivity = new CConstantConductivity(config->GetKt_ConstantND());
-    break;
-  case CONSTANT_PRANDTL:
-    ThermalConductivity = new CConstantPrandtl(config->GetPrandtl_Lam());
-    break;
+    case CONSTANT_CONDUCTIVITY:
+      if (config->GetKind_ConductivityModel_Turb() == CONSTANT_PRANDTL_TURB) {
+        ThermalConductivity = new CConstantConductivityRANS(config->GetKt_ConstantND(), config->GetPrandtl_Turb());
+      } else {
+        ThermalConductivity = new CConstantConductivity(config->GetKt_ConstantND());
+      }
+      break;
+    case CONSTANT_PRANDTL:
+      if (config->GetKind_ConductivityModel_Turb() == CONSTANT_PRANDTL_TURB) {
+        ThermalConductivity = new CConstantPrandtlRANS(config->GetPrandtl_Lam(), config->GetPrandtl_Turb());
+      } else {
+        ThermalConductivity = new CConstantPrandtl(config->GetPrandtl_Lam());
+      }
+      break;
+    case POLYNOMIAL_CONDUCTIVITY:
+      if (config->GetKind_ConductivityModel_Turb() == CONSTANT_PRANDTL_TURB) {
+        ThermalConductivity = new CPolynomialConductivityRANS(config->GetnPolyCoeffs(), config->GetKt_PolyCoeffND(), config->GetPrandtl_Turb());
+      } else {
+        ThermalConductivity = new CPolynomialConductivity(config->GetnPolyCoeffs(), config->GetKt_PolyCoeffND());
+      }
+      break;
+    default:
+      SU2_MPI::Error("Conductivity model not available.", CURRENT_FUNCTION);
+      break;
   }
   
 }

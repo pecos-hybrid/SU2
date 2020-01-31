@@ -2,7 +2,7 @@
  * \file numerics_direct_turbulent.cpp
  * \brief This file contains all the convective term discretization.
  * \author F. Palacios, A. Bueno
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -430,7 +430,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   if (config->GetBool_Pv2_Nonnegative()) {
     Pv2 = max(Pv2, 0.0);
   }
-  //Pv2 = rho * tke*f ;
 
   Pv2_rk  = 0.0;
   Pv2_re  = 0.0;
@@ -470,7 +469,6 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
   Df_f = 1.0/Lsq;
 
   // check for nans
-#ifndef NDEBUG
   bool found_nan = ((Pk!=Pk)         || (Dk!=Dk)         ||
                     (Pe!=Pe)         || (De!=De)         ||
                     (Pv2!=Pv2)       || (Dv2!=Dv2)       ||
@@ -484,14 +482,14 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
 
   if (found_nan) {
-    std::cout << "WTF!?! Found a nan at x = " << Coord_i[0] << ", " << Coord_i[1] << std::endl;
+    std::cout << "Found a nan at x = " << Coord_i[0] << ", " << Coord_i[1] << std::endl;
     std::cout << "turb state = " << tke << ", " << tdr << ", " << v2 << ", " << f << std::endl;
     std::cout << "T          = " << TurbT  << ", C_e1 = " << C_e1 << std::endl;
     std::cout << "TKE eqn    = " << Pk << " - " << Dk << std::endl;
     std::cout << "TDR eqn    = " << Pe << " - " << De << std::endl;
     std::cout << "v2  eqn    = " << Pv2 << " - " << Dv2 << std::endl;
+    exit(EXIT_FAILURE);
   }
-#endif
 
 
   // form source term and Jacobian...

@@ -1,8 +1,8 @@
 /*!
  * \file fluid_model.hpp
  * \brief Headers of the main thermodynamic subroutines of the SU2 solvers.
- * \author S. Vitale, G. Gori, M. Pini, A. Guardone, P. Colonna
- * \version 6.0.1 "Falcon"
+ * \author S. Vitale, G. Gori, M. Pini, A. Guardone, P. Colonna, T. Economon
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -55,12 +55,11 @@ using namespace std;
 #include "../include/transport_model.hpp"
 #include "../../Common/include/config_structure.hpp"
 
-
 /*!
  * \class CFluidModel
  * \brief Main class for defining the Thermo-Physical Model
  * a child class for each particular Model (Ideal-Gas, Van der Waals, etc.)
- * \author: S.Vitale, G.Gori, M.Pini
+ * \author: S.Vitale, G.Gori, M.Pini, T. Economon
  */
 class CFluidModel {
 protected:
@@ -78,8 +77,10 @@ su2double      StaticEnergy,      /*!< \brief Internal Energy. */
        dhdP_rho,	/*!< \brief DhDp_rho. */
        dsdrho_P,	/*!< \brief DsDrho_p. */
        dsdP_rho,	/*!< \brief DsDp_rho. */
-             Cp,                    /*!< \brief Specific Heat Capacity at constant pressure. */
-       Mu,          /*!< \brief Specific Heat Capacity at constant pressure. */
+             Cp,    /*!< \brief Specific Heat Capacity at constant pressure. */
+			 Cv,    /*!< \brief Specific Heat Capacity at constant volume. */
+             Mu,     /*!< \brief Laminar viscosity. */
+	     Mu_Turb,    /*!< \brief Eddy viscosity provided by a turbulence model (RANS). */
          dmudrho_T,       /*!< \brief Specific Heat Capacity at constant pressure. */
          dmudT_rho,        /*!< \brief Specific Heat Capacity at constant pressure. */
          Kt,          /*!< \brief Specific Heat Capacity at constant pressure. */
@@ -140,6 +141,11 @@ public:
 		 * \brief Get fluid specific heat at constant pressure.
 		 */
 		su2double GetCp ();
+
+		/*!
+		 * \brief Get fluid specific heat at constant volume.
+		 */
+		su2double GetCv ();
 
 		/*!
 		 * \brief Get fluid dynamic viscosity
@@ -213,6 +219,11 @@ public:
 		 */
 		su2double GetdktdT_rho ();
 
+    /*!
+     * \brief Set specific heat Cp model.
+     */
+    virtual void SetCpModel (CConfig *config);
+  
 		/*!
 		 * \brief Set viscosity model.
 		 */
@@ -299,6 +310,18 @@ public:
 		 */
 		virtual void ComputeDerivativeNRBC_Prho (su2double P, su2double rho );
 
+		/*!
+		 * \brief Virtual member.
+		 * \param[in] T - Temperature value at the point.
+		 */
+
+		virtual void SetTDState_T(su2double val_Temperature);
+
+		/*!
+		 * \brief Set fluid eddy viscosity provided by a turbulence model needed for computing effective thermal conductivity.
+		 */
+		void SetEddyViscosity(su2double val_Mu_Turb);
+
 };
 
 
@@ -314,6 +337,7 @@ protected:
           Gamma_Minus_One,       /*!< \brief Heat Capacity Ratio Minus One. */
           Gas_Constant;        /*!< \brief Gas Constant. */
 
+  bool  ComputeEntropy;        /*!< \brief Whether or not to compute entropy. */
 
 public:
 
@@ -326,6 +350,11 @@ public:
 		 * \brief Constructor of the class.
 		 */
 		CIdealGas(su2double gamma, su2double R);
+
+		/*!
+		 * \brief Constructor of the class.
+		 */
+		CIdealGas(su2double gamma, su2double R, bool CompEntropy);
 
 
 		/*!
@@ -609,7 +638,119 @@ public:
 
 };
 
+/*!
+ * \class CConstantDensity
+ * \brief Child class for defining a constant density gas model (incompressible only).
+ * \author: T. Economon
+ */
+class CConstantDensity : public CFluidModel {
+  
+protected:
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CConstantDensity(void);
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CConstantDensity(su2double val_Density, su2double val_Cp);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  virtual ~CConstantDensity(void);
+  
+  /*!
+   * \brief Set the Dimensionless State using Temperature.
+   * \param[in] T - Temperature value at the point.
+   */
+  void SetTDState_T(su2double val_Temperature);
+  
+};
 
+/*!
+ * \class CIncIdealGas
+ * \brief Child class for defining an incompressible ideal gas model.
+ * \author: T. Economon
+ */
+class CIncIdealGas : public CFluidModel {
+  
+protected:
+  su2double Gas_Constant,  /*!< \brief Gas Constant. */
+  Gamma;                   /*!< \brief Heat Capacity Ratio. */
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CIncIdealGas(void);
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CIncIdealGas(su2double val_Cp, su2double val_gas_constant, su2double val_operating_pressure);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  virtual ~CIncIdealGas(void);
+  
+  /*!
+   * \brief Set the Dimensionless State using Temperature.
+   * \param[in] T - Temperature value at the point.
+   */
+  
+  void SetTDState_T(su2double val_Temperature);
+  
+};
+
+/*!
+ * \class CIncIdealGasPolynomial
+ * \brief Child class for defining a custom incompressible ideal gas model.
+ * \author: T. Economon
+ */
+class CIncIdealGasPolynomial : public CFluidModel {
+  
+protected:
+  unsigned short nPolyCoeffs; /*!< \brief Number of coefficients in the temperature polynomial. */
+  su2double Gas_Constant,     /*!< \brief Specific Gas Constant. */
+  *b,                         /*!< \brief Polynomial coefficients for Cp as a function of temperature. */
+  Gamma;                      /*!< \brief Ratio of specific heats. */
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CIncIdealGasPolynomial(void);
+  
+  /*!
+   * \brief Constructor of the class.
+   */
+  CIncIdealGasPolynomial(su2double val_gas_constant, su2double val_operating_pressure);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  virtual ~CIncIdealGasPolynomial(void);
+  
+  /*!
+   * \brief Set the temperature polynomial coefficients for variable Cp.
+   * \param[in] config - configuration container for the problem.
+   */
+  void SetCpModel(CConfig *config);
+  
+  /*!
+   * \brief Set the Dimensionless State using Temperature.
+   * \param[in] T - Temperature value at the point.
+   */
+  void SetTDState_T(su2double val_temperature);
+  
+};
 
 #include "fluid_model.inl"
-
