@@ -1236,7 +1236,7 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
      SetReynoldsStressMatrix(TurbVar_i[0]);
      SetPerturbedRSM(TurbVar_i[0], config);
      SetPerturbedStrainMag(TurbVar_i[0]);
-     pk = Eddy_Viscosity_i*PerturbedStrainMag*PerturbedStrainMag;
+     Production = Eddy_Viscosity_i*PerturbedStrainMag*PerturbedStrainMag;
 
    } else {
 
