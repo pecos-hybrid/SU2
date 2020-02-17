@@ -316,5 +316,6 @@ void CTurbSSTVariable::SetKolKineticEnergyRatio(su2double nu) {
   const su2double ktot = max(Solution[0], TKE_MIN);
   const su2double omega = Solution[1];
   const su2double Cnu = 1.0;
-  alpha_kol = min(Cnu*sqrt(C_mu*nu*omega/ktot), 1.0);
+  /*--- A minimum value is necessary to prevent unrealistic low values ---*/
+  alpha_kol = max(min(Cnu*sqrt(C_mu*nu*omega/ktot), 1.0), 0.01);
 }
