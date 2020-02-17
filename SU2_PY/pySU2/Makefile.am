@@ -3,7 +3,7 @@
 # \file Makefile.am
 # \brief Makefile for the SU2 Python wrapper.
 # \author D. Thomas
-# \version 6.0.1 "Falcon"
+# \version 6.2.0 "Falcon"
 #
 # The current SU2 release has been coordinated by the
 # SU2 International Developers Society <www.su2devsociety.org>
@@ -19,7 +19,7 @@
 #  - Prof. Edwin van der Weide's group at the University of Twente.
 #  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
 #
-# Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+# Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
 #                      Tim Albring, and the SU2 contributors.
 #
 # SU2 is free software; you can redistribute it and/or
@@ -46,18 +46,15 @@ SWIG_SRC = ${abs_top_srcdir}/SU2_PY/pySU2/pySU2.i
 SWIG_WRAP_REAL = SU2_APIPYTHON_wrap
 SWIG_SO_REAL = _pysu2.${SO_EXT}
 
-PYTHON_SITE_PACKAGES=$(shell python -c "import site; print(site.getsitepackages()[0])")
-#NUMPY_INCLUDE = /usr/lib/python2.7/dist-packages/numpy/core/include
-MPI4PY_INCLUDE = ${HOME}/.local/lib/python2.7/site-packages/mpi4py/include \
-                 -I${PYTHON_SITE_PACKAGES}/mpi4py/include \
-                 -I/Library/Python/2.7/site-packages/mpi4py/include
+MPI4PY_DIR=$(shell python -c "import mpi4py; print(mpi4py.__path__[0])")
+MPI4PY_INCLUDE = -I${MPI4PY_DIR}/include
 
 SWIG = swig
 
 pySU2_INCLUDE = -I${abs_top_srcdir}/Common/include \
 	-I${abs_top_srcdir}/SU2_CFD/include
 
-PY_INCLUDE = ${PYTHON_INCLUDE} -I${MPI4PY_INCLUDE}
+PY_INCLUDE = ${PYTHON_INCLUDE} ${MPI4PY_INCLUDE}
 
 PY_LIB = ${PYTHON_LIBS} \
          -L${PYTHON_EXEC_PREFIX}/lib \

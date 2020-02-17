@@ -35,15 +35,16 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE ViscousIdealVsGeneral
-#include "MPI_global_fixture.hpp"
-
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <limits> // used to find machine epsilon
 
 #include "../include/solver_structure.hpp"
 #include "../include/solver_structure_v2f.hpp"
 #include "../include/variable_structure_v2f.hpp"
+
+namespace averaging_timescale_test {
 
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
@@ -53,7 +54,7 @@ const unsigned short nSecVar = 4;
 /**
  * Write a cfg file to be used in initializing the CConfig object.
  */
-void WriteCfgFile(const char* filename, const string& period) {
+static void WriteCfgFile(const char* filename, const string& period) {
 
   std::ofstream cfg_file;
 
@@ -139,8 +140,7 @@ class CTestTurbSolver : public CTurbKESolver {
   };
 };
 
-// Setup MPI
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(AveragingTimescale);
 
 /**
  */
@@ -327,3 +327,7 @@ BOOST_AUTO_TEST_CASE(KolTurbTimescale) {
   delete [] solver_container;
 
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

@@ -32,9 +32,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Viscous2dResidual
-#include "MPI_global_fixture.hpp"
-
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <fstream>
 #include <iomanip>
@@ -44,11 +43,13 @@
 
 #include "../include/numerics_structure.hpp"
 
+namespace viscous_residual_2d_test {
+
 const unsigned short nDim = 2;
 const unsigned short nVar = 4;
 const unsigned short nPrimVar = nVar+5;
 
-void PrintInformation(su2double* residual_i,
+static void PrintInformation(su2double* residual_i,
                       su2double** Jacobian_i,
                       su2double** Jacobian_j) {
   for (unsigned short iVar = 0; iVar < nVar; iVar++) {
@@ -69,17 +70,30 @@ void PrintInformation(su2double* residual_i,
   }
 }
 
-class TestConfig : public CConfig {
- public:
-  TestConfig() : CConfig() {};
-  unsigned short GetKind_TimeIntScheme_Flow(void) { return EULER_IMPLICIT; };
-};
+static void WriteCfgFile(const char* filename) {
+
+  std::ofstream cfg_file;
+
+  cfg_file.open(filename, ios::out);
+  cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
+  cfg_file << "TIME_DISCRE_FLOW= EULER_IMPLICIT" << std::endl;
+
+  cfg_file.close();
+
+}
 
 struct ViscousResidualFixture{
   ViscousResidualFixture()
       : distance(1), area(3) {
 
-    config = new TestConfig();
+    char cfg_filename[100] = "viscous_residual_2d_test.cfg";
+    WriteCfgFile(cfg_filename);
+    const unsigned short iZone = 0;
+    const unsigned short nZone = 1;
+    config = new CConfig(cfg_filename, SU2_CFD, iZone, nZone, 2, VERB_NONE);
+    config->SetGas_ConstantND(287.058);
+    std::remove(cfg_filename);
+
     numerics = new CAvgGrad_Flow(2, 4, false, config);
 
     /*--- Inputs ---*/
@@ -105,6 +119,15 @@ struct ViscousResidualFixture{
       primvar_grad_j[iVar] = new su2double[nDim];
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         primvar_grad_i[iVar][iDim] = 0.0;
+        primvar_grad_j[iVar][iDim] = 0.0;
+      }
+    }
+
+    turbvar_grad = new su2double*[1];
+    for (unsigned short iVar = 0; iVar < 1; iVar++) {
+      turbvar_grad[iVar] = new su2double[nDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        turbvar_grad[iVar][iDim] = 0.0;
       }
     }
 
@@ -145,6 +168,11 @@ struct ViscousResidualFixture{
     delete[] primvar_grad_i;
     delete[] primvar_grad_j;
 
+    for (unsigned short iVar = 0; iVar < 1; iVar++) {
+      delete[] turbvar_grad[iVar];
+    }
+    delete[] turbvar_grad;
+
     for (unsigned short iVar = 0; iVar < nVar; iVar++) {
       delete[] Jacobian_i[iVar];
       delete[] Jacobian_j[iVar];
@@ -170,6 +198,7 @@ struct ViscousResidualFixture{
   su2double** primvar_grad_i, **primvar_grad_j;
   su2double primvar_i[nPrimVar];
   su2double primvar_j[nPrimVar];
+  su2double** turbvar_grad;
   su2double** Jacobian_i, **Jacobian_j;
   su2double* residual_i;
 
@@ -180,7 +209,7 @@ struct ViscousResidualFixture{
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ViscousResidual2dTest);
 
 BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
 
@@ -218,6 +247,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
   numerics->SetPrimitive(primvar_i, primvar_j);
   numerics->SetPrimVarGradient(primvar_grad_i, primvar_grad_j);
   numerics->SetTurbKineticEnergy(tke, tke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
   numerics->ComputeResidual(residual_i, Jacobian_i, Jacobian_j, config);
 
   su2double expected_residual[nVar] = {0, -6, 12, 18};
@@ -252,3 +282,7 @@ BOOST_FIXTURE_TEST_CASE(ViscousResidualwithEverything, ViscousResidualFixture) {
     }
   }
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

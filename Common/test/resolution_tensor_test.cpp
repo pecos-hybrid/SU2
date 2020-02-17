@@ -32,9 +32,10 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Resolution Tensor
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
+#include "MPI_global_fixture.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -45,175 +46,14 @@
 #include "../../Common/include/config_structure.hpp"
 #include "../../Common/include/geometry_structure.hpp"
 
+namespace resolution_tensor_test {
+
 /* ----------------------------------------------------------------------------
  *  Functions for Grid Setup
  * --------------------------------------------------------------------------*/
 
-void WriteGradientMeshFile () {
-  /*--- Local variables ---*/
-    int KindElem, KindBound, nDim;
-    int iElem, iDim, jDim, kDim;
-    int iNode, jNode, kNode;
-    int iPoint;
-    int num_Nodes;
-    double xCoord[5] = {0, 1, 2, 5, 8}; // Variable gradient
-    double yCoord[5] = {0, 2, 4, 6, 8}; // Gradient of 0
-    double zCoord[5] = {0, 1, 2, 3, 4}; // Gradient of 0
 
-    std::ofstream Mesh_File;
-
-    /*--- Set the VTK type for the interior elements and the boundary elements ---*/
-    nDim = 3;
-    KindElem  = 12; // Hexahedra
-    KindBound = 9; // Quadrilateral
-
-    /*--- Store the number of nodes in each direction ---*/
-    iDim = 5;
-    jDim = 5;
-    kDim = 5;
-
-    /*--- Open .su2 grid file ---*/
-    Mesh_File.open("test.su2", ios::out);
-    Mesh_File << fixed << setprecision(15);
-
-    /*--- Write the dimension of the problem and the number of interior elements ---*/
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "% Problem dimension" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "NDIME= 3" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "% Inner element connectivity" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "NELEM= " <<  (iDim-1)*(jDim-1)*(kDim-1) << std::endl;
-
-    /*--- Write the element connectivity ---*/
-    iElem = 0;
-    for (kNode = 0; kNode < kDim-1; kNode++) {
-      for (jNode = 0; jNode < jDim-1; jNode++) {
-        for (iNode = 0; iNode < iDim-1; iNode++) {
-          Mesh_File << KindElem << "\t";
-          // Proper ordering here is essential.
-          // See VTK documentation for hexahedral cells for ordering.
-          Mesh_File << iNode     + (jNode*jDim)     + (kNode*jDim*iDim) << "\t";
-          Mesh_File << (iNode+1) + (jNode*jDim)     + (kNode*jDim*iDim) << "\t";
-          Mesh_File << (iNode+1) + ((jNode+1)*jDim) + (kNode*jDim*iDim) << "\t";
-          Mesh_File << iNode     + ((jNode+1)*jDim) + (kNode*jDim*iDim) << "\t";
-          Mesh_File << iNode     + (jNode*jDim)     + ((kNode+1)*jDim*iDim) << "\t";
-          Mesh_File << (iNode+1) + (jNode*jDim)     + ((kNode+1)*jDim*iDim) << "\t";
-          Mesh_File << (iNode+1) + ((jNode+1)*jDim) + ((kNode+1)*jDim*iDim) << "\t";
-          Mesh_File << iNode     + ((jNode+1)*jDim) + ((kNode+1)*jDim*iDim) << "\t";
-          Mesh_File << iElem << std::endl;
-          iElem++;
-        }
-      }
-    }
-
-
-    /*--- Compute the number of nodes and write the node coordinates ---*/
-    num_Nodes = iDim*jDim*kDim;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "% Node coordinates" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "NPOIN= " << num_Nodes << std::endl;
-    iPoint = 0;
-    for (kNode = 0; kNode < kDim; kNode++) {
-      for (jNode = 0; jNode < jDim; jNode++) {
-        for (iNode = 0; iNode < iDim; iNode++) {
-          Mesh_File << xCoord[iNode] << "\t";
-          Mesh_File << yCoord[jNode] << "\t";
-          Mesh_File << zCoord[kNode] << "\t";
-          Mesh_File << iPoint << std::endl;
-          iPoint++;
-        }
-      }
-    }
-
-    /*--- Write the header information for the boundary markers ---*/
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "% Boundary elements" << std::endl;
-    Mesh_File << "%" << std::endl;
-    Mesh_File << "NMARK= 6" << std::endl;
-
-    /*--- Write the boundary information for each marker ---*/
-    Mesh_File << "MARKER_TAG= bottom" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (iDim-1)*(jDim-1) << std::endl;
-    kNode = 0;
-    for (iNode = 0; iNode < iDim-1; iNode++) {
-      for (jNode = 0; jNode < jDim-1; jNode++) {
-        Mesh_File << KindBound << "\t";
-        Mesh_File << iNode     + jNode*jDim     + kNode*(iDim*jDim) << "\t";
-        Mesh_File << (iNode+1) + jNode*jDim     + kNode*(iDim*jDim) << "\t";
-        Mesh_File << (iNode+1) + (jNode+1)*jDim + kNode*(iDim*jDim) << "\t";
-        Mesh_File << iNode     + (jNode+1)*jDim + kNode*(iDim*jDim) << std::endl;
-      }
-    }
-    Mesh_File << "MARKER_TAG= top" << std::endl;
-    Mesh_File << "MARKER_ELEMS= " << (iDim-1)*(jDim-1) << std::endl;
-    kNode = kDim-1;
-    for (iNode = 0; iNode < iDim-1; iNode++) {
-      for (jNode = 0; jNode < jDim-1; jNode++) {
-        Mesh_File << KindBound << "\t";
-        Mesh_File << iNode     + jNode*jDim     + kNode*(iDim*jDim) << "\t";
-        Mesh_File << (iNode+1) + jNode*jDim     + kNode*(iDim*jDim) << "\t";
-        Mesh_File << (iNode+1) + (jNode+1)*jDim + kNode*(iDim*jDim) << "\t";
-        Mesh_File << iNode     + (jNode+1)*jDim + kNode*(iDim*jDim) << std::endl;
-      }
-    }
-
-    Mesh_File << "MARKER_TAG= left" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (jDim-1)*(kDim-1) << std::endl;
-    iNode = 0;
-    for (jNode = 0; jNode < jDim-1; jNode++) {
-      for (kNode = 0; kNode < kDim-1; kNode++) {
-        Mesh_File << KindBound << "\t";
-        Mesh_File << iNode + jNode*jDim     + kNode*(iDim*jDim)     << "\t";
-        Mesh_File << iNode + jNode*jDim     + (kNode+1)*(iDim*jDim) << "\t";
-        Mesh_File << iNode + (jNode+1)*jDim + (kNode+1)*(iDim*jDim) << "\t";
-        Mesh_File << iNode + (jNode+1)*jDim + kNode*(iDim*jDim)     << std::endl;
-      }
-    }
-    Mesh_File << "MARKER_TAG= right" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (jDim-1)*(kDim-1) << std::endl;
-    iNode = iDim-1;
-    for (jNode = 0; jNode < jDim-1; jNode++) {
-      for (kNode = 0; kNode < kDim-1; kNode++) {
-        Mesh_File << KindBound << "\t";
-        Mesh_File << iNode + jNode*jDim     + kNode*(iDim*jDim)     << "\t";
-        Mesh_File << iNode + jNode*jDim     + (kNode+1)*(iDim*jDim) << "\t";
-        Mesh_File << iNode + (jNode+1)*jDim + (kNode+1)*(iDim*jDim) << "\t";
-        Mesh_File << iNode + (jNode+1)*jDim + kNode*(iDim*jDim)     << std::endl;
-      }
-    }
-
-    Mesh_File << "MARKER_TAG= front" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (iDim-1)*(kDim-1) << std::endl;
-    jNode = 0;
-    for (iNode = 0; iNode < iDim-1; iNode++) {
-      for (kNode = 0; kNode < kDim-1; kNode++) {
-        Mesh_File << KindBound << "\t";
-        Mesh_File << iNode     + jNode*jDim + kNode*(iDim*jDim)     << "\t";
-        Mesh_File << (iNode+1) + jNode*jDim + kNode*(iDim*jDim)     << "\t";
-        Mesh_File << (iNode+1) + jNode*jDim + (kNode+1)*(iDim*jDim) << "\t";
-        Mesh_File << iNode     + jNode*jDim + (kNode+1)*(iDim*jDim) << std::endl;
-      }
-    }
-    Mesh_File << "MARKER_TAG= back" << std::endl;
-    Mesh_File << "MARKER_ELEMS= "<< (iDim-1)*(kDim-1) << std::endl;
-    jNode = jDim-1;
-    for (iNode = 0; iNode < iDim-1; iNode++) {
-      for (kNode = 0; kNode < kDim-1; kNode++) {
-        Mesh_File << KindBound << "\t";
-        Mesh_File << iNode     + jNode*jDim + kNode*(iDim*jDim)     << "\t";
-        Mesh_File << (iNode+1) + jNode*jDim + kNode*(iDim*jDim)     << "\t";
-        Mesh_File << (iNode+1) + jNode*jDim + (kNode+1)*(iDim*jDim) << "\t";
-        Mesh_File << iNode     + jNode*jDim + (kNode+1)*(iDim*jDim) << std::endl;
-      }
-    }
-    /*--- Close the mesh file and exit ---*/
-    Mesh_File.close();
-}
-
-void WriteQuadMeshFile () {
+void WriteQuadMeshFile (const char* mesh_filename) {
   /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim;
@@ -238,7 +78,7 @@ void WriteQuadMeshFile () {
     ySpacing = 2.0;
 
     /*--- Open .su2 grid file ---*/
-    Mesh_File.open("test.su2", ios::out);
+    Mesh_File.open(mesh_filename, ios::out);
     Mesh_File << fixed << setprecision(15);
 
     /*--- Write the dimension of the problem and the number of interior elements ---*/
@@ -325,7 +165,7 @@ void WriteQuadMeshFile () {
     Mesh_File.close();
 }
 
-void WriteTriangleMeshFile () {
+void WriteTriangleMeshFile (const char* mesh_filename) {
   /*--- Local variables ---*/
     int KindElem, KindBound;
     int iElem, nNode, mNode;
@@ -342,7 +182,7 @@ void WriteTriangleMeshFile () {
 
     /*--- Open .su2 grid file ---*/
     Mesh_File.precision(15);
-    Mesh_File.open("test.su2", ios::out);
+    Mesh_File.open(mesh_filename, ios::out);
 
     /*--- Write the dimension of the problem and the number of interior elements ---*/
     Mesh_File << "%" << endl;
@@ -417,7 +257,7 @@ void WriteTriangleMeshFile () {
     Mesh_File.close();
 }
 
-void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) {
+void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z, const char* mesh_filename) {
     /*--- Local variables ---*/
     int KindElem, KindBound, nDim;
     int iElem, iDim, jDim, kDim;
@@ -438,7 +278,7 @@ void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) 
     kDim = 4;
 
     /*--- Open .su2 grid file ---*/
-    Mesh_File.open("test.su2", ios::out);
+    Mesh_File.open(mesh_filename, ios::out);
     Mesh_File << fixed << setprecision(15);
 
     /*--- Write the dimension of the problem and the number of interior elements ---*/
@@ -580,10 +420,11 @@ void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) 
     Mesh_File.close();
 }
 
-void WriteCfgFile(unsigned short nDim, const char* filename) {
+void WriteCfgFile(unsigned short nDim, const char* cfg_filename,
+                  const char* mesh_filename) {
   std::ofstream cfg_file;
 
-  cfg_file.open(filename, ios::out);
+  cfg_file.open(cfg_filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
   cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
@@ -592,7 +433,7 @@ void WriteCfgFile(unsigned short nDim, const char* filename) {
     cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
   else
     cfg_file << "MARKER_FAR= ( top bottom back front left right )"  << std::endl;
-  cfg_file << "MESH_FILENAME= test.su2" << std::endl;
+  cfg_file << "MESH_FILENAME= " << mesh_filename << std::endl;
   cfg_file << "MESH_FORMAT= SU2" << std::endl;
 
   cfg_file.close();
@@ -612,9 +453,9 @@ struct ResolutionFixture {
     delete config;
   }
 
-  void SetupConfig(unsigned short nDim) {
+  void SetupConfig(unsigned short nDim, const char* mesh_filename) {
     char cfg_filename[100] = "resolution_tensor_test.cfg";
-    WriteCfgFile(nDim, cfg_filename);
+    WriteCfgFile(nDim, cfg_filename, mesh_filename);
     config = new CConfig(cfg_filename, SU2_CFD, 0, 1, 2, VERB_NONE);
     std::remove(cfg_filename);
   }
@@ -650,14 +491,14 @@ struct ResolutionFixture {
  *  Tests
  * --------------------------------------------------------------------------*/
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ResolutionTensorTest);
 
 BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 2;
-  WriteTriangleMeshFile();
-  SetupConfig(nDim);
+  WriteTriangleMeshFile("triangle_test.su2");
+  SetupConfig(nDim, "triangle_test.su2");
   SetupGeometry();
 
   unsigned short iPoint;
@@ -674,14 +515,16 @@ BOOST_FIXTURE_TEST_CASE(Triangles_Test, ResolutionFixture) {
     BOOST_CHECK_SMALL(Mij[0][1] - 0.0, machine_eps);
     BOOST_CHECK_SMALL(Mij[1][1] - 0.5, machine_eps);
   }
+
+  std::remove("triangle_test.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(Quads_Test, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 2;
-  WriteQuadMeshFile();
-  SetupConfig(nDim);
+  WriteQuadMeshFile("quad_test.su2");
+  SetupConfig(nDim, "quad_test.su2");
   SetupGeometry();
 
   unsigned short iPoint;
@@ -698,101 +541,16 @@ BOOST_FIXTURE_TEST_CASE(Quads_Test, ResolutionFixture) {
     BOOST_CHECK_SMALL(Mij[0][1] - 0.0, machine_eps);
     BOOST_CHECK_SMALL(Mij[1][1] - 2.0, machine_eps);
   }
+  std::remove("quad_test.su2");
 }
 
-BOOST_FIXTURE_TEST_CASE(Gradients_Test, ResolutionFixture) {
-
-  // Write out the mesh and configuration files.
-  const unsigned short nDim = 3;
-  WriteGradientMeshFile();
-  SetupConfig(nDim);
-  SetupGeometry();
-
-  /**
-   * Due to the way that the dual mesh is set up, the edge control volumes
-   * (the ones lying on the boundary) have a different size than the interior
-   * control volumes.
-   *
-   * The gradient correct should ignore these boundary artifacts.
-   */
-
-  unsigned short iDim;
-  unsigned short iPoint;
-  const su2double tol = 1e-6;
-
-  geometry->SetResolutionTensor(config);
-
-  // These are hand-calculated numerical derivatives.
-  su2double correct_grads[5] = {0, 1.5, 7.0/3, 5.0/6, 0};
-
-  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
-    for (iDim = 0; iDim < nDim; iDim++) {
-      const su2double* const* dMsqdx = geometry->node[iPoint]->GetResolutionGradient(iDim);
-      su2double* coord;
-      coord = geometry->node[iPoint]->GetCoord();
-
-      // Entries of dMdx are indexed as d(M_ij)/dx = dMdx[i][j]
-
-      // Build the test info
-      std::stringstream msg;
-      msg << "Point: " << iPoint << std::endl;
-      msg << "    Location: [";
-      msg << coord[0] << ", " << coord[1] << ", " << coord[2];
-      msg << "]" << std::endl;
-      msg << "    and direction: " << iDim << std::endl;
-      msg << "    Found:" << std::endl;
-      msg << "    [[";
-      msg << dMsqdx[0][0] << "," << dMsqdx[0][1] << "," << dMsqdx[0][2];
-      msg << "]" << std::endl;
-      msg << "     [";
-      msg << dMsqdx[1][0] << "," << dMsqdx[1][1] << "," << dMsqdx[1][2];
-      msg << "]" << std::endl;
-      msg << "     [";
-      msg << dMsqdx[2][0] << "," << dMsqdx[2][1] << "," << dMsqdx[2][2];
-      msg << "]]" << std::endl;
-
-      for (int i = 0; i<nDim; ++i) {
-        for (int j = 0; j<nDim; ++j) {
-          if (iDim == 0 and i==0 and j == 0) {
-            int index;
-            switch (int(coord[0])) {
-              case 0:
-                index = 0;
-                break;
-              case 1:
-                index = 1;
-                break;
-              case 2:
-                index = 2;
-                break;
-              case 5:
-                index = 3;
-                break;
-              case 8:
-                index = 4;
-                break;
-              default:
-                BOOST_ERROR("A problem occurred while running the test.");
-                break;
-            }
-            BOOST_TEST_INFO(msg.str());
-            BOOST_CHECK_SMALL(dMsqdx[i][j] - correct_grads[index], tol);
-          } else {
-            BOOST_TEST_INFO(msg.str());
-            BOOST_CHECK_SMALL(dMsqdx[i][j], tol);
-          }
-        }
-      }
-    }
-  }
-}
 
 BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile(3,2,1);
-  SetupConfig(nDim);
+  WriteHexMeshFile(3,2,1, "hex_mesh.su2");
+  SetupConfig(nDim, "hex_mesh.su2");
   SetupGeometry();
 
   geometry->SetResolutionTensor(config);
@@ -821,14 +579,16 @@ BOOST_FIXTURE_TEST_CASE(Hexahedra, ResolutionFixture) {
       BOOST_CHECK_CLOSE_FRACTION(Mij[2][2], 1.0, machine_eps);
     }
   }
+
+  std::remove("hex_mesh.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile(3, 2, 1);
-  SetupConfig(nDim);
+  WriteHexMeshFile(3, 2, 1, "hex_mesh_2.cfg");
+  SetupConfig(nDim, "hex_mesh_2.cfg");
   SetupGeometry();
 
   geometry->SetResolutionTensor(config);
@@ -857,14 +617,16 @@ BOOST_FIXTURE_TEST_CASE(M43_Power, ResolutionFixture) {
       BOOST_CHECK_CLOSE_FRACTION(M43[2][2], 1.0, machine_eps);
     }
   }
+
+  std::remove("hex_mesh_2.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(ResolutionConstantEqualsOneForIsotropic, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile(1, 1, 1);
-  SetupConfig(nDim);
+  WriteHexMeshFile(1, 1, 1, "hex_mesh_isotropic.su2");
+  SetupConfig(nDim, "hex_mesh_isotropic.su2");
   SetupGeometry();
 
   geometry->SetResolutionTensor(config);
@@ -878,14 +640,16 @@ BOOST_FIXTURE_TEST_CASE(ResolutionConstantEqualsOneForIsotropic, ResolutionFixtu
     const su2double tolerance = 0.00000000001;
     BOOST_CHECK_SMALL(C_M - 1, tolerance);
   }
+
+  std::remove("hex_mesh_isotropic.su2");
 }
 
 BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
 
   // Write out the mesh and configuration files.
   const unsigned short nDim = 3;
-  WriteHexMeshFile(3, 2, 1);
-  SetupConfig(nDim);
+  WriteHexMeshFile(3, 2, 1, "hex_mesh_aniso.su2");
+  SetupConfig(nDim, "hex_mesh_aniso.su2");
   SetupGeometry();
 
   geometry->SetResolutionTensor(config);
@@ -900,4 +664,9 @@ BOOST_FIXTURE_TEST_CASE(ResolutionConstantForAnisotropic, ResolutionFixture) {
     const su2double tolerance = 0.00000000001;
     BOOST_CHECK_CLOSE_FRACTION(C_M, correct_value, tolerance);
   }
+  std::remove("hex_mesh_aniso.su2");
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

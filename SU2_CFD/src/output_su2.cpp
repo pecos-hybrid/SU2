@@ -2,7 +2,7 @@
  * \file output_su2.cpp
  * \brief Main subroutines for output solver information.
  * \author F. Palacios, T. Economon, M. Colonno
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -242,9 +242,143 @@ void COutput::SetSU2_MeshASCII(CConfig *config, CGeometry *geometry, unsigned sh
     output_file << transl[0] << "\t" << transl[1] << "\t" << transl[2] << endl;
     
   }
-  
-  output_file.close();
 
 }
 
 void COutput::SetSU2_MeshBinary(CConfig *config, CGeometry *geometry) { }
+
+void COutput::WriteCoordinates_Binary(CConfig *config, CGeometry *geometry, unsigned short val_iZone) {
+  
+  unsigned short iDim, nDim = geometry->GetnDim();
+  unsigned long iPoint;
+  char cstr[200];
+  
+  /*--- Prepare the file name. ---*/
+  
+  strcpy(cstr, "coordinates");
+  if (config->GetnZone() > 1){
+    char appstr[200];
+    SPRINTF(appstr, "_%u", val_iZone);
+    strcat(cstr, appstr);
+  }
+  strcat(cstr,".dat");
+  
+  /*--- Prepare the first ints containing the counts. The first is a
+   the total number of points written. The second is the dimension.
+   We know the rest of the file will contain the coords (nPoints*nDim). ---*/
+  
+  int var_buf_size = 2;
+  int var_buf[2]   = {(int)nGlobal_Poin, nDim};
+  
+  /*--- Prepare the 1D data buffer on this rank. ---*/
+  
+  passivedouble *buf = new passivedouble[nGlobal_Poin*nDim];
+  
+  /*--- For now, create a temp 1D buffer to load up the data for writing.
+   This will be replaced with a derived data type most likely. ---*/
+  
+  for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++)
+    for (iDim = 0; iDim < nDim; iDim++)
+      buf[iPoint*nDim+iDim] = SU2_TYPE::GetValue(Coords[iDim][iPoint]);
+  
+  /*--- Write the binary file. Everything is done in serial, as only the
+   master node has the data and enters this routine. ---*/
+  
+  FILE* fhw;
+  fhw = fopen(cstr, "wb");
+  
+  /*--- Error check for opening the file. ---*/
+  
+  if (!fhw) {
+    SU2_MPI::Error(string("Unable to open binary coordinates file ") +
+                   string(cstr), CURRENT_FUNCTION);
+  }
+  
+  /*--- First, write the number of variables and points. ---*/
+  
+  fwrite(var_buf, var_buf_size, sizeof(int), fhw);
+  
+  /*--- Call to write the entire restart file data in binary in one shot. ---*/
+  
+  fwrite(buf, nGlobal_Poin*nDim, sizeof(passivedouble), fhw);
+  
+  /*--- Close the file. ---*/
+  
+  fclose(fhw);
+  
+  /*--- Release buffer memory. ---*/
+  
+  delete [] buf;
+  
+}
+
+void COutput::WriteProjectedSensitivity(CConfig *config,
+                                        CGeometry *geometry,
+                                        unsigned short val_iZone,
+                                        unsigned short val_nZone) {
+  
+  unsigned short iVar;
+  unsigned long iPoint, iElem, iNode;
+  unsigned long *LocalIndex = NULL;
+  bool *SurfacePoint = NULL;
+  string filename, fieldname;
+  
+  filename = config->GetDV_Sens_Filename();
+  
+  ofstream Sens_File;
+  Sens_File.open(filename.c_str(), ios::out);
+  Sens_File.precision(15);
+  
+  /*--- This is surface output, so print only the points
+   that are in the element list. Change the numbering. ---*/
+  
+  LocalIndex   = new unsigned long [nGlobal_Poin+1];
+  SurfacePoint = new bool [nGlobal_Poin+1];
+  
+  for (iPoint = 0; iPoint < nGlobal_Poin+1; iPoint++)
+    SurfacePoint[iPoint] = false;
+  
+  for (iElem = 0; iElem < nGlobal_Line; iElem++) {
+    iNode = iElem*N_POINTS_LINE;
+    SurfacePoint[Conn_Line[iNode+0]] = true;
+    SurfacePoint[Conn_Line[iNode+1]] = true;
+  }
+  for (iElem = 0; iElem < nGlobal_BoundTria; iElem++) {
+    iNode = iElem*N_POINTS_TRIANGLE;
+    SurfacePoint[Conn_BoundTria[iNode+0]] = true;
+    SurfacePoint[Conn_BoundTria[iNode+1]] = true;
+    SurfacePoint[Conn_BoundTria[iNode+2]] = true;
+  }
+  for (iElem = 0; iElem < nGlobal_BoundQuad; iElem++) {
+    iNode = iElem*N_POINTS_QUADRILATERAL;
+    SurfacePoint[Conn_BoundQuad[iNode+0]] = true;
+    SurfacePoint[Conn_BoundQuad[iNode+1]] = true;
+    SurfacePoint[Conn_BoundQuad[iNode+2]] = true;
+    SurfacePoint[Conn_BoundQuad[iNode+3]] = true;
+  }
+  
+  nSurf_Poin = 0;
+  for (iPoint = 0; iPoint < nGlobal_Poin+1; iPoint++) {
+    LocalIndex[iPoint] = 0;
+    if (SurfacePoint[iPoint]) {nSurf_Poin++; LocalIndex[iPoint] = nSurf_Poin;}
+  }
+  
+  /*--- Write surface x,y,z and surface dJ/dx, dJ/dy, dJ/dz data. ---*/
+  
+  for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
+    
+    if (LocalIndex[iPoint+1] != 0) {
+      
+      /*--- Write the node coordinates and the sensitivities. Note that
+       we subtract 2 from the fields list to ignore the initial ID and
+       final sens.normal value in the Data array. ---*/
+      
+      for (iVar = 0; iVar < config->fields.size()-2; iVar++)
+      Sens_File << scientific << Data[iVar][iPoint] << "\t";
+      Sens_File << scientific << "\n";
+      
+    }
+  }
+  
+}
+

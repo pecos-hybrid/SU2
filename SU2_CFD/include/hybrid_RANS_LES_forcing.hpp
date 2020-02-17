@@ -2,7 +2,7 @@
  * \file hybrid_RANS_LES_forcing.hpp
  * \brief Interface for the hybrid RANS/LES forcing terms
  * \author C. Pederson
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  *
  * SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
  *                      Dr. Thomas D. Economon (economon@stanford.edu).
@@ -47,7 +47,7 @@ class CSolver;
  * \class CHybridForcingAbstractBase
  * \brief Abstract base class for hybrid forcing.
  * \author T. A. Oliver
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  *
  * This class provides a uniform interface to various forcing options,
  * which are implemented as derived classes.
@@ -95,7 +95,7 @@ class CHybridForcingAbstractBase {
  * \class CHybridForcingTG0
  * \brief Class for defining the forcing needed in a hybrid RANS/LES model
  * \author T. Oliver, C. Pederson
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  *
  * This class could inherit from CNumerics or CSolver, but there's a
  * **lot** of extra code in numerics and solvers that forcing doesn't need.
