@@ -2,7 +2,7 @@
  * fluid_model_ppr.cpp
  * \brief Source of the Peng-Robinson model.
  * \author S. Vitale, G. Gori, M. Pini, A. Guardone, P. Colonna
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -277,7 +277,7 @@ void CPengRobinson::SetTDState_hs (su2double h, su2double s ) {
     cout<< "Root must be bracketed for bisection in rtbis"<< endl;
     SetTDState_rhoT(Density, Temperature);
   }
-  rtb = f < 0.0 ? (dx=x2-x1,x1) : (dx=x1-x2,x2);
+  rtb = f < 0.0 ? (static_cast<void>(dx=x2-x1),x1) : (static_cast<void>(dx=x1-x2),x2);
   do{
     xmid=rtb+(dx *= 0.5);
     T = T_v_h(xmid, h);
@@ -415,7 +415,7 @@ void CPengRobinson::SetTDState_Ps (su2double P, su2double s) {
     cout<< "Root must be bracketed for bisection in rtbis"<< endl;
     SetTDState_rhoT(Density, Temperature);
   }
-  rtb = f < 0.0 ? (dx=x2-x1,x1) : (dx=x1-x2,x2);
+  rtb = f < 0.0 ? (static_cast<void>(dx=x2-x1),x1) : (static_cast<void>(dx=x1-x2),x2);
   do{
     xmid=rtb+(dx *= 0.5);
     T = T_P_rho(P,1.0/xmid);

@@ -2,7 +2,7 @@
  * \file numerics_direct_mean.cpp
  * \brief This file contains the numerical methods for compressible flow.
  * \author F. Palacios, T. Economon
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -175,6 +175,11 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
       Mean_GradPrimVar_Average[iVar][iDim] = 0.5*(PrimVar_Grad_Average_i[iVar][iDim] + PrimVar_Grad_Average_j[iVar][iDim]);
     }
   }
+  for (iVar = 0; iVar < 1; iVar++) {
+    for (iDim = 0; iDim < nDim; iDim++) {
+      Mean_GradTurbVar[iVar][iDim] = 0.5*(TurbVar_Grad_i[iVar][iDim] + TurbVar_Grad_j[iVar][iDim]);
+    }
+  }
 
   /*--- Projection of the mean gradient in the direction of the edge ---*/
 
@@ -217,6 +222,10 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   AddSGSHeatFlux(Mean_GradPrimVar_Average, Mean_Alpha, Mean_Eddy_Viscosity);
   AddSGETHeatFlux(Mean_GradPrimVar_Fluct, Mean_Aniso_Eddy_Viscosity);
 
+  if (config->GetUse_TKE_Diffusion()) {
+    SetLaminar_TKE_Diffusion(Mean_GradTurbVar, Mean_Laminar_Viscosity);
+    AddSGS_TKE_Diffusion(Mean_GradTurbVar, Mean_Alpha, Mean_Eddy_Viscosity);
+  }
 
   GetViscousProjFlux(Mean_PrimVar, Normal);
 
@@ -374,6 +383,13 @@ void CAvgGrad_Hybrid::SetLaminarHeatFlux(su2double **val_gradprimvar,
   }
 }
 
+void CAvgGrad_Hybrid::SetLaminar_TKE_Diffusion(const su2double* const* val_gradturbvar,
+                                               const su2double val_laminar_viscosity) {
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    TKE_diffusion[iDim] = val_laminar_viscosity*val_gradturbvar[0][iDim];
+  }
+}
+
 void CAvgGrad_Hybrid::AddSGSHeatFlux(su2double **val_gradprimvar,
                                    const su2double val_alpha,
                                    const su2double val_eddy_viscosity) {
@@ -389,6 +405,18 @@ void CAvgGrad_Hybrid::AddSGSHeatFlux(su2double **val_gradprimvar,
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     heat_flux_vector[iDim] += heat_flux_factor*val_gradprimvar[0][iDim];
+  }
+
+}
+
+void CAvgGrad_Hybrid::AddSGS_TKE_Diffusion(const su2double * const* val_gradturbvar,
+                                           const su2double val_alpha,
+                                           const su2double val_eddy_viscosity) {
+ const su2double alpha_fac = val_alpha*(2.0 - val_alpha);
+ const su2double sigma_k = 1.0;
+ const su2double diffusivity = alpha_fac*val_eddy_viscosity/sigma_k;
+ for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    TKE_diffusion[iDim] += diffusivity * val_gradturbvar[0][iDim];
   }
 }
 

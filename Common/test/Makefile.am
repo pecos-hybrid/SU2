@@ -3,7 +3,7 @@
 # \file Makefile.am
 # \brief Makefile for SU2_CFD tests
 # \author T. A. Oliver
-# \version 5.0.0 "Raven"
+# \version 6.2.0 "Falcon"
 #
 # SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
 #                      Dr. Thomas D. Economon (economon@stanford.edu).
@@ -36,41 +36,34 @@
 check_PROGRAMS  =
 TESTS  =
 
-if HAVE_BOOST
-check_PROGRAMS += unit_test_config
-if BUILD_LAPACK
-check_PROGRAMS += resolution_tensor_test
-endif
+if HAVE_BOOST_UTF
+check_PROGRAMS += test_driver
 endif
 
 # Eventually these will likely be required
-AM_CPPFLAGS = -I$(top_srcdir)/Common/include @LAPACK_CXX@
-#AM_LDFLAGS = 
-#LIBS = 
-LDADD = $(top_builddir)/Common/lib/libSU2.a
-LDADD += @LAPACK_LD@
+AM_CPPFLAGS = -I$(top_srcdir)/Common/include @LAPACK_CXX@ @BOOST_CPPFLAGS@
+LDADD = $(top_builddir)/Common/lib/libSU2.a @LAPACK_LD@ @BOOST_UNIT_TEST_FRAMEWORK_LIB@
+LDADD += @BOOST_LDFLAGS@ 
 if BUILD_LAPACK
 LDFLAGS  += -mkl
 endif
 
 # always link to built dependencies from ./externals
-AM_CPPFLAGS += @su2_externals_INCLUDES@ @BOOST_CXX@
+AM_CPPFLAGS += @su2_externals_INCLUDES@
 LDADD += @su2_externals_LIBS@
 
 # Test sources
-if HAVE_BOOST
-unit_test_config_SOURCES = unit_test_config.cpp
+if HAVE_BOOST_UTF
+test_driver_SOURCES = unit_test_config.cpp \
+			     main.cpp
 if BUILD_LAPACK
-resolution_tensor_test_SOURCES = resolution_tensor_test.cpp
+test_driver_SOURCES += resolution_tensor_test.cpp
 endif
 endif
 
 # Tests to be run
-if HAVE_BOOST
-TESTS += unit_test_config
-if BUILD_LAPACK
-TESTS += resolution_tensor_test
-endif
+if HAVE_BOOST_UTF
+TESTS += test_driver
 endif
 
 # Any of above we expect to fail?

@@ -2,7 +2,7 @@
  * \file solver_direct_elasticity.cpp
  * \brief Main subroutines for solving direct FEM elasticity problems.
  * \author R. Sanchez
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -18,7 +18,7 @@
  *  - Prof. Edwin van der Weide's group at the University of Twente.
  *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ * Copyright 2012-2019, Francisco D. Palacios, Thomas D. Economon,
  *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
@@ -36,6 +36,7 @@
  */
 
 #include "../include/solver_structure.hpp"
+#include <algorithm>
 
 CFEASolver::CFEASolver(void) : CSolver() {
   
@@ -386,6 +387,7 @@ CFEASolver::CFEASolver(CGeometry *geometry, CConfig *config) : CSolver() {
   /*--- Initialize the value of the total objective function ---*/
    Total_OFRefGeom = 0.0;
    Total_OFRefNode = 0.0;
+   Total_OFVolFrac = 0.0;
 
    /*--- Initialize the value of the global objective function ---*/
    Global_OFRefGeom = 0.0;
@@ -429,13 +431,13 @@ CFEASolver::CFEASolver(CGeometry *geometry, CConfig *config) : CSolver() {
    }
 
   /*--- Initialize the BGS residuals in FSI problems. ---*/
-  if (fsi){
+  if (config->GetMultizone_Residual()){
 
     FSI_Residual      = 0.0;
     RelaxCoeff        = 1.0;
     ForceCoeff        = 1.0;
 
-    Residual_BGS      = new su2double[nVar];         for (iVar = 0; iVar < nVar; iVar++) Residual_RMS[iVar]  = 0.0;
+    Residual_BGS      = new su2double[nVar];         for (iVar = 0; iVar < nVar; iVar++) Residual_BGS[iVar]  = 0.0;
     Residual_Max_BGS  = new su2double[nVar];         for (iVar = 0; iVar < nVar; iVar++) Residual_Max_BGS[iVar]  = 0.0;
 
     /*--- Define some structures for locating max residuals ---*/
@@ -973,6 +975,8 @@ void CFEASolver::Set_ElementProperties(CGeometry *geometry, CConfig *config) {
 
   unsigned short iZone = config->GetiZone();
   unsigned short nZone = geometry->GetnZone();
+  
+  bool topology_mode = config->GetTopology_Optimization();
 
   string filename;
   ifstream properties_file;
@@ -997,6 +1001,9 @@ void CFEASolver::Set_ElementProperties(CGeometry *geometry, CConfig *config) {
     if (rank == MASTER_NODE){
       cout << "There is no element-based properties file." << endl;
       cout << "The structural domain has uniform properties." << endl;
+      
+      if (topology_mode)
+        SU2_MPI::Error("Topology mode requires an element-based properties file.",CURRENT_FUNCTION);
     }
 
     for (iElem = 0; iElem < nElement; iElem++){
@@ -1059,6 +1066,13 @@ void CFEASolver::Set_ElementProperties(CGeometry *geometry, CConfig *config) {
                                                          elProperties[1],
                                                          elProperties[2],
                                                          elProperties[3]);
+
+        /*--- For backwards compatibility we only read a fifth column in topology mode ---*/
+        if (topology_mode) {
+          su2double elDensity;
+          point_line >> elDensity;
+          element_properties[iElem_Local]->SetDesignDensity(elDensity);
+        }
 
         iElem_Global_Local++;
       }
@@ -1394,7 +1408,14 @@ void CFEASolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, 
   bool incremental_load = config->GetIncrementalLoad();               // If an incremental load is applied
   
   bool body_forces = config->GetDeadLoad();                     // Body forces (dead loads).
-
+  
+  bool fsi = config->GetFSI_Simulation();
+  bool consistent_interpolation = (!config->GetConservativeInterpolation() ||
+                                  (config->GetKindInterpolation() == WEIGHTED_AVERAGE));
+  
+  bool topology_mode = config->GetTopology_Optimization();  // Density-based topology optimization
+  
+  
   /*--- Set vector entries to zero ---*/
   for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
     LinSysAux.SetBlock_Zero(iPoint);
@@ -1410,11 +1431,27 @@ void CFEASolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, 
    * the Jacobian matrix once, at the beginning of the simulation.
    *
    * We don't need first_iter, because there is only one iteration per time step in linear analysis.
+   * For dynamic problems we also need to recompute the Jacobian as that is where the RHS is computed
+   * as a residual (and we need that for AD).
    */
   if ((initial_calc && linear_analysis)||
       (restart && initial_calc_restart && linear_analysis) ||
-      (dynamic && disc_adj_fem)) {
+      (dynamic && disc_adj_fem) ||
+      (dynamic && linear_analysis)) {
     Jacobian.SetValZero();
+  }
+  
+  /*
+   * For topology optimization we apply a filter on the design density field to avoid
+   * numerical issues (checkerboards), ensure mesh independence, and impose a length scale.
+   * This has to be done before computing the mass matrix and the dead load terms.
+   * This filter, and the volume fraction objective function, require the element volumes,
+   * so we ask "geometry" to compute them.
+   * This only needs to be done for the undeformed (initial) shape.
+   */
+  if (topology_mode && (restart || initial_calc || initial_calc_restart || disc_adj_fem)) {
+    geometry->SetElemVolume(config);
+    FilterElementDensities(geometry,config);
   }
   
   /*
@@ -1502,6 +1539,11 @@ void CFEASolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, 
     }
   }
   
+  /*
+   * FSI loads (computed upstream) need to be integrated if a nonconservative interpolation scheme is in use
+   */
+  if (fsi && first_iter && consistent_interpolation) Integrate_FSI_Loads(geometry,config);
+
 }
 
 void CFEASolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned long Iteration) { }
@@ -1542,11 +1584,15 @@ void CFEASolver::Compute_StiffMatrix(CGeometry *geometry, CSolver **solver_conta
   unsigned long iElem, iVar, jVar;
   unsigned short iNode, iDim, nNodes = 0;
   unsigned long indexNode[8]={0,0,0,0,0,0,0,0};
-  su2double val_Coord;
+  su2double val_Coord, val_Sol;
   int EL_KIND = 0;
   
-  su2double *Kab = NULL;
+  su2double *Kab = NULL, *Ta  = NULL;
   unsigned short NelNodes, jNode;
+  
+  bool topology_mode = config->GetTopology_Optimization();
+  su2double simp_exponent = config->GetSIMP_Exponent();
+  su2double simp_minstiff = config->GetSIMP_MinStiffness();
   
   /*--- Loops over all the elements ---*/
   
@@ -1567,8 +1613,16 @@ void CFEASolver::Compute_StiffMatrix(CGeometry *geometry, CSolver **solver_conta
       
       for (iDim = 0; iDim < nDim; iDim++) {
         val_Coord = geometry->node[indexNode[iNode]]->GetCoord(iDim);
+        val_Sol = node[indexNode[iNode]]->GetSolution(iDim) + val_Coord;
         element_container[FEA_TERM][EL_KIND]->SetRef_Coord(val_Coord, iNode, iDim);
+        element_container[FEA_TERM][EL_KIND]->SetCurr_Coord(val_Sol, iNode, iDim);
       }
+    }
+    
+    /*--- In topology mode determine the penalty to apply to the stiffness ---*/
+    su2double simp_penalty = 1.0;
+    if (topology_mode) {
+      simp_penalty = simp_minstiff+(1.0-simp_minstiff)*pow(element_properties[iElem]->GetPhysicalDensity(),simp_exponent);
     }
     
     /*--- Set the properties of the element ---*/
@@ -1586,18 +1640,22 @@ void CFEASolver::Compute_StiffMatrix(CGeometry *geometry, CSolver **solver_conta
     
     for (iNode = 0; iNode < NelNodes; iNode++) {
       
+      Ta = element_container[FEA_TERM][EL_KIND]->Get_Kt_a(iNode);
+      for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = simp_penalty*Ta[iVar];
+      
+      LinSysRes.SubtractBlock(indexNode[iNode], Res_Stress_i);
+      
       for (jNode = 0; jNode < NelNodes; jNode++) {
         
         Kab = element_container[FEA_TERM][EL_KIND]->Get_Kab(iNode, jNode);
         
         for (iVar = 0; iVar < nVar; iVar++) {
           for (jVar = 0; jVar < nVar; jVar++) {
-            Jacobian_ij[iVar][jVar] = Kab[iVar*nVar+jVar];
+            Jacobian_ij[iVar][jVar] = simp_penalty*Kab[iVar*nVar+jVar];
           }
         }
-        
+    
         Jacobian.AddBlock(indexNode[iNode], indexNode[jNode], Jacobian_ij);
-        
       }
       
     }
@@ -1629,6 +1687,10 @@ void CFEASolver::Compute_StiffMatrix_NodalStressRes(CGeometry *geometry, CSolver
   
   bool incompressible = (config->GetMaterialCompressibility() == INCOMPRESSIBLE_MAT);
   bool de_effects = config->GetDE_Effects();
+
+  bool topology_mode = config->GetTopology_Optimization();
+  su2double simp_exponent = config->GetSIMP_Exponent();
+  su2double simp_minstiff = config->GetSIMP_MinStiffness();
   
   /*--- Loops over all the elements ---*/
   
@@ -1669,6 +1731,12 @@ void CFEASolver::Compute_StiffMatrix_NodalStressRes(CGeometry *geometry, CSolver
       }
     }
     
+    /*--- In topology mode determine the penalty to apply to the stiffness ---*/
+    su2double simp_penalty = 1.0;
+    if (topology_mode) {
+      simp_penalty = simp_minstiff+(1.0-simp_minstiff)*pow(element_properties[iElem]->GetPhysicalDensity(),simp_exponent);
+    }
+    
     /*--- Set the properties of the element ---*/
     element_container[FEA_TERM][EL_KIND]->Set_ElProperties(element_properties[iElem]);
     if (de_effects) element_container[DE_TERM][EL_KIND]->Set_ElProperties(element_properties[iElem]);
@@ -1693,7 +1761,7 @@ void CFEASolver::Compute_StiffMatrix_NodalStressRes(CGeometry *geometry, CSolver
     for (iNode = 0; iNode < NelNodes; iNode++) {
       
       Ta = element_container[FEA_TERM][EL_KIND]->Get_Kt_a(iNode);
-      for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = Ta[iVar];
+      for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = simp_penalty*Ta[iVar];
       
       /*--- Check if this is my node or not ---*/
       LinSysRes.SubtractBlock(indexNode[iNode], Res_Stress_i);
@@ -1701,7 +1769,7 @@ void CFEASolver::Compute_StiffMatrix_NodalStressRes(CGeometry *geometry, CSolver
       /*--- Retrieve the electric contribution to the Residual ---*/
       if (de_effects){
         Ta_DE = element_container[DE_TERM][EL_KIND]->Get_Kt_a(iNode);
-        for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = Ta_DE[iVar];
+        for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = simp_penalty*Ta_DE[iVar];
         LinSysRes.SubtractBlock(indexNode[iNode], Res_Stress_i);
         
       }
@@ -1714,10 +1782,10 @@ void CFEASolver::Compute_StiffMatrix_NodalStressRes(CGeometry *geometry, CSolver
         if (incompressible) Kk_ab = element_container[INC_TERM][EL_KIND]->Get_Kk_ab(iNode,jNode);
         
         for (iVar = 0; iVar < nVar; iVar++) {
-          Jacobian_s_ij[iVar][iVar] = Ks_ab;
+          Jacobian_s_ij[iVar][iVar] = simp_penalty*Ks_ab;
           for (jVar = 0; jVar < nVar; jVar++) {
-            Jacobian_c_ij[iVar][jVar] = Kab[iVar*nVar+jVar];
-            if (incompressible) Jacobian_k_ij[iVar][jVar] = Kk_ab[iVar*nVar+jVar];
+            Jacobian_c_ij[iVar][jVar] = simp_penalty*Kab[iVar*nVar+jVar];
+            if (incompressible) Jacobian_k_ij[iVar][jVar] = simp_penalty*Kk_ab[iVar*nVar+jVar];
           }
         }
         
@@ -1731,7 +1799,7 @@ void CFEASolver::Compute_StiffMatrix_NodalStressRes(CGeometry *geometry, CSolver
           Ks_ab_DE = element_container[DE_TERM][EL_KIND]->Get_Ks_ab(iNode,jNode);
           
           for (iVar = 0; iVar < nVar; iVar++){
-            Jacobian_s_ij[iVar][iVar] = Ks_ab_DE;
+            Jacobian_s_ij[iVar][iVar] = simp_penalty*Ks_ab_DE;
           }
           
           Jacobian.AddBlock(indexNode[iNode], indexNode[jNode], Jacobian_s_ij);
@@ -1756,6 +1824,9 @@ void CFEASolver::Compute_MassMatrix(CGeometry *geometry, CSolver **solver_contai
   su2double Mab;
   unsigned short NelNodes, jNode;
   
+  bool topology_mode = config->GetTopology_Optimization();
+  su2double simp_minstiff = config->GetSIMP_MinStiffness();
+  
   /*--- Loops over all the elements ---*/
   
   for (iElem = 0; iElem < geometry->GetnElem(); iElem++) {
@@ -1778,6 +1849,12 @@ void CFEASolver::Compute_MassMatrix(CGeometry *geometry, CSolver **solver_contai
       }
     }
     
+    /*--- In topology mode determine the penalty to apply to the mass, linear function of the physical density ---*/
+    su2double simp_penalty = 1.0;
+    if (topology_mode) {
+      simp_penalty = simp_minstiff+(1.0-simp_minstiff)*element_properties[iElem]->GetPhysicalDensity();
+    }
+    
     /*--- Set the properties of the element ---*/
     element_container[FEA_TERM][EL_KIND]->Set_ElProperties(element_properties[iElem]);
     
@@ -1792,7 +1869,7 @@ void CFEASolver::Compute_MassMatrix(CGeometry *geometry, CSolver **solver_contai
         Mab = element_container[FEA_TERM][EL_KIND]->Get_Mab(iNode, jNode);
         
         for (iVar = 0; iVar < nVar; iVar++) {
-          MassMatrix_ij[iVar][iVar] = Mab;
+          MassMatrix_ij[iVar][iVar] = simp_penalty*Mab;
         }
         
         MassMatrix.AddBlock(indexNode[iNode], indexNode[jNode], MassMatrix_ij);
@@ -1815,6 +1892,9 @@ void CFEASolver::Compute_MassRes(CGeometry *geometry, CSolver **solver_container
 
   su2double Mab;
   unsigned short NelNodes, jNode;
+  
+  bool topology_mode = config->GetTopology_Optimization();
+  su2double simp_minstiff = config->GetSIMP_MinStiffness();
 
   /*--- Set vector entries to zero ---*/
   for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
@@ -1843,6 +1923,12 @@ void CFEASolver::Compute_MassRes(CGeometry *geometry, CSolver **solver_container
       }
     }
 
+    /*--- In topology mode determine the penalty to apply to the mass, linear function of the physical density ---*/
+    su2double simp_penalty = 1.0;
+    if (topology_mode) {
+      simp_penalty = simp_minstiff+(1.0-simp_minstiff)*element_properties[iElem]->GetPhysicalDensity();
+    }
+
     /*--- Set the properties of the element ---*/
     element_container[FEA_TERM][EL_KIND]->Set_ElProperties(element_properties[iElem]);
 
@@ -1857,8 +1943,8 @@ void CFEASolver::Compute_MassRes(CGeometry *geometry, CSolver **solver_container
         Mab = element_container[FEA_TERM][EL_KIND]->Get_Mab(iNode, jNode);
 
         for (iVar = 0; iVar < nVar; iVar++) {
-          Residual_i[iVar] = Mab * TimeRes_Aux.GetBlock(indexNode[iNode],iVar);
-          Residual_j[iVar] = Mab * TimeRes_Aux.GetBlock(indexNode[jNode],iVar);
+          Residual_i[iVar] = simp_penalty * Mab * TimeRes_Aux.GetBlock(indexNode[iNode],iVar);
+          Residual_j[iVar] = simp_penalty * Mab * TimeRes_Aux.GetBlock(indexNode[jNode],iVar);
         }
 
         TimeRes.AddBlock(indexNode[iNode],Residual_i);
@@ -1885,6 +1971,10 @@ void CFEASolver::Compute_NodalStressRes(CGeometry *geometry, CSolver **solver_co
   
   su2double *Ta = NULL;
   unsigned short NelNodes;
+  
+  bool topology_mode = config->GetTopology_Optimization();
+  su2double simp_exponent = config->GetSIMP_Exponent();
+  su2double simp_minstiff = config->GetSIMP_MinStiffness();
   
   /*--- Loops over all the elements ---*/
   
@@ -1915,6 +2005,12 @@ void CFEASolver::Compute_NodalStressRes(CGeometry *geometry, CSolver **solver_co
       }
     }
     
+    /*--- In topology mode determine the penalty to apply to the stiffness ---*/
+    su2double simp_penalty = 1.0;
+    if (topology_mode) {
+      simp_penalty = simp_minstiff+(1.0-simp_minstiff)*pow(element_properties[iElem]->GetPhysicalDensity(),simp_exponent);
+    }
+    
     /*--- Set the properties of the element ---*/
     element_container[FEA_TERM][EL_KIND]->Set_ElProperties(element_properties[iElem]);
     
@@ -1931,7 +2027,7 @@ void CFEASolver::Compute_NodalStressRes(CGeometry *geometry, CSolver **solver_co
     for (iNode = 0; iNode < NelNodes; iNode++) {
       
       Ta = element_container[FEA_TERM][EL_KIND]->Get_Kt_a(iNode);
-      for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = Ta[iVar];
+      for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = simp_penalty*Ta[iVar];
       
       LinSysRes.SubtractBlock(indexNode[iNode], Res_Stress_i);
       
@@ -1953,6 +2049,9 @@ void CFEASolver::Compute_NodalStress(CGeometry *geometry, CSolver **solver_conta
   bool prestretch_fem = config->GetPrestretch();
   
   bool dynamic = (config->GetDynamic_Analysis() == DYNAMIC);
+  
+  bool topology_mode = config->GetTopology_Optimization();
+  su2double simp_exponent = config->GetSIMP_Exponent();
   
   if (nDim == 2) nStress = 3;
   else nStress = 6;
@@ -2004,6 +2103,12 @@ void CFEASolver::Compute_NodalStress(CGeometry *geometry, CSolver **solver_conta
       }
     }
     
+    /*--- Correct the stresses and reactions for topology optimization densities. ---*/
+    su2double simp_penalty = 1.0;
+    if (topology_mode) {
+      simp_penalty = pow(element_properties[iElem]->GetPhysicalDensity(),simp_exponent);
+    }
+    
     /*--- Set the properties of the element ---*/
     element_container[FEA_TERM][EL_KIND]->Set_ElProperties(element_properties[iElem]);
     
@@ -2021,12 +2126,12 @@ void CFEASolver::Compute_NodalStress(CGeometry *geometry, CSolver **solver_conta
       
       /*--- This only works if the problem is nonlinear ---*/
       Ta = element_container[FEA_TERM][EL_KIND]->Get_Kt_a(iNode);
-      for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = Ta[iVar];
+      for (iVar = 0; iVar < nVar; iVar++) Res_Stress_i[iVar] = simp_penalty*Ta[iVar];
       
       LinSysReact.AddBlock(indexNode[iNode], Res_Stress_i);
       
       for (iStress = 0; iStress < nStress; iStress++) {
-        node[indexNode[iNode]]->AddStress_FEM(iStress,
+        node[indexNode[iNode]]->AddStress_FEM(iStress, simp_penalty *
                                               (element_container[FEA_TERM][EL_KIND]->Get_NodalStress(iNode, iStress) /
                                                geometry->node[indexNode[iNode]]->GetnElem()) );
       }
@@ -2111,9 +2216,6 @@ void CFEASolver::Compute_NodalStress(CGeometry *geometry, CSolver **solver_conta
     unsigned long iVertex;
     su2double val_Reaction;
     
-    bool linear_analysis = (config->GetGeometricConditions() == SMALL_DEFORMATIONS);  // Linear analysis.
-    bool nonlinear_analysis = (config->GetGeometricConditions() == LARGE_DEFORMATIONS);  // Nonlinear analysis.
-    
     if (!dynamic) {
       /*--- Loop over all the markers  ---*/
       for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++)
@@ -2160,27 +2262,16 @@ void CFEASolver::Compute_NodalStress(CGeometry *geometry, CSolver **solver_conta
         case (NEWMARK_IMPLICIT):
           
           /*--- Loop over all points, and set aux vector TimeRes_Aux = a0*U+a2*U'+a3*U'' ---*/
-          if (linear_analysis) {
-            for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
-              for (iVar = 0; iVar < nVar; iVar++) {
-                Residual[iVar] = a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)+    //a0*U(t)
-                a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)+  //a2*U'(t)
-                a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
-              }
-              TimeRes_Aux.SetBlock(iPoint, Residual);
+          for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+            for (iVar = 0; iVar < nVar; iVar++) {
+              Residual[iVar] =   a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)        //a0*U(t)
+              - a_dt[0]*node[iPoint]->GetSolution(iVar)           //a0*U(t+dt)(k-1)
+              + a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)    //a2*U'(t)
+              + a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
             }
+            TimeRes_Aux.SetBlock(iPoint, Residual);
           }
-          else if (nonlinear_analysis) {
-            for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
-              for (iVar = 0; iVar < nVar; iVar++) {
-                Residual[iVar] =   a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)        //a0*U(t)
-                - a_dt[0]*node[iPoint]->GetSolution(iVar)           //a0*U(t+dt)(k-1)
-                + a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)    //a2*U'(t)
-                + a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
-              }
-              TimeRes_Aux.SetBlock(iPoint, Residual);
-            }
-          }
+
           /*--- Once computed, compute M*TimeRes_Aux ---*/
           MassMatrix.MatrixVectorProduct(TimeRes_Aux,TimeRes,geometry,config);
           
@@ -2270,6 +2361,11 @@ void CFEASolver::Compute_DeadLoad(CGeometry *geometry, CSolver **solver_containe
         element_container[FEA_TERM][EL_KIND]->SetRef_Coord(val_Coord, iNode, iDim);
       }
     }
+    
+    /*--- Penalize the dead load, do it by default to avoid unecessary "ifs", since it
+          goes to the RHS there is no need to have a minimum value for stability ---*/
+    su2double simp_penalty = element_properties[iElem]->GetPhysicalDensity();
+    
     /*--- Set the properties of the element ---*/
     element_container[FEA_TERM][EL_KIND]->Set_ElProperties(element_properties[iElem]);
     
@@ -2280,7 +2376,7 @@ void CFEASolver::Compute_DeadLoad(CGeometry *geometry, CSolver **solver_containe
     for (iNode = 0; iNode < NelNodes; iNode++) {
       
       Dead_Load = element_container[FEA_TERM][EL_KIND]->Get_FDL_a(iNode);
-      for (iVar = 0; iVar < nVar; iVar++) Res_Dead_Load[iVar] = Dead_Load[iVar];
+      for (iVar = 0; iVar < nVar; iVar++) Res_Dead_Load[iVar] = simp_penalty*Dead_Load[iVar];
       
       node[indexNode[iNode]]->Add_BodyForces_Res(Res_Dead_Load);
       
@@ -2795,9 +2891,7 @@ void CFEASolver::BC_Normal_Load(CGeometry *geometry, CSolver **solver_container,
   su2double CurrentTime=config->GetCurrent_DynTime();
   su2double ModAmpl = 1.0;
   
-  bool Ramp_Load = config->GetRamp_Load();
   su2double Ramp_Time = config->GetRamp_Time();
-  su2double Transfer_Time = 0.0;
 
   ModAmpl = Compute_LoadCoefficient(CurrentTime, Ramp_Time, config);
 
@@ -3269,11 +3363,198 @@ void CFEASolver::BC_Damper(CGeometry *geometry, CSolver **solver_container, CNum
 
 }
 
+void CFEASolver::Integrate_FSI_Loads(CGeometry *geometry, CConfig *config) {
+
+  unsigned short iDim, iNode, nNode;
+  unsigned long iPoint, iElem, nElem;
+
+  unsigned short iMarkerInt, nMarkerInt = config->GetMarker_n_ZoneInterface()/2,
+                 iMarker, nMarker = config->GetnMarker_All();
+
+  /*--- Temporary storage to store the forces on the element faces ---*/
+  vector<su2double> forces;
+
+  /*--- Loop through the FSI interface pairs ---*/
+  /*--- 1st pass to compute forces ---*/
+  for (iMarkerInt = 1; iMarkerInt <= nMarkerInt; ++iMarkerInt) {
+    /*--- Find the marker index associated with the pair ---*/
+    for (iMarker = 0; iMarker < nMarker; ++iMarker)
+      if (config->GetMarker_All_ZoneInterface(iMarker) == iMarkerInt)
+        break;
+    /*--- The current mpi rank may not have this marker ---*/
+    if (iMarker == nMarker) continue;
+
+    nElem = geometry->GetnElem_Bound(iMarker);
+
+    for (iElem = 0; iElem < nElem; ++iElem) {
+      /*--- Define the boundary element ---*/
+      unsigned long nodes[4];
+      su2double coords[4][3];
+      bool quad = geometry->bound[iMarker][iElem]->GetVTK_Type() == QUADRILATERAL;
+      nNode = quad? 4 : nDim;
+      
+      for (iNode = 0; iNode < nNode; ++iNode) {
+        nodes[iNode] = geometry->bound[iMarker][iElem]->GetNode(iNode);
+        for (iDim = 0; iDim < nDim; ++iDim)
+          coords[iNode][iDim] = geometry->node[nodes[iNode]]->GetCoord(iDim)+
+                                node[nodes[iNode]]->GetSolution(iDim);
+      }
+
+      /*--- Compute the area ---*/
+      su2double area = 0.0;
+
+      if (nDim == 2)
+        area = (coords[0][0]-coords[1][0])*(coords[0][0]-coords[1][0])+
+               (coords[0][1]-coords[1][1])*(coords[0][1]-coords[1][1]);
+
+      if (nDim == 3) {
+        su2double a[3], b[3], Ni, Nj, Nk;
+
+        if (!quad) { // sides of the triangle
+          for (iDim = 0; iDim < 3; iDim++) {
+            a[iDim] = coords[1][iDim]-coords[0][iDim];
+            b[iDim] = coords[2][iDim]-coords[0][iDim];
+          }
+        }
+        else { // diagonals of the quadrilateral
+          for (iDim = 0; iDim < 3; iDim++) {
+            a[iDim] = coords[2][iDim]-coords[0][iDim];
+            b[iDim] = coords[3][iDim]-coords[1][iDim];
+          }
+        }
+        /*--- Area = 0.5*||a x b|| ---*/
+        Ni = a[1]*b[2]-a[2]*b[1];
+        Nj =-a[0]*b[2]+a[2]*b[0];
+        Nk = a[0]*b[1]-a[1]*b[0];
+
+        area = 0.25*(Ni*Ni+Nj*Nj+Nk*Nk);
+      }
+      area = sqrt(area);
+
+      /*--- Integrate ---*/
+      passivedouble weight = 1.0/nNode;
+      su2double force[3] = {0.0, 0.0, 0.0};
+
+      for (iNode = 0; iNode < nNode; ++iNode)
+        for (iDim = 0; iDim < nDim; ++iDim)
+          force[iDim] += weight*area*node[nodes[iNode]]->Get_FlowTraction(iDim);
+
+      for (iDim = 0; iDim < nDim; ++iDim) forces.push_back(force[iDim]);
+    }
+  }
+
+  /*--- 2nd pass to set values. This is to account for overlap in the markers. ---*/
+  /*--- By putting the integrated values back into the nodes no changes have to be made elsewhere. ---*/
+  for (iPoint = 0; iPoint < geometry->GetnPoint(); ++iPoint)
+    node[iPoint]->Clear_FlowTraction();
+  
+  vector<su2double>::iterator force_it = forces.begin();
+  
+  for (iMarkerInt = 1; iMarkerInt <= nMarkerInt; ++iMarkerInt) {
+    /*--- Find the marker index associated with the pair ---*/
+    for (iMarker = 0; iMarker < nMarker; ++iMarker)
+      if (config->GetMarker_All_ZoneInterface(iMarker) == iMarkerInt)
+        break;
+    /*--- The current mpi rank may not have this marker ---*/
+    if (iMarker == nMarker) continue;
+
+    nElem = geometry->GetnElem_Bound(iMarker);
+
+    for (iElem = 0; iElem < nElem; ++iElem) {
+      bool quad = geometry->bound[iMarker][iElem]->GetVTK_Type() == QUADRILATERAL;
+      nNode = quad? 4 : nDim;
+      passivedouble weight = 1.0/nNode;
+
+      su2double force[3];
+      for (iDim = 0; iDim < nDim; ++iDim) force[iDim] = *(force_it++)*weight;
+
+      for (iNode = 0; iNode < nNode; ++iNode) {
+        iPoint = geometry->bound[iMarker][iElem]->GetNode(iNode);
+        node[iPoint]->Add_FlowTraction(force);
+      }
+    }
+  }
+
+#ifdef HAVE_MPI
+  /*--- Perform a global reduction, every rank will get the nodal values of all halo elements ---*/
+  /*--- This should be cheaper than the "normal" way, since very few points are both halo and interface ---*/
+  vector<unsigned long> halo_point_loc, halo_point_glb;
+  vector<su2double> halo_force;
+
+  for (iMarkerInt = 1; iMarkerInt <= nMarkerInt; ++iMarkerInt) {
+    /*--- Find the marker index associated with the pair ---*/
+    for (iMarker = 0; iMarker < nMarker; ++iMarker)
+      if (config->GetMarker_All_ZoneInterface(iMarker) == iMarkerInt)
+        break;
+    /*--- The current mpi rank may not have this marker ---*/
+    if (iMarker == nMarker) continue;
+
+    nElem = geometry->GetnElem_Bound(iMarker);
+
+    for (iElem = 0; iElem < nElem; ++iElem) {
+      bool quad = geometry->bound[iMarker][iElem]->GetVTK_Type() == QUADRILATERAL;
+      nNode = quad? 4 : nDim;
+
+      /*--- If this is an halo element we share the nodal forces ---*/
+      for (iNode = 0; iNode < nNode; ++iNode)
+        if (!geometry->node[geometry->bound[iMarker][iElem]->GetNode(iNode)]->GetDomain())
+          break;
+
+      if (iNode < nNode) {
+        for (iNode = 0; iNode < nNode; ++iNode) {
+          iPoint = geometry->bound[iMarker][iElem]->GetNode(iNode);
+          /*--- local is for when later we update the values in this rank ---*/
+          halo_point_loc.push_back(iPoint);
+          halo_point_glb.push_back(geometry->node[iPoint]->GetGlobalIndex());
+          for (iDim = 0; iDim < nDim; ++iDim)
+            halo_force.push_back(node[iPoint]->Get_FlowTraction(iDim));
+        }
+      }
+    }
+  }
+  /*--- Determine the size of the arrays we need ---*/
+  unsigned long nHaloLoc = halo_point_loc.size();
+  unsigned long nHaloMax;
+  MPI_Allreduce(&nHaloLoc,&nHaloMax,1,MPI_UNSIGNED_LONG,MPI_MAX,MPI_COMM_WORLD);
+
+  /*--- Shared arrays, all the: number of halo points; halo point global indices; respective forces ---*/
+  unsigned long *halo_point_num = new unsigned long[size];
+  unsigned long *halo_point_all = new unsigned long[size*nHaloMax];
+  su2double *halo_force_all = new su2double[size*nHaloMax*nDim];
+  
+  /*--- If necessary put dummy values in halo_point_glb to get a valid pointer ---*/
+  if (halo_point_glb.empty()) halo_point_glb.resize(1);
+  /*--- Pad halo_force to avoid (observed) issues in the adjoint when nHaloLoc!=nHaloMax ---*/
+  while (halo_force.size() < nHaloMax*nDim) halo_force.push_back(0.0);
+  
+  MPI_Allgather(&nHaloLoc,1,MPI_UNSIGNED_LONG,halo_point_num,1,MPI_UNSIGNED_LONG,MPI_COMM_WORLD);
+  MPI_Allgather(&halo_point_glb[0],nHaloLoc,MPI_UNSIGNED_LONG,halo_point_all,nHaloMax,MPI_UNSIGNED_LONG,MPI_COMM_WORLD);
+  SU2_MPI::Allgather(&halo_force[0],nHaloMax*nDim,MPI_DOUBLE,halo_force_all,nHaloMax*nDim,MPI_DOUBLE,MPI_COMM_WORLD);
+
+  /*--- Find shared points with other ranks and update our values ---*/
+  for (int proc = 0; proc < size; ++proc)
+  if (proc != rank) {
+    unsigned long offset = proc*nHaloMax;
+    for (iPoint = 0; iPoint < halo_point_num[proc]; ++iPoint) {
+      unsigned long iPoint_glb = halo_point_all[offset+iPoint];
+      ptrdiff_t pos = find(halo_point_glb.begin(),halo_point_glb.end(),iPoint_glb)-halo_point_glb.begin();
+      if (pos < long(halo_point_glb.size())) {
+        unsigned long iPoint_loc = halo_point_loc[pos];
+        node[iPoint_loc]->Add_FlowTraction(&halo_force_all[(offset+iPoint)*nDim]);
+      }
+    }
+  }
+
+  delete [] halo_point_num;
+  delete [] halo_point_all;
+  delete [] halo_force_all;
+#endif
+}
+
 su2double CFEASolver::Compute_LoadCoefficient(su2double CurrentTime, su2double RampTime, CConfig *config){
 
   su2double LoadCoeff = 1.0;
 
-  bool apply_coeff = false;
   bool Ramp_Load = config->GetRamp_Load();
   bool Sine_Load = config->GetSine_Load();
   bool Ramp_And_Release = config->GetRampAndRelease_Load();
@@ -3358,7 +3639,6 @@ void CFEASolver::ImplicitNewmark_Iteration(CGeometry *geometry, CSolver **solver
   unsigned long iPoint, jPoint;
   unsigned short iVar, jVar;
   
-  bool initial_calc = (config->GetExtIter() == 0);                  // Checks if it is the first calculation.
   bool first_iter = (config->GetIntIter() == 0);
   bool dynamic = (config->GetDynamic_Analysis() == DYNAMIC);              // Dynamic simulations.
   bool linear_analysis = (config->GetGeometricConditions() == SMALL_DEFORMATIONS);  // Linear analysis.
@@ -3367,9 +3647,6 @@ void CFEASolver::ImplicitNewmark_Iteration(CGeometry *geometry, CSolver **solver
   bool fsi = config->GetFSI_Simulation();                        // FSI simulation.
   
   bool body_forces = config->GetDeadLoad();                      // Body forces (dead loads).
-  
-  bool restart = config->GetRestart();                          // Restart solution
-  bool initial_calc_restart = (SU2_TYPE::Int(config->GetExtIter()) == config->GetDyn_RestartIter());  // Restart iteration
   
   bool incremental_load = config->GetIncrementalLoad();
   
@@ -3437,14 +3714,11 @@ void CFEASolver::ImplicitNewmark_Iteration(CGeometry *geometry, CSolver **solver
      * of each time step. If the solution method is Newton Rapshon, we repeat this step at the beginning of each
      * iteration, as the Jacobian is recomputed
      *
-     * If the problem is linear, we add the Mass Matrix contribution to the Jacobian at the first calculation.
-     * From then on, the Jacobian is always the same matrix.
+     * If the problem is linear, we add the Mass Matrix contribution to the Jacobian everytime because for
+     * correct differentiation the Jacobian is recomputed every time step.
      *
      */
-    
-    if ((nonlinear_analysis && (newton_raphson || first_iter)) ||
-        (linear_analysis && initial_calc) ||
-        (linear_analysis && restart && initial_calc_restart)) {
+    if ((nonlinear_analysis && (newton_raphson || first_iter)) || linear_analysis) {
       for (iPoint = 0; iPoint < nPoint; iPoint++) {
         for (jPoint = 0; jPoint < nPoint; jPoint++) {
           for(iVar = 0; iVar < nVar; iVar++) {
@@ -3459,27 +3733,15 @@ void CFEASolver::ImplicitNewmark_Iteration(CGeometry *geometry, CSolver **solver
     
     
     /*--- Loop over all points, and set aux vector TimeRes_Aux = a0*U+a2*U'+a3*U'' ---*/
-    if (linear_analysis) {
-      for (iPoint = 0; iPoint < nPoint; iPoint++) {
-        for (iVar = 0; iVar < nVar; iVar++) {
-          Residual[iVar] = a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)+    //a0*U(t)
-          a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)+  //a2*U'(t)
-          a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
-        }
-        TimeRes_Aux.SetBlock(iPoint, Residual);
+
+    for (iPoint = 0; iPoint < nPoint; iPoint++) {
+      for (iVar = 0; iVar < nVar; iVar++) {
+        Residual[iVar] =   a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)        //a0*U(t)
+        - a_dt[0]*node[iPoint]->GetSolution(iVar)           //a0*U(t+dt)(k-1)
+        + a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)    //a2*U'(t)
+        + a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
       }
-    }
-    else if (nonlinear_analysis) {
-      for (iPoint = 0; iPoint < nPoint; iPoint++) {
-        for (iVar = 0; iVar < nVar; iVar++) {
-          Residual[iVar] =   a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)        //a0*U(t)
-          - a_dt[0]*node[iPoint]->GetSolution(iVar)           //a0*U(t+dt)(k-1)
-          + a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)    //a2*U'(t)
-          + a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
-        }
-        TimeRes_Aux.SetBlock(iPoint, Residual);
-      }
-      
+      TimeRes_Aux.SetBlock(iPoint, Residual);
     }
     
     /*--- Once computed, compute M*TimeRes_Aux ---*/
@@ -3550,8 +3812,6 @@ void CFEASolver::ImplicitNewmark_Update(CGeometry *geometry, CSolver **solver_co
   unsigned short iVar;
   unsigned long iPoint;
   
-  bool linear = (config->GetGeometricConditions() == SMALL_DEFORMATIONS);    // Geometrically linear problems
-  bool nonlinear = (config->GetGeometricConditions() == LARGE_DEFORMATIONS);  // Geometrically non-linear problems
   bool dynamic = (config->GetDynamic_Analysis() == DYNAMIC);          // Dynamic simulations.
   
   /*--- Update solution ---*/
@@ -3561,12 +3821,8 @@ void CFEASolver::ImplicitNewmark_Update(CGeometry *geometry, CSolver **solver_co
     for (iVar = 0; iVar < nVar; iVar++) {
       
       /*--- Displacements component of the solution ---*/
-      
-      /*--- If it's a non-linear problem, the result is the DELTA_U, not U itself ---*/
-      
-      if (linear) node[iPoint]->SetSolution(iVar, LinSysSol[iPoint*nVar+iVar]);
-      
-      if (nonlinear)  node[iPoint]->Add_DeltaSolution(iVar, LinSysSol[iPoint*nVar+iVar]);
+       
+      node[iPoint]->Add_DeltaSolution(iVar, LinSysSol[iPoint*nVar+iVar]);
       
     }
     
@@ -3695,7 +3951,6 @@ void CFEASolver::GeneralizedAlpha_Iteration(CGeometry *geometry, CSolver **solve
   unsigned long iPoint, jPoint;
   unsigned short iVar, jVar;
   
-  bool initial_calc = (config->GetExtIter() == 0);                  // Checks if it is the first calculation.
   bool first_iter = (config->GetIntIter() == 0);
   bool dynamic = (config->GetDynamic_Analysis() == DYNAMIC);              // Dynamic simulations.
   bool linear_analysis = (config->GetGeometricConditions() == SMALL_DEFORMATIONS);  // Linear analysis.
@@ -3704,9 +3959,6 @@ void CFEASolver::GeneralizedAlpha_Iteration(CGeometry *geometry, CSolver **solve
   bool fsi = config->GetFSI_Simulation();                        // FSI simulation.
   
   bool body_forces = config->GetDeadLoad();                      // Body forces (dead loads).
-  
-  bool restart = config->GetRestart();                          // Restart solution
-  bool initial_calc_restart = (SU2_TYPE::Int(config->GetExtIter()) == config->GetDyn_RestartIter());  // Restart iteration
   
   su2double alpha_f = config->Get_Int_Coeffs(2);
   
@@ -3762,14 +4014,11 @@ void CFEASolver::GeneralizedAlpha_Iteration(CGeometry *geometry, CSolver **solve
      * of each time step. If the solution method is Newton Rapshon, we repeat this step at the beginning of each
      * iteration, as the Jacobian is recomputed
      *
-     * If the problem is linear, we add the Mass Matrix contribution to the Jacobian at the first calculation.
-     * From then on, the Jacobian is always the same matrix.
+     * If the problem is linear, we add the Mass Matrix contribution to the Jacobian everytime because for
+     * correct differentiation the Jacobian is recomputed every time step.
      *
      */
-    
-    if ((nonlinear_analysis && (newton_raphson || first_iter)) ||
-        (linear_analysis && initial_calc) ||
-        (linear_analysis && restart && initial_calc_restart)) {
+    if ((nonlinear_analysis && (newton_raphson || first_iter)) || linear_analysis) {
       for (iPoint = 0; iPoint < nPoint; iPoint++) {
         for (jPoint = 0; jPoint < nPoint; jPoint++) {
           for(iVar = 0; iVar < nVar; iVar++) {
@@ -3784,27 +4033,17 @@ void CFEASolver::GeneralizedAlpha_Iteration(CGeometry *geometry, CSolver **solve
     
     
     /*--- Loop over all points, and set aux vector TimeRes_Aux = a0*U+a2*U'+a3*U'' ---*/
-    if (linear_analysis) {
-      for (iPoint = 0; iPoint < nPoint; iPoint++) {
-        for (iVar = 0; iVar < nVar; iVar++) {
-          Residual[iVar] = a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)+    //a0*U(t)
-          a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)+  //a2*U'(t)
-          a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
-        }
-        TimeRes_Aux.SetBlock(iPoint, Residual);
+    
+    for (iPoint = 0; iPoint < nPoint; iPoint++) {
+      for (iVar = 0; iVar < nVar; iVar++) {
+        Residual[iVar] =   a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)        //a0*U(t)
+        - a_dt[0]*node[iPoint]->GetSolution(iVar)           //a0*U(t+dt)(k-1)
+        + a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)    //a2*U'(t)
+        + a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
       }
+      TimeRes_Aux.SetBlock(iPoint, Residual);
     }
-    else if (nonlinear_analysis) {
-      for (iPoint = 0; iPoint < nPoint; iPoint++) {
-        for (iVar = 0; iVar < nVar; iVar++) {
-          Residual[iVar] =   a_dt[0]*node[iPoint]->GetSolution_time_n(iVar)        //a0*U(t)
-          - a_dt[0]*node[iPoint]->GetSolution(iVar)           //a0*U(t+dt)(k-1)
-          + a_dt[2]*node[iPoint]->GetSolution_Vel_time_n(iVar)    //a2*U'(t)
-          + a_dt[3]*node[iPoint]->GetSolution_Accel_time_n(iVar);  //a3*U''(t)
-        }
-        TimeRes_Aux.SetBlock(iPoint, Residual);
-      }
-    }
+
     /*--- Once computed, compute M*TimeRes_Aux ---*/
     MassMatrix.MatrixVectorProduct(TimeRes_Aux,TimeRes,geometry,config);
     /*--- Add the components of M*TimeRes_Aux to the residual R(t+dt) ---*/
@@ -3875,9 +4114,6 @@ void CFEASolver::GeneralizedAlpha_UpdateDisp(CGeometry *geometry, CSolver **solv
   unsigned short iVar;
   unsigned long iPoint;
   
-  bool linear = (config->GetGeometricConditions() == SMALL_DEFORMATIONS);    // Geometrically linear problems
-  bool nonlinear = (config->GetGeometricConditions() == LARGE_DEFORMATIONS);  // Geometrically non-linear problems
-  
   /*--- Update solution ---*/
   
   for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
@@ -3886,11 +4122,7 @@ void CFEASolver::GeneralizedAlpha_UpdateDisp(CGeometry *geometry, CSolver **solv
       
       /*--- Displacements component of the solution ---*/
       
-      /*--- If it's a non-linear problem, the result is the DELTA_U, not U itself ---*/
-      
-      if (linear) node[iPoint]->SetSolution(iVar, LinSysSol[iPoint*nVar+iVar]);
-      
-      if (nonlinear)  node[iPoint]->Add_DeltaSolution(iVar, LinSysSol[iPoint*nVar+iVar]);
+      node[iPoint]->Add_DeltaSolution(iVar, LinSysSol[iPoint*nVar+iVar]);
       
     }
     
@@ -4054,7 +4286,7 @@ void CFEASolver::PredictStruct_Displacement(CGeometry **fea_geometry,
 }
 
 void CFEASolver::ComputeAitken_Coefficient(CGeometry **fea_geometry, CConfig *fea_config,
-                                                      CSolver ***fea_solution, unsigned long iFSIIter) {
+                                                      CSolver ***fea_solution, unsigned long iOuterIter) {
   
   unsigned long iPoint, iDim;
   su2double rbuf_numAitk = 0, sbuf_numAitk = 0;
@@ -4087,10 +4319,10 @@ void CFEASolver::ComputeAitken_Coefficient(CGeometry **fea_geometry, CConfig *fe
         
         SetWAitken_Dyn(1.0);
         
-        if (iFSIIter == 0) historyFile_FSI << " " << endl ;
+        if (iOuterIter == 0) historyFile_FSI << " " << endl ;
         historyFile_FSI << setiosflags(ios::fixed) << setprecision(4) << CurrentTime << "," ;
-        historyFile_FSI << setiosflags(ios::fixed) << setprecision(1) << iFSIIter << "," ;
-        if (iFSIIter == 0) historyFile_FSI << setiosflags(ios::scientific) << setprecision(4) << 1.0 ;
+        historyFile_FSI << setiosflags(ios::fixed) << setprecision(1) << iOuterIter << "," ;
+        if (iOuterIter == 0) historyFile_FSI << setiosflags(ios::scientific) << setprecision(4) << 1.0 ;
         else historyFile_FSI << setiosflags(ios::scientific) << setprecision(4) << 1.0 << "," ;
       }
       
@@ -4101,17 +4333,17 @@ void CFEASolver::ComputeAitken_Coefficient(CGeometry **fea_geometry, CConfig *fe
         
         SetWAitken_Dyn(fea_config->GetAitkenStatRelax());
         
-        if (iFSIIter == 0) historyFile_FSI << " " << endl ;
+        if (iOuterIter == 0) historyFile_FSI << " " << endl ;
         historyFile_FSI << setiosflags(ios::fixed) << setprecision(4) << CurrentTime << "," ;
-        historyFile_FSI << setiosflags(ios::fixed) << setprecision(1) << iFSIIter << "," ;
-        if (iFSIIter == 0) historyFile_FSI << setiosflags(ios::scientific) << setprecision(4) << fea_config->GetAitkenStatRelax() ;
+        historyFile_FSI << setiosflags(ios::fixed) << setprecision(1) << iOuterIter << "," ;
+        if (iOuterIter == 0) historyFile_FSI << setiosflags(ios::scientific) << setprecision(4) << fea_config->GetAitkenStatRelax() ;
         else historyFile_FSI << setiosflags(ios::scientific) << setprecision(4) << fea_config->GetAitkenStatRelax() << "," ;
       }
       
     }
     else if (RelaxMethod_FSI == AITKEN_DYNAMIC) {
       
-      if (iFSIIter == 0) {
+      if (iOuterIter == 0) {
         
         WAitkDyn_tn1 = GetWAitken_Dyn_tn1();
         WAitkDyn_Max = fea_config->GetAitkenDynMaxInit();
@@ -4122,9 +4354,9 @@ void CFEASolver::ComputeAitken_Coefficient(CGeometry **fea_geometry, CConfig *fe
         
         SetWAitken_Dyn(WAitkDyn);
         if (writeHistFSI && (rank == MASTER_NODE)) {
-          if (iFSIIter == 0) historyFile_FSI << " " << endl ;
+          if (iOuterIter == 0) historyFile_FSI << " " << endl ;
           historyFile_FSI << setiosflags(ios::fixed) << setprecision(4) << CurrentTime << "," ;
-          historyFile_FSI << setiosflags(ios::fixed) << setprecision(1) << iFSIIter << "," ;
+          historyFile_FSI << setiosflags(ios::fixed) << setprecision(1) << iOuterIter << "," ;
           historyFile_FSI << setiosflags(ios::scientific) << setprecision(4) << WAitkDyn ;
         }
         
@@ -4176,7 +4408,7 @@ void CFEASolver::ComputeAitken_Coefficient(CGeometry **fea_geometry, CConfig *fe
         
         if (writeHistFSI && (rank == MASTER_NODE)) {
           historyFile_FSI << setiosflags(ios::fixed) << setprecision(4) << CurrentTime << "," ;
-          historyFile_FSI << setiosflags(ios::fixed) << setprecision(1) << iFSIIter << "," ;
+          historyFile_FSI << setiosflags(ios::fixed) << setprecision(1) << iOuterIter << "," ;
           historyFile_FSI << setiosflags(ios::scientific) << setprecision(4) << WAitkDyn << "," ;
         }
         
@@ -4198,7 +4430,6 @@ void CFEASolver::SetAitken_Relaxation(CGeometry **fea_geometry,
   unsigned short RelaxMethod_FSI;
   su2double *dispPred, *dispCalc;
   su2double WAitken;
-  su2double CurrentTime=fea_config->GetCurrent_DynTime();
   
   RelaxMethod_FSI = fea_config->GetRelaxation_Method_FSI();
   
@@ -4552,6 +4783,45 @@ void CFEASolver::Compute_OFRefNode(CGeometry *geometry, CSolver **solver_contain
 
 }
 
+void CFEASolver::Compute_OFVolFrac(CGeometry *geometry, CSolver **solver_container, CConfig *config)
+{
+  /*--- Perform a volume average of the physical density of the elements for topology optimization ---*/
+
+  unsigned long iElem, nElem = geometry->GetnElem();
+  su2double total_volume = 0.0, integral = 0.0;
+
+  for (iElem=0; iElem<nElem; ++iElem) {
+    /*--- count only elements that belong to the partition ---*/
+    if ( geometry->node[geometry->elem[iElem]->GetNode(0)]->GetDomain() ){
+      su2double volume = geometry->elem[iElem]->GetVolume();
+      total_volume += volume;
+      integral += volume*element_properties[iElem]->GetPhysicalDensity();
+    }
+  }
+  
+#ifdef HAVE_MPI
+  {
+    su2double tmp;
+    SU2_MPI::Allreduce(&total_volume,&tmp,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    total_volume = tmp;
+    SU2_MPI::Allreduce(&integral,&tmp,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    integral = tmp;
+  }
+#endif
+
+  Total_OFVolFrac = integral/total_volume;
+
+  // TODO: Temporary output file for the objective function. Will be integrated in the output once is refurbished.
+  if (rank == MASTER_NODE){
+    cout << "Objective function: " << Total_OFVolFrac << "." << endl;
+    ofstream myfile_res;
+    myfile_res.open ("of_volfrac.dat");
+    myfile_res.precision(15);
+    myfile_res << scientific << Total_OFVolFrac << endl;
+    myfile_res.close();
+  }
+}
+
 void CFEASolver::Stiffness_Penalty(CGeometry *geometry, CSolver **solver, CNumerics **numerics, CConfig *config){
 
   unsigned long iElem;
@@ -4631,11 +4901,11 @@ void CFEASolver::Stiffness_Penalty(CGeometry *geometry, CSolver **solver, CNumer
 
 }
 
-void CFEASolver::ComputeResidual_BGS(CGeometry *geometry, CConfig *config){
+void CFEASolver::ComputeResidual_Multizone(CGeometry *geometry, CConfig *config){
 
   unsigned short iVar;
   unsigned long iPoint;
-  su2double residual, bgs_sol;
+  su2double residual;
 
   /*--- Set Residuals to zero ---*/
 
@@ -4795,4 +5065,111 @@ void CFEASolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *c
   if (Restart_Data != NULL) delete [] Restart_Data;
   Restart_Vars = NULL; Restart_Data = NULL;
   
+}
+
+void CFEASolver::RegisterVariables(CGeometry *geometry, CConfig *config, bool reset)
+{
+  /*--- Register the element density to get the derivatives required for
+  material-based topology optimization, this is done here because element_properties
+  is a member of CFEASolver only. ---*/
+  if (!config->GetTopology_Optimization()) return;
+
+  for (unsigned long iElem = 0; iElem < geometry->GetnElem(); iElem++)
+    element_properties[iElem]->RegisterDensity();
+}
+
+void CFEASolver::ExtractAdjoint_Variables(CGeometry *geometry, CConfig *config)
+{
+  /*--- Extract and output derivatives for topology optimization, this is done
+  here because element_properties is a member of CFEASolver only and the output
+  structure only supports nodal values (these are elemental). ---*/
+  if (!config->GetTopology_Optimization()) return;
+    
+  unsigned long iElem,
+                nElem = geometry->GetnElem(),
+                nElemDomain = geometry->GetGlobal_nElemDomain();
+
+  /*--- Allocate and initialize an array onto which the derivatives of every partition
+  will be reduced, this is to output results in the correct order, it is not a very
+  memory efficient solution... single precision is enough for output. ---*/
+  float *send_buf = new float[nElemDomain], *rec_buf = NULL;
+  for(iElem=0; iElem<nElemDomain; ++iElem) send_buf[iElem] = 0.0;
+    
+  for(iElem=0; iElem<nElem; ++iElem) {
+    unsigned long iElem_global = geometry->elem[iElem]->GetGlobalIndex();
+    send_buf[iElem_global] = SU2_TYPE::GetValue(element_properties[iElem]->GetAdjointDensity());
+  }
+
+#ifdef HAVE_MPI
+  if (rank == MASTER_NODE) rec_buf = new float[nElemDomain];
+  /*--- Need to use this version of Reduce instead of the wrapped one because we use float ---*/
+  MPI_Reduce(send_buf,rec_buf,nElemDomain,MPI_FLOAT,MPI_SUM,MASTER_NODE,MPI_COMM_WORLD);
+#else
+  rec_buf = send_buf;
+#endif
+
+  /*--- The master writes the file ---*/
+  if (rank == MASTER_NODE) {
+    string filename = config->GetTopology_Optim_FileName();
+    ofstream file;
+    file.open(filename.c_str());
+    for(iElem=0; iElem<nElemDomain; ++iElem) file << rec_buf[iElem] << endl;
+    file.close();
+  }
+  
+  delete [] send_buf;
+#ifdef HAVE_MPI
+  if (rank == MASTER_NODE) delete [] rec_buf;
+#endif
+
+}
+
+void CFEASolver::FilterElementDensities(CGeometry *geometry, CConfig *config)
+{
+  /*--- Apply a filter to the design densities of the elements to generate the
+  physical densities which are the ones used to penalize their stiffness. ---*/
+  
+  unsigned short type;
+  su2double param, radius;
+  
+  vector<pair<unsigned short,su2double> > kernels;
+  vector<su2double> filter_radius;
+  for (unsigned short iKernel=0; iKernel<config->GetTopology_Optim_Num_Kernels(); ++iKernel)
+  {
+    config->GetTopology_Optim_Kernel(iKernel,type,param,radius);
+    kernels.push_back(make_pair(type,param));
+    filter_radius.push_back(radius);
+  }
+
+  unsigned long iElem, nElem = geometry->GetnElem();
+  
+  su2double *design_rho = new su2double [nElem],
+            *physical_rho = new su2double [nElem];
+  
+  for (iElem=0; iElem<nElem; ++iElem)
+    design_rho[iElem] = element_properties[iElem]->GetDesignDensity();
+  
+  geometry->FilterValuesAtElementCG(filter_radius, kernels, design_rho, physical_rho);
+  
+  /*--- Apply projection ---*/
+  config->GetTopology_Optim_Projection(type,param);
+  switch (type) {
+    case NO_PROJECTION: break;
+    case HEAVISIDE_UP:
+      for (iElem=0; iElem<nElem; ++iElem)
+        physical_rho[iElem] = 1.0-exp(-param*physical_rho[iElem])+physical_rho[iElem]*exp(-param);
+      break;
+    case HEAVISIDE_DOWN:
+      for (iElem=0; iElem<nElem; ++iElem)
+        physical_rho[iElem] = exp(-param*(1.0-physical_rho[iElem]))-(1.0-physical_rho[iElem])*exp(-param);
+      break;
+    default:
+      SU2_MPI::Error("Unknown type of projection function",CURRENT_FUNCTION);
+  }
+  
+  for (iElem=0; iElem<nElem; ++iElem)
+    element_properties[iElem]->SetPhysicalDensity(physical_rho[iElem]);
+  
+  delete [] design_rho;
+  delete [] physical_rho;
 }

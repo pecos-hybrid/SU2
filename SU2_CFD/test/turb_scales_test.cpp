@@ -2,7 +2,7 @@
  * \file forcing_test.cpp
  * \brief Test the forcing terms for the hybrid RANS/LES model
  * \author C. Pederson
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  *
  * SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
  *                      Dr. Thomas D. Economon (economon@stanford.edu).
@@ -31,9 +31,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE Hybrid_Model
-#include "boost/test/included/unit_test.hpp"
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <limits>
 
@@ -42,10 +41,9 @@
 #include "../include/solver_structure.hpp"
 #include "../include/solver_structure_v2f.hpp"
 
-// Setup MPI
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+namespace turb_scales_test {
 
-void WriteCfgFile(const char* filename) {
+static void WriteCfgFile(const char* filename) {
   std::ofstream cfg_file;
 
   cfg_file.open(filename, ios::out);
@@ -136,6 +134,8 @@ class TestSolver : public CSolver {
   }
 };
 
+BOOST_AUTO_TEST_SUITE(TurbScales);
+
 BOOST_AUTO_TEST_CASE(ForcingTest) {
 
   /*--- ARRANGE --*/
@@ -194,3 +194,7 @@ BOOST_AUTO_TEST_CASE(ForcingTest) {
   delete [] solver;
   delete config;
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

@@ -3,7 +3,7 @@
  * \brief Header for the viscous numerics in the model-split hybrid
  *        RANS/LES model.
  * \author C. Pederson
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>
@@ -141,6 +141,28 @@ public:
   void AddSGETHeatFlux(su2double** val_gradprimvar,
                        su2double** val_eddy_viscosity);
 
+  /*!
+   * \brief Set diffusion of total energy due to unresolved molecular
+   * diffusion.
+   *
+   * \param[in] val_gradturbvar - Mean value of the gradient of the
+   *     turbulence variables.
+   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   */
+  void SetLaminar_TKE_Diffusion(const su2double* const *val_gradturbvar,
+                                su2double val_laminar_viscosity);
+
+  /*!
+   * \brief Set diffusion of total energy due to turbulent transport.
+   *
+   * \param[in] val_gradturbvar - Mean value of the gradient of the
+   *     turbulence variables.
+   * \param[in] val_alpha - Ratio of turbulent kinetic energy
+   * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
+   */
+  void AddSGS_TKE_Diffusion(const su2double* const *val_gradturbvar,
+                            su2double val_alpha,
+                            su2double val_eddy_viscosity);
 
   /*!
    * \brief Compute the viscous stress tensor due to only the molecular viscosity.

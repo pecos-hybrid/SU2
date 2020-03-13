@@ -36,8 +36,8 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE ViscousIdealVsGeneral
-#include "MPI_global_fixture.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include <cstdio> // std::remove
 #include <fstream>
@@ -47,6 +47,8 @@
 
 #include "../include/numerics_structure.hpp"
 #include "../include/fluid_model.hpp"
+
+namespace viscous_ideal_vs_general {
 
 const unsigned short nDim = 3;
 const unsigned short nVar = nDim+2;
@@ -106,19 +108,19 @@ class TestRunner {
            su2double** Jacobian_i, su2double** Jacobian_j, CConfig* config);
 
   // Geometry definition
-  static const su2double distance = 1;
-  static const su2double area = 1;
+  static constexpr su2double distance = 1;
+  static constexpr su2double area = 1;
 
   // Gas properties
-  static const su2double density = 1.0;
-  static const su2double temperature = 300;
+  static constexpr su2double density = 1.0;
+  static constexpr su2double temperature = 300;
 
   // Extra variables to be defined
-  static const su2double velocity_squared = 1.0;
-  static const su2double turb_ke = 0.0;
-  static const su2double eddy_viscosity = 0.0;
-  static const su2double laminar_viscosity = 1.0;
-  static const su2double laminar_prandtl = 1.0;
+  static constexpr su2double velocity_squared = 1.0;
+  static constexpr su2double turb_ke = 0.0;
+  static constexpr su2double eddy_viscosity = 0.0;
+  static constexpr su2double laminar_viscosity = 1.0;
+  static constexpr su2double laminar_prandtl = 1.0;
 
   // Models
   CIdealGas ideal_gas;
@@ -131,6 +133,7 @@ class TestRunner {
   su2double coord_i[nDim], coord_j[nDim];
   su2double normal[nDim];
   su2double** primvar_grad;
+  su2double** turbvar_grad;
   su2double primvar[nPrimVar];
   su2double secvar[nSecVar];
 };
@@ -141,7 +144,7 @@ TestRunner::TestRunner(CConfig* config)
 
   ideal_gas.SetTDState_rhoT(density, temperature);
   conductivity_model.SetConductivity(temperature, density, laminar_viscosity,
-                                     ideal_gas.GetCp());
+                                     eddy_viscosity, ideal_gas.GetCp());
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     velocity[iDim] = sqrt(velocity_squared/3.0);
@@ -161,6 +164,14 @@ TestRunner::TestRunner(CConfig* config)
     primvar_grad[iVar] = new su2double[nDim];
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       primvar_grad[iVar][iDim] = 0.0;
+    }
+  }
+
+  turbvar_grad = new su2double*[1];
+  for (unsigned short iVar = 0; iVar < 1; iVar++) {
+    turbvar_grad[iVar] = new su2double[nDim];
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      turbvar_grad[iVar][iDim] = 0.0;
     }
   }
 
@@ -200,6 +211,11 @@ TestRunner::~TestRunner() {
     delete [] primvar_grad[iVar];
   }
   delete [] primvar_grad;
+
+  for (unsigned short iVar = 0; iVar < 1; iVar++) {
+    delete [] turbvar_grad[iVar];
+  }
+  delete [] turbvar_grad;
 }
 
 void TestRunner::Run(CNumerics* numerics, su2double* residual_i,
@@ -214,6 +230,7 @@ void TestRunner::Run(CNumerics* numerics, su2double* residual_i,
   numerics->SetPrimitive(primvar, primvar);
   numerics->SetPrimVarGradient(primvar_grad, primvar_grad);
   numerics->SetTurbKineticEnergy(turb_ke, turb_ke);
+  numerics->SetTurbVarGradient(turbvar_grad, turbvar_grad);
 
   // Compute the residual and jacobians
 
@@ -221,8 +238,7 @@ void TestRunner::Run(CNumerics* numerics, su2double* residual_i,
 
 }
 
-// Setup MPI
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+BOOST_AUTO_TEST_SUITE(ViscousIdealVsGeneral);
 
 /**
  * Compare the viscous numerics for the ideal gas and the generalized gas
@@ -305,3 +321,7 @@ BOOST_AUTO_TEST_CASE(IdealVsGeneralComparison) {
   delete [] general_jacobian_i;
   delete [] general_jacobian_j;
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace

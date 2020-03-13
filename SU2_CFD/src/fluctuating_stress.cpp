@@ -2,7 +2,7 @@
  * \file fluctuating_stress.cpp
  * \brief Implementation of the fluctuating stress for RANS/LES hybrid
  * \author C. Pederson
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>

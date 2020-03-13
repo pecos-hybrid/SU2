@@ -2,7 +2,7 @@
  * \file numerics_direct_mean_hybrid.inl
  * \brief In-Line subroutines of the <i>numerics_direct_mean_hybird.hpp</i> file.
  * \author C. Pederson
- * \version 6.0.1 "Falcon"
+ * \version 6.2.0 "Falcon"
  *
  * The current SU2 release has been coordinated by the
  * SU2 International Developers Society <www.su2devsociety.org>

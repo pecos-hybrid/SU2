@@ -2,7 +2,7 @@
  * \file fluctuating_stress_test.cpp
  * \brief Test the forcing terms for the hybrid RANS/LES model
  * \author C. Pederson
- * \version 5.0.0 "Raven"
+ * \version 6.2.0 "Falcon"
  *
  * SU2 Lead Developers: Dr. Francisco Palacios (Francisco.D.Palacios@boeing.com).
  *                      Dr. Thomas D. Economon (economon@stanford.edu).
@@ -31,17 +31,16 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE FluctuatingStress
-#include "boost/test/included/unit_test.hpp"
+#define BOOST_TEST_DYN_LINK
+#include <boost/test/unit_test.hpp>
 
 #include "../include/fluctuating_stress.hpp"
 
-#include "../../Common/test/MPI_global_fixture.hpp"
-
 #include <cstdio> // std::remove
 #include <fstream>
+#include <iomanip>
 
-BOOST_GLOBAL_FIXTURE( MPIGlobalFixture );
+namespace fluctutating_stress_test {
 
 void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) {
     /*--- Local variables ---*/
@@ -207,25 +206,6 @@ void WriteHexMeshFile (su2double delta_x, su2double delta_y, su2double delta_z) 
 }
 
 
-void WriteCfgFile(unsigned short nDim, const char* filename) {
-  std::ofstream cfg_file;
-
-  cfg_file.open(filename, ios::out);
-  cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
-  cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
-  cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
-  cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
-  cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
-  if (nDim == 2)
-    cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
-  else
-    cfg_file << "MARKER_FAR= ( top bottom back front left right )"  << std::endl;
-  cfg_file << "MESH_FILENAME= test.su2" << std::endl;
-  cfg_file << "MESH_FORMAT= SU2" << std::endl;
-
-  cfg_file.close();
-
-}
 /* ----------------------------------------------------------------------------
  *  Test Fixtures
  * --------------------------------------------------------------------------*/
@@ -237,6 +217,26 @@ struct FluctuatingStressFixture {
   ~FluctuatingStressFixture() {
     delete geometry;
     delete config;
+  }
+
+  void WriteCfgFile(unsigned short nDim, const char* filename) {
+    std::ofstream cfg_file;
+
+    cfg_file.open(filename, ios::out);
+    cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
+    cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
+    cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
+    cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
+    cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
+    if (nDim == 2)
+      cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
+    else
+      cfg_file << "MARKER_FAR= ( top bottom back front left right )"  << std::endl;
+    cfg_file << "MESH_FILENAME= test.su2" << std::endl;
+    cfg_file << "MESH_FORMAT= SU2" << std::endl;
+
+    cfg_file.close();
+
   }
 
   void SetupConfig(unsigned short nDim) {
@@ -276,6 +276,8 @@ struct FluctuatingStressFixture {
  *  Tests
  * --------------------------------------------------------------------------*/
 
+BOOST_AUTO_TEST_SUITE(FluctuatingStress);
+
 BOOST_FIXTURE_TEST_CASE(Smoke_Test, FluctuatingStressFixture) {
 
   // Write out the mesh and configuration files.
@@ -308,3 +310,7 @@ BOOST_FIXTURE_TEST_CASE(Smoke_Test, FluctuatingStressFixture) {
   delete [] eddy_viscosity;
   delete m43;
 }
+
+BOOST_AUTO_TEST_SUITE_END();
+
+} // end namespace
