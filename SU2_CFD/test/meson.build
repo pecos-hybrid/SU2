@@ -26,6 +26,7 @@ SU2_CFD_boost_tests = files(['convective_blending_test.cpp',
                              'viscous_residual_2d_test.cpp',
                              'viscous_model_split.cpp',
                              'averaging_timescale_test.cpp',
+                             'resolution_adequacy.cpp',
                              'main.cpp'])
 
 SU2_CFD_test_driver = executable('test_driver',

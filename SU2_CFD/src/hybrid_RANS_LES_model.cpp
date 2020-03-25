@@ -185,8 +185,6 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
 
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
   const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-  const su2double* ResolutionValues = geometry->node[iPoint]->GetResolutionValues();
-  const su2double* const* ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
 
   // Compute inverse length scale tensor
   const su2double alpha =
@@ -209,6 +207,28 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     }
   }
 
+  // cout << "Inverse length tensor" << endl;
+  //cout << "[";
+  //for (iDim = 0; iDim < nDim; iDim++) {
+  //  cout << "[";
+  //  for (jDim = 0; jDim < nDim; jDim++) {
+  //    cout << invLengthTensor[iDim][jDim];
+  //    if (jDim != nDim-1) cout << ",\t";
+  //  }
+  //  cout << "]" << endl;
+  //}
+  //cout << "Metric tensor" << endl;
+  //cout << "[";
+  //for (iDim = 0; iDim < nDim; iDim++) {
+  //  cout << "[";
+  //  for (jDim = 0; jDim < nDim; jDim++) {
+  //    cout << ResolutionTensor[iDim][jDim];
+  //    if (jDim != nDim-1) cout << ",\t";
+  //  }
+  //  cout << "]" << endl;
+  //  if (iDim != nDim-1) cout << " ";
+  //}
+
   su2double LinvM[3][3];
   su2double frobenius_norm = 0;
   for (iDim = 0; iDim < nDim; iDim++) {
@@ -225,6 +245,13 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     const su2double C_r = 1.0;
     const su2double r_k_min = 1.0E-8;
     const su2double r_k_max = 30;
+    const su2double diff = frobenius_norm - max_eigval;
+    cout << "Frobenius norm - spectral norm:\t" << diff << "\t";
+    cout << "Relative diff:\t" << diff/max_eigval << endl;
+    if ((max_eigval > 1E-16) &&
+        ((max_eigval - frobenius_norm) > 1E-8*max_eigval)) {
+      SU2_MPI::Error("Frobenius norm exceeded the max eigenvalue!", CURRENT_FUNCTION);
+    }
     r_k = C_r*min(max_eigval, frobenius_norm);
     r_k = max(min(r_k, r_k_max), r_k_min);
 

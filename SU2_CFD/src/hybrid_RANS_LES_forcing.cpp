@@ -168,7 +168,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     dwall = geometry->node[iPoint]->GetWall_Distance();
 
     if (config->isHybrid_Forced_Axi()) {
-      // Angular periodic version 
+      // Angular periodic version
       this->SetAxiTGField(x, Lsgs, Lmesh, D, dwall, h);
     } else {
       // Compute TG velocity at this point
