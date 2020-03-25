@@ -177,11 +177,9 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
                                                  CSolver **solver_container,
                                                  unsigned long iPoint) {
 
-
   unsigned short iDim, jDim, kDim, lDim;
   // XXX: This floor is arbitrary.
   const su2double TKE_MIN = EPS;
-  su2double r_k;
 
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
   const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
@@ -207,57 +205,16 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     }
   }
 
-  // cout << "Inverse length tensor" << endl;
-  //cout << "[";
-  //for (iDim = 0; iDim < nDim; iDim++) {
-  //  cout << "[";
-  //  for (jDim = 0; jDim < nDim; jDim++) {
-  //    cout << invLengthTensor[iDim][jDim];
-  //    if (jDim != nDim-1) cout << ",\t";
-  //  }
-  //  cout << "]" << endl;
-  //}
-  //cout << "Metric tensor" << endl;
-  //cout << "[";
-  //for (iDim = 0; iDim < nDim; iDim++) {
-  //  cout << "[";
-  //  for (jDim = 0; jDim < nDim; jDim++) {
-  //    cout << ResolutionTensor[iDim][jDim];
-  //    if (jDim != nDim-1) cout << ",\t";
-  //  }
-  //  cout << "]" << endl;
-  //  if (iDim != nDim-1) cout << " ";
-  //}
-
-  su2double LinvM[3][3];
-  su2double frobenius_norm = 0;
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      LinvM[iDim][jDim] = 0.0;
-      for (kDim = 0; kDim < nDim; kDim++) {
-        LinvM[iDim][jDim] += invLengthTensor[jDim][kDim]*ResolutionTensor[kDim][iDim];
-      }
-      frobenius_norm += pow(LinvM[iDim][jDim], 2);
-    }
-  }
-  frobenius_norm = sqrt(frobenius_norm);
-
-    const su2double C_r = 1.0;
-    const su2double r_k_min = 1.0E-8;
-    const su2double r_k_max = 30;
-    const su2double diff = frobenius_norm - max_eigval;
-    cout << "Frobenius norm - spectral norm:\t" << diff << "\t";
-    cout << "Relative diff:\t" << diff/max_eigval << endl;
-    if ((max_eigval > 1E-16) &&
-        ((max_eigval - frobenius_norm) > 1E-8*max_eigval)) {
-      SU2_MPI::Error("Frobenius norm exceeded the max eigenvalue!", CURRENT_FUNCTION);
-    }
-    r_k = C_r*min(max_eigval, frobenius_norm);
-    r_k = max(min(r_k, r_k_max), r_k_min);
-
-    if (alpha > 1) r_k = min(r_k, 1.0);
+  const su2double C_r = 1.0;
+  const su2double r_k_min = 1.0E-8;
+  const su2double r_k_max = (alpha > 1) ? 1.0 : 30;
+  const su2double r_k = max(min(C_r*max_eigval, r_k_max), r_k_min);
 
   // Set resolution adequacy in the CNSVariables class
+  // Use the resolved (e.g. instantaneous) variables, instead of the
+  // average variables.  Although r_k uses some average variables, such
+  // as the RANS turbulent stress, the instantaneous resolution adequacy
+  // is still different than the time-averaged resolution adequacy.
   solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
 }
 
