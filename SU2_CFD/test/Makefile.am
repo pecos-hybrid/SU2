@@ -84,8 +84,10 @@ test_driver_SOURCES = convective_blending_test.cpp \
                       viscous_residual_2d_test.cpp \
                       viscous_model_split.cpp \
                       averaging_timescale_test.cpp \
-		      resolution_adequacy.cpp \
 		      main.cpp
+if BUILD_LAPACK
+test_driver_SOURCES += resolution_adequacy.cpp
+endif
 endif
 
 # Tests to be run
