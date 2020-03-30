@@ -326,6 +326,7 @@ void CAvgGrad_Hybrid::AddTauSGET(su2double **val_gradprimvar,
       for (unsigned short kDim =0; kDim < nDim; kDim++) {
         tau[iDim][jDim] += val_eddy_viscosity[iDim][kDim]*deviatoric[jDim][kDim] +
                            val_eddy_viscosity[jDim][kDim]*deviatoric[iDim][kDim];
+        tau[iDim][iDim] -= TWO3*val_eddy_viscosity[jDim][kDim]*deviatoric[jDim][kDim];
       }
     }
   }
@@ -356,6 +357,8 @@ void CAvgGrad_Hybrid::AddTauSGETJacobian(su2double *val_Mean_PrimVar,
 	tauSGET_mom[i][j] += -xi*mu[i][k]*nvec[j]*nvec[k];
 	tauSGET_mom[i][j] -= -xi*mu[i][k]*nvec[j]*nvec[k]/3.0;
 	tauSGET_mom[i][j] -= -xi*mu[k][i]*nvec[j]*nvec[k]/3.0;
+        tauSGET_mom[i][j] -= -xi*TWO3*mu[j][k]*nvec[i]*nvec[k];
+        tauSGET_mom[i][j] += -xi*2*mu[k][k]*nvec[i]*nvec[j]/9.0;
       }
       tau_jacobian_i[i][j+1] += tauSGET_mom[i][j];
     }
