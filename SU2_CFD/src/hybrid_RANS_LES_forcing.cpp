@@ -156,23 +156,15 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     Tsgs = alpha * T_typical;
     Tsgs = max(Tsgs, T_kol);
 
-    // FIXME: I think this is equivalent to repo version of CDP,but
-    // not consistent with paper description, except for orthogonal
-    // grids aligned with coordinate axes.  Check with Sigfried.
-    const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-    Lmesh[0] = ResolutionTensor[0][0];
-    Lmesh[1] = ResolutionTensor[1][1];
-    Lmesh[2] = ResolutionTensor[2][2];
-
     // Get dwall
     dwall = geometry->node[iPoint]->GetWall_Distance();
 
     if (config->isHybrid_Forced_Axi()) {
       // Angular periodic version 
-      this->SetAxiTGField(x, Lsgs, Lmesh, D, dwall, h);
+      this->SetAxiTGField(x, Lsgs, D, dwall, h);
     } else {
       // Compute TG velocity at this point
-      this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
+      this->SetTGField(x, Lsgs, D, dwall, h);
     }
 
     const su2double Ftar = this->GetTargetProduction(v2, Tsgs, alpha);

@@ -415,11 +415,33 @@ void CAvgGrad_Hybrid::AddSGSHeatFlux(su2double **val_gradprimvar,
 void CAvgGrad_Hybrid::AddSGS_TKE_Diffusion(const su2double * const* val_gradturbvar,
                                            const su2double val_alpha,
                                            const su2double val_eddy_viscosity) {
- const su2double alpha_fac = val_alpha*(2.0 - val_alpha);
+ /*--- XXX: Figure out what to do with this term in hybrid.
+  *
+  * The limits are clear.  In RANS, it should be (mu + mu_t/sigma_k) dk/dx
+  * In DNS, it should go to zero.  But the intermediate scaling is
+  * not clear.  How do the modeled terms (molecular diffusion and
+  * turbulent transport) scale with alpha?
+  *
+  * It is also debateable how important these choices are.  Wilcox argues
+  * that these terms are only important in hypersonic flows.
+  *
+  * Several possibilities:
+  * 1. Scale with alpha.  Simplest and easiest.
+  * 2. The gradient should be w.r.t. (alpha k), or k_{modeled}. This
+  *    may be better, but does mean that sharp gradients in alpha will
+  *    produce high diffusion, even if alpha ~= 0.  Is this the
+  *    desired behavior? Does it present numerical difficulties?
+  * 3. Scale mu_T with alpha, as done for the stress. This is not a
+  *    complete solution in and of itself, since the (mu * dk/dx) term
+  *    should also vanish in the limit of alpha -> 0. But it could
+  *    be combined with the other two approaches.
+  *
+  * Choice 1 is taken for now.
+  * ---*/
  const su2double sigma_k = 1.0;
- const su2double diffusivity = alpha_fac*val_eddy_viscosity/sigma_k;
+ const su2double diffusivity = val_alpha * val_eddy_viscosity/sigma_k;
  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    TKE_diffusion[iDim] += diffusivity * val_gradturbvar[0][iDim];
+    TKE_diffusion[iDim] += diffusivity * val_alpha * val_gradturbvar[0][iDim];
   }
 }
 

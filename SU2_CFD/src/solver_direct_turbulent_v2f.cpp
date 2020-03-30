@@ -44,6 +44,8 @@ CTurbKESolver::CTurbKESolver(void) : CTurbSolver() {
 
   /*--- Array initialization ---*/
   constants = NULL;
+  SlidingState = NULL;
+  SlidingStateNodes = NULL;
 
 }
 
