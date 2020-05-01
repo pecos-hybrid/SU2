@@ -73,7 +73,7 @@ inline su2double CHybridForcingTG0::ComputeScalingFactor(
 
 inline void CHybridForcingTG0::SetTGField(
                 const su2double* x, const su2double Lsgs,
-                const su2double* Lmesh, const su2double* D,
+                const su2double* D,
                 const su2double dwall, su2double* h) const {
 
   //const su2double A = 1./3., B = -1.0, C = 2./3.;
@@ -82,13 +82,12 @@ inline void CHybridForcingTG0::SetTGField(
 
   for (unsigned int ii=0; ii<3; ii++) {
     const su2double ell = min(Lsgs, dwall);
-    const su2double elllim = max(ell, 2.0*Lmesh[ii]);
 
     if (D[ii] > 0.0) {
-      const su2double denom = round(D[ii]/min(elllim, D[ii]));
+      const su2double denom = round(D[ii]/min(ell, D[ii]));
       a[ii] = M_PI/(D[ii]/denom);
     } else {
-      a[ii] = M_PI/elllim;
+      a[ii] = M_PI/ell;
     }
   }
 
@@ -100,7 +99,7 @@ inline void CHybridForcingTG0::SetTGField(
 
 inline void CHybridForcingTG0::SetAxiTGField(
                 const su2double* x, const su2double Lsgs,
-                const su2double* Lmesh, const su2double* D,
+                const su2double* D,
                 const su2double dwall, su2double* h) const {
 
   // Convert incoming coords and lengths to cylindrical coords...
@@ -115,11 +114,6 @@ inline void CHybridForcingTG0::SetAxiTGField(
   Rsgs[1] = Lsgs; //cos(r[2])*Lsgs + sin(r[2])*Lsgs;
   Rsgs[2] = Lsgs/r[1]; //(-sin(r[2])*Lsgs + cos(r[2])*Lsgs)/r[1];
 
-  su2double Rmesh[3];
-  Rmesh[0] = Lmesh[0];
-  Rmesh[1] = sqrt(Lmesh[1]*Lmesh[1] + Lmesh[2]*Lmesh[2]); //cos(r[2])*Lmesh[1] + sin(r[2])*Lmesh[2];
-  Rmesh[2] = sqrt(Lmesh[1]*Lmesh[1] + Lmesh[2]*Lmesh[2])/r[1]; //(-sin(r[2])*Lmesh[1] + cos(r[2])*Lmesh[2])/r[1];
-
 
   // Set forcing velocity field in x,r,theta coords
 
@@ -130,13 +124,12 @@ inline void CHybridForcingTG0::SetAxiTGField(
   for (unsigned int ii=0; ii<3; ii++) {
     //const su2double ell = std::min(Rsgs[ii], dwall);
     const su2double ell = Rsgs[ii];
-    const su2double elllim = std::max(ell, 2.0*Rmesh[ii]);
 
     if (D[ii] > 0.0) {
-      const su2double denom = round(D[ii]/std::min(elllim, D[ii]));
+      const su2double denom = round(D[ii]/std::min(ell, D[ii]));
       a[ii] = M_PI/(D[ii]/denom);
     } else {
-      a[ii] = M_PI/elllim;
+      a[ii] = M_PI/ell;
     }
   }
 

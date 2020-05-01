@@ -22,7 +22,7 @@ notifications:
 branches:
     only:
         - pecos-dev
-        - fix-travis-CI
+        - pecos-hybrid-fixes
 
 addons:
   apt:
