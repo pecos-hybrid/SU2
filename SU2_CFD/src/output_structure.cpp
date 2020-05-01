@@ -2574,7 +2574,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     }
 
 
-    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       // Add the resolution tensors (a rank 3 tensor)
       iVar_Resolution_Tensor = nVar_Total; nVar_Total += 9;
     }
@@ -3514,7 +3514,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the Resolution Tensor ---*/
 
-    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       iVar = iVar_Resolution_Tensor;
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
@@ -4595,7 +4595,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       }
     }
 
-    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
         restart_file << "\t\"Resolution_Tensor_11\"";
         restart_file << "\t\"Resolution_Tensor_12\"";
@@ -13445,7 +13445,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       }
     }
 
-    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       nVar_Par += 9;
       Variable_Names.push_back("Resolution_Tensor_11");
       Variable_Names.push_back("Resolution_Tensor_12");
@@ -13750,7 +13750,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         /*--- Load data for the resolution tensors ---*/
 
 
-        if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+        if (config->GetWrt_Resolution_Tensors()) {
           for (unsigned short iDim = 0; iDim < nDim; iDim++) {
             for (unsigned short jDim = 0; jDim < nDim; jDim++) {
               Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetResolutionTensor(iDim, jDim);
