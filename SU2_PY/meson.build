@@ -1,5 +1,6 @@
 install_data(['continuous_adjoint.py',
 	     'finite_differences.py',
+             'generate_ascii_restart.py',
 	     'mesh_deformation.py',
 	     'parallel_computation.py',
 	     'parallel_computation_fsi.py',
