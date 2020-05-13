@@ -48,29 +48,6 @@ inline const su2double* CHybridForcingTG0::GetForcingVector(unsigned long iPoint
   return node[iPoint];
 }
 
-inline su2double CHybridForcingTG0::ComputeScalingFactor(
-                     const su2double Ftar,
-                     const su2double resolution_adequacy,
-                     const su2double alpha,
-                     const su2double alpha_kol,
-                     const su2double PFtest) const {
-
-  su2double eta = 0.0;
-
-  // TODO: Compare this with Sigfried's improved version once channel
-  // validation is successful.
-  if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
-    const su2double Sr = tanh(1.0 - 1.0/sqrt(resolution_adequacy));
-    if (alpha <= alpha_kol) {
-      eta = -Ftar * Sr * (alpha - alpha_kol);
-    } else {
-      eta = -Ftar * Sr;
-    }
-  }
-
-  return eta;
-}
-
 inline void CHybridForcingTG0::SetTGField(
                 const su2double* x, const su2double Lsgs,
                 const su2double* D,

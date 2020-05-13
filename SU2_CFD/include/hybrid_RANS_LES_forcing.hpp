@@ -147,6 +147,22 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,
                            CConfig *config);
 
+  /**
+   * \brief Try to keep the static energy positive
+   *
+   * If there's a mismatch between resolved kinetic energy and the resolved
+   * turbulence, then forcing can drive the temperature negative.
+   * This is a simple correction to attempt to prevent the static energy
+   * from going negative.
+   *
+   * \return A scaling parameter, between 0 and 1, to apply to the forcing.
+   */
+  su2double CheckRealizability(const su2double* current_f,
+                               const su2double* avg_f,
+                               const su2double* resolved_u,
+                               su2double delta_t,
+                               su2double static_energy) const;
+
   const su2double* GetForcingVector(unsigned long iPoint) const;
 
  protected:
