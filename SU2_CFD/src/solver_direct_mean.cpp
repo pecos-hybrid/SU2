@@ -18023,6 +18023,9 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
     // ... evaluate forcing field...
     HybridMediator->ComputeForcingField(solver_container, geometry, config);
 
+    /*--- We don't need to save forcing here. The forcing should save it
+     * automatically in the "SetForcingField" call above ---*/
+
     // ... and add to residual
     for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
@@ -18034,10 +18037,6 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
 
       const su2double* Force = HybridMediator->GetForcingVector(iPoint);
       const su2double* MeanForce = average_node[iPoint]->GetForcingVector();
-
-      // Set forcing in variable class (for output purposes)
-      node[iPoint]->SetForcingVector(Force);
-      average_node[iPoint]->SetForcingVector(MeanForce);
 
       // mass (no forcing)
       Residual[0] = 0.0;

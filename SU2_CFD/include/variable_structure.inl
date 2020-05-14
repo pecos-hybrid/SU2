@@ -285,6 +285,10 @@ inline su2double CVariable::GetResolutionAdequacy(void) const { return 1; }
 
 inline const su2double* CVariable::GetForcingVector() const { return NULL; }
 
+inline su2double CVariable::GetForcingFactor() const { return 0; }
+
+inline su2double CVariable::GetForcingClipping() const { return 0; }
+
 inline su2double CVariable::GetKineticEnergyRatio(void) const { return 1; }
 
 inline su2double CVariable::GetResolvedTurbStress(unsigned short iDim, unsigned short jDim) const { return 0; }
@@ -498,6 +502,10 @@ inline void CVariable::SetKolKineticEnergyRatio(su2double nu) { }
 inline void CVariable::SetResolutionAdequacy(su2double val_r_k) { }
 
 inline void CVariable::SetForcingVector(const su2double* force) { }
+
+inline void CVariable::SetForcingFactor(su2double factor) { }
+
+inline void CVariable::SetForcingClipping(su2double clipping) { }
 
 inline void CVariable::SetKineticEnergyRatio(su2double val_alpha) { }
 
@@ -981,6 +989,14 @@ inline const su2double* CNSVariable::GetForcingVector() const {
   return ForcingVector;
 }
 
+inline su2double CNSVariable::GetForcingFactor() const {
+  return ForcingFactor;
+}
+
+inline su2double CNSVariable::GetForcingClipping() const {
+  return ForcingClipping;
+}
+
 inline su2double CNSVariable::GetProduction(void) const { return TurbProduction; }
 
 inline void CNSVariable::SetProduction(su2double val_production) { TurbProduction = val_production; }
@@ -1083,6 +1099,14 @@ inline void CNSVariable::SetForcingVector(const su2double* force) {
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     ForcingVector[iDim] = force[iDim];
   }
+}
+
+inline void CNSVariable::SetForcingFactor(su2double factor) {
+  ForcingFactor = factor;
+}
+
+inline void CNSVariable::SetForcingClipping(su2double clipping) {
+  ForcingClipping = clipping;
 }
 
 inline void CNSVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) {

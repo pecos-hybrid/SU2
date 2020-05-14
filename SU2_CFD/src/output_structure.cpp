@@ -497,6 +497,10 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetForcingVector, iZone, false);
         RegisterVector("Average_hyb_force", "avgF", FLOW_SOL,
                        &CVariable::GetForcingVector, iZone, true);
+        RegisterScalar("ForcingFactor", "ForcingFactor", FLOW_SOL,
+                       &CVariable::GetForcingFactor, iZone, false);
+        RegisterScalar("ForcingClipping", "ForcingClipping", FLOW_SOL,
+                       &CVariable::GetForcingClipping, iZone, false);
         if (config[iZone]->GetUse_Resolved_Turb_Stress()) {
           RegisterTensor("tau_res", "tau<sup>res</sup>", FLOW_SOL,
                          &CVariable::GetResolvedTurbStress, iZone, true);
