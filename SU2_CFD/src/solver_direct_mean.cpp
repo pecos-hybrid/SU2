@@ -15203,6 +15203,7 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
             average_node[iPoint_Local]->SetSGSProduction(Restart_Data[index]);
             average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
+            node[iPoint_Local]->SetResolvedKineticEnergy(0);
           }
         }
       }
@@ -17618,7 +17619,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
 unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CConfig *config, bool Output) {
   
   unsigned long iPoint, ErrorCounter = 0;
-  su2double eddy_visc = 0.0, turb_ke = 0.0, DES_LengthScale = 0.0;
+  su2double eddy_visc = 0.0, DES_LengthScale = 0.0;
   unsigned short turb_model = config->GetKind_Turb_Model();
   bool RightSol = true;
   
@@ -17662,17 +17663,24 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       assert(alpha_set == alpha_set);  // alpha should not be NaN
     }
 
-    su2double alpha = 1.0;
+    su2double total_tke = 0.0;
+    su2double modeled_tke = 0.0;
+    su2double avg_modeled_tke = 0.0;
     if (turb_model != NONE) {
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
       if (tkeNeeded) {
-        turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-	turb_ke = max(turb_ke, tke_min);
+        total_tke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+        total_tke = max(total_tke, tke_min);
 
-	// account for resolved portion
-	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-	  alpha = average_node[iPoint]->GetKineticEnergyRatio();
-	}
+        if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+          const su2double inst_resolved_tke = node[iPoint]->GetResolvedKineticEnergy();
+          modeled_tke = max(total_tke - inst_resolved_tke, 0.0);
+          const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
+          avg_modeled_tke = max(alpha*total_tke, 0.0);
+        } else {
+          modeled_tke = total_tke;
+          avg_modeled_tke = total_tke;
+        }
       }
       
       if (config->isDESBasedModel()){
@@ -17686,17 +17694,18 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
     
-    RightSol = node[iPoint]->SetPrimVar(eddy_visc, alpha*turb_ke, FluidModel);
+
+    RightSol = node[iPoint]->SetPrimVar(eddy_visc, modeled_tke, FluidModel);
     if (!RightSol) {
-	std::cout << "Error Setting instant primitive variables! " << alpha << std::endl;
-	std::cout << "instant: alpha = " << alpha << std::endl;
+      std::cout << "Error Setting instant primitive variables! " << std::endl;
+      std::cout << "instant: modeled_tke = " << modeled_tke << std::endl;
     }
     node[iPoint]->SetSecondaryVar(FluidModel);
     if (runtime_averaging) {
-      bool ierr = average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
+      bool ierr = average_node[iPoint]->SetPrimVar(eddy_visc, avg_modeled_tke, FluidModel);
       if (!ierr) {
-	std::cout << "Error Setting average primitive variables! " << alpha << std::endl;
-	std::cout << "average: alpha = " << alpha << std::endl;
+        std::cout << "Error Setting average primitive variables!" << std::endl;
+        std::cout << "average: modeled_tke = " << avg_modeled_tke << std::endl;
       }
       // We don't need the secondary variables
     }
@@ -19932,8 +19941,24 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
       /*--- Update resolved kinetic energy ---*/
 
-      const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
+      su2double mean_velocity[nDim];
+      su2double res_velocity[nDim];
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        res_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0];
+        mean_velocity[iDim] = average_vars[iDim+1]/average_vars[0];
+      }
+
       su2double current_resolved_k = 0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        current_resolved_k += res_velocity[iDim]*res_velocity[iDim]/2 -
+                              mean_velocity[iDim]*mean_velocity[iDim]/2;
+      }
+      node[iPoint]->SetResolvedKineticEnergy(current_resolved_k);
+
+      /*-- TODO: Update this? The mean-fluctuating correlations should vanish,
+       * so the above version and this version should be equivalent. ---*/ 
+      const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
+      current_resolved_k = 0;
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
       }
