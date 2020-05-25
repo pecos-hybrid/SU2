@@ -1004,7 +1004,8 @@ void CDriver::Geometrical_Preprocessing() {
 
       /*--- Compute cell resolution tensors ---*/
 
-      if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+      if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT ||
+          config_container[iZone]->GetWrt_Resolution_Tensors()) {
         if (rank == MASTER_NODE) cout << "Computing cell resolution tensors." << endl;
         geometry_container[iZone][iInst][MESH_0]->SetResolutionTensor(config_container[iZone]);
       }

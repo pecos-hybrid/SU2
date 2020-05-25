@@ -1391,7 +1391,8 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
   geometry_container[MESH_0]->SetControlVolume(config, UPDATE);
   geometry_container[MESH_0]->SetBoundControlVolume(config, UPDATE);
   geometry_container[MESH_0]->SetMaxLength(config);
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT ||
+      config->GetWrt_Resolution_Tensors()) {
     geometry_container[MESH_0]->SetResolutionTensor(config);
   }
   

@@ -187,5 +187,36 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
       node[iPoint][iDim] = eta*h[iDim];
     }
 
+    /*--- Save the forcing for output ---*/
+
+    solver[FLOW_SOL]->node[iPoint]->SetForcingVector(node[iPoint]);
+    solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
+
   } // end loop over points
+}
+
+su2double CHybridForcingTG0::ComputeScalingFactor(
+                     const su2double Ftar,
+                     const su2double resolution_adequacy,
+                     const su2double alpha,
+                     const su2double alpha_kol,
+                     const su2double PFtest) const {
+
+  su2double eta = 0.0;
+
+  // TODO: Compare this with Sigfried's improved version once channel
+  // validation is successful.
+  if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
+    const su2double Sr = tanh(1.0 - 1.0/sqrt(resolution_adequacy));
+    if (alpha <= alpha_kol) {
+      eta = -Ftar * Sr * (alpha - alpha_kol);
+    } else {
+      eta = -Ftar * Sr;
+    }
+  }
+
+  // Check for NaNs in debug mode.
+  assert(eta == eta);
+
+  return eta;
 }

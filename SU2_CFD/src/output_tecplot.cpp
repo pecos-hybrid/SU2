@@ -203,7 +203,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         }
       }
 
-      if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+      if (config->GetWrt_Resolution_Tensors()) {
         for (iDim = 0; iDim < nDim; iDim++)
           for (jDim = 0; jDim < nDim; jDim++)
             Tecplot_File << ", \"Resolution_Tensor_" << iDim << jDim << "\"";
@@ -3566,8 +3566,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       }
     }
 
-    if ((config->GetKind_HybridRANSLES() == MODEL_SPLIT) &&
-        config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       for (unsigned short iDim = 0; iDim < nDim; iDim++)
         for (unsigned short jDim = 0; jDim < nDim; jDim++)
           variables << "Resolution_Tensor_" << iDim << jDim << " ";
