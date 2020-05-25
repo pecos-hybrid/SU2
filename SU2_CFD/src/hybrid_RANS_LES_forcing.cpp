@@ -182,75 +182,14 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
                                                      alpha, alpha_kol, PFtest);
 
-    /*---
-     * Ensure that forcing doesn't push the flow into an unphysical state.
-     *
-     * Forcing is supposed to just exchange energy between modeled
-     * turbulence and the resolved flow.  So we shouldn't have to worry about
-     * the internal energy (or temperature) here.  If the resolved flow gains
-     * more energy, alpha*k_tot should go down to match.
-     *
-     * But there's two conditions where a mismatch can occur:
-     *   1. Since k_tot is an average quantity and the resolved
-     *      kinetic energy is a fluctuating quantity, a local hotspot in
-     *      resolved kinetic energy can exist, independent of k_tot.
-     *   2. We expect alpha to lag behind the actual value as the amount of
-     *      resolved turbulence increases.  So the resolved state will
-     *      instantly feel the effects of forcing, but alpha will not
-     *      adjust automatically.  This can lead to a double-accounting
-     *      of energy and therefore a negative internal energy
-     *      (or temperature).
-     *
-     * This correction clips the forcing when such a state may occur.
-     * It is an estimate, since we don't have the actual values of
-     * d(rho e)/dt.
-     * ---*/
-    su2double clip = 1.0;
-    if (eta > 0) {
-      const su2double k_tot = max(solver[TURB_SOL]->node[iPoint]->GetSolution(0), su2double(0.0));
-      const su2double total_energy = solver[FLOW_SOL]->node[iPoint]->GetEnergy();
-      const su2double resolved_ke = 0.5*solver[FLOW_SOL]->node[iPoint]->GetVelocity2();
-      const su2double static_energy = total_energy - resolved_ke - alpha*k_tot;
-      su2double resolved_u[3];
-      for (unsigned short iDim=0; iDim<nDim; iDim++) {
-        resolved_u[iDim] = prim_vars[iDim+1];
-      }
-      if (static_energy < 0) {
-        ostringstream error_msg;
-        error_msg << "Detected a negative static energy!\n";
-        error_msg << "  total energy: " << total_energy << "\n";
-        error_msg << "  resolved KE:  " << resolved_ke << "\n";
-        error_msg << "  alpha:        " << alpha << "\n";
-        error_msg << "  total TKE:    " << k_tot << "\n";
-        SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-      }
-
-
-      // By assumption, we are using 'TIME_STEPPING' for these
-      // simulations, such that dt is the same for each node and we can
-      // just grab it off the first node.
-      assert(config->GetUnsteady_Simulation() == TIME_STEPPING);
-      const su2double delta_t = solver[FLOW_SOL]->node[0]->GetDelta_Time();
-
-      /*--- Calculate proposed forcing vector ---*/
-      su2double current_f[3]; // instantaneous value
-      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-        current_f[iDim] = eta*h[iDim];
-      }
-      const su2double* avg_f = solver[FLOW_SOL]->average_node[iPoint]->GetForcingVector();
-
-      clip = CheckRealizability(current_f, avg_f, resolved_u, delta_t, static_energy);
-    }
-
     /*--- Store eta*h so we can compute the derivatives ---*/
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      node[iPoint][iDim] = clip*eta*h[iDim];
+      node[iPoint][iDim] = eta*h[iDim];
     }
 
     /*--- Save the forcing for output ---*/
 
     solver[FLOW_SOL]->node[iPoint]->SetForcingVector(node[iPoint]);
-    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(clip);
     solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
 
   } // end loop over points
@@ -276,22 +215,8 @@ su2double CHybridForcingTG0::ComputeScalingFactor(
     }
   }
 
+  // Check for NaNs in debug mode.
+  assert(eta == eta);
+
   return eta;
-}
-
-su2double CHybridForcingTG0::CheckRealizability(const su2double* current_f,
-                                                const su2double* avg_f,
-                                                const su2double* resolved_u,
-                                                const su2double delta_t,
-                                                const su2double static_energy) const {
-
-  // This is the added *specific* energy.  We omit density from
-  // both the static energy and the added resolved kinetic energy.
-  su2double added_energy = 0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    added_energy += delta_t*resolved_u[iDim]*(current_f[iDim] - avg_f[iDim]);
-  }
-
-  const su2double small_correction = 0.1;
-  return max(0.0, min(1.0, static_energy / added_energy));
 }
