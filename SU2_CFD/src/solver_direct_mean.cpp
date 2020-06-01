@@ -17629,6 +17629,10 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                      (config->GetKind_Turb_Model() == KE)));
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
+  /*--- For simple time-marching, don't allow unphysical points to be
+    replaced with previous solutions ---*/
+  const bool fallback_on_error =
+      (config->GetUnsteady_Simulation() != TIME_STEPPING);
 
   /*--- Compute the minimum value of TKE allowed ---*/
 
@@ -17695,9 +17699,8 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     node[iPoint]->SetNon_Physical(false);
     
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
-    
 
-    RightSol = node[iPoint]->SetPrimVar(eddy_visc, modeled_tke, FluidModel);
+    RightSol = node[iPoint]->SetPrimVar(eddy_visc, modeled_tke, FluidModel, fallback_on_error);
     if (!RightSol) {
       std::cout << "Error Setting instant primitive variables! " << std::endl;
       std::cout << "  modeled tke  = " << modeled_tke << std::endl;
@@ -17708,7 +17711,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     node[iPoint]->SetSecondaryVar(FluidModel);
     if (runtime_averaging) {
       const bool valid_state =
-         average_node[iPoint]->SetPrimVar(eddy_visc, avg_modeled_tke, FluidModel);
+         average_node[iPoint]->SetPrimVar(eddy_visc, avg_modeled_tke, FluidModel, fallback_on_error);
       if (!valid_state) {
         std::cout << "Error Setting average primitive variables!" << std::endl;
         std::cout << "  modeled_tke = " << avg_modeled_tke << std::endl;

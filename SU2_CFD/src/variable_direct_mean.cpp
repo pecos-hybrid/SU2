@@ -835,7 +835,10 @@ void CNSVariable::SetRoe_Dissipation_FD(su2double val_wall_dist){
   
 }
 
-bool CNSVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel) {
+bool CNSVariable::SetPrimVar(su2double eddy_visc,
+                             su2double turb_ke,
+                             CFluidModel *FluidModel,
+                             bool fallback_on_error) {
   
     unsigned short iVar;
   su2double density, staticEnergy;
@@ -867,29 +870,36 @@ bool CNSVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel
   /*--- Check that the solution has a physical meaning ---*/
   
   if (check_dens || check_press || check_sos  || check_temp) {
-    
-    // /*--- Copy the old solution ---*/
-    
-    // for (iVar = 0; iVar < nVar; iVar++)
-    //   Solution[iVar] = Solution_Old[iVar];
-    
-    // /*--- Recompute the primitive variables ---*/
-    
-    // SetVelocity(); // Computes velocity and velocity^2
-    // density = GetDensity();
-    // staticEnergy = GetEnergy()-0.5*Velocity2 - turb_ke;
-    
-    // /*--- Check will be moved inside fluid model plus error description strings ---*/
-    
-    // FluidModel->SetTDState_rhoe(density, staticEnergy);
-    
-    // SetDensity();
-    // SetPressure(FluidModel->GetPressure());
-    // SetSoundSpeed(FluidModel->GetSoundSpeed2());
-    // SetTemperature(FluidModel->GetTemperature());
-    
-    RightVol = false;
-    return RightVol;
+
+    if (fallback_on_error) {
+      /*--- Copy the old solution ---*/
+
+      for (iVar = 0; iVar < nVar; iVar++)
+        Solution[iVar] = Solution_Old[iVar];
+
+      /*--- Recompute the primitive variables ---*/
+
+      SetVelocity(); // Computes velocity and velocity^2
+      density = GetDensity();
+      staticEnergy = GetEnergy()-0.5*Velocity2 - turb_ke;
+
+      /*--- Check will be moved inside fluid model plus error description strings ---*/
+
+      FluidModel->SetTDState_rhoe(density, staticEnergy);
+
+      SetDensity();
+      SetPressure(FluidModel->GetPressure());
+      SetSoundSpeed(FluidModel->GetSoundSpeed2());
+      SetTemperature(FluidModel->GetTemperature());
+
+      RightVol = false;
+
+    } else {
+
+      /*--- Keep bad solution, instead of using old solution ---*/
+      RightVol = false;
+      return RightVol;
+    }
   }
   
   /*--- Set enthalpy ---*/

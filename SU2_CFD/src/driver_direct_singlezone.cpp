@@ -183,6 +183,11 @@ void CSinglezoneDriver::Output(unsigned long TimeIter) {
 
   bool output_files = false;
 
+  bool local_invalid_state = (config_container[ZONE_0]->GetWrt_InvalidState());
+  bool global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_CXX_BOOL, MPI_LOR, MPI_COMM_WORLD);
+
   /*--- Determine whether a solution needs to be written
    after the current iteration ---*/
 
@@ -214,7 +219,7 @@ void CSinglezoneDriver::Output(unsigned long TimeIter) {
 
       /*--- Invalid temperature and/or pressure ---*/
 
-      (config_container[ZONE_0]->GetWrt_InvalidState())
+      global_invalid_state 
 
       ) {
 

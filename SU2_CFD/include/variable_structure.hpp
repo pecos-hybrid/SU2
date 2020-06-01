@@ -1348,7 +1348,10 @@ public:
   /*!
    * \brief A virtual member.
    */
-  virtual bool SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel);
+  virtual bool SetPrimVar(su2double eddy_visc,
+                          su2double turb_ke,
+                          CFluidModel *FluidModel,
+                          bool fallback_on_error=true);
   
   /*!
    * \brief A virtual member.
@@ -4349,7 +4352,10 @@ public:
   /*!
    * \brief Set all the primitive variables for compressible flows
    */
-  bool SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel);
+  bool SetPrimVar(su2double eddy_visc,
+                  su2double turb_ke,
+                  CFluidModel *FluidModel,
+                  bool fallback_on_error);
   using CVariable::SetPrimVar;
   
   /*!

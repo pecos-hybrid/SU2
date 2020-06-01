@@ -3918,8 +3918,7 @@ void CDriver::StartSolver(){
 
   /*--- Output any files from invalid settings before problems occur ---*/
 
-  if (config_container[ZONE_0]->GetWrt_InletFile() ||
-      config_container[ZONE_0]->GetWrt_InvalidState()) {
+  if (config_container[ZONE_0]->GetWrt_InletFile()) {
     Output(ExtIter);
   }
 
@@ -4064,6 +4063,14 @@ bool CDriver::Monitor(unsigned long ExtIter) {
     case DISC_ADJ_FEM_EULER: case DISC_ADJ_FEM_NS: case DISC_ADJ_FEM_RANS:
       StopCalc = integration_container[ZONE_0][INST_0][ADJFLOW_SOL]->GetConvergence(); break;
   }
+
+  /*--- Check if we have an invalid state ---*/
+
+  bool local_invalid_state = (config_container[ZONE_0]->GetWrt_InvalidState());
+  bool global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_CXX_BOOL, MPI_LOR, MPI_COMM_WORLD);
+  if (global_invalid_state) StopCalc = true;
   
   return StopCalc;
   
@@ -4074,6 +4081,11 @@ void CDriver::Output(unsigned long ExtIter) {
   unsigned long nExtIter = config_container[ZONE_0]->GetnExtIter();
   bool output_files = false;
   
+  bool local_invalid_state = (config_container[ZONE_0]->GetWrt_InvalidState());
+  bool global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_CXX_BOOL, MPI_LOR, MPI_COMM_WORLD);
+
   /*--- Determine whether a solution needs to be written
    after the current iteration ---*/
   
@@ -4115,9 +4127,7 @@ void CDriver::Output(unsigned long ExtIter) {
       
       (config_container[ZONE_0]->GetWrt_InletFile()) ||
 
-      /*--- Invalid temperature and/or pressure ---*/
-
-      (config_container[ZONE_0]->GetWrt_InvalidState())
+      global_invalid_state
       
       ) {
     
@@ -4319,18 +4329,6 @@ void CFluidDriver::Run() {
     /*--- If convergence was reached in every zone --*/
 
     if (checkConvergence == nZone) break;
-    
-    /*--- Check if we should exit prematurely due to an invalid state ---*/
-
-    bool invalid_state = false;
-    for (iZone = 0; iZone < nZone; iZone++) {
-      if (config_container[iZone]->GetWrt_InvalidState() &&
-          config_container[iZone]->GetUnsteady_Simulation() != STEADY) {
-            invalid_state = true;
-            break;
-      }
-    }
-    if (invalid_state) break;
   }
 }
 

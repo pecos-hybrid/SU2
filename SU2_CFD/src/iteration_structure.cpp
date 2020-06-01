@@ -463,6 +463,11 @@ void CIteration::Output(COutput *output,
 
   bool output_files = false;
 
+  bool local_invalid_state = (config_container[ZONE_0]->GetWrt_InvalidState());
+  bool global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_CXX_BOOL, MPI_LOR, MPI_COMM_WORLD);
+
   /*--- Determine whether a solution needs to be written
    after the current iteration ---*/
 
@@ -490,9 +495,7 @@ void CIteration::Output(COutput *output,
 
       /*--- Invalid temperature and/or pressure ---*/
 
-      (config_container[ZONE_0]->GetWrt_InvalidState())
-
-      ) {
+      global_invalid_state) {
 
     output_files = true;
 
@@ -798,11 +801,6 @@ bool CFluidIteration::Monitor(COutput *output,
 
   /*--- If convergence was reached --*/
   StopCalc = integration_container[val_iZone][INST_0][FLOW_SOL]->GetConvergence();
-
-  if (config_container[val_iZone]->GetWrt_InvalidState() &&
-      config_container[val_iZone]->GetUnsteady_Simulation() != STEADY) {
-    StopCalc = true;
-  }
 
   /*--- Write the convergence history for the fluid (only screen output) ---*/
 

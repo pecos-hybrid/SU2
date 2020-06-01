@@ -375,7 +375,12 @@ inline void CVariable::SetSecondaryVar(CFluidModel *FluidModel) { }
 
 inline bool CVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CConfig *config) { return true; }
 
-inline bool CVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel) { return true; }
+inline bool CVariable::SetPrimVar(su2double eddy_visc,
+                                  su2double turb_ke,
+                                  CFluidModel *FluidModel,
+                                  bool fallback_on_error) {
+  return true;
+}
 
 inline bool CVariable::SetPrimVar(su2double Density_Inf, CConfig *config) { return true; }
 
