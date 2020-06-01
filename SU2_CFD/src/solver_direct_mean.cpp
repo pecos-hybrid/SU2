@@ -17666,6 +17666,8 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     su2double total_tke = 0.0;
     su2double modeled_tke = 0.0;
     su2double avg_modeled_tke = 0.0;
+    su2double inst_resolved_tke = 0.0;
+    su2double alpha = 0.0;
     if (turb_model != NONE) {
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
       if (tkeNeeded) {
@@ -17673,9 +17675,9 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
         total_tke = max(total_tke, tke_min);
 
         if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-          const su2double inst_resolved_tke = node[iPoint]->GetResolvedKineticEnergy();
+          inst_resolved_tke = node[iPoint]->GetResolvedKineticEnergy();
           modeled_tke = max(total_tke - inst_resolved_tke, 0.0);
-          const su2double alpha = average_node[iPoint]->GetKineticEnergyRatio();
+          alpha = average_node[iPoint]->GetKineticEnergyRatio();
           avg_modeled_tke = max(alpha*total_tke, 0.0);
         } else {
           modeled_tke = total_tke;
@@ -17698,14 +17700,22 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     RightSol = node[iPoint]->SetPrimVar(eddy_visc, modeled_tke, FluidModel);
     if (!RightSol) {
       std::cout << "Error Setting instant primitive variables! " << std::endl;
-      std::cout << "instant: modeled_tke = " << modeled_tke << std::endl;
+      std::cout << "  modeled tke  = " << modeled_tke << std::endl;
+      std::cout << "  resolved ke  = " << node[iPoint]->GetVelocity2() << std::endl;
+      std::cout << "  resolved tke = " << inst_resolved_tke << std::endl;
+      std::cout << "  total tke    = " << total_tke << std::endl;
     }
     node[iPoint]->SetSecondaryVar(FluidModel);
     if (runtime_averaging) {
-      bool ierr = average_node[iPoint]->SetPrimVar(eddy_visc, avg_modeled_tke, FluidModel);
-      if (!ierr) {
+      const bool valid_state =
+         average_node[iPoint]->SetPrimVar(eddy_visc, avg_modeled_tke, FluidModel);
+      if (!valid_state) {
         std::cout << "Error Setting average primitive variables!" << std::endl;
-        std::cout << "average: modeled_tke = " << avg_modeled_tke << std::endl;
+        std::cout << "  modeled_tke = " << avg_modeled_tke << std::endl;
+        std::cout << "  resolved ke = " << average_node[iPoint]->GetVelocity2() << std::endl;
+        std::cout << "  alpha       = " << alpha << std::endl;
+        std::cout << "  total tke   = " << total_tke << std::endl;
+        config->SetWrt_InvalidState(true);
       }
       // We don't need the secondary variables
     }
@@ -17721,6 +17731,8 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     if (!Output) LinSysRes.SetBlock_Zero(iPoint);
     
   }
+
+  if (ErrorCounter > 0) config->SetWrt_InvalidState(true);
   
   return ErrorCounter;
 }

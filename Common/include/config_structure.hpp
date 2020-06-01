@@ -796,6 +796,7 @@ private:
   Wrt_SharpEdges,              /*!< \brief Write residuals to solution file */
   Wrt_Halo,                   /*!< \brief Write rind layers in solution files */
   Wrt_Resolution_Tensors,     /*!< \brief Write resolutions tensors in solution files */
+  Wrt_InvalidState,           /*!< \brief Output the solution due to an invalid state error */
   Wrt_Performance,            /*!< \brief Write the performance summary at the end of a calculation.  */
   Wrt_InletFile,                   /*!< \brief Write a template inlet profile file */
   Wrt_Slice,                   /*!< \brief Write 1D slice of a 2D cartesian solution */
@@ -9500,6 +9501,18 @@ public:
    * \return YES if the forces breakdown file is written.
    */
   bool GetWrt_ForcesBreakdown(void);
+
+  /*!
+   * \brief Check if the solution should be written due to an invalid state.
+   * \return YES if the solution should be written. 
+   */
+  bool GetWrt_InvalidState(void) const { return Wrt_InvalidState; }
+
+  /*!
+   * \brief Set if an invalid solutions state should be saved. 
+   * \param[in] invalid_state - True if the solution should be written.
+   */
+  void SetWrt_InvalidState(bool invalid_state) { Wrt_InvalidState = invalid_state; };
 };
 
 #include "config_structure.inl"

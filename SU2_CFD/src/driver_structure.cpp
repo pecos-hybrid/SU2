@@ -3916,10 +3916,14 @@ void CDriver::StartSolver(){
   __itt_resume();
 #endif
 
-  /*--- Main external loop of the solver. Within this loop, each iteration ---*/
-  if (config_container[ZONE_0]->GetWrt_InletFile()) {
+  /*--- Output any files from invalid settings before problems occur ---*/
+
+  if (config_container[ZONE_0]->GetWrt_InletFile() ||
+      config_container[ZONE_0]->GetWrt_InvalidState()) {
     Output(ExtIter);
   }
+
+  /*--- Main external loop of the solver. Within this loop, each iteration ---*/
 
   if (rank == MASTER_NODE)
     cout << endl <<"------------------------------ Begin Solver -----------------------------" << endl;
@@ -4109,7 +4113,11 @@ void CDriver::Output(unsigned long ExtIter) {
       
       /*--- No inlet profile file found. Print template. ---*/
       
-      (config_container[ZONE_0]->GetWrt_InletFile())
+      (config_container[ZONE_0]->GetWrt_InletFile()) ||
+
+      /*--- Invalid temperature and/or pressure ---*/
+
+      (config_container[ZONE_0]->GetWrt_InvalidState())
       
       ) {
     
@@ -4310,9 +4318,20 @@ void CFluidDriver::Run() {
 
     /*--- If convergence was reached in every zone --*/
 
-  if (checkConvergence == nZone) break;
-  }
+    if (checkConvergence == nZone) break;
+    
+    /*--- Check if we should exit prematurely due to an invalid state ---*/
 
+    bool invalid_state = false;
+    for (iZone = 0; iZone < nZone; iZone++) {
+      if (config_container[iZone]->GetWrt_InvalidState() &&
+          config_container[iZone]->GetUnsteady_Simulation() != STEADY) {
+            invalid_state = true;
+            break;
+      }
+    }
+    if (invalid_state) break;
+  }
 }
 
 void CFluidDriver::Transfer_Data(unsigned short donorZone, unsigned short targetZone) {

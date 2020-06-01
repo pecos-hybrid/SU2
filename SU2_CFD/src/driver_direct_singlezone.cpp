@@ -210,7 +210,11 @@ void CSinglezoneDriver::Output(unsigned long TimeIter) {
 
       /*--- No inlet profile file found. Print template. ---*/
 
-      (config_container[ZONE_0]->GetWrt_InletFile())
+      (config_container[ZONE_0]->GetWrt_InletFile()) ||
+
+      /*--- Invalid temperature and/or pressure ---*/
+
+      (config_container[ZONE_0]->GetWrt_InvalidState())
 
       ) {
 

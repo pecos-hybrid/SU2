@@ -486,7 +486,11 @@ void CIteration::Output(COutput *output,
 
       /*--- No inlet profile file found. Print template. ---*/
 
-      (config_container[ZONE_0]->GetWrt_InletFile())
+      (config_container[ZONE_0]->GetWrt_InletFile()) ||
+
+      /*--- Invalid temperature and/or pressure ---*/
+
+      (config_container[ZONE_0]->GetWrt_InvalidState())
 
       ) {
 
@@ -794,6 +798,11 @@ bool CFluidIteration::Monitor(COutput *output,
 
   /*--- If convergence was reached --*/
   StopCalc = integration_container[val_iZone][INST_0][FLOW_SOL]->GetConvergence();
+
+  if (config_container[val_iZone]->GetWrt_InvalidState() &&
+      config_container[val_iZone]->GetUnsteady_Simulation() != STEADY) {
+    StopCalc = true;
+  }
 
   /*--- Write the convergence history for the fluid (only screen output) ---*/
 

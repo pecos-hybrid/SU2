@@ -858,9 +858,10 @@ bool CNSVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel
   
   if (check_temp) {
     std::cout << "Encountered invalid temperature!" << std::endl;
-    std::cout << "T = " << FluidModel->GetTemperature() << std::endl;
-    std::cout << "rho = " << density << std::endl;
-    std::cout << "with E = " << GetEnergy() << ", V2 = " << Velocity2 << ", tke = " << turb_ke << std::endl;
+    std::cout << "  T = " << FluidModel->GetTemperature() << std::endl;
+    std::cout << "  rho = " << density << std::endl;
+    std::cout << "  static energy = " << staticEnergy << std::endl;
+    std::cout << "  with E = " << GetEnergy() << ", V2 = " << Velocity2 << ", tke = " << turb_ke << std::endl;
   }
 
   /*--- Check that the solution has a physical meaning ---*/

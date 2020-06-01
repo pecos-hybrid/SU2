@@ -682,6 +682,8 @@ void CConfig::SetPointersNull(void) {
   
   Current_UnstTime = 0.0;
 
+  Wrt_InvalidState = false;
+
 }
 
 void CConfig::SetRunTime_Options(void) {
