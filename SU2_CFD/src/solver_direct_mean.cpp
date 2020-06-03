@@ -17619,9 +17619,8 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
 unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CConfig *config, bool Output) {
   
   unsigned long iPoint, ErrorCounter = 0;
-  su2double eddy_visc = 0.0, DES_LengthScale = 0.0;
+  su2double eddy_visc = 0.0, turb_ke = 0.0, DES_LengthScale = 0.0;
   unsigned short turb_model = config->GetKind_Turb_Model();
-  bool RightSol = true;
   
   bool tkeNeeded = (((config->GetKind_Solver() == RANS ) ||
                      (config->GetKind_Solver() == DISC_ADJ_RANS)) &&
@@ -17669,9 +17668,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 
     su2double total_tke = 0.0;
     su2double modeled_tke = 0.0;
-    su2double avg_modeled_tke = 0.0;
-    su2double inst_resolved_tke = 0.0;
-    su2double alpha = 0.0;
+    su2double alpha = 1.0;
     if (turb_model != NONE) {
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
       if (tkeNeeded) {
@@ -17679,13 +17676,10 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
         total_tke = max(total_tke, tke_min);
 
         if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-          inst_resolved_tke = node[iPoint]->GetResolvedKineticEnergy();
-          modeled_tke = max(total_tke - inst_resolved_tke, 0.0);
           alpha = average_node[iPoint]->GetKineticEnergyRatio();
-          avg_modeled_tke = max(alpha*total_tke, 0.0);
+          modeled_tke = max(alpha*total_tke, 0.0);
         } else {
           modeled_tke = total_tke;
-          avg_modeled_tke = total_tke;
         }
       }
       
@@ -17700,30 +17694,31 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
 
-    RightSol = node[iPoint]->SetPrimVar(eddy_visc, modeled_tke, FluidModel, fallback_on_error);
+    const bool RightSol = node[iPoint]->SetPrimVar(eddy_visc, modeled_tke, FluidModel, fallback_on_error);
     if (!RightSol) {
       std::cout << "Error Setting instant primitive variables! " << std::endl;
-      std::cout << "  modeled tke  = " << modeled_tke << std::endl;
-      std::cout << "  resolved ke  = " << node[iPoint]->GetVelocity2() << std::endl;
-      std::cout << "  resolved tke = " << inst_resolved_tke << std::endl;
-      std::cout << "  total tke    = " << total_tke << std::endl;
+        std::cout << "  modeled_tke = " << modeled_tke << std::endl;
+        std::cout << "  resolved ke = " << node[iPoint]->GetVelocity2() << std::endl;
+        std::cout << "  total tke   = " << total_tke << std::endl;
+        std::cout << "  alpha       = " << alpha << std::endl;
     }
     node[iPoint]->SetSecondaryVar(FluidModel);
+    bool RightAvg = true;
     if (runtime_averaging) {
-      const bool valid_state =
-         average_node[iPoint]->SetPrimVar(eddy_visc, avg_modeled_tke, FluidModel, fallback_on_error);
-      if (!valid_state) {
+      RightAvg = average_node[iPoint]->SetPrimVar(eddy_visc, total_tke, FluidModel, fallback_on_error);
+      if (!RightAvg) {
         std::cout << "Error Setting average primitive variables!" << std::endl;
-        std::cout << "  modeled_tke = " << avg_modeled_tke << std::endl;
         std::cout << "  resolved ke = " << average_node[iPoint]->GetVelocity2() << std::endl;
-        std::cout << "  alpha       = " << alpha << std::endl;
         std::cout << "  total tke   = " << total_tke << std::endl;
-        config->SetWrt_InvalidState(true);
+        std::cout << "  alpha       = " << alpha << std::endl;
       }
       // We don't need the secondary variables
     }
 
-    if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
+    if (!RightSol || !RightAvg) {
+      node[iPoint]->SetNon_Physical(true);
+      ErrorCounter++;
+    }
         
     /*--- Set the DES length scale ---*/
     
@@ -17735,7 +17730,12 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
   }
 
-  if (ErrorCounter > 0) config->SetWrt_InvalidState(true);
+  if (ErrorCounter > 0) {
+    config->SetWrt_InvalidState(true);
+  } else {
+    // Override previous invalid states, if now valid
+    config->SetWrt_InvalidState(false);
+  }
   
   return ErrorCounter;
 }
