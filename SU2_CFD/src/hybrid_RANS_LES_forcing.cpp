@@ -98,6 +98,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
   const su2double time = config->GetCurrent_UnstTimeND();
   assert(time >= 0);
+  /*--- Timestep is used to check if forcing is physical ---*/
+  const su2double delta_t = solver[FLOW_SOL]->node[0]->GetDelta_Time();
+  assert(delta_t > 0);
 
   /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
   su2double h[nDim]; // Initial TG vortex field.
@@ -182,15 +185,31 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
                                                      alpha, alpha_kol, PFtest);
 
+    /*--- Check for an unphysically large forcing ---*/
+
+    const su2double k_tot = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
+    su2double energy_added = 0.0;
+    for (unsigned short iDim=0; iDim<nDim; iDim++) {
+      energy_added += prim_vars[iDim+1]*h[iDim];
+    }
+    energy_added *= delta_t * eta;
+    su2double clipping = 1.0;
+    if (energy_added >= alpha*k_tot) {
+      /*--- Arbitrary constant of 0.99 added to prevent T=0 ---*/
+      clipping = alpha*k_tot/energy_added * 0.99;
+    }
+
+
     /*--- Store eta*h so we can compute the derivatives ---*/
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      node[iPoint][iDim] = eta*h[iDim];
+      node[iPoint][iDim] = clipping*eta*h[iDim];
     }
 
     /*--- Save the forcing for output ---*/
 
     solver[FLOW_SOL]->node[iPoint]->SetForcingVector(node[iPoint]);
     solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
+    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(eta);
 
   } // end loop over points
 }
