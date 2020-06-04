@@ -793,7 +793,7 @@ public:
    * \brief Get the pressure sensor.
    * \return Value of the pressure sensor.
    */
-  su2double GetSensor(void);
+  su2double GetSensor(void) const;
   
   /*!
    * \brief Get the pressure sensor.

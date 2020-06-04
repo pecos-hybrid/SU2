@@ -233,7 +233,7 @@ inline su2double CVariable::GetLambda(void) { return Lambda; }
 
 inline su2double CVariable::GetLambda(unsigned short iSpecies) { return 0; }
 
-inline su2double CVariable::GetSensor(void) { return Sensor; }
+inline su2double CVariable::GetSensor(void) const { return Sensor; }
 
 inline su2double CVariable::GetSensor(unsigned short iSpecies) { return 0;}
 

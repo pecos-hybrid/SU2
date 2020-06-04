@@ -463,6 +463,11 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
   for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
     unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
 
+    if (config[iZone]->GetKind_RoeLowDiss() == NTS_DUCROS ||
+        config[iZone]->GetKind_RoeLowDiss() == FD_DUCROS) {
+      RegisterScalar("DucrosSensor", "DucrosSensor", FLOW_SOL,
+                     &CVariable::GetSensor, iZone, false);
+    }
     if (Kind_Solver == RANS) {
 
       if (config[iZone]->GetKind_Turb_Model() == KE ||

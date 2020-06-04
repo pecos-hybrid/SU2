@@ -1915,6 +1915,7 @@ void CNumerics::SetRoe_Dissipation(const su2double Dissipation_i,
   const su2double Min_Dissipation = config->GetRoe_Min_Dissipation();
   const su2double Mean_Dissipation = 0.5*(Dissipation_i + Dissipation_j);
   const su2double Mean_Sensor = 0.5*(Sensor_i + Sensor_j);
+  const su2double Max_Sensor = max(Sensor_i, Sensor_j);
   
   if (roe_low_diss == FD || roe_low_diss == NTS) {
 
@@ -1934,7 +1935,7 @@ void CNumerics::SetRoe_Dissipation(const su2double Dissipation_i,
     /*--- See Xiao et al. INT J HEAT FLUID FL 51 (2015) pag. 141
      * https://doi.org/10.1016/j.ijheatfluidflow.2014.10.007 ---*/
 
-    const su2double phi1 = Mean_Sensor;
+    const su2double phi1 = Max_Sensor;
     const su2double phi2 = Mean_Dissipation;
 
     Dissipation_ij = max(Min_Dissipation, phi1 + phi2 - (phi1*phi2));

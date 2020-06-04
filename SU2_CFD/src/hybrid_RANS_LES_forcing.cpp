@@ -194,9 +194,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     }
     energy_added *= delta_t * eta;
     su2double clipping = 1.0;
-    if (energy_added >= alpha*k_tot) {
+    if (energy_added >= alpha*k_tot*0.1) {
       /*--- Arbitrary constant of 0.99 added to prevent T=0 ---*/
-      clipping = alpha*k_tot/energy_added * 0.99;
+      clipping = alpha*k_tot/energy_added * 0.10;
     }
 
 
