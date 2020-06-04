@@ -209,7 +209,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
     solver[FLOW_SOL]->node[iPoint]->SetForcingVector(node[iPoint]);
     solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
-    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(eta);
+    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(clipping);
 
   } // end loop over points
 }
