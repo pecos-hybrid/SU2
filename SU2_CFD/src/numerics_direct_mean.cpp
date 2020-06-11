@@ -5827,16 +5827,35 @@ void CSourceBodyForce::ComputeResidual(su2double *val_residual, CConfig *config)
   
   val_residual[0] = 0.0;
   
-  /*--- Momentum contribution ---*/
-  
-  for (iDim = 0; iDim < nDim; iDim++)
-    val_residual[iDim+1] = -Volume * U_i[0] * Body_Force_Vector[iDim] / Force_Ref;
-  
-  /*--- Energy contribution ---*/
-  
-  val_residual[nDim+1] = 0.0;
-  for (iDim = 0; iDim < nDim; iDim++)
-    val_residual[nDim+1] += -Volume * U_i[iDim+1] * Body_Force_Vector[iDim] / Force_Ref;
+  if (config->GetDensity_Weighted_Force()) {
+
+    /*--- Momentum contribution ---*/
+    
+    for (iDim = 0; iDim < nDim; iDim++)
+      val_residual[iDim+1] = -Volume * U_i[0] * Body_Force_Vector[iDim] / Force_Ref;
+    
+    /*--- Energy contribution ---*/
+    
+    val_residual[nDim+1] = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++)
+      val_residual[nDim+1] += -Volume * U_i[iDim+1] * Body_Force_Vector[iDim] / Force_Ref;
+
+  } else {
+
+    const su2double rho_lim = max(U_i[0], config->GetDensity_Ref()*1E-16);
+
+    /*--- Momentum contribution ---*/
+    
+    for (iDim = 0; iDim < nDim; iDim++)
+      val_residual[iDim+1] = -Volume * Body_Force_Vector[iDim] / Force_Ref;
+    
+    /*--- Energy contribution ---*/
+    
+    val_residual[nDim+1] = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++)
+      val_residual[nDim+1] += -Volume * U_i[iDim+1]/rho_lim * Body_Force_Vector[iDim] / Force_Ref;
+
+  }
   
 }
 

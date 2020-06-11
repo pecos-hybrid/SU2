@@ -1085,6 +1085,7 @@ private:
   su2double *default_kt_polycoeffs;        /*!< \brief Array for thermal conductivity polynomial coefficients. */
   su2double *ExtraRelFacGiles; /*!< \brief coefficient for extra relaxation factor for Giles BC*/
   bool Body_Force;            /*!< \brief Flag to know if a body force is included in the formulation. */
+  bool Density_Weighted_Force; /*!< \brief True if the body force is density-weighted. */
   su2double *Body_Force_Vector;  /*!< \brief Values of the prescribed body force vector. */
   su2double *FreeStreamTurboNormal; /*!< \brief Direction to initialize the flow in turbomachinery computation */
   su2double Restart_Bandwidth_Agg; /*!< \brief The aggregate of the bandwidth for writing binary restarts (to be averaged later). */
@@ -6258,6 +6259,12 @@ public:
    * \return <code>TRUE</code> if it uses a body force; otherwise <code>FALSE</code>.
    */
   bool GetBody_Force(void);
+
+  /*!
+   * \brief Check if the body force is density-weighted.
+   * \return True if the body force is to density-weighted.
+   */
+  bool GetDensity_Weighted_Force(void) const { return Density_Weighted_Force; }
 
   /*!
    * \brief Get a pointer to the body force vector.
