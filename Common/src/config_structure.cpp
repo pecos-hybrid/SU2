@@ -850,6 +850,14 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_body_force[0] = 0.0; default_body_force[1] = 0.0; default_body_force[2] = 0.0;
   /* DESCRIPTION: Vector of body force values (BodyForce_X, BodyForce_Y, BodyForce_Z) */
   addDoubleArrayOption("BODY_FORCE_VECTOR", 3, Body_Force_Vector, default_body_force);
+  /* DESCRIPTION: Apply a body force as a source term (NO, YES) */
+  addBoolOption("CONSTANT_MASS_FLUX_FORCING", Const_Mass_Flux_Forcing, false);
+  /* DESCRIPTION: Apply a body force as a source term (NO, YES) */
+  addBoolOption("CONSTANT_TEMP_FLUX_FORCING", Const_Temp_Flux_Forcing, false);
+  /*!\brief TARGET_BULK_MOMENTUM \n DESCRIPTION: When constant mass flux forcing is on, this is the target bulk momentum \ingroup Config*/
+  addDoubleOption("TARGET_BULK_MOMENTUM", Target_Bulk_Momentum, 0.0);
+  /*!\brief TARGET_BULK_TEMPERATURE \n DESCRIPTION: When constant temperature flux forcing is on, this is the target bulk temperature \ingroup Config*/
+  addDoubleOption("TARGET_BULK_TEMPERATURE", Target_Bulk_Temperature, 0.0);
   /*!\brief RESTART_SOL \n DESCRIPTION: Restart solution from native solution file \n Options: NO, YES \ingroup Config */
   addBoolOption("RESTART_SOL", Restart, false);
   /*!\brief BINARY_RESTART \n DESCRIPTION: Read / write binary SU2 native restart files. \n Options: YES, NO \ingroup Config */

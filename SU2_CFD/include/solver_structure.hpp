@@ -189,6 +189,14 @@ public:
   CSysVector *LinSysKimp;    /*!< \brief vectors to store implicit part of IMEX substep residual. */
 
   CSysVector LinSysDeltaU;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_w;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_y;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_z;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_d;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_e;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_g;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_forcing_terms;
+  
 
   CSysMatrix Jacobian; /*!< \brief Complete sparse Jacobian structure for implicit computations. */
   
@@ -4548,6 +4556,16 @@ public:
    * \return The average timescale
    */
   su2double GetAveragingTimescale(void) const;
+
+  virtual su2double GetBulkDensity(void) const;
+
+  virtual su2double GetBulkMomentum(void) const;
+
+  virtual su2double GetBulkTemperature(void) const;
+
+  virtual su2double GetBulkForce(void) const;
+
+  virtual su2double GetBulkHeating(void) const;
 };
 
 /*!
@@ -4966,6 +4984,10 @@ protected:
 
   su2double ****SlidingState;
   int **SlidingStateNodes;
+
+  /*-- Bulk variables ---*/
+  su2double total_volume, bulk_density, bulk_velocity, bulk_temperature,
+            bulk_force, bulk_heating;
 
 public:
   
@@ -7218,6 +7240,18 @@ public:
                     const string& restart_filename,
                     CConfig* config,
                     CGeometry** geometry);
+
+  void SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfig *config);
+
+  su2double GetBulkDensity(void) const;
+
+  su2double GetBulkMomentum(void) const;
+
+  su2double GetBulkTemperature(void) const;
+
+  su2double GetBulkForce(void) const;
+
+  su2double GetBulkHeating(void) const;
 };
 
 /*!
