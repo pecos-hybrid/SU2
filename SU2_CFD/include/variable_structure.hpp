@@ -914,11 +914,19 @@ public:
    */
   virtual su2double** GetAnisoEddyViscosity(void) const;
 
+  virtual su2double GetAnisoEddyViscosity(unsigned short iDim, unsigned short jDim) const;
+
   /*!
    * \brief Get the trace of the anisotropic eddy-viscosity
    * \return The trace of the anisotropic eddy viscosity of the flow.
    */
   virtual su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
+   * \brief Get a component of the (RANS) Reynolds stress tensor.
+   * \return The Reynolds stress tensor
+   */
+  virtual su2double GetReynoldsStress(unsigned short iDim, unsigned short jDim) const;
 
   /*!
    * \brief A virtual member.
@@ -4213,12 +4221,19 @@ public:
    * \return The anisotropic eddy viscosity of the flow.
    */
   su2double** GetAnisoEddyViscosity(void) const;
+  su2double GetAnisoEddyViscosity(unsigned short iDim, unsigned short jDim) const;
 
   /*!
    * \brief Get the trace of the anisotropic eddy-viscosity
    * \return The trace of the anisotropic eddy viscosity of the flow.
    */
   su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
+   * \brief Get a component of the (RANS) Reynolds stress tensor.
+   * \return The Reynolds stress tensor
+   */
+  su2double GetReynoldsStress(unsigned short iDim, unsigned short jDim) const;
 
   /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy.

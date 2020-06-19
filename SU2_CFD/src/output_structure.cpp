@@ -510,6 +510,10 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
           RegisterTensor("tau_res", "tau<sup>res</sup>", FLOW_SOL,
                          &CVariable::GetResolvedTurbStress, iZone, true);
         }
+        if (config[iZone]->GetWrt_Reynolds_Stress()) {
+          RegisterTensor("tau_S", "tau_S", FLOW_SOL,
+                         &CVariable::GetReynoldsStress, iZone, true);
+        }
         // TODO: Re-incarnate output associated with forcing
         // RegisterScalar("Forcing_Production", "P<sub>F</sub>", TURB_SOL,
         //                &CVariable::GetForcingProduction, iZone);
@@ -571,9 +575,9 @@ su2double COutput::RetrieveTensorComponent(CSolver** solver, COutputTensor var,
                                   unsigned long iPoint, unsigned short iDim,
                                   unsigned short jDim) {
   if (var.Average) {
-    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)()[iDim][jDim];
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)(iDim, jDim);
   } else {
-    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim][jDim];
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)(iDim, jDim);
   }
 }
 

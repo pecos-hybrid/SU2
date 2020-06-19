@@ -946,5 +946,27 @@ void CNSVariable::SetSecondaryVar(CFluidModel *FluidModel) {
 
 }
 
+su2double CNSVariable::GetReynoldsStress(unsigned short iDim, unsigned short jDim) const {
 
+  /*--- Note: Typically, turbulent kinetic energy is not available in the
+   * CNSVariable.  So we only calculate the deviatoric Reynolds stress
+   * here.  The 2/3 \rho k \delta_{ij} must be added to give the proper
+   * normal stresses ---*/
+
+  const su2double Density = Solution[0];
+  const su2double alpha_fac = KineticEnergyRatio*(2.0 - KineticEnergyRatio);
+  /*--- Primitive[nDim+6] is eddy viscosity.  Can't use GetEddyViscosity
+   * due to const qualifiers ---*/
+  const su2double mut_sgs = alpha_fac*Primitive[nDim+6];
+
+  su2double tau = mut_sgs*( Gradient_Primitive[jDim+1][iDim] + Gradient_Primitive[iDim+1][jDim] );
+  if (iDim == jDim) {
+    su2double div_vel = 0.0;
+    for (unsigned short kDim = 0 ; kDim < nDim; kDim++) {
+      div_vel += Gradient_Primitive[kDim+1][kDim];
+    }
+    tau -= TWO3*mut_sgs*div_vel;
+  }
+  return tau;
+}
 

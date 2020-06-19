@@ -263,7 +263,11 @@ inline su2double CVariable::GetEddyViscosity(void) { return 0; }
 
 inline su2double** CVariable::GetAnisoEddyViscosity(void) const { return NULL; }
 
+inline su2double CVariable::GetAnisoEddyViscosity(unsigned short iDim, unsigned short jDim) const { return 0; }
+
 inline su2double CVariable::GetTraceAnisoEddyViscosity(void) const { return 0; }
+
+inline su2double CVariable::GetReynoldsStress(unsigned short iDim, unsigned short jDim) const { return 0; }
 
 inline su2double CVariable::GetTurbTimescale(void) const { return 0; }
 
@@ -962,6 +966,10 @@ inline void CEulerVariable::Set_BGSSolution_k(void) {
 inline su2double CNSVariable::GetEddyViscosity(void) { return Primitive[nDim+6]; }
 
 inline su2double** CNSVariable::GetAnisoEddyViscosity(void) const { return AnisoEddyViscosity; }
+
+inline su2double CNSVariable::GetAnisoEddyViscosity(unsigned short iDim, unsigned short jDim) const {
+  return AnisoEddyViscosity[iDim][jDim];
+}
 
 inline su2double CNSVariable::GetTraceAnisoEddyViscosity(void) const {
   if (nDim == 2) {
