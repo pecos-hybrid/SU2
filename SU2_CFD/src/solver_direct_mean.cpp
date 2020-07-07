@@ -16582,6 +16582,7 @@ CNSSolver::CNSSolver(void) : CEulerSolver() {
 
   HeatConjugateVar = NULL;
 
+  CMA_count = 0;
 }
 
 CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh) : CEulerSolver() {
@@ -17372,6 +17373,10 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
     Set_MPI_Average_Solution(geometry, config);
     Set_MPI_Average_Solution(geometry, config);
   }
+
+  /*--- Initialize the cumulative moving average ---*/
+
+  CMA_count = 0;
   
 }
 
@@ -17442,7 +17447,7 @@ CNSSolver::~CNSSolver(void) {
     }
     delete [] Buffet_Sensor;
   }
-  
+
 }
 
 void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned short iRKStep, unsigned short RunTime_EqSystem, bool Output) {
@@ -20205,3 +20210,52 @@ void CNSSolver::SetTauWall_WF(CGeometry *geometry, CSolver **solver_container, C
   }
   
 }
+
+void CNSSolver::UpdateCMAverage() {
+  CMA_count += 1;
+  constexpr unsigned short nCMA_variables = CNSVariable::nCMA_variables;
+  su2double update_vars[nCMA_variables];
+  su2double buffer[nCMA_variables];
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+
+    /*--- Previous value of the averages ---*/
+
+    const su2double* current_vars = node[iPoint]->GetCMA_variables();
+
+    /*--- Conservative variables ---*/
+
+    const su2double *solution = node[iPoint]->GetSolution();
+    for (unsigned short iVar = 0; iVar < 5; iVar++) {
+      update_vars[iVar] = solution[iVar];
+    }
+
+    /*--- Covariances ---*/
+
+    /*--- This could all be simplified using the primitive variables
+     array or by omitting the temporary 'u', 'v', 'w', etc.
+     But this way is more readable ---*/
+
+    const su2double u = node[iPoint]->GetVelocity(0);
+    const su2double v = node[iPoint]->GetVelocity(1);
+    const su2double w = node[iPoint]->GetVelocity(2);
+    const su2double p = node[iPoint]->GetPressure();
+    const su2double T = node[iPoint]->GetTemperature();
+    update_vars[5] = u * u;
+    update_vars[6] = v * v;
+    update_vars[7] = w * w;
+    update_vars[8] = u * v;
+    update_vars[9] = v * w;
+    update_vars[11] = u * T;
+    update_vars[12] = v * T;
+    update_vars[13] = w * T;
+    update_vars[14] = T * T;
+    update_vars[15] = p * p;
+
+    /*--- Update average ---*/
+
+    for (unsigned short iVar = 0; iVar < nCMA_variables; iVar++) {
+      buffer[iVar] = (update_vars[iVar] - current_vars[iVar]) / CMA_count;
+    }
+    node[iPoint]->AddCMA_variables(buffer);
+  }
+};

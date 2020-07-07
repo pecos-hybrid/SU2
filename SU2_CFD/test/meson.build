@@ -26,6 +26,7 @@ SU2_CFD_boost_tests = files(['convective_blending_test.cpp',
                              'viscous_residual_2d_test.cpp',
                              'viscous_model_split.cpp',
                              'averaging_timescale_test.cpp',
+                             'cumulative_average_test.cpp',
                              'main.cpp'])
 
 if mkl_dep.found()

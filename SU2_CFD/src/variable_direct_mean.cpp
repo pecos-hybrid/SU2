@@ -579,6 +579,10 @@ CNSVariable::CNSVariable(void) : CEulerVariable() {
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     ForcingVector[iDim] = 0;
   }
+  CMA_variables = new su2double[nCMA_variables];
+  for (unsigned short iVar=0; iVar < nCMA_variables; iVar++) {
+      CMA_variables[iVar] = 0.0;
+  }
 }
 
 CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2double val_energy,
@@ -618,6 +622,10 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       ForcingVector[iDim] = 0;
     }
+    CMA_variables = new su2double[nCMA_variables];
+    for (unsigned short iVar=0; iVar < nCMA_variables; iVar++) {
+        CMA_variables[iVar] = 0.0;
+    }
 
 }
 
@@ -656,8 +664,10 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       ForcingVector[iDim] = 0;
     }
-    
-
+    CMA_variables = new su2double[nCMA_variables];
+    for (unsigned short iVar = 0; iVar < nCMA_variables; iVar++) {
+      CMA_variables[iVar] = 0.0;
+    }
 }
 
 CNSVariable::~CNSVariable(void) {
@@ -675,6 +685,9 @@ CNSVariable::~CNSVariable(void) {
   }
   if (ForcingVector != NULL) {
     delete [] ForcingVector;
+  }
+  if (CMA_variables != NULL) {
+    delete [] CMA_variables;
   }
 }
 

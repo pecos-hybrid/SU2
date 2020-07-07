@@ -736,6 +736,10 @@ void CFluidIteration::Update(COutput *output,
   }
 
   /*--- Update averages ---*/
+  if (true) {
+    CNSSolver* fluid_solver = dynamic_cast<CNSSolver*>(solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL]);
+    fluid_solver->UpdateCMAverage();
+  }
   if (config_container[val_iZone]->GetKind_Averaging() != NO_AVERAGING) {
     /*--- We check this when setting up, so this assert should never be false ---*/
     assert(config_container[val_iZone]->GetUnsteady_Simulation() != STEADY);

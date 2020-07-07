@@ -187,7 +187,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
       
       for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
            it != output_vectors[val_iZone].end(); ++it) {
-        for (iDim = 1; iDim < nDim+1; iDim++) {
+        for (iDim = 1; iDim < (it->size + 1); iDim++) {
           Tecplot_File << ", \"" << it->Tecplot_Name;
           Tecplot_File << "<sub>" << iDim << "</sub>\"";
         }
@@ -3550,7 +3550,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
     
     for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
          it != output_vectors[val_iZone].end(); ++it) {
-      for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+      for (unsigned short iDim = 1; iDim < (it->size + 1); iDim++) {
           variables << it->Name << "_" << iDim << " ";
           *NVar += 1;
       }

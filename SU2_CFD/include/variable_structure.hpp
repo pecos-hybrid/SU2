@@ -2605,6 +2605,9 @@ public:
 
   virtual su2double GetSolution_Old_Accel(unsigned short iVar);
 
+  virtual const su2double* GetCMA_variables() const {return NULL;};
+
+  virtual void AddCMA_variables(const su2double* values) { };
 };
 
 /*!
@@ -4054,6 +4057,11 @@ private:
   su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
   su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
   su2double SGSProduction; /*!< \brief The subgrid portion of the production of TKE */
+
+
+  /*--- Cumulative average variables ---*/
+
+  su2double* CMA_variables; /*!< \brief Array of average variables */
   
 public:
   
@@ -4378,6 +4386,19 @@ public:
    */
   void SetRoe_Dissipation(su2double val_dissipation);
   
+  const su2double* GetCMA_variables() const override { return CMA_variables; }
+
+  void AddCMA_variables(const su2double* values) override {
+    assert(CMA_variables);
+    assert(CMA_variables != NULL);
+    for (unsigned short iVar = 0; iVar < nCMA_variables; iVar++) {
+      CMA_variables[iVar] += values[iVar];
+    }
+  }
+
+  /*--- 5 convservative variables, 6 velocity variances,
+    5 other primitive variable covariances ---*/
+  static constexpr unsigned short nCMA_variables = 5+6+5; /*!< \brief Number of CMA variables being used */
 };
 
 /*!

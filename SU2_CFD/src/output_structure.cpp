@@ -475,6 +475,13 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetProduction, iZone, false);
       }
 
+      // TODO: Add a config option here.
+      if (true) {
+        RegisterVector("CMAverage", "CMAAverage", FLOW_SOL,
+                       &CVariable::GetCMA_variables, iZone, false,
+                       CNSVariable::nCMA_variables);
+      }
+
       const bool model_split_hybrid =
           (config[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
@@ -526,8 +533,8 @@ void COutput::RegisterScalar(std::string name, std::string tecplot_name,
 void COutput::RegisterVector(std::string name, std::string tecplot_name,
                              unsigned short solver_type,
                              VectorAccessor accessor, unsigned short val_zone,
-                             bool average) {
-  COutputVector vector = {name, tecplot_name, solver_type, accessor, average};
+                             bool average, unsigned short size) {
+  COutputVector vector = {name, tecplot_name, solver_type, accessor, average, size};
   output_vectors[val_zone].push_back(vector);
 }
 
@@ -2565,13 +2572,15 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     
     for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
          it != output_vectors[val_iZone].end(); ++it) {
-      nVar_Total += nDim;
+      nVar_Total += it->size;
     }
 
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
       nVar_Total += nDim*nDim;
     }
+
+    //: Add code here...
 
 
     if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
@@ -4566,11 +4575,11 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
     for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
          it != output_vectors[val_iZone].end(); ++it) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
-        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+        for (unsigned short iDim = 1; iDim < (it->size + 1); iDim++) {
           restart_file << "\t\"" << it->Name << "_" << iDim << "\"";
         }
       } else {
-        for (unsigned short iDim = 1; iDim < nDim+1; iDim++) {
+        for (unsigned short iDim = 1; iDim < (it->size + 1); iDim++) {
             restart_file << "\t\"" << it->Tecplot_Name;
             restart_file << "<sub>" << iDim << "</sub>" << "\"";
         }
@@ -13413,7 +13422,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 
     for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
          it != output_vectors[val_iZone].end(); ++it) {
-      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
+      for (unsigned int iDim=1; iDim < (it->size + 1); iDim++) {
         nVar_Par += 1;
         if (config->GetOutput_FileFormat() == PARAVIEW){
           ostringstream label;
@@ -13729,7 +13738,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 
         for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
              it != output_vectors[val_iZone].end(); ++it) {
-          for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          for (unsigned short iDim = 0; iDim < it->size; iDim++) {
             Local_Data[jPoint][iVar] = RetrieveVectorComponent(solver, *it, iPoint, iDim);
             iVar++;
           }

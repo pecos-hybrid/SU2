@@ -86,6 +86,7 @@ struct COutputVector {
   unsigned short Solver_Type;
   VectorAccessor Accessor;
   bool Average;
+  unsigned short size;
 };
 
 /*!
@@ -292,7 +293,7 @@ public:
 
   void RegisterVector(std::string name, std::string tecplot_name,
                       unsigned short solver_type, VectorAccessor accessor,
-                      unsigned short val_zone, bool average = false);
+                      unsigned short val_zone, bool average = false, unsigned short size=3);
 
   /*!
    * \brief Add a tensor to the list of extra variables to be used in output

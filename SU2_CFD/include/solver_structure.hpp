@@ -8741,6 +8741,8 @@ private:
 
   CAbstract_Hybrid_Mediator *HybridMediator; /*!< \brief A mediator object for a hybrid RANS/LES model. */
 
+  unsigned long CMA_count; /*!< \brief Number of CMA iterations taken so far. */
+
 public:
   
   /*!
@@ -9224,6 +9226,13 @@ public:
    * \param[in] hybrid_mediator - The mediator object
    */
   void AddHybridMediator(CAbstract_Hybrid_Mediator *hybrid_mediator);
+
+  /*!
+   * \brief Update the cumulative moving average in a non-steady problem.
+   *
+   * This function should only be called once per (outermost) iteration.
+   */
+  void UpdateCMAverage();
 };
 
 /*!
