@@ -23,6 +23,7 @@ branches:
     only:
         - pecos-dev
         - pecos-hybrid-fixes
+        - pecos-cumulative-averaging
 
 addons:
   apt:
