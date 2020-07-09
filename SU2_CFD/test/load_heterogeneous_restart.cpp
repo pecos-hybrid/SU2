@@ -116,7 +116,7 @@ struct HetergeneousRestartFixture {
     cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
     cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
     cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
-    cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
+    cfg_file << "RUNTIME_AVERAGING= POINTWISE_EWMA" << std::endl;
     cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
     cfg_file.close();
   }

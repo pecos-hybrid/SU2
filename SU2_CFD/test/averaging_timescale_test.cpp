@@ -61,8 +61,8 @@ static void WriteCfgFile(const char* filename, const string& period) {
   cfg_file.open(filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "TIME_DISCRE_FLOW= EULER_IMPLICIT" << std::endl;
-  cfg_file << "NUM_AVERAGING_PERIODS= 4.0" << std::endl;
-  cfg_file << "AVERAGING_PERIOD= " << period << std::endl;
+  cfg_file << "EWMA_NUM_AVERAGING_PERIODS= 4.0" << std::endl;
+  cfg_file << "EWMA_AVERAGING_PERIOD= " << period << std::endl;
 
   cfg_file.close();
 

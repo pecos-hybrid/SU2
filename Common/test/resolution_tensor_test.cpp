@@ -426,9 +426,7 @@ void WriteCfgFile(unsigned short nDim, const char* cfg_filename,
 
   cfg_file.open(cfg_filename, ios::out);
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
-  cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
-  cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
-  cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
+  cfg_file << "WRT_RESOLUTION_TENSORS= YES" << std::endl;
   if (nDim == 2)
     cfg_file << "MARKER_FAR= ( lower upper left right )"  << std::endl;
   else

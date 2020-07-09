@@ -3094,87 +3094,82 @@ void CSolver::Read_SU2_Restart_Metadata(CGeometry *geometry, CConfig *config, bo
 void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
                           CConfig* config) {
 
-  su2double time = config->GetCurrent_UnstTime();
+  /*--- In the averaging process here, one bad value can contaminate the
+   * averages at a point.  We could try to correct for this here, but
+   * the generic averaging routine is not the best place to do so.  Instead,
+   * corrections should happen in the solver or variable classes, where more
+   * specific and physically relevant limitations can be applied for
+   * each variable individually. For example, density can be constrained
+   * to be positive but momentum can be positive or negative.
+   *
+   * Instead of trying to account for bad values here, we assume that the
+   * values stored in the "Solution" are good values. ---*/
 
-  if (time > config->GetAveragingStartTime()) {
+  su2double timescale;
+  const su2double dt = config->GetDelta_UnstTimeND();
+  const su2double N_T = config->GetnEWMAPeriods();
 
-    /*--- In the averaging process here, one bad value can contaminate the
-     * averages at a point.  We could try to correct for this here, but
-     * the generic averaging routine is not the best place to do so.  Instead,
-     * corrections should happen in the solver or variable classes, where more
-     * specific and physically relevant limitations can be applied for
-     * each variable individually. For example, density can be constrained
-     * to be positive but momentum can be positive or negative.
-     *
-     * Instead of trying to account for bad values here, we assume that the
-     * values stored in the "Solution" are good values. ---*/
+  assert(dt > 0);
+  assert(N_T > 0);
 
-    su2double timescale;
-    const su2double dt = config->GetDelta_UnstTimeND();
-    const su2double N_T = config->GetnAveragingPeriods();
-
-    assert(dt > 0);
-    assert(N_T > 0);
-
-    if (config->GetKind_Averaging_Period() == FLOW_TIMESCALE) {
-      timescale = config->GetRefLength()/config->GetModVel_FreeStream();
-      timescale /= config->GetTime_Ref();
-      assert(timescale > 0);
-    } else if (config->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
-      su2double local_max_timescale = 0;
-      for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-        const su2double typical_time = solver[TURB_SOL]->node[iPoint]->GetTypicalTimescale();
-        const su2double kol_time = solver[TURB_SOL]->node[iPoint]->GetKolTimescale();
-
-	timescale = max(typical_time, kol_time);
-        local_max_timescale = max(timescale, local_max_timescale);
-      }
-      SU2_MPI::Allreduce(&local_max_timescale, &timescale, 1,
-                         MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-      assert(timescale > 0);
-
-      /*--- Save the timescale so it can be accessed later ---*/
-
-      SetAveragingTimescale(timescale);
-    }
-
-    su2double* buffer = new su2double[nVar];
+  if (config->GetKind_EWMA_Period() == FLOW_TIMESCALE) {
+    timescale = config->GetRefLength() / config->GetModVel_FreeStream();
+    timescale /= config->GetTime_Ref();
+    assert(timescale > 0);
+  } else if (config->GetKind_EWMA_Period() == MAX_TURB_TIMESCALE) {
+    su2double local_max_timescale = 0;
     for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+      const su2double typical_time =
+          solver[TURB_SOL]->node[iPoint]->GetTypicalTimescale();
+      const su2double kol_time =
+          solver[TURB_SOL]->node[iPoint]->GetKolTimescale();
 
-      if (config->GetKind_Averaging_Period() == TURB_TIMESCALE) {
-        const su2double typical_time = solver[TURB_SOL]->node[iPoint]->GetTypicalTimescale();
-        const su2double kol_time = solver[TURB_SOL]->node[iPoint]->GetKolTimescale();
+      timescale = max(typical_time, kol_time);
+      local_max_timescale = max(timescale, local_max_timescale);
+    }
+    SU2_MPI::Allreduce(&local_max_timescale, &timescale, 1, MPI_DOUBLE, MPI_MAX,
+                       MPI_COMM_WORLD);
+    assert(timescale > 0);
 
-	timescale = max(typical_time, kol_time);
+    /*--- Save the timescale so it can be accessed later ---*/
 
-        assert(timescale > 0);
+    SetAveragingTimescale(timescale);
+  }
+
+  su2double *buffer = new su2double[nVar];
+  const unsigned short kind_turb_model = config->GetKind_Turb_Model();
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    if (config->GetKind_EWMA_Period() == TURB_TIMESCALE) {
+      if (kind_turb_model == KE) {
+        /*--- Don't use stagnation correction for turbulent timescale ---*/
+        const su2double typical_time =
+            solver[TURB_SOL]->node[iPoint]->GetTypicalTimescale();
+        const su2double kol_time =
+            solver[TURB_SOL]->node[iPoint]->GetKolTimescale();
+        timescale = max(typical_time, kol_time);
+      } else {
+        timescale = solver[TURB_SOL]->node[iPoint]->GetTurbTimescale();
       }
-
-      /*--- Even if (dt > N_T*timescale) at any point (i.e., the timesteps
-       * are greater than the averaging period), we don't want the weight
-       * to be greater than 1. We also want to average over at least a few
-       * values, even if the timesteps are larger than the averaging period.
-       * So we change the weight to make the averaging act as if
-       * dt = (N_T*timescale)/min_number_samples ---*/
-      const unsigned short min_number_samples = 5;
-
-      /*--- For forward Euler, w = dt/T
-       *   For backward Euler, w = dt/(T+dt) ---*/
-      const su2double weight = min(dt/(N_T * timescale + dt), 1.0/min_number_samples);
-
-      UpdateAverage(weight, iPoint, buffer, config);
+      assert(timescale > 0);
     }
 
-    delete [] buffer;
+    /*--- Even if (dt > N_T*timescale) at any point (i.e., the timesteps
+     * are greater than the averaging period), we don't want the weight
+     * to be greater than 1. We also want to average over at least a few
+     * values, even if the timesteps are larger than the averaging period.
+     * So we change the weight to make the averaging act as if
+     * dt = (N_T*timescale)/min_number_samples ---*/
+    const unsigned short min_number_samples = 5;
 
-  } else {
+    /*--- For forward Euler, w = dt/T
+     *   For backward Euler, w = dt/(T+dt) ---*/
+    const su2double weight =
+        min(dt / (N_T * timescale + dt), 1.0 / min_number_samples);
 
-    /*--- We're delaying the average calculation till later, so just
-     * set average = instantaneous ---*/
-
-    InitAverages();
-
+    UpdateAverage(weight, iPoint, buffer, config);
   }
+
+  delete[] buffer;
 }
 
 

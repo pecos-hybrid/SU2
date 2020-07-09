@@ -4789,6 +4789,14 @@ public:
    * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
    */
   void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
+
+  su2double GetTypicalTimescale() const override {
+     return T;
+  };
+
+  su2double GetTypicalLengthscale() const override {
+    return L;
+  }
 };
 
 /*!

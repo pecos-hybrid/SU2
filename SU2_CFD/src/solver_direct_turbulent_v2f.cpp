@@ -57,7 +57,7 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   unsigned long iPoint;
   ifstream restart_file;
   string text_line;
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI

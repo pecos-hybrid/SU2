@@ -1115,10 +1115,11 @@ private:
   
 
   ofstream *ConvHistFile;       /*!< \brief Store the pointer to each history file */
-  unsigned short Kind_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
-  unsigned short Kind_Averaging_Period;  /*!< \brief Type of period over which runtime averages are to be computed. */
-  su2double nAveragingPeriods;  /*!< \brief Number of periods over which to average. */
-  su2double AveragingStartTime; /*!< \brief Amount of time to skip before averaging begins. */
+  unsigned short nKind_Runtime_Averaging; /*!< \brief The number of kinds of runtime-averaging to be performed. */
+  unsigned short* Kind_Runtime_Averaging;  /*!< \brief Type of runtime-averaging to be performed. */
+  unsigned short Kind_EWMA_Period;  /*!< \brief Type of period over which runtime averages are to be computed. */
+  su2double nEWMAPeriods;  /*!< \brief Number of periods over which to average. */
+  su2double CMAveragingStartTime; /*!< \brief Amount of time to skip before averaging begins. */
   bool Time_Domain;             /*!< \brief Determines if the multizone problem is solved in time-domain */
   unsigned long Outer_Iter,    /*!< \brief Determines the number of outer iterations in the multizone problem */
   Inner_Iter,                   /*!< \brief Determines the number of inner iterations in each multizone block */
@@ -9388,28 +9389,47 @@ public:
   void SetHistFile(ofstream *HistFile);
 
   /*!
+   * \brief Get the number of types of averaging to be performed.
+   * 
+   * For example, if EWMA and CMA are used, then this returns '2'.
+   * 
+   * \return The type of averaging to be performed
+   */
+  unsigned short GetnKind_Runtime_Averaging(void) const { return nKind_Runtime_Averaging; }
+
+  /*!
    * \brief Get the type of runtime averaging to be performed (or no averaging)
    * \return The type of averaging to be performed
    */
-  unsigned short GetKind_Averaging(void) const;
+  const unsigned short* GetKind_Runtime_Averaging(void) const { return Kind_Runtime_Averaging; };
+
+  /*!
+   * \brief Check if a specific type of averaging is enabled.
+   *
+   * \param[in] averaging_type - A averaging type matching the Averaging type enum.
+   * \return TRUE if the averaging type is enabled.
+   */
+  bool AveragingTypeIsEnabled(unsigned short averaging_type) const;
 
   /*!
    * \brief Get the type of time interval used as an averaging period.
    * \return The type of time interval to be performed.
    */
-  unsigned short GetKind_Averaging_Period(void) const;
+  unsigned short GetKind_EWMA_Period(void) const {
+    return Kind_EWMA_Period;
+  }
 
   /*!
    * \brief The number of time periods over which to average.
    * \return The number of time periods over which to average.
    */
-  su2double GetnAveragingPeriods(void) const;
+  su2double GetnEWMAPeriods(void) const { return nEWMAPeriods; }
 
   /*!
    * \brief Get The time at which to start runtime averaging.
    * \return The time at which to start runtime averaging.
    */
-  su2double GetAveragingStartTime(void) const;
+  su2double GetCMAveragingStartTime(void) const { return CMAveragingStartTime; }
 
   /*!
    * \brief Get the filenames of the individual config files

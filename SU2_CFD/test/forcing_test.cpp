@@ -49,7 +49,7 @@ static void WriteCfgFile(const char* filename) {
   cfg_file << "PHYSICAL_PROBLEM= NAVIER_STOKES" << std::endl;
   cfg_file << "KIND_TURB_MODEL= KE" << std::endl;
   cfg_file << "HYBRID_RANSLES= MODEL_SPLIT" << std::endl;
-  cfg_file << "RUNTIME_AVERAGING= POINTWISE" << std::endl;
+  cfg_file << "RUNTIME_AVERAGING= POINTWISE_EWMA" << std::endl;
   cfg_file << "UNSTEADY_SIMULATION= TIME_STEPPING" << std::endl;
   cfg_file << "HYBRID_FORCING_PERIODIC_LENGTH= (";
   cfg_file << std::setprecision(std::numeric_limits<su2double>::digits10 + 1);

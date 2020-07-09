@@ -593,8 +593,8 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       }
       VarCounter++;
     }
-    
-    if (config->GetKind_Averaging() != NO_AVERAGING) {
+
+    if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
       for (iVar = 0; iVar < nVar_Consv; iVar++) {
 
         Paraview_File << "\nSCALARS Average_" << iVar+1 << " float 1\n";
@@ -1608,7 +1608,7 @@ void COutput::SetParaview_MeshASCII(CConfig *config, CGeometry *geometry, unsign
       VarCounter++;
     }
 
-    if (config->GetKind_Averaging() != NO_AVERAGING) {
+    if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
       for (iVar = 0; iVar < nVar_Consv; iVar++) {
 
         Paraview_File << "\nSCALARS Average_" << iVar+1 << " float 1\n";
@@ -1628,7 +1628,7 @@ void COutput::SetParaview_MeshASCII(CConfig *config, CGeometry *geometry, unsign
         VarCounter++;
       }
     }
-    
+
     if (config->GetWrt_Limiters()) {
       for (iVar = 0; iVar < nVar_Consv; iVar++) {
         

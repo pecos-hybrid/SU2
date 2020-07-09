@@ -283,7 +283,7 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
    * dimensional ---*/
   const su2double time = config->GetCurrent_UnstTime();
 
-  if (time > config->GetAveragingStartTime()) {
+  if (time > config->GetCMAveragingStartTime()) {
     su2double* primvar_i =
         solver_container[FLOW_SOL]->average_node[iPoint]->GetPrimitive();
     su2double* primvar_j =

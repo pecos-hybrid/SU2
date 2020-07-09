@@ -1403,7 +1403,7 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
   ifstream restart_file;
   string restart_filename = config->GetSolution_FlowFileName();
 
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
 
   /*--- Modify file name for multizone problems ---*/
   if (nZone >1)
@@ -1554,7 +1554,7 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   unsigned short iVar, iDim, nLineLets;
   unsigned long iPoint;
   su2double Density_Inf, Viscosity_Inf, Factor_nu_Inf, Factor_nu_Engine, Factor_nu_ActDisk;
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
 
   bool multizone = config->GetMultizone_Problem();
 
@@ -3918,7 +3918,7 @@ CTurbSSTSolver::CTurbSSTSolver(CGeometry *geometry, CConfig *config, unsigned sh
   string text_line;
   bool multizone = config->GetMultizone_Problem();
 
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
 
   
   /*--- Array initialization ---*/

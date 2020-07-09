@@ -198,7 +198,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   bool fsi     = config->GetFSI_Simulation();
   bool multizone = config->GetMultizone_Problem();
   string filename_ = config->GetSolution_FlowFileName();
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -909,7 +909,7 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
 
   Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
-  if (config->GetKind_Averaging() != NO_AVERAGING){
+  if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)){
     Set_MPI_Average_Solution(geometry, config);
     Set_MPI_Average_Solution(geometry, config);
   }
@@ -4691,11 +4691,11 @@ void CEulerSolver::SetNondimensionalization(CConfig *config, unsigned short iMes
       NonDimTable.PrintFooter();
     }
     
-    if (config->GetKind_Averaging() != NO_AVERAGING &&
-        config->GetKind_Averaging_Period() == FLOW_TIMESCALE) {
+    if (config->AveragingTypeIsEnabled(POINTWISE_EWMA) &&
+        config->GetKind_EWMA_Period() == FLOW_TIMESCALE) {
       su2double timescale = config->GetRefLength()/config->GetModVel_FreeStream();
       timescale /= config->GetTime_Ref();
-      const su2double N_T = config->GetnAveragingPeriods();
+      const su2double N_T = config->GetnEWMAPeriods();
       cout << "Averaging period (non-dim): " << timescale << endl;
       cout << "Total averaging window (non-dim): " << N_T*timescale << endl;
     }
@@ -4844,7 +4844,7 @@ void CEulerSolver::SetInitialCondition(CGeometry **geometry, CSolver ***solver_c
         
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution(geometry[iMesh], config);
         solver_container[iMesh][FLOW_SOL]->Set_MPI_Solution_Old(geometry[iMesh], config);
-        if (config->GetKind_Averaging() != NO_AVERAGING) {
+        if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
           solver_container[iMesh][FLOW_SOL]->Set_MPI_Average_Solution(geometry[iMesh], config);
 	}
         
@@ -4965,7 +4965,7 @@ void CEulerSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container
       SetPrimitive_Gradient_LS(geometry, config);
     }
 
-    if (config->GetKind_Averaging() != NO_AVERAGING) {
+    if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
       if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
         SetAverage_Primitive_Gradient_GG(geometry, config);
       }
@@ -4973,7 +4973,7 @@ void CEulerSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container
         SetAverage_Primitive_Gradient_LS(geometry, config);
       }
     }
-    
+
     /*--- Limiter computation ---*/
     
     if (limiter && (iMesh == MESH_0)
@@ -5023,7 +5023,7 @@ unsigned long CEulerSolver::SetPrimitive_Variables(CSolver **solver_container, C
   
   unsigned long iPoint, ErrorCounter = 0;
   bool RightSol = true;
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
   
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
     
@@ -14952,7 +14952,7 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
   const bool static_fsi = ((config->GetUnsteady_Simulation() == STEADY) &&
                            (config->GetFSI_Simulation()));
   const bool steady_restart = config->GetSteadyRestart();
-  const bool runtime_averaging = config->GetKind_Averaging() != NO_AVERAGING;
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
   const unsigned short skipVars = geometry[MESH_0]->GetnDim();
   const bool model_split = config->GetKind_HybridRANSLES() == MODEL_SPLIT;
   const bool turbulent     = (config->GetKind_Solver() == RANS) || (config->GetKind_Solver() == DISC_ADJ_RANS);
@@ -15280,7 +15280,7 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
   bool static_fsi = ((config->GetUnsteady_Simulation() == STEADY) &&
                      (config->GetFSI_Simulation()));
   bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
-  const bool runtime_averaging = config->GetKind_Averaging() != NO_AVERAGING;
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
 
   string UnstExt, text_line;
   ifstream restart_file;
@@ -16612,7 +16612,7 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
 
   unsigned short direct_diff = config->GetDirectDiff();
   bool rans = ((config->GetKind_Solver() == RANS )|| (config->GetKind_Solver() == DISC_ADJ_RANS));
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -17476,7 +17476,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   unsigned short kind_row_dissipation = config->GetKind_RoeLowDiss();
   const bool roe_low_dissipation  = config->BlendUpwindCentralFluxes();
   bool wall_functions       = config->GetWall_Functions();
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
 
   /*--- Update the angle of attack at the far-field for fixed CL calculations (only direct problem). ---*/
   
@@ -17537,7 +17537,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
     SetPrimitive_Gradient_LS(geometry, config);
   }
 
-  if (config->GetKind_Averaging() != NO_AVERAGING) {
+  if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
     if (config->GetKind_Gradient_Method() == GREEN_GAUSS) {
       SetAverage_Primitive_Gradient_GG(geometry, config);
     }
@@ -17631,7 +17631,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                      (config->GetKind_Solver() == DISC_ADJ_RANS)) &&
                     ((config->GetKind_Turb_Model() == SST) ||
                      (config->GetKind_Turb_Model() == KE)));
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_averaging = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
   /*--- Compute the minimum value of TKE allowed ---*/
@@ -20221,10 +20221,12 @@ void CNSSolver::UpdateCMAverage() {
     /*--- Previous value of the averages ---*/
 
     const su2double* current_vars = node[iPoint]->GetCMA_variables();
+    assert(current_vars != NULL);
 
     /*--- Conservative variables ---*/
 
     const su2double *solution = node[iPoint]->GetSolution();
+    assert(solution != NULL);
     for (unsigned short iVar = 0; iVar < 5; iVar++) {
       update_vars[iVar] = solution[iVar];
     }

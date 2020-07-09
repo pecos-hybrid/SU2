@@ -201,7 +201,7 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
 #ifndef NDEBUG
   // Check that fluctuations are zero if averaging is not to be performed
   const su2double time = config->GetCurrent_UnstTime();
-  if (time < config->GetAveragingStartTime()) {
+  if (time < config->GetCMAveragingStartTime()) {
     for (iVar = 0; iVar < nDim+1; iVar++) {
       for (iDim = 0; iDim < nDim; iDim++) {
         assert(abs(Mean_GradPrimVar_Fluct[iVar][iDim]) < EPS);

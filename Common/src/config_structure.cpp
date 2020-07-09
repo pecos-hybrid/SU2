@@ -659,6 +659,8 @@ void CConfig::SetPointersNull(void) {
   top_optim_kernel_params = NULL;
   top_optim_filter_radius = NULL;
 
+  Kind_Runtime_Averaging = NULL;
+
   /*--- Variable initialization ---*/
   
   ExtIter    = 0;
@@ -2515,14 +2517,14 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Permuting eigenvectors for UQ analysis */
   addBoolOption("UQ_PERMUTE", uq_permute, false);
 
-  /*!\brief RUNTIME_AVERAGING \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the type of averaging to be performed.  \n DEFAULT: NO_AVERAGING \ingroup Config */
-  addEnumOption("RUNTIME_AVERAGING", Kind_Averaging, RuntimeAverage_Map, NO_AVERAGING);
+  /*!\brief RUNTIME_AVERAGING \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the type of averaging to be performed. If no option is specified, then no runtime averaging will be performed. \ingroup Config */
+  addEnumListOption("RUNTIME_AVERAGING", nKind_Runtime_Averaging, Kind_Runtime_Averaging, RuntimeAverage_Map);
 
   /*!\brief AVERAGING_PERIOD \n DESCRIPTION: If averaging is to be performed at runtime, this specifies the time period over which the averaging will be applied.  \n DEFAULT: FLOW_TIMESCALE \ingroup Config */
-  addEnumOption("AVERAGING_PERIOD", Kind_Averaging_Period, AveragingPeriod_Map, FLOW_TIMESCALE);
+  addEnumOption("EWMA_AVERAGING_PERIOD", Kind_EWMA_Period, AveragingPeriod_Map, TURB_TIMESCALE);
 
   /*!\brief NUM_AVERAGING_PERIODS \n DESCRIPTION: If averaging is to be performed at runtime, this is the number of time periods over which to average. The inverse of this number can also be thought of as a proportional gain or a relaxation factor for the average calculations.  \n DEFAULT: 4.0 \ingroup Config */
-  addDoubleOption("NUM_AVERAGING_PERIODS", nAveragingPeriods, 4.0);
+  addDoubleOption("EWMA_NUM_AVERAGING_PERIODS", nEWMAPeriods, 4.0);
 
   /*!\brief AVERAGING_START_TIME \n
    * DESCRIPTION: Averaging, if specified, will only be performed starting
@@ -2531,7 +2533,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
    * the average will be set to the instantaneous values. This setting is
    * useful when the initial state does not match the desired state.  \n
    * DEFAULT: 0.0 \ingroup Config */
-  addDoubleOption("AVERAGING_START_TIME", AveragingStartTime, 0.0);
+  addDoubleOption("CMA_AVERAGING_START_TIME", CMAveragingStartTime, 0.0);
 
   /* END_CONFIG_OPTIONS */
 
@@ -4494,7 +4496,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
   }
   /*--- Check to make sure averaging options are appropriate ---*/
 
-  if (Kind_Averaging != NO_AVERAGING) {
+  if (nKind_Runtime_Averaging > 0) {
 
     if (Unsteady_Simulation == STEADY) {
       SU2_MPI::Error("Runtime averaging cannot be used with a steady-state problem.", CURRENT_FUNCTION);
@@ -4519,8 +4521,8 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
       SU2_MPI::Error("Your problem definition is not compatible with averaging!", CURRENT_FUNCTION);
     }
 
-    if (Kind_Averaging_Period == TURB_TIMESCALE ||
-        Kind_Averaging_Period == MAX_TURB_TIMESCALE) {
+    if (Kind_EWMA_Period == TURB_TIMESCALE ||
+        Kind_EWMA_Period == MAX_TURB_TIMESCALE) {
       if (Kind_Solver != RANS && Kind_Solver != ADJ_RANS &&
           Kind_Solver != DISC_ADJ_RANS) {
         SU2_MPI::Error("You must use a RANS model to average over turbulent timescales.", CURRENT_FUNCTION);
@@ -4530,15 +4532,15 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
       }
     }
 
-    if (nAveragingPeriods <= 0) {
+    if (nEWMAPeriods <= 0) {
       SU2_MPI::Error("The number of averaging periods must be greater than zero.", CURRENT_FUNCTION);
     }
   }
 
   /*--- Check that the hybrid RANS/LES options are appropriate ---*/
 
-  if (Kind_HybridRANSLES == MODEL_SPLIT && Kind_Averaging == NO_AVERAGING) {
-    SU2_MPI::Error("Model-split hybrid RANS/LES requires averaging to be used.", CURRENT_FUNCTION);
+  if (Kind_HybridRANSLES == MODEL_SPLIT && !(AveragingTypeIsEnabled(POINTWISE_EWMA))) {
+    SU2_MPI::Error("Model-split hybrid RANS/LES requires the exponentially weighted moving average (POINTWISE_EWMA) to be used.", CURRENT_FUNCTION);
   }
   
   /*--- Check the coefficients for the polynomial models. ---*/
@@ -6996,26 +6998,34 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
     BoundaryTable.PrintFooter();
   }
 
-  if (val_software == SU2_CFD && Kind_Averaging != NO_AVERAGING) {
+  if (val_software == SU2_CFD && nKind_Runtime_Averaging > 0) {
     cout << endl <<"--------------------- Runtime Averaging Parameters ----------------------" << endl;
 
-    cout << "Type of averaging: ";
-    switch (Kind_Averaging) {
-      case POINTWISE_AVERAGE: cout << "Pointwise"; break;
+    cout << "Type(s) of runtime averaging: ";
+    for (unsigned short iVal = 0; iVal < nKind_Runtime_Averaging; iVal++) {
+      if (Kind_Runtime_Averaging[iVal] == POINTWISE_EWMA) {
+        cout << "  - Pointwise Exponentially-Weighted Moving Average (EWMA)" << endl;
+      } else if (Kind_Runtime_Averaging[iVal] == POINTWISE_CMA) {
+        cout << "  - Pointwise Cumulative Moving Average (CMA)" << endl;
+      } else {
+        SU2_MPI::Error("Runtime averaging type not recognized!", CURRENT_FUNCTION);
+      }
     }
-    cout << endl;
 
-    cout << "Averaging period defined using: ";
-    switch (Kind_Averaging_Period) {
-      case TURB_TIMESCALE: cout << "Turbulent timescale"; break;
-      case MAX_TURB_TIMESCALE: cout << "Maximum turbulent timescale"; break;
-      case FLOW_TIMESCALE: cout << "Freestream flow timescale"; break;
+    if (AveragingTypeIsEnabled(POINTWISE_EWMA)) { 
+      cout << "Averaging period for the EWMA defined using: ";
+      switch (Kind_EWMA_Period) {
+        case TURB_TIMESCALE: cout << "Turbulent timescale"; break;
+        case MAX_TURB_TIMESCALE: cout << "Maximum turbulent timescale"; break;
+        case FLOW_TIMESCALE: cout << "Freestream flow timescale"; break;
+      }
+      cout << endl;
+      cout << "Number of periods to average over for EWMA: " << nEWMAPeriods << endl;
     }
-    cout << endl;
 
-    cout << "Number of averaging periods: " << nAveragingPeriods << endl;
-    if (AveragingStartTime > 0)
-      cout << "Averaging will start at time: " << AveragingStartTime << endl;
+    if (AveragingTypeIsEnabled(POINTWISE_CMA)) {
+      cout << "CMA will start at time: " << CMAveragingStartTime << endl;
+    }
   }
 
 
@@ -7798,6 +7808,8 @@ CConfig::~CConfig(void) {
   if (top_optim_kernels != NULL) delete [] top_optim_kernels;
   if (top_optim_kernel_params != NULL) delete [] top_optim_kernel_params;
   if (top_optim_filter_radius != NULL) delete [] top_optim_filter_radius;
+
+  if (Kind_Runtime_Averaging != NULL) delete [] Kind_Runtime_Averaging;
 
 }
 
@@ -9718,3 +9730,13 @@ void CConfig::SetMultizone(CConfig *driver_config, CConfig **config_container){
 
 }
 
+bool CConfig::AveragingTypeIsEnabled(unsigned short averaging_type) const {
+  bool is_enabled = false;
+  for (unsigned short iVal = 0; iVal < nKind_Runtime_Averaging; iVal++) {
+    if (Kind_Runtime_Averaging[iVal] == averaging_type) {
+      is_enabled = true;
+      break;
+    }
+  }
+  return is_enabled;
+}

@@ -2045,14 +2045,16 @@ static const map<string, ENUM_INPUT_REF> Input_Ref_Map = CCreateMap<string, ENUM
 
 /*!
  * \brief Type of runtime averaging to be used.
+ *
+ * If no averaging is specified, averaging will not be performed
  */
 enum ENUM_RUNTIME_AVERAGING {
-  NO_AVERAGING,      /*!< \brief No averaging will be performed (default). */
-  POINTWISE_AVERAGE  /*!< \brief The average will be computed at each point. */
+  POINTWISE_EWMA, /*!< \brief The exponentially-weighted moving average will be computed at each point. */
+  POINTWISE_CMA  /*!< \brief The cumulative movign average will be computed at each point. */
 };
 static const map<string, ENUM_RUNTIME_AVERAGING> RuntimeAverage_Map = CCreateMap<string, ENUM_RUNTIME_AVERAGING>
-("NONE", NO_AVERAGING)
-("POINTWISE", POINTWISE_AVERAGE);
+("POINTWISE_EWMA", POINTWISE_EWMA)
+("POINTWISE_CMA", POINTWISE_CMA);
 
 /*!
  * \brief Time period over which to average.

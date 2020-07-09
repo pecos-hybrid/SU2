@@ -196,7 +196,7 @@ void COutput::SetFieldViewASCII(CConfig *config, CGeometry *geometry, unsigned s
     
     /*--- Add names for any extra variables (this will need to be adjusted). ---*/
 
-    if (config->GetKind_Averaging()) {
+    if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
       for (iVar = 0; iVar < nVar_Consv; iVar++) {
         FieldView_File << "Average_" << iVar+1 << endl;
       }

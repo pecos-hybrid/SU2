@@ -463,6 +463,12 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
   for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
     unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
 
+    if (config[iZone]->AveragingTypeIsEnabled(POINTWISE_CMA)) {
+      RegisterVector("CMAverage", "CMAAverage", FLOW_SOL,
+                      &CVariable::GetCMA_variables, iZone, false,
+                      CNSVariable::nCMA_variables);
+    }
+
     if (Kind_Solver == RANS) {
 
       if (config[iZone]->GetKind_Turb_Model() == KE ||
@@ -473,13 +479,6 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetTurbTimescale, iZone);
         RegisterScalar("Production", "Production", TURB_SOL,
                        &CVariable::GetProduction, iZone, false);
-      }
-
-      // TODO: Add a config option here.
-      if (true) {
-        RegisterVector("CMAverage", "CMAAverage", FLOW_SOL,
-                       &CVariable::GetCMA_variables, iZone, false,
-                       CNSVariable::nCMA_variables);
       }
 
       const bool model_split_hybrid =
@@ -2457,7 +2456,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
                          ( config->GetKind_Solver() == ADJ_RANS          )   );
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
   const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
-  const bool runtime_average = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool runtime_average = config->AveragingTypeIsEnabled(POINTWISE_EWMA);
   
   unsigned short iDim, jDim;
   unsigned short nDim = geometry->GetnDim();
@@ -4511,7 +4510,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       restart_file << "\t\"Conservative_" << iVar+1<<"\"";
   }
   
-  if (config->GetKind_Averaging() != NO_AVERAGING) {
+  if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
     for (iVar = 0; iVar < nVar_Consv; iVar++) {
       restart_file << "\t\"Average_" << iVar+1 <<"\"";
     }
@@ -6096,10 +6095,10 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               } else {
                 cout << endl << "Dual Time step: " << config[val_iZone]->GetDelta_UnstTimeND() << ".";
               }
-              if (config[val_iZone]->GetKind_Averaging() != NO_AVERAGING &&
-                  config[val_iZone]->GetKind_Averaging_Period() == MAX_TURB_TIMESCALE) {
+              if (config[val_iZone]->AveragingTypeIsEnabled(POINTWISE_EWMA) &&
+                  config[val_iZone]->GetKind_EWMA_Period() == MAX_TURB_TIMESCALE) {
                 const su2double timescale = solver_container[val_iZone][val_iInst][FinestMesh][FLOW_SOL]->GetAveragingTimescale();
-                const su2double N_T = config[val_iZone]->GetnAveragingPeriods();
+                const su2double N_T = config[val_iZone]->GetnEWMAPeriods();
                 cout << endl << "Averaging period (non-dim): " << timescale;
                 cout << endl << "Total averaging window (non-dim): " << N_T*timescale;
               }
@@ -13250,7 +13249,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 
   /*--- Add the average solution ---*/
 
-  if (config->GetKind_Averaging() != NO_AVERAGING) {
+  if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
     nVar_Par += nVar_Consv_Par;
 
     Variable_Names.push_back("Average_Density");
@@ -13625,7 +13624,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       }
 
       /*--- Averages ---*/
-      if (config->GetKind_Averaging() != NO_AVERAGING) {
+      if (config->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
         /*--- Mean Flow Averages ---*/
         for (jVar = 0; jVar < nVar_First; jVar++) {
           Local_Data[jPoint][iVar] = solver[FirstIndex]->average_node[iPoint]->GetSolution(jVar);
@@ -13639,7 +13638,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
           }
         }
       }
-      
+
       /*--- If limiters and/or residuals are requested. ---*/
       if (!config->GetLow_MemoryOutput()) {
         

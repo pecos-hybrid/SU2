@@ -736,11 +736,14 @@ void CFluidIteration::Update(COutput *output,
   }
 
   /*--- Update averages ---*/
-  if (true) {
-    CNSSolver* fluid_solver = dynamic_cast<CNSSolver*>(solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL]);
-    fluid_solver->UpdateCMAverage();
+  if (config_container[val_iZone]->AveragingTypeIsEnabled(POINTWISE_CMA)) {
+    const su2double time = config_container[val_iZone]->GetCurrent_UnstTimeND();
+    if (time > config_container[val_iZone]->GetCMAveragingStartTime()) {
+      CNSSolver* fluid_solver = dynamic_cast<CNSSolver*>(solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL]);
+      fluid_solver->UpdateCMAverage();
+    }
   }
-  if (config_container[val_iZone]->GetKind_Averaging() != NO_AVERAGING) {
+  if (config_container[val_iZone]->AveragingTypeIsEnabled(POINTWISE_EWMA)) {
     /*--- We check this when setting up, so this assert should never be false ---*/
     assert(config_container[val_iZone]->GetUnsteady_Simulation() != STEADY);
     for (iMesh = 0; iMesh <= config_container[val_iZone]->GetnMGLevels(); iMesh++) {
