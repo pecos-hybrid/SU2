@@ -4234,7 +4234,7 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     
     dist = geometry->node[iPoint]->GetWall_Distance();
 
-    const su2double *Vorticity = flow_node[iPoint]->GetVorticity();
+    const su2double *Vorticity = solver_container[FLOW_SOL]->node[iPoint]->GetVorticity();
     const su2double VorticityMag = sqrt(Vorticity[0]*Vorticity[0] +
                                         Vorticity[1]*Vorticity[1] +
                                         Vorticity[2]*Vorticity[2]);
