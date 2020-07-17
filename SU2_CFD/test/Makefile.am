@@ -36,7 +36,6 @@
 check_PROGRAMS  =
 TESTS  =
 
-check_PROGRAMS += load_hybrid_constants_test
 if BUILD_LAPACK
 check_PROGRAMS += eigensolver_test
 check_PROGRAMS += zeta_unit_cell_test
@@ -66,7 +65,6 @@ LDFLAGS  += -mkl
 endif
 
 # Test sources
-load_hybrid_constants_test_SOURCES     = load_hybrid_constants_test.cpp
 if BUILD_LAPACK
 eigensolver_test_SOURCES               = eigensolver_test.cpp
 zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
@@ -91,7 +89,6 @@ endif
 endif
 
 # Tests to be run
-TESTS += load_hybrid_constants_test
 if BUILD_LAPACK
 TESTS += eigensolver_test
 TESTS += zeta_unit_cell_test
