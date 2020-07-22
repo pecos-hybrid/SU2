@@ -4187,7 +4187,7 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
    * Since T depends on k and viscosity depends on T, we need to update the
    * flow primitives to get a consistent laminar viscosity ---*/
 
-  solver_container[FLOW_SOL]->Preprocessing(geometry, solver_container, config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, false);
+  solver_container[FLOW_SOL]->Preprocessing(geometry, solver_container, config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, true);
   
   /*--- Compute mean flow and turbulence gradients ---*/
   
