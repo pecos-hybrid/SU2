@@ -10173,6 +10173,8 @@ void CEulerSolver::BC_Sym_Plane(CGeometry      *geometry,
      (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91 && iRKStep == 0) );
   const bool viscous  = config->GetViscous();
   const bool grid_movement  = config->GetGrid_Movement();
+  const bool tkeNeeded = (((config->GetKind_Solver() == RANS ) || (config->GetKind_Solver() == DISC_ADJ_RANS)) &&
+                          ((config->GetKind_Turb_Model() == SST) || (config->GetKind_Turb_Model() == KE)) );
 
   /*--- Allocation of variables necessary for convective fluxes. ---*/
   su2double Area, ProjVelocity_i,
@@ -10407,9 +10409,14 @@ void CEulerSolver::BC_Sym_Plane(CGeometry      *geometry,
         visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), Grad_Reflected);
 
         /*--- Turbulent kinetic energy. ---*/
-        if (config->GetKind_Turb_Model() == SST)
+        if (tkeNeeded) {
           visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
                                               solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          /*--- XXX: Technically, this gradient should also be reflected.
+            But it should be negligble at a symmetry plane anyways ---*/
+          visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                            solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+        }
 
         /*--- Compute and update residual. Note that the viscous shear stress tensor is computed in the 
               following routine based upon the velocity-component gradients. ---*/
