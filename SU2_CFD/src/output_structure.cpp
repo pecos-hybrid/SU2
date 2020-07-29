@@ -19349,7 +19349,7 @@ void COutput::Write_InletFile_Flow(CConfig *config, CGeometry *geometry, CSolver
 
   unsigned short iMarker, iDim, iVar;
   unsigned long iPoint;
-  su2double turb_val[2] = {0.0,0.0};
+  su2double turb_val[4] = {0.0, 0.0, 0.0, 0.0};
 
   const unsigned short nDim = geometry->GetnDim();
 

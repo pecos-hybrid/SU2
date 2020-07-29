@@ -484,7 +484,12 @@ bool CIncNSVariable::SetStrainMag(void) {
 }
 
 
-bool CIncNSVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel) {
+bool CIncNSVariable::SetPrimVar(su2double eddy_visc,
+                               su2double turb_ke,
+                               CFluidModel *FluidModel,
+                               bool fallback_on_error) {
+
+  // FIXME: Fallback_on_error is ignored here.
       
   unsigned short iVar;
   bool check_dens = false, check_temp = false, physical = true;

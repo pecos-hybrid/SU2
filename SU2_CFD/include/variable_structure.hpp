@@ -4370,7 +4370,7 @@ public:
   bool SetPrimVar(su2double eddy_visc,
                   su2double turb_ke,
                   CFluidModel *FluidModel,
-                  bool fallback_on_error);
+                  bool fallback_on_error=true) override;
   using CVariable::SetPrimVar;
   
   /*!
@@ -4530,7 +4530,10 @@ public:
   /*!
    * \brief Set all the primitive variables for incompressible flows
    */
-  bool SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel);
+  bool SetPrimVar(su2double eddy_visc,
+                  su2double turb_ke,
+                  CFluidModel *FluidModel,
+                  bool fallback_on_error=true) override;
   using CVariable::SetPrimVar;
   
   /*!
