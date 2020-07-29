@@ -3929,6 +3929,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
           RK_cVec[2] = 0.5;
           RK_cVec[3] = 1.0;
         }
+        break;
       case RUNGE_KUTTA_LIMEX_EDIRK:
         if (nRKStep == 0) {
           if (rank == MASTER_NODE) {
