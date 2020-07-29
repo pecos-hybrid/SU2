@@ -103,13 +103,13 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
   assert(delta_t > 0);
 
   /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
-  su2double h[nDim]; // Initial TG vortex field.
+  assert(nDim == 3);
+  su2double h[3]; // Initial TG vortex field.
   su2double Lsgs; // SGS length scale
   su2double Tsgs; // SGS time scale
-  su2double x[nDim]; // Position
-  su2double Lmesh[nDim]; // Mesh length scales in coord direction (computed from res tensor)
+  su2double x[3]; // Position
   su2double dwall; // distance to the wall
-  su2double uf[nDim];
+  su2double uf[3];
 
   // Domain lengths for periodic directions
   su2double *D = config->GetHybrid_Forcing_Periodic_Length();

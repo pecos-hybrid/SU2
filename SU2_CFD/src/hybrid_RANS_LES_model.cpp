@@ -40,9 +40,10 @@
 #include "mkl_lapacke.h"
 #endif
 
+
 CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
                                    const string& filename)
-    : nDim(nDim), fluct_stress_model(NULL), forcing_model(NULL), config(config) {
+    : nDim(nDim), fluct_stress_model(NULL), config(config), forcing_model(NULL){
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -103,10 +104,6 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
                                                  CSolver **solver_container,
                                                  unsigned long iPoint) {
 
-  unsigned short iDim, jDim, kDim, lDim;
-  // XXX: This floor is arbitrary.
-  const su2double TKE_MIN = EPS;
-
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
   const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
 
@@ -125,7 +122,7 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
                         eigvalues_iLM, eigvectors_iLM);
 
   su2double max_eigval = 0.0;
-  for (iDim=0; iDim<3; iDim++) {
+  for (unsigned short iDim=0; iDim<3; iDim++) {
     if( abs(eigvalues_iLM[iDim]) > max_eigval) {
       max_eigval = abs(eigvalues_iLM[iDim]);
     }
@@ -375,10 +372,12 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
   // v2 here is *subgrid*, so must multiply by alpha
-  su2double v2_sgs;
+  // v2 is initialized at zero to keep compiler warnings happy
+  su2double v2_sgs = 0;
   if (config->GetKind_Turb_Model() == KE) {
     v2_sgs = alpha*max(turb_vars->GetSolution(2),1e-8);
   } else if (config->GetKind_Turb_Model() == SST) {
+    // TODO: Change this to the an estimate of v2 through muT
     v2_sgs = alpha*2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
   } else {
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);

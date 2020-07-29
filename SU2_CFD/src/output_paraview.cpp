@@ -2579,7 +2579,7 @@ void COutput::WriteParaViewBinary_Parallel(CConfig *config,
   
   filename = GetVTKFilename(config, val_iZone, val_nZone, surf_sol);
   
-  int MAX_STRING_LENGTH = 255;
+  constexpr int MAX_STRING_LENGTH = 255;
   char str_buf[MAX_STRING_LENGTH], fname[100];
   
   const int NCOORDS = 3;

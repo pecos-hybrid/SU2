@@ -516,7 +516,7 @@ void CPoint::SetResolutionTensor(unsigned short iDim, unsigned short jDim,
                                  su2double tensor_value) {
   assert(ResolutionTensor);
   if (iDim < nDim && jDim < nDim) ResolutionTensor[iDim][jDim] = tensor_value;
-};
+}
 
 void CPoint::AddResolutionTensor(unsigned short iDim, unsigned short jDim,
                                  su2double tensor_value) {
@@ -524,7 +524,7 @@ void CPoint::AddResolutionTensor(unsigned short iDim, unsigned short jDim,
   assert(iDim < nDim);
   assert(jDim < nDim);
   if (iDim < nDim && jDim < nDim) ResolutionTensor[iDim][jDim] += tensor_value;
-};
+}
 
 void CPoint::SetResolutionGradient(unsigned short iDim, unsigned short jDim,
                                    unsigned short kDim, su2double grad_value) {
@@ -534,7 +534,7 @@ void CPoint::SetResolutionGradient(unsigned short iDim, unsigned short jDim,
   assert(kDim < nDim);
   if (iDim < nDim && jDim < nDim && kDim < nDim)
     ResolutionTensorGradient[iDim][jDim][kDim] = grad_value;
-};
+}
 
 const su2double* const* CPoint::GetResolutionGradient(unsigned short iDim) const {
   assert(ResolutionTensorGradient);

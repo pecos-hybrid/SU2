@@ -840,7 +840,6 @@ bool CNSVariable::SetPrimVar(su2double eddy_visc,
                              CFluidModel *FluidModel,
                              bool fallback_on_error) {
   
-    unsigned short iVar;
   su2double density, staticEnergy;
   bool check_dens = false, check_press = false, check_sos = false,
   check_temp = false, RightVol = true;
@@ -874,8 +873,9 @@ bool CNSVariable::SetPrimVar(su2double eddy_visc,
     if (fallback_on_error) {
       /*--- Copy the old solution ---*/
 
-      for (iVar = 0; iVar < nVar; iVar++)
+      for (unsigned short iVar = 0; iVar < nVar; iVar++) {
         Solution[iVar] = Solution_Old[iVar];
+      }
 
       /*--- Recompute the primitive variables ---*/
 

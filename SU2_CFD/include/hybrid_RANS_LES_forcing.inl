@@ -130,19 +130,6 @@ inline void CHybridForcingTG0::SetAxiTGField(
     }
   }
 
-  su2double theta_deg = r[2]*180.0/M_PI;
-
-  // su2double htmp[3];
-  // if ( (theta_deg > 2.0) && (theta_deg < 13.0) ){
-  //   htmp[0] = A * cos(a[0]*r[0]) * sin(a[1]*r[1]) * sin(a[2]*r[2]);
-  //   htmp[1] = B * sin(a[0]*r[0]) * cos(a[1]*r[1]) * sin(a[2]*r[2]);
-  //   htmp[2] = (B/a[2]) * sin(a[0]*r[0]) * sin(a[1]*r[1]) * cos(a[2]*r[2]);
-  // } else {
-  //   htmp[0] = 0.0;
-  //   htmp[1] = 0.0;
-  //   htmp[2] = 0.0;
-  // }
-
   su2double htmp[3];
   htmp[0] = A * cos(a[0]*r[0]) * sin(a[1]*r[1]) * sin(a[2]*r[2]);
   htmp[1] = B * sin(a[0]*r[0]) * cos(a[1]*r[1]) * sin(a[2]*r[2]);

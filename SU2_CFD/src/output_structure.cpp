@@ -3364,6 +3364,8 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     
     /*--- Communicate the extra scalar variables ---*/
 
+    // FIXME: Fix how the additional variables work in low memory
+    // If low memory is used, iVar_Additional is uninitialized
     iVar = iVar_Additional;
     
     for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
@@ -13189,7 +13191,7 @@ void COutput::SetResult_Files_Parallel(CSolver *****solver_container,
 
 void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone) {
   
-  unsigned short iDim, jDim;
+  unsigned short iDim;
   unsigned short Kind_Solver = config->GetKind_Solver();
   unsigned short nDim = geometry->GetnDim();
   
@@ -13463,15 +13465,15 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 
     for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
          it != output_vectors[val_iZone].end(); ++it) {
-      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
+      for (unsigned int iDim=0; iDim < nDim; iDim++) {
         nVar_Par += 1;
         if (config->GetOutput_FileFormat() == PARAVIEW){
           ostringstream label;
-          label << it->Name << "_" << iDim;
+          label << it->Name << "_" << (iDim+1);
           Variable_Names.push_back(label.str());
         } else {
           ostringstream label;
-          label << it->Tecplot_Name << "<sub>" << iDim << "</sub>";
+          label << it->Tecplot_Name << "<sub>" << (iDim+1) << "</sub>";
           Variable_Names.push_back(label.str());
         }
       }
@@ -13479,16 +13481,16 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
-      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
-        for (unsigned int jDim=1; jDim < nDim+1; jDim++) {
+      for (unsigned int iDim=0; iDim < nDim; iDim++) {
+        for (unsigned int jDim=0; jDim < nDim; jDim++) {
           nVar_Par += 1;
           if (config->GetOutput_FileFormat() == PARAVIEW){
             ostringstream label;
-            label << it->Name << "_" << iDim << jDim;
+            label << it->Name << "_" << (iDim+1) << (jDim+1);
             Variable_Names.push_back(label.str());
           } else {
             ostringstream label;
-            label << it->Tecplot_Name << "<sub>" << iDim << jDim << "</sub>";
+            label << it->Tecplot_Name << "<sub>" << (iDim+1) << (jDim+1) << "</sub>";
             Variable_Names.push_back(label.str());
           }
         }
@@ -15319,13 +15321,13 @@ void COutput::SortVolumetricConnectivity(CConfig *config,
   
   unsigned long iProcessor;
   unsigned short NODES_PER_ELEMENT = 0;
-  unsigned long iPoint, jPoint, kPoint, nLocalPoint, nTotalPoint;
+  unsigned long iPoint, jPoint, nLocalPoint, nTotalPoint;
   unsigned long nElem_Total = 0, Global_Index;
   
   unsigned long iVertex, iMarker;
   int SendRecv, RecvFrom;
   
-  bool notPeriodic, notHalo, addedPeriodic, isPeriodic;
+  bool notHalo, isPeriodic;
   
   int *Local_Halo = NULL;
   int *Conn_Elem  = NULL;
@@ -15469,27 +15471,8 @@ void COutput::SortVolumetricConnectivity(CConfig *config,
           isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         }
         
-        notPeriodic = (isPeriodic && (SendRecv < 0));
-        
-        /*--- Lastly, check that this isn't an added periodic point that
-         we will forcibly remove. Use the communicated list of these points. ---*/
-        
-        addedPeriodic = false; kPoint = 0;
-        for (iProcessor = 0; iProcessor < (unsigned long)size; iProcessor++) {
-          for (jPoint = 0; jPoint < Buffer_Recv_nAddedPeriodic[iProcessor]; jPoint++) {
-            if (Global_Index == Buffer_Recv_AddedPeriodic[kPoint+jPoint])
-              addedPeriodic = true;
-          }
-          
-          /*--- Adjust jNode to index of next proc's data in the buffers. ---*/
-          
-          kPoint = (iProcessor+1)*maxAddedPeriodic;
-          
-        }
-        
         /*--- If we found either of these types of nodes, flag them to be kept. ---*/
         
-        //if ((notHalo || notPeriodic) && !addedPeriodic) {
         if ((notHalo || isPeriodic)) {
           Local_Halo[iPoint] = false;
         }

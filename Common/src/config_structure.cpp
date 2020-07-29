@@ -3945,6 +3945,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
           RK_cVec[2] = 0.5;
           RK_cVec[3] = 1.0;
         }
+        break;
       case RUNGE_KUTTA_LIMEX_EDIRK:
         if (nRKStep == 0) {
           if (rank == MASTER_NODE) {
@@ -8391,6 +8392,16 @@ unsigned short CConfig::GetMarker_Moving(string val_marker) {
     if (Marker_Moving[iMarker_Moving] == val_marker) break;
 
   return iMarker_Moving;
+}
+
+bool CConfig::GetMarker_Moving_Bool(string val_marker) {
+  unsigned short iMarker_Moving;
+
+  /*--- Find the marker for this moving boundary, if it exists. ---*/
+  for (iMarker_Moving = 0; iMarker_Moving < nMarker_Moving; iMarker_Moving++)
+    if (Marker_Moving[iMarker_Moving] == val_marker) return true;
+
+  return false;
 }
 
 su2double CConfig::GetDirichlet_Value(string val_marker) {
