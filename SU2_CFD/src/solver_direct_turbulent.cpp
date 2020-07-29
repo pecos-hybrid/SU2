@@ -4216,7 +4216,7 @@ void CTurbSSTSolver::Preprocessing(CGeometry *geometry, CSolver **solver_contain
 }
 
 void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh) {
-  su2double rho = 0.0, mu = 0.0, dist, omega, kine, strMag, F2, muT, zeta;
+  su2double rho = 0.0, mu = 0.0, dist, omega, kine, F2, muT, zeta;
   su2double a1 = constants[7];
   unsigned long iPoint;
   
@@ -4243,8 +4243,11 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     mu  = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
     
     dist = geometry->node[iPoint]->GetWall_Distance();
-    
-    strMag = solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag();
+
+    const su2double *Vorticity = solver_container[FLOW_SOL]->node[iPoint]->GetVorticity();
+    const su2double VorticityMag = sqrt(Vorticity[0]*Vorticity[0] +
+                                        Vorticity[1]*Vorticity[1] +
+                                        Vorticity[2]*Vorticity[2]);
 
     node[iPoint]->SetBlendingFunc(mu, dist, rho);
     
@@ -4254,8 +4257,8 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     
     kine  = node[iPoint]->GetSolution(0);
     omega = node[iPoint]->GetSolution(1);
-    zeta = min(1.0/omega, a1/(strMag*F2));
-    muT = min(max(rho*kine*zeta,0.0),1.0);
+    zeta  = min(1.0/omega, a1/(VorticityMag*F2));
+    muT   = max(rho*kine*zeta,0.0);
     node[iPoint]->SetmuT(muT);
 
     /*--- Compute T/L ---*/
