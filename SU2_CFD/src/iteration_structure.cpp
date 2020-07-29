@@ -463,10 +463,10 @@ void CIteration::Output(COutput *output,
 
   bool output_files = false;
 
-  bool local_invalid_state = (config_container[ZONE_0]->GetWrt_InvalidState());
-  bool global_invalid_state;
+  int local_invalid_state = int(config_container[ZONE_0]->GetWrt_InvalidState());
+  int global_invalid_state;
   SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
-                     MPI_CXX_BOOL, MPI_LOR, MPI_COMM_WORLD);
+                     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   /*--- Determine whether a solution needs to be written
    after the current iteration ---*/
@@ -495,7 +495,7 @@ void CIteration::Output(COutput *output,
 
       /*--- Invalid temperature and/or pressure ---*/
 
-      global_invalid_state) {
+      (global_invalid_state > 0)) {
 
     output_files = true;
 
