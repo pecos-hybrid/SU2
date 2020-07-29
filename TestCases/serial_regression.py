@@ -196,7 +196,7 @@ def main():
     rae2822_sst.cfg_dir   = "rans/rae2822"
     rae2822_sst.cfg_file  = "turb_SST_RAE2822.cfg"
     rae2822_sst.test_iter = 20
-    rae2822_sst.test_vals = [-0.510826, 4.909241, 0.825023, 0.052675] #last 4 columns
+    rae2822_sst.test_vals = [-0.510826, 4.910856, 0.824926, 0.052690] #last 4 columns
     rae2822_sst.su2_exec  = "SU2_CFD"
     rae2822_sst.timeout   = 1600
     rae2822_sst.tol       = 0.00001
@@ -262,7 +262,7 @@ def main():
     turb_naca0012_sst.cfg_dir   = "rans/naca0012"
     turb_naca0012_sst.cfg_file  = "turb_NACA0012_sst.cfg"
     turb_naca0012_sst.test_iter = 10
-    turb_naca0012_sst.test_vals = [-12.454420, -6.572027, 1.059622, 0.019138] #last 4 columns
+    turb_naca0012_sst.test_vals = [-10.135163, -4.749498, 1.059627, 0.019136] #last 4 columns
     turb_naca0012_sst.su2_exec  = "SU2_CFD"
     turb_naca0012_sst.timeout   = 3200
     turb_naca0012_sst.tol       = 0.00001
@@ -289,7 +289,7 @@ def main():
     turb_naca0012_sst_restart_mg.cfg_file  = "turb_NACA0012_sst_multigrid_restart.cfg"
     turb_naca0012_sst_restart_mg.test_iter = 50
     turb_naca0012_sst_restart_mg.ntest_vals = 5
-    turb_naca0012_sst_restart_mg.test_vals = [-6.459444, -4.595710, 1.201844, -0.007146, 0.080517] #last 5 columns
+    turb_naca0012_sst_restart_mg.test_vals = [-6.459452, -4.595711, 1.201844, -0.007147, 0.080501] #last 5 columns
     turb_naca0012_sst_restart_mg.su2_exec  = "SU2_CFD"
     turb_naca0012_sst_restart_mg.timeout   = 3200
     turb_naca0012_sst_restart_mg.tol       = 0.000001
@@ -502,7 +502,7 @@ def main():
     square_cylinder.cfg_dir   = "unsteady/square_cylinder"
     square_cylinder.cfg_file  = "turb_square.cfg"
     square_cylinder.test_iter = 3
-    square_cylinder.test_vals = [-1.163944, 0.077283, 1.398548, 2.197047] #last 4 columns
+    square_cylinder.test_vals = [-1.162904, 0.077278, 1.398545, 2.197260] #last 4 columns
     square_cylinder.su2_exec  = "SU2_CFD"
     square_cylinder.timeout   = 1600
     square_cylinder.tol       = 0.00001
@@ -663,7 +663,7 @@ def main():
     pywrapper_turb_naca0012_sst.cfg_dir   = "rans/naca0012"
     pywrapper_turb_naca0012_sst.cfg_file  = "turb_NACA0012_sst.cfg"
     pywrapper_turb_naca0012_sst.test_iter = 10
-    pywrapper_turb_naca0012_sst.test_vals = [-12.454420, -6.572027, 1.059622, 0.019138] #last 4 columns
+    pywrapper_turb_naca0012_sst.test_vals = [-10.135163, -4.749498, 1.059627, 0.019136] #last 4 columns
     pywrapper_turb_naca0012_sst.su2_exec  = "SU2_CFD.py -f"
     pywrapper_turb_naca0012_sst.timeout   = 3200
     pywrapper_turb_naca0012_sst.tol       = 0.00001
@@ -675,7 +675,7 @@ def main():
     pywrapper_square_cylinder.cfg_dir   = "unsteady/square_cylinder"
     pywrapper_square_cylinder.cfg_file  = "turb_square.cfg"
     pywrapper_square_cylinder.test_iter = 3
-    pywrapper_square_cylinder.test_vals = [-1.163944, 0.077283, 1.398548, 2.197047] #last 4 columns
+    pywrapper_square_cylinder.test_vals = [-1.162904, 0.077278, 1.398545, 2.197260] #last 4 columns
     pywrapper_square_cylinder.su2_exec  = "SU2_CFD.py -f"
     pywrapper_square_cylinder.timeout   = 1600
     pywrapper_square_cylinder.tol       = 0.00001
@@ -713,7 +713,7 @@ def main():
     pywrapper_unsteadyCHT.cfg_dir       = "py_wrapper/flatPlate_unsteady_CHT"
     pywrapper_unsteadyCHT.cfg_file      = "unsteady_CHT_FlatPlate_Conf.cfg"
     pywrapper_unsteadyCHT.test_iter     = 5
-    pywrapper_unsteadyCHT.test_vals     = [-1.598116, 2.263309, 0.001077, 0.145818] #last 4 columns
+    pywrapper_unsteadyCHT.test_vals     = [-1.598116, 2.263305, 0.001079, 0.148510] #last 4 columns
     pywrapper_unsteadyCHT.su2_exec      = "python launch_unsteady_CHT_FlatPlate.py -f"
     pywrapper_unsteadyCHT.timeout       = 1600
     pywrapper_unsteadyCHT.tol           = 0.00001
@@ -726,7 +726,7 @@ def main():
     pywrapper_rigidMotion.cfg_dir       = "py_wrapper/flatPlate_rigidMotion"
     pywrapper_rigidMotion.cfg_file      = "flatPlate_rigidMotion_Conf.cfg"
     pywrapper_rigidMotion.test_iter     = 5
-    pywrapper_rigidMotion.test_vals     = [-1.598116, 2.259671, -0.040621, 0.144134] #last 4 columns
+    pywrapper_rigidMotion.test_vals     = [-1.598116, 2.259667, -0.040721, 0.146827] #last 4 columns
     pywrapper_rigidMotion.su2_exec      = "python launch_flatPlate_rigidMotion.py -f"
     pywrapper_rigidMotion.timeout       = 1600
     pywrapper_rigidMotion.tol           = 0.00001
