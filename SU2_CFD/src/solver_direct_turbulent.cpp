@@ -4263,7 +4263,6 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     const su2double VorticityMag = sqrt(Vorticity[0]*Vorticity[0] +
                                         Vorticity[1]*Vorticity[1] +
                                         Vorticity[2]*Vorticity[2]);
-    const su2double strMag = flow_node[iPoint]->GetStrainMag();
 
     node[iPoint]->SetBlendingFunc(mu, dist, rho);
     
@@ -4279,8 +4278,10 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
 
     /*--- Compute T/L ---*/
 
+    /*--- We use SetTurbScales instead of manually setting T, L so
+     * we can set kolmogorov scales too --*/
     // Note: strMag is not actually used in the function
-    node[iPoint]->SetTurbScales(nu, strMag, VelMag, L_inf, false);
+    node[iPoint]->SetTurbScales(nu, 0, VelMag, L_inf, false);
 
     /* Compute resolution adequacy */
     if (model_split) {
