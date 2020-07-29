@@ -17642,7 +17642,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     /*--- Retrieve the value of the kinetic energy (if need it) ---*/
 
-    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    if (model_split) {
 
       // TODO: Move this to the hybrid mediator to keep the CNSSolver cleaner
       // TODO: Remove extra asserts after testing is complete.
@@ -17670,7 +17670,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 	turb_ke = max(turb_ke, tke_min);
 
 	// account for resolved portion
-	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+	if (model_split) {
 	  alpha = average_node[iPoint]->GetKineticEnergyRatio();
 	}
       }
@@ -19878,13 +19878,13 @@ void CNSSolver::UpdateAverage(const su2double weight,
   // Call base first, to update averages of conserved variables
   CSolver::UpdateAverage(weight, iPoint, buffer, config);
 
+  su2double* fluct_velocity = new su2double[nDim];
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT && iPoint < nPointDomain) {
     // TODO: Update average solution on MPI halo nodes
     // I don't think it's required right now, since we're only using average
     // solution in the source residual.
     const su2double* resolved_vars = node[iPoint]->GetSolution();
     const su2double* average_vars = average_node[iPoint]->GetSolution();
-    su2double fluct_velocity[nDim];
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
     }
@@ -19974,6 +19974,8 @@ void CNSSolver::UpdateAverage(const su2double weight,
     update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
     average_node[iPoint]->SetForcingVector(update_mean_F);
   }
+
+  delete [] fluct_velocity;
 }
 
 void CNSSolver::SetTauWall_WF(CGeometry *geometry, CSolver **solver_container, CConfig *config) {

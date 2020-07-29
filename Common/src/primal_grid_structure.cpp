@@ -165,7 +165,7 @@ void CPrimalGrid::SetResolutionTensor(su2double** val_coord) {
 
   delete[] coord_max;
   delete[] coord_min;
-};
+}
 
 void CPrimalGrid::GramSchmidt(std::vector<std::vector<su2double> > &w,
                               std::vector<std::vector<su2double> > &v) {
@@ -504,7 +504,7 @@ void CQuadrilateral::SetResolutionTensor(su2double **val_coord) {
       The code will look for pairs of faces that are mostly opposite, then
       sort them so that the face indices in paired_faces[0] and paired_faces[1]
       match, then paired_faces[2] and paired_faces[3] match, etc. ---*/
-  unsigned short paired_faces[nFaces];
+  unsigned short* paired_faces = new unsigned short[nFaces];
   vector<vector<su2double> > eigvecs(nDim, vector<su2double>(nDim));
 
   /*-- Create cell center to face vectors --*/
@@ -558,8 +558,9 @@ void CQuadrilateral::SetResolutionTensor(su2double **val_coord) {
   }
 
   /*-- Get magnitudes --*/
-  su2double eigvalues[nDim][nDim];
+  su2double** eigvalues = new su2double*[nDim];
   for (iDim = 0; iDim < nDim; ++iDim) {
+    eigvalues[iDim] = new su2double[nDim];
     for (jDim = 0; jDim < nDim; ++jDim) {
       eigvalues[iDim][jDim] = 0.0;
     }
@@ -592,6 +593,12 @@ void CQuadrilateral::SetResolutionTensor(su2double **val_coord) {
       ResolutionVectors[iDim][jDim] = eigvecs[iDim][jDim];
     }
   }
+
+  delete [] paired_faces;
+  for (iDim = 0; iDim < nDim; ++iDim) {
+    delete [] eigvalues[iDim];
+  }
+  delete [] eigvalues;
 
 }
 
@@ -849,8 +856,9 @@ void CHexahedron::SetResolutionTensor(su2double** val_coord) {
   }
 
   /*-- Get lengths of vectors --*/
-  su2double eigvalues[nDim][nDim];
+  su2double** eigvalues = new su2double*[nDim];
   for (iDim = 0; iDim < nDim; ++iDim) {
+    eigvalues[iDim] = new su2double[nDim];
     for (jDim = 0; jDim < nDim; ++jDim) {
       eigvalues[iDim][jDim] = 0.0;
     }
@@ -906,9 +914,13 @@ void CHexahedron::SetResolutionTensor(su2double** val_coord) {
   }
 
   delete [] paired_faces;
+  for (iDim = 0; iDim < nDim; ++iDim) {
+    delete [] eigvalues[iDim];
+  }
+  delete [] eigvalues;
 
 
-};
+}
 
 unsigned short CPrism::Faces[5][4] = {{3,4,1,0},{5,2,1,4},{2,5,3,0},{0,1,2,2},{5,4,3,3}};
 
