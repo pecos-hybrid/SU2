@@ -41,7 +41,6 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
   
   unsigned short iDim, jDim, iVar, nDim = geometry->GetnDim();
   unsigned short Kind_Solver = config->GetKind_Solver();
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
   unsigned long iPoint, iElem, iNode;
   unsigned long iExtIter = config->GetExtIter();

@@ -2462,7 +2462,6 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
                          ( config->GetKind_Solver() == ADJ_NAVIER_STOKES ) ||
                          ( config->GetKind_Solver() == ADJ_RANS          )   );
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   const bool runtime_average = (config->GetKind_Averaging() != NO_AVERAGING);
   
   unsigned short iDim, jDim;
@@ -4458,7 +4457,6 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   bool grid_movement = config->GetGrid_Movement();
   bool dynamic_fem = (config->GetDynamic_Analysis() == DYNAMIC);
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
   ofstream restart_file;
   ofstream meta_file;
@@ -5295,7 +5293,14 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         D_TotalPressure_Loss = 0.0, D_FlowAngle_Out = 0.0, D_TotalStaticEfficiency = 0.0,
         D_TotalTotalEfficiency = 0.0, D_EntropyGen = 0.0, 
         D_Surface_Uniformity = 0.0, D_Surface_SecondaryStrength = 0.0, D_Surface_MomentumDistortion = 0.0, D_Surface_SecondOverUniform = 0.0, D_Surface_PressureDrop = 0.0;
-    su2double bulk_density, bulk_momentum, bulk_temp, bulk_force, bulk_heating;
+    /*--- Initialize and then later check to make that these
+     * arbitrary values aren't used.  If we don't initialize, the
+     * compiler may complain. --*/
+    su2double bulk_density = -1,
+              bulk_momentum = -1,
+              bulk_temp = -1,
+              bulk_force = -1,
+              bulk_heating = -1;
     
     /*--- Residual arrays ---*/
     su2double *residual_flow         = NULL,
@@ -5985,6 +5990,14 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
 
             if (constant_bulk_momentum || constant_bulk_temperature ||
                 steady_body_forcing) {
+              if (bulk_temp < 0 || bulk_density < 0) {
+                SU2_MPI::Error("Negative values found for the bulk temperature and/or bulk density.\nThis may be due to the variables being used before being set.", CURRENT_FUNCTION);
+              }
+              if ((abs(bulk_momentum - 1) < 1E-14) ||
+                  (abs(bulk_heating - 1) < 1E-14) ||
+                  (abs(bulk_force - 1) < 1E-14)) {
+                SU2_MPI::Error("Bulk momentum/heating/forcing terms are being used without being properly set.", CURRENT_FUNCTION);
+              }
               SPRINTF(forcing_terms, ", %14.8e, %14.8e, %14.8e, %14.8e, %14.8e", bulk_density,
                       bulk_momentum, bulk_temp, bulk_force, bulk_heating);
             }
@@ -13208,7 +13221,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   su2double *Grid_Vel = NULL;
   
   bool transition           = (config->GetKind_Trans_Model() == BC);
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   bool grid_movement        = (config->GetGrid_Movement());
   bool Wrt_Halo             = config->GetWrt_Halo(), isPeriodic;
   

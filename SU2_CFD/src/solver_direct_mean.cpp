@@ -7225,8 +7225,6 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
       for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
         const su2double Volume = geometry->node[iPoint]->GetVolume();
-        const su2double u_velocity = node[iPoint]->GetSolution(1) /
-                                     node[iPoint]->GetSolution(0);
 
         f_weight[0] = 0.0;
         for (unsigned short iDim = 0; iDim < nDim; iDim++) {
@@ -17748,7 +17746,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
 unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CConfig *config, bool Output) {
   
   unsigned long iPoint, ErrorCounter = 0;
-  su2double eddy_visc = 0.0, turb_ke = 0.0, DES_LengthScale = 0.0;
+  su2double eddy_visc = 0.0, DES_LengthScale = 0.0;
   unsigned short turb_model = config->GetKind_Turb_Model();
   
   bool tkeNeeded = (((config->GetKind_Solver() == RANS ) ||
@@ -20031,6 +20029,8 @@ void CNSSolver::UpdateAverage(const su2double weight,
   CSolver::UpdateAverage(weight, iPoint, buffer, config);
 
   su2double* fluct_velocity = new su2double[nDim];
+  su2double* mean_velocity  = new su2double[nDim];
+  su2double* res_velocity   = new su2double[nDim];
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT && iPoint < nPointDomain) {
     // TODO: Update average solution on MPI halo nodes
     // I don't think it's required right now, since we're only using average
@@ -20085,8 +20085,6 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
       /*--- Update resolved kinetic energy ---*/
 
-      su2double mean_velocity[nDim];
-      su2double res_velocity[nDim];
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         res_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0];
         mean_velocity[iDim] = average_vars[iDim+1]/average_vars[0];
@@ -20144,6 +20142,8 @@ void CNSSolver::UpdateAverage(const su2double weight,
   }
 
   delete [] fluct_velocity;
+  delete [] res_velocity;
+  delete [] mean_velocity;
 }
 
 void CEulerSolver::SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfig *config) {
