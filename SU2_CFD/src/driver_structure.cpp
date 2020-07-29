@@ -4081,11 +4081,12 @@ bool CDriver::Monitor(unsigned long ExtIter) {
 
   /*--- Check if we have an invalid state ---*/
 
-  /*--- MPI_CXX_BOOL is still not supported on some implementations of MPI ---*/
+  /*--- MPI_CXX_BOOL and MPI_LOR would be better here, but it is not
+   * defined in SU2's mpi headers for serial build ---*/
   int local_invalid_state = int(config_container[ZONE_0]->GetWrt_InvalidState());
   int global_invalid_state;
   SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
-                     MPI::INT, MPI_SUM, MPI_COMM_WORLD);
+                     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if (global_invalid_state > 0) StopCalc = true;
   
   return StopCalc;
