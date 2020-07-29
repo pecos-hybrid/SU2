@@ -146,7 +146,7 @@ inline bool CPoint::GetAgglomerate (void) { return Agglomerate; }
 
 inline bool CPoint::GetAgglomerate_Indirect (void) { return Agglomerate_Indirect; }
 
-inline void CPoint::SetAgglomerate_Indirect(bool val_agglomerate) { Agglomerate_Indirect = val_agglomerate; };
+inline void CPoint::SetAgglomerate_Indirect(bool val_agglomerate) { Agglomerate_Indirect = val_agglomerate; }
 
 inline void CPoint::SetVertex(long val_vertex, unsigned short val_nmarker) {
 	if (Boundary) Vertex[val_nmarker] = val_vertex;

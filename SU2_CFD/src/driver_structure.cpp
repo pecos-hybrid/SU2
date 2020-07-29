@@ -192,8 +192,20 @@ CDriver::CDriver(char* confFile,
         geometry_container[iZone][iInst][iMesh]->MatchActuator_Disk(config_container[iZone]);
       }
 
-    }
+      /*--- Check if Euler & Symmetry markers are straight/plane. This information
+       *         is used in the Euler & Symmetry boundary routines. ---*/
+      if((config_container[iZone]->GetnMarker_Euler() != 0 ||
+            config_container[iZone]->GetnMarker_SymWall() != 0) &&
+          !fem_solver) {
 
+        if (rank == MASTER_NODE)
+          cout << "Checking if Euler & Symmetry markers are straight/plane:" << endl;
+
+        for (iMesh = 0; iMesh <= config_container[iZone]->GetnMGLevels(); iMesh++)
+          geometry_container[iZone][iInst][iMesh]->ComputeSurf_Straightness(config_container[iZone], (iMesh==MESH_0) );
+
+      }
+    }
   }
 
   /*--- If activated by the compile directive, perform a partition analysis. ---*/
@@ -201,6 +213,7 @@ CDriver::CDriver(char* confFile,
   if( fem_solver ) Partition_Analysis_FEM(geometry_container[ZONE_0][INST_0][MESH_0], config_container[ZONE_0]);
   else Partition_Analysis(geometry_container[ZONE_0][INST_0][MESH_0], config_container[ZONE_0]);
 #endif
+
 
   /*--- Output some information about the driver that has been instantiated for the problem. ---*/
 
@@ -1316,10 +1329,12 @@ void CDriver::Solver_Preprocessing(CSolver ****solver_container, CGeometry ***ge
 
     /*--- Add a fluctuating stress model to the hybrid mediator ---*/
 
-    CFluctuatingStress* fluct_stress;
+    /*--- Initialize as null to prevent compiler warnings ---*/
+    CFluctuatingStress* fluct_stress = nullptr;
     switch (config->GetKind_Hybrid_SGET_Model()) {
-      case NONE: fluct_stress = new CNoStressModel(nDim); break;
       case M43_MODEL: fluct_stress = new CM43Model(nDim, config); break;
+      case NONE: fluct_stress = new CNoStressModel(nDim); break;
+      default: SU2_MPI::Error("Unrecognized SGET model.", CURRENT_FUNCTION); break;
     }
     hybrid_mediator->SetFluctuatingStress(fluct_stress);
 
