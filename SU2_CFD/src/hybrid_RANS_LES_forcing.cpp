@@ -100,13 +100,13 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
   assert(time >= 0);
 
   /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
-  su2double h[nDim]; // Initial TG vortex field.
+  assert(nDim == 3);
+  su2double h[3]; // Initial TG vortex field.
   su2double Lsgs; // SGS length scale
   su2double Tsgs; // SGS time scale
-  su2double x[nDim]; // Position
-  su2double Lmesh[nDim]; // Mesh length scales in coord direction (computed from res tensor)
+  su2double x[3]; // Position
   su2double dwall; // distance to the wall
-  su2double uf[nDim];
+  su2double uf[3];
 
   // Domain lengths for periodic directions
   su2double *D = config->GetHybrid_Forcing_Periodic_Length();
@@ -162,23 +162,15 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     Tsgs = alpha * T_typical;
     Tsgs = max(Tsgs, T_kol);
 
-    // FIXME: I think this is equivalent to repo version of CDP,but
-    // not consistent with paper description, except for orthogonal
-    // grids aligned with coordinate axes.  Check with Sigfried.
-    const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-    Lmesh[0] = ResolutionTensor[0][0];
-    Lmesh[1] = ResolutionTensor[1][1];
-    Lmesh[2] = ResolutionTensor[2][2];
-
     // Get dwall
     dwall = geometry->node[iPoint]->GetWall_Distance();
 
     if (config->isHybrid_Forced_Axi()) {
       // Angular periodic version 
-      this->SetAxiTGField(x, Lsgs, Lmesh, D, dwall, h);
+      this->SetAxiTGField(x, Lsgs, D, dwall, h);
     } else {
       // Compute TG velocity at this point
-      this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
+      this->SetTGField(x, Lsgs, D, dwall, h);
     }
 
     const su2double Ftar = this->GetTargetProduction(v2, Tsgs, alpha);

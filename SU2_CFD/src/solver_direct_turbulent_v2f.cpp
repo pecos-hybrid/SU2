@@ -44,6 +44,8 @@ CTurbKESolver::CTurbKESolver(void) : CTurbSolver() {
 
   /*--- Array initialization ---*/
   constants = NULL;
+  SlidingState = NULL;
+  SlidingStateNodes = NULL;
 
 }
 
@@ -409,7 +411,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
                                    CConfig *config, unsigned short iMesh) {
 
   su2double rho, nu, S;
-  su2double tke, v2, zeta, muT;
+  su2double tke, v2, muT;
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
   /*--- Update flow solution using new k
@@ -927,7 +929,7 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
        CNumerics *visc_numerics, CConfig *config, unsigned short val_marker,
        unsigned short iRKStep) {
 
-  unsigned long iPoint, iVertex, Point_Normal;
+  unsigned long iPoint, iVertex;
   unsigned short iVar, iDim;
   su2double *V_outlet, *V_domain, *Normal;
 
@@ -949,9 +951,6 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
 
     /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
     if (geometry->node[iPoint]->GetDomain()) {
-
-      /*--- Index of the closest interior node ---*/
-      Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
 
       /*--- Allocate the value at the outlet ---*/
       V_outlet = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
@@ -991,27 +990,6 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
       /*--- Jacobian contribution for implicit integration ---*/
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_j); // since soln_j = soln_i
-
-//      /*--- Viscous contribution, commented out because serious convergence problems  ---*/
-//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
-//                              geometry->node[Point_Normal]->GetCoord());
-//      visc_numerics->SetNormal(Normal);
-//
-//      /*--- Conservative variables w/o reconstruction ---*/
-//      visc_numerics->SetPrimitive(V_domain, V_outlet);
-//
-//      /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
-//      visc_numerics->SetTurbVar(Solution_i, Solution_j);
-//      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(),
-//                                        node[iPoint]->GetGradient());
-//
-//      /*--- Compute residual, and Jacobians ---*/
-//      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-//
-//      /*--- Subtract residual, and update Jacobians ---*/
-//      LinSysRes.SubtractBlock(iPoint, Residual);
-//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
-//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_j); // since soln_j = soln_i
 
     }
   }

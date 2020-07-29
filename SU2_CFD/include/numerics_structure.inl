@@ -185,7 +185,7 @@ inline void CNumerics::ComputeResidual(su2double *val_resconv_i, su2double *val_
               
 inline void CNumerics::ComputeResidual(su2double **val_stiffmatrix_elem, CConfig *config) { }
 
-inline void CNumerics::GetEq_Rxn_Coefficients(su2double **EqnRxnConstants, CConfig *config) { };
+inline void CNumerics::GetEq_Rxn_Coefficients(su2double **EqnRxnConstants, CConfig *config) { }
                             
 inline void CNumerics::ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config) { }
 

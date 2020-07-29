@@ -726,15 +726,25 @@ void CTurbSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_contain
   
 }
 
-void CTurbSolver::BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
+void CTurbSolver::BC_Sym_Plane(CGeometry      *geometry, 
+                               CSolver        **solver_container, 
+                               CNumerics      *conv_numerics, 
+                               CNumerics      *visc_numerics, 
+                               CConfig        *config, 
+                               unsigned short val_marker,
+                               unsigned short iRKStep) {
   
-  /*--- Convective fluxes across symmetry plane are equal to zero. ---*/
+  /*--- Convective and viscous fluxes across symmetry plane are equal to zero. ---*/
 
 }
 
-void CTurbSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container,
-                                CNumerics *numerics, CConfig *config,
-                                unsigned short val_marker, unsigned short iRKStep) {
+void CTurbSolver::BC_Euler_Wall(CGeometry      *geometry, 
+                                CSolver        **solver_container,
+                                CNumerics      *conv_numerics, 
+                                CNumerics      *visc_numerics, 
+                                CConfig        *config, 
+                                unsigned short val_marker,
+                                unsigned short iRKStep) {
   
   /*--- Convective fluxes across euler wall are equal to zero. ---*/
 
@@ -4208,9 +4218,10 @@ void CTurbSSTSolver::Preprocessing(CGeometry *geometry, CSolver **solver_contain
 }
 
 void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh) {
-  su2double rho = 0.0, mu = 0.0, dist, omega, kine, strMag, F2, muT;
+  su2double rho = 0.0, mu = 0.0, dist, omega, kine, F2, muT, zeta;
   su2double a1 = constants[7];
   unsigned long iPoint;
+
   /*--- Update flow solution using new k
    * Since T depends on k and viscosity depends on T, we need to update the
    * flow primitives to get a consistent laminar viscosity ---*/
@@ -4252,7 +4263,7 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     const su2double VorticityMag = sqrt(Vorticity[0]*Vorticity[0] +
                                         Vorticity[1]*Vorticity[1] +
                                         Vorticity[2]*Vorticity[2]);
-    strMag = flow_node[iPoint]->GetStrainMag();
+    const su2double strMag = flow_node[iPoint]->GetStrainMag();
 
     node[iPoint]->SetBlendingFunc(mu, dist, rho);
     
@@ -4262,7 +4273,8 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     
     kine  = node[iPoint]->GetSolution(0);
     omega = node[iPoint]->GetSolution(1);
-    muT = rho*a1/max(a1*omega, VorticityMag*F2);
+    zeta  = min(1.0/omega, a1/(VorticityMag*F2));
+    muT   = max(rho*kine*zeta,0.0);
     node[iPoint]->SetmuT(muT);
 
     /*--- Compute T/L ---*/

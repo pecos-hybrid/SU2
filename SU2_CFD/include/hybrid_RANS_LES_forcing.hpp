@@ -123,14 +123,14 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
    * \param[in]  Lmesh - Mesh length scales
    * \param[in]  D - Domain lengths in periodic directions
    * \param[in]  dwall - Distance to nearest wall
-   * \param[out] b - TG velocity at point.
+   * \param[out] h - TG velocity at point.
    */
   void SetTGField(const su2double* x, su2double Lsgs,
-                  const su2double* Lmesh, const su2double* D,
+                  const su2double* D,
                   su2double dwall, su2double* h) const;
 
   void SetAxiTGField(const su2double* x, const su2double Lsgs,
-		     const su2double* Lmesh, const su2double* D,
+		     const su2double* D,
 		     const su2double dwall, su2double* h) const;
 
 

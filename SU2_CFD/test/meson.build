@@ -28,6 +28,10 @@ SU2_CFD_boost_tests = files(['convective_blending_test.cpp',
                              'averaging_timescale_test.cpp',
                              'main.cpp'])
 
+if mkl_dep.found()
+  SU2_CFD_boost_tests += files(['resolution_adequacy.cpp'])
+endif
+
 SU2_CFD_test_driver = executable('test_driver',
                                  SU2_CFD_boost_tests,
                                  install : false,
