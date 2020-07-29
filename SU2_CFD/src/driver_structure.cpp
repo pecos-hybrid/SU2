@@ -1329,10 +1329,12 @@ void CDriver::Solver_Preprocessing(CSolver ****solver_container, CGeometry ***ge
 
     /*--- Add a fluctuating stress model to the hybrid mediator ---*/
 
-    CFluctuatingStress* fluct_stress;
+    /*--- Initialize as null to prevent compiler warnings ---*/
+    CFluctuatingStress* fluct_stress = nullptr;
     switch (config->GetKind_Hybrid_SGET_Model()) {
-      case NONE: fluct_stress = new CNoStressModel(nDim); break;
       case M43_MODEL: fluct_stress = new CM43Model(nDim, config); break;
+      case NONE: fluct_stress = new CNoStressModel(nDim); break;
+      default: SU2_MPI::Error("Unrecognized SGET model.", CURRENT_FUNCTION); break;
     }
     hybrid_mediator->SetFluctuatingStress(fluct_stress);
 

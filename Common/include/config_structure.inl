@@ -1607,9 +1607,9 @@ inline void CConfig::AddCurrent_UnstTimeND(su2double delta_time) {
   Current_UnstTime += (delta_time * Time_Ref);
 }
 
-inline void CConfig::SetCurrent_UnstTime(su2double val_time) { Current_UnstTime = val_time; };
+inline void CConfig::SetCurrent_UnstTime(su2double val_time) { Current_UnstTime = val_time; }
 
-inline void CConfig::SetCurrent_UnstTimeND(su2double val_time) { Current_UnstTimeND = val_time; };
+inline void CConfig::SetCurrent_UnstTimeND(su2double val_time) { Current_UnstTimeND = val_time; }
 
 inline void CConfig::SetDelta_UnstTimeND(su2double val_delta_unsttimend) { Delta_UnstTimeND = val_delta_unsttimend; }
 
