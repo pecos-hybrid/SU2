@@ -682,6 +682,8 @@ void CConfig::SetPointersNull(void) {
   
   Current_UnstTime = 0.0;
 
+  Wrt_InvalidState = false;
+
 }
 
 void CConfig::SetRunTime_Options(void) {
@@ -843,9 +845,19 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("GRAVITY_FORCE", GravityForce, false);
   /* DESCRIPTION: Apply a body force as a source term (NO, YES) */
   addBoolOption("BODY_FORCE", Body_Force, false);
+  /* DESCRIPTION: Apply a density weighting to the body force. (NO, YES) */
+  addBoolOption("DENSITY_WEIGHTED_BODY_FORCE", Density_Weighted_Force, true);
   default_body_force[0] = 0.0; default_body_force[1] = 0.0; default_body_force[2] = 0.0;
   /* DESCRIPTION: Vector of body force values (BodyForce_X, BodyForce_Y, BodyForce_Z) */
   addDoubleArrayOption("BODY_FORCE_VECTOR", 3, Body_Force_Vector, default_body_force);
+  /* DESCRIPTION: Apply a body force as a source term (NO, YES) */
+  addBoolOption("CONSTANT_MASS_FLUX_FORCING", Const_Mass_Flux_Forcing, false);
+  /* DESCRIPTION: Apply a body force as a source term (NO, YES) */
+  addBoolOption("CONSTANT_TEMP_FLUX_FORCING", Const_Temp_Flux_Forcing, false);
+  /*!\brief TARGET_BULK_MOMENTUM \n DESCRIPTION: When constant mass flux forcing is on, this is the target bulk momentum \ingroup Config*/
+  addDoubleOption("TARGET_BULK_MOMENTUM", Target_Bulk_Momentum, 0.0);
+  /*!\brief TARGET_BULK_TEMPERATURE \n DESCRIPTION: When constant temperature flux forcing is on, this is the target bulk temperature \ingroup Config*/
+  addDoubleOption("TARGET_BULK_TEMPERATURE", Target_Bulk_Temperature, 0.0);
   /*!\brief RESTART_SOL \n DESCRIPTION: Restart solution from native solution file \n Options: NO, YES \ingroup Config */
   addBoolOption("RESTART_SOL", Restart, false);
   /*!\brief BINARY_RESTART \n DESCRIPTION: Read / write binary SU2 native restart files. \n Options: YES, NO \ingroup Config */
@@ -1173,6 +1185,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief V2F_REALIZABILITY_CONSTANT \n DESCRIPTION: The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. \n DEFAULT: 0.6 \ingroup Config */
   addDoubleOption("V2F_REALIZABILITY_CONSTANT", v2f_Realizability_Constant, 0.6);
+
+  addDoubleOption("V2F_CE1_CONSTANT", v2f_Ce1_Constant, 0.045);
 
   /*!\brief KEEP_PV2_NONNEGATIVE  \n DESCRIPTION: Limit the production of v2 to non-negative values in the v2-f RANS model. \n DEFAULT: True \ingroup Config*/
   addBoolOption("KEEP_PV2_NONNEGATIVE", Pv2_nonnegative, true);
@@ -1573,6 +1587,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_ad_coeff_heat[0] = 0.5; default_ad_coeff_heat[1] = 0.02;
   /*!\brief JST_SENSOR_COEFF_HEAT \n DESCRIPTION: 2nd and 4th order artificial dissipation coefficients for the JST method \ingroup Config*/
   addDoubleArrayOption("JST_SENSOR_COEFF_HEAT", 2, Kappa_Heat, default_ad_coeff_heat);
+  /*!\brief CENTRAL_JACOBIAN_FIX_FACTOR \n DESCRIPTION: Improve the numerical properties (diagonal dominance) of the global Jacobian matrix, 3 to 4 is "optimum" (central schemes) \ingroup Config*/
+  addDoubleOption("CENTRAL_JACOBIAN_FIX_FACTOR", Cent_Jac_Fix_Factor, 1.0);
 
   /*!\brief CONV_NUM_METHOD_ADJFLOW
    *  \n DESCRIPTION: Convective numerical method for the adjoint solver.
@@ -1816,6 +1832,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("WRT_HALO", Wrt_Halo, false);
   /* DESCRIPTION: Output the resolution tensors in the solution files  \ingroup Config*/
   addBoolOption("WRT_RESOLUTION_TENSORS", Wrt_Resolution_Tensors, false);
+  /* DESCRIPTION: Output the Reynolds stress \ingroup Config */
+  addBoolOption("WRT_REYNOLDS_STRESS", Wrt_Reynolds_Stress, false);
   /* DESCRIPTION: Output the performance summary to the console at the end of SU2_CFD  \ingroup Config*/
   addBoolOption("WRT_PERFORMANCE", Wrt_Performance, false);
     /* DESCRIPTION: Output a 1D slice of a 2D cartesian solution \ingroup Config*/

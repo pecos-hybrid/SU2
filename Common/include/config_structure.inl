@@ -1691,9 +1691,25 @@ inline bool CConfig::Low_Mach_Correction(void) { return Low_Mach_Corr; }
 
 inline bool CConfig::GetGravityForce(void) { return GravityForce; }
 
+inline void CConfig::SetBody_Force_Vector(su2double val_force, unsigned short iDim) {
+  Body_Force_Vector[iDim] = val_force;
+}
+
 inline bool CConfig::GetBody_Force(void) { return Body_Force; }
 
 inline su2double* CConfig::GetBody_Force_Vector(void) { return Body_Force_Vector; }
+
+inline bool CConfig::GetConst_Temp_Flux_Forcing(void) const { return Const_Temp_Flux_Forcing; }
+
+inline bool CConfig::GetConst_Mass_Flux_Forcing(void) const { return Const_Mass_Flux_Forcing; }
+
+inline su2double CConfig::GetTarget_Bulk_Momentum(void) const { return Target_Bulk_Momentum; }
+
+inline su2double CConfig::GetTarget_Bulk_Temperature(void) const { return Target_Bulk_Temperature; }
+
+inline void CConfig::SetTarget_Bulk_Momentum(su2double val_momentum) { Target_Bulk_Momentum = val_momentum; }
+
+inline void CConfig::SetTarget_Bulk_Temperature(su2double val_temperature) { Target_Bulk_Temperature = val_temperature; }
 
 inline bool CConfig::GetSmoothNumGrid(void) { return SmoothNumGrid; }
 
