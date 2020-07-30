@@ -48,29 +48,6 @@ inline const su2double* CHybridForcingTG0::GetForcingVector(unsigned long iPoint
   return node[iPoint];
 }
 
-inline su2double CHybridForcingTG0::ComputeScalingFactor(
-                     const su2double Ftar,
-                     const su2double resolution_adequacy,
-                     const su2double alpha,
-                     const su2double alpha_kol,
-                     const su2double PFtest) const {
-
-  su2double eta = 0.0;
-
-  // TODO: Compare this with Sigfried's improved version once channel
-  // validation is successful.
-  if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
-    const su2double Sr = tanh(1.0 - 1.0/sqrt(resolution_adequacy));
-    if (alpha <= alpha_kol) {
-      eta = -Ftar * Sr * (alpha - alpha_kol);
-    } else {
-      eta = -Ftar * Sr;
-    }
-  }
-
-  return eta;
-}
-
 inline void CHybridForcingTG0::SetTGField(
                 const su2double* x, const su2double Lsgs,
                 const su2double* D,
@@ -80,20 +57,40 @@ inline void CHybridForcingTG0::SetTGField(
   const su2double A = 1./3., B = 2./3., C = -1.0;
   su2double a[3];
 
-  for (unsigned int ii=0; ii<3; ii++) {
-    const su2double ell = min(Lsgs, dwall);
+  if (dwall > 0 && Lsgs > 0) {
+    for (unsigned int ii=0; ii<3; ii++) {
+      const su2double ell = min(Lsgs, dwall);
 
-    if (D[ii] > 0.0) {
-      const su2double denom = round(D[ii]/min(ell, D[ii]));
-      a[ii] = M_PI/(D[ii]/denom);
-    } else {
-      a[ii] = M_PI/ell;
+      if (D[ii] > 0.0) {
+        const su2double denom = round(D[ii]/min(ell, D[ii]));
+        a[ii] = M_PI/D[ii]*denom;
+      } else {
+        a[ii] = M_PI/ell;
+      }
     }
+
+    h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
+    h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
+    h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
+  } else {
+    h[0] = 0.0;
+    h[1] = 0.0;
+    h[2] = 0.0;
   }
 
-  h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
-  h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
-  h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
+#ifndef NDEBUG
+  const bool found_nan = ((h[0]!=h[0]) || (h[1]!=h[1]) || (h[2]!=h[2]) );
+  if (found_nan) {
+    std::cout << "Found a NaN in forcing!" << std::endl;
+    std::cout << "xyz   = " << x[0] << " " << x[1] << " " << x[2] << std::endl;
+    std::cout << "a     = " << a[0] << " " << a[1] << " " << a[2] << std::endl;
+    std::cout << "dwall = " << dwall << std::endl;
+    std::cout << "Lsgs  = " << Lsgs << std::endl;
+    std::cout << "D     = " << D[0] << " " << D[1] << " " << D[2] << std::endl;
+    std::cout << "h     = " << h[0] << " " << h[1] << " " << h[2] << std::endl;
+    SU2_MPI::Error("Found a NaN in forcing.", CURRENT_FUNCTION);
+  }
+#endif
 
 }
 
@@ -150,6 +147,7 @@ inline void CHybridForcingTG0::SetAxiTGField(
     std::cout << "a   = " << a[0] << " " << a[1] << " " << a[2] << std::endl;
     std::cout << "htmp= " << htmp[0] << " " << htmp[1] << " " << htmp[2] << std::endl;
     std::cout << "h   = " << h[0] << " " << htmp[1] << " " << htmp[2] << std::endl;
+    SU2_MPI::Error("Found a NaN in forcing.", CURRENT_FUNCTION);
   }
 
 }

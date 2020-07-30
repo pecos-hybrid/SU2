@@ -2790,6 +2790,7 @@ private:
   ProjGridVel;  /*!< \brief Projected grid velocity. */
   bool implicit, /*!< \brief Implicit calculation. */
   grid_movement; /*!< \brief Modification for grid movement. */
+  su2double fix_factor;            /*!< \brief Fix factor for dissipation Jacobians (more diagonal dominance). */
   
   
 public:
@@ -2843,6 +2844,7 @@ private:
   ProjGridVel;  /*!< \brief Projected grid velocity. */
   bool implicit, /*!< \brief Implicit calculation. */
   grid_movement; /*!< \brief Modification for grid movement. */
+  su2double fix_factor;            /*!< \brief Fix factor for dissipation Jacobians (more diagonal dominance). */
   
   
 public:

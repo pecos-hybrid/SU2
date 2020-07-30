@@ -98,6 +98,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
   const su2double time = config->GetCurrent_UnstTimeND();
   assert(time >= 0);
+  /*--- Timestep is used to check if forcing is physical ---*/
+  const su2double delta_t = solver[FLOW_SOL]->node[0]->GetDelta_Time();
+  assert(delta_t > 0);
 
   /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
   assert(nDim == 3);
@@ -188,10 +191,57 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
                                                      alpha, alpha_kol, PFtest);
 
-    /*--- Store eta*h so we can compute the derivatives ---*/
-    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      node[iPoint][iDim] = eta*h[iDim];
+    /*--- Check for an unphysically large forcing ---*/
+
+    const su2double k_tot = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
+    su2double energy_added = 0.0;
+    for (unsigned short iDim=0; iDim<nDim; iDim++) {
+      energy_added += prim_vars[iDim+1]*h[iDim];
+    }
+    energy_added *= delta_t * eta;
+    su2double clipping = 1.0;
+    if (energy_added >= alpha*k_tot*0.1) {
+      /*--- Arbitrary constant of 0.99 added to prevent T=0 ---*/
+      clipping = alpha*k_tot/energy_added * 0.10;
     }
 
+
+    /*--- Store eta*h so we can compute the derivatives ---*/
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      node[iPoint][iDim] = clipping*eta*h[iDim];
+    }
+
+    /*--- Save the forcing for output ---*/
+
+    solver[FLOW_SOL]->node[iPoint]->SetForcingVector(node[iPoint]);
+    solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
+    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(clipping);
+
   } // end loop over points
+}
+
+su2double CHybridForcingTG0::ComputeScalingFactor(
+                     const su2double Ftar,
+                     const su2double resolution_adequacy,
+                     const su2double alpha,
+                     const su2double alpha_kol,
+                     const su2double PFtest) const {
+
+  su2double eta = 0.0;
+
+  // TODO: Compare this with Sigfried's improved version once channel
+  // validation is successful.
+  if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
+    const su2double Sr = tanh(1.0 - 1.0/sqrt(resolution_adequacy));
+    if (alpha <= alpha_kol) {
+      eta = -Ftar * Sr * (alpha - alpha_kol);
+    } else {
+      eta = -Ftar * Sr;
+    }
+  }
+
+  // Check for NaNs in debug mode.
+  assert(eta == eta);
+
+  return eta;
 }

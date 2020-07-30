@@ -613,7 +613,8 @@ private:
   Kappa_2nd_Flow,			/*!< \brief JST 2nd order dissipation coefficient for flow equations. */
   Kappa_4th_Flow,			/*!< \brief JST 4th order dissipation coefficient for flow equations. */
   Kappa_2nd_Heat,     /*!< \brief 2nd order dissipation coefficient for heat equation. */
-  Kappa_4th_Heat;     /*!< \brief 4th order dissipation coefficient for heat equation. */  
+  Kappa_4th_Heat,     /*!< \brief 4th order dissipation coefficient for heat equation. */  
+  Cent_Jac_Fix_Factor;/*!< \brief Multiply the dissipation contribution to the Jacobian of central schemes by this factor to make the global matrix more diagonal dominant. */
   su2double Geo_Waterline_Location; /*!< \brief Location of the waterline. */
   
   su2double Min_Beta_RoeTurkel,		/*!< \brief Minimum value of Beta for the Roe-Turkel low Mach preconditioner. */
@@ -796,6 +797,8 @@ private:
   Wrt_SharpEdges,              /*!< \brief Write residuals to solution file */
   Wrt_Halo,                   /*!< \brief Write rind layers in solution files */
   Wrt_Resolution_Tensors,     /*!< \brief Write resolutions tensors in solution files */
+  Wrt_Reynolds_Stress,        /*!< \brief Write Reynolds stress in solution files */
+  Wrt_InvalidState,           /*!< \brief Output the solution due to an invalid state error */
   Wrt_Performance,            /*!< \brief Write the performance summary at the end of a calculation.  */
   Wrt_InletFile,                   /*!< \brief Write a template inlet profile file */
   Wrt_Slice,                   /*!< \brief Write 1D slice of a 2D cartesian solution */
@@ -1084,7 +1087,12 @@ private:
   su2double *default_kt_polycoeffs;        /*!< \brief Array for thermal conductivity polynomial coefficients. */
   su2double *ExtraRelFacGiles; /*!< \brief coefficient for extra relaxation factor for Giles BC*/
   bool Body_Force;            /*!< \brief Flag to know if a body force is included in the formulation. */
+  bool Density_Weighted_Force; /*!< \brief True if the body force is density-weighted. */
   su2double *Body_Force_Vector;  /*!< \brief Values of the prescribed body force vector. */
+  bool Const_Mass_Flux_Forcing; /*!< \brief Flag determining if a constant mass flux is imposed by a time-varying body force. */
+  bool Const_Temp_Flux_Forcing; /*!< \brief Flag determining if a constant temperature flux is imposed by a time-varying volumetric heating. */
+  su2double Target_Bulk_Momentum; /*!< \brief Target bulk momentum used in constant mass flux forcing */
+  su2double Target_Bulk_Temperature; /*!< \brief Target bulk temperature used in constant temp flux forcing */
   su2double *FreeStreamTurboNormal; /*!< \brief Direction to initialize the flow in turbomachinery computation */
   su2double Restart_Bandwidth_Agg; /*!< \brief The aggregate of the bandwidth for writing binary restarts (to be averaged later). */
   su2double Max_Vel2; /*!< \brief The maximum velocity^2 in the domain for the incompressible preconditioner. */
@@ -1147,6 +1155,7 @@ private:
   bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
   unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
   su2double v2f_Realizability_Constant; /*!< \brief The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. */
+  su2double v2f_Ce1_Constant;
   bool Use_TKE_Diffusion; /*!< \brief Add TKE diffusion model for the molecular and turbulent transport of total energy. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
@@ -3360,6 +3369,12 @@ public:
   bool GetWrt_Resolution_Tensors(void);
 
   /*!
+   * \brief Check if we want to write the Reynolds stress.
+   * \return <code>TRUE</code> if we want to write the Reynolds stress
+   */
+  bool GetWrt_Reynolds_Stress(void) const { return Wrt_Reynolds_Stress; };
+
+  /*!
    * \brief Get information about writing sectional force files.
    * \return <code>TRUE</code> means that sectional force files will be written for specified markers.
    */
@@ -4734,6 +4749,12 @@ public:
   su2double GetKappa_4th_Heat(void);
   
   /*!
+   * \brief Factor by which to multiply the dissipation contribution to Jacobians of central schemes.
+   * \return The factor.
+   */
+  inline su2double GetCent_Jac_Fix_Factor(void) const { return Cent_Jac_Fix_Factor; }
+
+  /*!
    * \brief Get the kind of integration scheme (explicit or implicit)
    *        for the adjoint flow equations.
    * \note This value is obtained from the config file, and it is constant
@@ -5175,6 +5196,8 @@ public:
    * \return The realizability model constant
    */
   su2double Getv2f_Realizability_Constant(void) const;
+
+  su2double Getv2f_Ce1_Constant(void) const { return v2f_Ce1_Constant; }
 
   /*!
    * \brief  Add TKE diffusion model for the molecular and turbulent
@@ -6277,10 +6300,60 @@ public:
   bool GetBody_Force(void);
 
   /*!
+   * \brief Check if the body force is density-weighted.
+   * \return True if the body force is to density-weighted.
+   */
+  bool GetDensity_Weighted_Force(void) const { return Density_Weighted_Force; }
+
+  /*!
    * \brief Get a pointer to the body force vector.
    * \return A pointer to the body force vector.
    */
   su2double* GetBody_Force_Vector(void);
+
+  /*!
+   * \brief Set a component of the body force.
+   * \param[in] val_force - The value of the component of the body force
+   * \param[in] iDim - The component index
+   */
+  void SetBody_Force_Vector(su2double val_force, unsigned short iDim);
+
+  /*!
+   * \brief Check if forcing is applied to maintain a constant mass flux
+   * \return <code>TRUE</code> if it uses a body force; otherwise <code>FALSE</code>.
+   */
+  bool GetConst_Mass_Flux_Forcing(void) const;
+
+  /*!
+   * \brief Check if volumetric heating is applied to maintain a constant
+   *        temperature flux.
+   * \return <code>TRUE</code> if it uses a volumetric heating; otherwise <code>FALSE</code>.
+   */
+  bool GetConst_Temp_Flux_Forcing(void) const;
+
+  /*!
+   * \brief Find the target bulk momentum used in constant mass flux forcing.
+   * \return The target bulk momentum
+   */
+  su2double GetTarget_Bulk_Momentum(void) const;
+
+  /*!
+   * \brief Find the target bulk temperature used in constant mass flux forcing.
+   * \return The target bulk temperature
+   */
+  su2double GetTarget_Bulk_Temperature(void) const;
+
+  /*!
+   * \brief Find the target bulk momentum used in constant mass flux forcing.
+   * \return The target bulk momentum
+   */
+  void SetTarget_Bulk_Momentum(su2double val_momentum);
+
+  /*!
+   * \brief Find the target bulk temperature used in constant mass flux forcing.
+   * \return The target bulk temperature
+   */
+  void SetTarget_Bulk_Temperature(su2double val_temperature);
 
   /*!
    * \brief Get information about the rotational frame.
@@ -9526,6 +9599,18 @@ public:
    * \return YES if the forces breakdown file is written.
    */
   bool GetWrt_ForcesBreakdown(void);
+
+  /*!
+   * \brief Check if the solution should be written due to an invalid state.
+   * \return YES if the solution should be written. 
+   */
+  bool GetWrt_InvalidState(void) const { return Wrt_InvalidState; }
+
+  /*!
+   * \brief Set if an invalid solutions state should be saved. 
+   * \param[in] invalid_state - True if the solution should be written.
+   */
+  void SetWrt_InvalidState(bool invalid_state) { Wrt_InvalidState = invalid_state; };
 };
 
 #include "config_structure.inl"

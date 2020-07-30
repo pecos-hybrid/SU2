@@ -463,6 +463,11 @@ void CIteration::Output(COutput *output,
 
   bool output_files = false;
 
+  int local_invalid_state = int(config_container[ZONE_0]->GetWrt_InvalidState());
+  int global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
   /*--- Determine whether a solution needs to be written
    after the current iteration ---*/
 
@@ -486,9 +491,11 @@ void CIteration::Output(COutput *output,
 
       /*--- No inlet profile file found. Print template. ---*/
 
-      (config_container[ZONE_0]->GetWrt_InletFile())
+      (config_container[ZONE_0]->GetWrt_InletFile()) ||
 
-      ) {
+      /*--- Invalid temperature and/or pressure ---*/
+
+      (global_invalid_state > 0)) {
 
     output_files = true;
 

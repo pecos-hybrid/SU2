@@ -134,7 +134,8 @@ CPoint::CPoint(unsigned short val_nDim, unsigned long val_globalindex, CConfig *
 
   /*--- Initialize the grid resolution tensor ---*/
 
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT ||
+      config->GetWrt_Resolution_Tensors()) {
     ResolutionTensor = new su2double*[nDim];
     ResolutionTensor43 = new su2double*[nDim];
     ResolutionValues = new su2double[nDim];
@@ -263,7 +264,8 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, unsigned long val_g
 
   /*--- Initialize the grid resolution tensor ---*/
 
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT ||
+      config->GetWrt_Resolution_Tensors()) {
     ResolutionTensor = new su2double*[nDim];
     ResolutionTensor43 = new su2double*[nDim];
     ResolutionValues = new su2double[nDim];
@@ -394,7 +396,8 @@ CPoint::CPoint(su2double val_coord_0, su2double val_coord_1, su2double val_coord
 
   /*--- Initialize the grid resolution tensor ---*/
 
-  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT ||
+      config->GetWrt_Resolution_Tensors()) {
     ResolutionTensor = new su2double*[nDim];
     ResolutionTensor43 = new su2double*[nDim];
     ResolutionValues = new su2double[nDim];

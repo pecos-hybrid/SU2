@@ -1017,7 +1017,8 @@ void CDriver::Geometrical_Preprocessing() {
 
       /*--- Compute cell resolution tensors ---*/
 
-      if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+      if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT ||
+          config_container[iZone]->GetWrt_Resolution_Tensors()) {
         if (rank == MASTER_NODE) cout << "Computing cell resolution tensors." << endl;
         geometry_container[iZone][iInst][MESH_0]->SetResolutionTensor(config_container[iZone]);
       }
@@ -3930,10 +3931,13 @@ void CDriver::StartSolver(){
   __itt_resume();
 #endif
 
-  /*--- Main external loop of the solver. Within this loop, each iteration ---*/
+  /*--- Output any files from invalid settings before problems occur ---*/
+
   if (config_container[ZONE_0]->GetWrt_InletFile()) {
     Output(ExtIter);
   }
+
+  /*--- Main external loop of the solver. Within this loop, each iteration ---*/
 
   if (rank == MASTER_NODE)
     cout << endl <<"------------------------------ Begin Solver -----------------------------" << endl;
@@ -4074,6 +4078,16 @@ bool CDriver::Monitor(unsigned long ExtIter) {
     case DISC_ADJ_FEM_EULER: case DISC_ADJ_FEM_NS: case DISC_ADJ_FEM_RANS:
       StopCalc = integration_container[ZONE_0][INST_0][ADJFLOW_SOL]->GetConvergence(); break;
   }
+
+  /*--- Check if we have an invalid state ---*/
+
+  /*--- MPI_CXX_BOOL and MPI_LOR would be better here, but it is not
+   * defined in SU2's mpi headers for serial build ---*/
+  int local_invalid_state = int(config_container[ZONE_0]->GetWrt_InvalidState());
+  int global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  if (global_invalid_state > 0) StopCalc = true;
   
   return StopCalc;
   
@@ -4084,6 +4098,11 @@ void CDriver::Output(unsigned long ExtIter) {
   unsigned long nExtIter = config_container[ZONE_0]->GetnExtIter();
   bool output_files = false;
   
+  int local_invalid_state = int(config_container[ZONE_0]->GetWrt_InvalidState());
+  int global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
   /*--- Determine whether a solution needs to be written
    after the current iteration ---*/
   
@@ -4123,7 +4142,9 @@ void CDriver::Output(unsigned long ExtIter) {
       
       /*--- No inlet profile file found. Print template. ---*/
       
-      (config_container[ZONE_0]->GetWrt_InletFile())
+      (config_container[ZONE_0]->GetWrt_InletFile()) ||
+
+      (global_invalid_state > 0)
       
       ) {
     
@@ -4324,9 +4345,8 @@ void CFluidDriver::Run() {
 
     /*--- If convergence was reached in every zone --*/
 
-  if (checkConvergence == nZone) break;
+    if (checkConvergence == nZone) break;
   }
-
 }
 
 void CFluidDriver::Transfer_Data(unsigned short donorZone, unsigned short targetZone) {

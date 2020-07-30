@@ -45,6 +45,7 @@ CCentJST_Flow::CCentJST_Flow(unsigned short val_nDim, unsigned short val_nVar, C
                (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   Gamma = config->GetGamma();
   Gamma_Minus_One = Gamma - 1.0;
+  fix_factor = config->GetCent_Jac_Fix_Factor();
   
   grid_movement = config->GetGrid_Movement();
   
@@ -209,23 +210,23 @@ void CCentJST_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
     cte_1 = (Epsilon_2 + Epsilon_4*su2double(Neighbor_j+1))*StretchingFactor*MeanLambda;
     
     for (iVar = 0; iVar < (nVar-1); iVar++) {
-      val_Jacobian_i[iVar][iVar] += cte_0;
-      val_Jacobian_j[iVar][iVar] -= cte_1;
+      val_Jacobian_i[iVar][iVar] += fix_factor*cte_0;
+      val_Jacobian_j[iVar][iVar] -= fix_factor*cte_1;
     }
     
     /*--- Last row of Jacobian_i ---*/
     
-    val_Jacobian_i[nVar-1][0] += cte_0*Gamma_Minus_One*sq_vel_i;
+    val_Jacobian_i[nVar-1][0] += fix_factor*cte_0*Gamma_Minus_One*sq_vel_i;
     for (iDim = 0; iDim < nDim; iDim++)
-      val_Jacobian_i[nVar-1][iDim+1] -= cte_0*Gamma_Minus_One*Velocity_i[iDim];
-    val_Jacobian_i[nVar-1][nVar-1] += cte_0*Gamma;
+      val_Jacobian_i[nVar-1][iDim+1] -= fix_factor*cte_0*Gamma_Minus_One*Velocity_i[iDim];
+    val_Jacobian_i[nVar-1][nVar-1] += fix_factor*cte_0*Gamma;
     
     /*--- Last row of Jacobian_j ---*/
     
-    val_Jacobian_j[nVar-1][0] -= cte_1*Gamma_Minus_One*sq_vel_j;
+    val_Jacobian_j[nVar-1][0] -= fix_factor*cte_1*Gamma_Minus_One*sq_vel_j;
     for (iDim = 0; iDim < nDim; iDim++)
-      val_Jacobian_j[nVar-1][iDim+1] += cte_1*Gamma_Minus_One*Velocity_j[iDim];
-    val_Jacobian_j[nVar-1][nVar-1] -= cte_1*Gamma;
+      val_Jacobian_j[nVar-1][iDim+1] += fix_factor*cte_1*Gamma_Minus_One*Velocity_j[iDim];
+    val_Jacobian_j[nVar-1][nVar-1] -= fix_factor*cte_1*Gamma;
     
   }
 
@@ -238,7 +239,7 @@ CCentJST_KE_Flow::CCentJST_KE_Flow(unsigned short val_nDim, unsigned short val_n
   implicit = ( (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
                (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
                (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
-
+  fix_factor = config->GetCent_Jac_Fix_Factor();
 
   Gamma = config->GetGamma();
   Gamma_Minus_One = Gamma - 1.0;
@@ -400,23 +401,23 @@ void CCentJST_KE_Flow::ComputeResidual(su2double *val_residual, su2double **val_
     cte_0 = Epsilon_2*StretchingFactor*MeanLambda;
 
     for (iVar = 0; iVar < (nVar-1); iVar++) {
-      val_Jacobian_i[iVar][iVar] += cte_0;
-      val_Jacobian_j[iVar][iVar] -= cte_0;
+      val_Jacobian_i[iVar][iVar] += fix_factor*cte_0;
+      val_Jacobian_j[iVar][iVar] -= fix_factor*cte_0;
     }
 
     /*--- Last row of Jacobian_i ---*/
 
-    val_Jacobian_i[nVar-1][0] += cte_0*Gamma_Minus_One*sq_vel_i;
+    val_Jacobian_i[nVar-1][0] += fix_factor*cte_0*Gamma_Minus_One*sq_vel_i;
     for (iDim = 0; iDim < nDim; iDim++)
-      val_Jacobian_i[nVar-1][iDim+1] -= cte_0*Gamma_Minus_One*Velocity_i[iDim];
-    val_Jacobian_i[nVar-1][nVar-1] += cte_0*Gamma;
+      val_Jacobian_i[nVar-1][iDim+1] -= fix_factor*cte_0*Gamma_Minus_One*Velocity_i[iDim];
+    val_Jacobian_i[nVar-1][nVar-1] += fix_factor*cte_0*Gamma;
 
     /*--- Last row of Jacobian_j ---*/
 
-    val_Jacobian_j[nVar-1][0] -= cte_1*Gamma_Minus_One*sq_vel_j;
+    val_Jacobian_j[nVar-1][0] -= fix_factor*cte_1*Gamma_Minus_One*sq_vel_j;
     for (iDim = 0; iDim < nDim; iDim++)
-      val_Jacobian_j[nVar-1][iDim+1] += cte_1*Gamma_Minus_One*Velocity_j[iDim];
-    val_Jacobian_j[nVar-1][nVar-1] -= cte_1*Gamma;
+      val_Jacobian_j[nVar-1][iDim+1] += fix_factor*cte_1*Gamma_Minus_One*Velocity_j[iDim];
+    val_Jacobian_j[nVar-1][nVar-1] -= fix_factor*cte_1*Gamma;
 
   }
 
@@ -5819,25 +5820,43 @@ CSourceBodyForce::~CSourceBodyForce(void) {
 }
 
 void CSourceBodyForce::ComputeResidual(su2double *val_residual, CConfig *config) {
-  
+
   unsigned short iDim;
   su2double Force_Ref = config->GetForce_Ref();
-  
+
   /*--- Zero the continuity contribution ---*/
-  
+
   val_residual[0] = 0.0;
-  
-  /*--- Momentum contribution ---*/
-  
-  for (iDim = 0; iDim < nDim; iDim++)
-    val_residual[iDim+1] = -Volume * U_i[0] * Body_Force_Vector[iDim] / Force_Ref;
-  
-  /*--- Energy contribution ---*/
-  
-  val_residual[nDim+1] = 0.0;
-  for (iDim = 0; iDim < nDim; iDim++)
-    val_residual[nDim+1] += -Volume * U_i[iDim+1] * Body_Force_Vector[iDim] / Force_Ref;
-  
+
+  if (config->GetDensity_Weighted_Force()) {
+
+    /*--- Momentum contribution ---*/
+
+    for (iDim = 0; iDim < nDim; iDim++)
+      val_residual[iDim+1] = -Volume * U_i[0] * Body_Force_Vector[iDim] / Force_Ref;
+
+    /*--- Energy contribution ---*/
+
+    val_residual[nDim+1] = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++)
+      val_residual[nDim+1] += -Volume * U_i[iDim+1] * Body_Force_Vector[iDim] / Force_Ref;
+
+  } else {
+
+    const su2double rho_lim = max(U_i[0], config->GetDensity_Ref()*1E-16);
+
+    /*--- Momentum contribution ---*/
+
+    for (iDim = 0; iDim < nDim; iDim++)
+      val_residual[iDim+1] = -Volume * Body_Force_Vector[iDim] / Force_Ref;
+
+    /*--- Energy contribution ---*/
+
+    val_residual[nDim+1] = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++)
+      val_residual[nDim+1] += -Volume * U_i[iDim+1]/rho_lim * Body_Force_Vector[iDim] / Force_Ref;
+
+  }
 }
 
 CSourceRotatingFrame_Flow::CSourceRotatingFrame_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config) : CNumerics(val_nDim, val_nVar, config) {

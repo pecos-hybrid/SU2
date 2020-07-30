@@ -793,7 +793,7 @@ public:
    * \brief Get the pressure sensor.
    * \return Value of the pressure sensor.
    */
-  su2double GetSensor(void);
+  su2double GetSensor(void) const;
   
   /*!
    * \brief Get the pressure sensor.
@@ -914,11 +914,19 @@ public:
    */
   virtual su2double** GetAnisoEddyViscosity(void) const;
 
+  virtual su2double GetAnisoEddyViscosity(unsigned short iDim, unsigned short jDim) const;
+
   /*!
    * \brief Get the trace of the anisotropic eddy-viscosity
    * \return The trace of the anisotropic eddy viscosity of the flow.
    */
   virtual su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
+   * \brief Get a component of the (RANS) Reynolds stress tensor.
+   * \return The Reynolds stress tensor
+   */
+  virtual su2double GetReynoldsStress(unsigned short iDim, unsigned short jDim) const;
 
   /*!
    * \brief A virtual member.
@@ -955,6 +963,17 @@ public:
   virtual su2double GetResolutionAdequacy(void) const;
 
   virtual const su2double* GetForcingVector() const;
+
+  /*!
+   * \brief Get the scaling factor applied to the forcing vector
+   *
+   * This is "eta" in the documentation.
+   *
+   * \return The scaling factor applied to the forcing vector
+   */
+  virtual su2double GetForcingFactor() const;
+
+  virtual su2double GetForcingClipping() const;
 
   /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy
@@ -1245,6 +1264,10 @@ public:
 
   virtual void SetForcingVector(const su2double* force);
 
+  virtual void SetForcingFactor(su2double factor);
+
+  virtual void SetForcingClipping(su2double clipping);
+
   /*!
    * \brief Set the ratio of modeled to total turbulent kinetic energy.
    * \param[in] val_alpha - The ratio of modeled to total turbulent kinetic energy.
@@ -1326,7 +1349,10 @@ public:
   /*!
    * \brief A virtual member.
    */
-  virtual bool SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel);
+  virtual bool SetPrimVar(su2double eddy_visc,
+                          su2double turb_ke,
+                          CFluidModel *FluidModel,
+                          bool fallback_on_error=true);
   
   /*!
    * \brief A virtual member.
@@ -4043,6 +4069,8 @@ private:
   su2double KineticEnergyRatio; /*!< \brief Ratio of modeled to total turbulent kinetic energy */
   su2double ResolutionAdequacy;
   su2double* ForcingVector;  /*!< \brief A spatially varying forcing field. Only used in model-split hybrid RANS/LES */
+  su2double ForcingFactor;
+  su2double ForcingClipping;
   su2double** ResolvedTurbStress; /*!< \brief The resolved portion of the Reynolds stress tensor */
   su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
   su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
@@ -4152,6 +4180,10 @@ public:
 
   void SetForcingVector(const su2double* force);
 
+  void SetForcingFactor(su2double factor);
+
+  void SetForcingClipping(su2double clipping);
+
   /*!
    * \brief Store the resolved kinetic energy;
    *
@@ -4182,12 +4214,19 @@ public:
    * \return The anisotropic eddy viscosity of the flow.
    */
   su2double** GetAnisoEddyViscosity(void) const;
+  su2double GetAnisoEddyViscosity(unsigned short iDim, unsigned short jDim) const;
 
   /*!
    * \brief Get the trace of the anisotropic eddy-viscosity
    * \return The trace of the anisotropic eddy viscosity of the flow.
    */
   su2double GetTraceAnisoEddyViscosity(void) const;
+
+  /*!
+   * \brief Get a component of the (RANS) Reynolds stress tensor.
+   * \return The Reynolds stress tensor
+   */
+  su2double GetReynoldsStress(unsigned short iDim, unsigned short jDim) const;
 
   /*!
    * \brief Get the ratio of modeled to total turbulent kinetic energy.
@@ -4234,6 +4273,10 @@ public:
   su2double GetResolutionAdequacy(void) const;
 
   const su2double* GetForcingVector() const;
+
+  su2double GetForcingFactor() const;
+
+  su2double GetForcingClipping() const;
 
   /*!
    * \brief Get the improved turbulent production term, including
@@ -4317,7 +4360,10 @@ public:
   /*!
    * \brief Set all the primitive variables for compressible flows
    */
-  bool SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel);
+  bool SetPrimVar(su2double eddy_visc,
+                  su2double turb_ke,
+                  CFluidModel *FluidModel,
+                  bool fallback_on_error=true) override;
   using CVariable::SetPrimVar;
   
   /*!
@@ -4477,7 +4523,10 @@ public:
   /*!
    * \brief Set all the primitive variables for incompressible flows
    */
-  bool SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel);
+  bool SetPrimVar(su2double eddy_visc,
+                  su2double turb_ke,
+                  CFluidModel *FluidModel,
+                  bool fallback_on_error=true) override;
   using CVariable::SetPrimVar;
   
   /*!

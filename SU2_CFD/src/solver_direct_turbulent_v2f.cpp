@@ -822,7 +822,7 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
                              unsigned short iRKStep) {
 
   unsigned short iVar, iDim;
-  unsigned long iVertex, iPoint, Point_Normal;
+  unsigned long iVertex, iPoint;
   su2double *V_inlet, *V_domain, *Normal;
 
   /*--- Check that the inlet has been set up correctly ---*/
@@ -849,9 +849,6 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
 
     /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
     if (geometry->node[iPoint]->GetDomain()) {
-
-      /*--- Index of the closest interior node ---*/
-      Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
 
       /*--- Normal vector for this vertex (negate for outward convention) ---*/
       geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
@@ -892,25 +889,7 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
       /*--- Jacobian contribution for implicit integration ---*/
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
 
-//      /*--- Viscous contribution, commented out because serious convergence problems  ---*/
-//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
-//                              geometry->node[Point_Normal]->GetCoord());
-//
-//      visc_numerics->SetNormal(Normal);
-//
-//      /*--- Conservative variables w/o reconstruction ---*/
-//      visc_numerics->SetPrimitive(V_domain, V_inlet);
-//
-//      /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
-//      visc_numerics->SetTurbVar(Solution_i, Solution_j);
-//      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(), node[iPoint]->GetGradient());
-//
-//      /*--- Compute residual, and Jacobians ---*/
-//      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-//
-//      /*--- Subtract residual, and update Jacobians ---*/
-//      LinSysRes.SubtractBlock(iPoint, Residual);
-//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+      /*--- Viscous contribution, removed due to serious convergence problems  ---*/
 
       // Set f residual correctly to get right update
       LinSysRes.SetBlock(iPoint, 3, Solution_i[3] - f_Inf);

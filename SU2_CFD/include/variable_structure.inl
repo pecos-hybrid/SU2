@@ -233,7 +233,7 @@ inline su2double CVariable::GetLambda(void) { return Lambda; }
 
 inline su2double CVariable::GetLambda(unsigned short iSpecies) { return 0; }
 
-inline su2double CVariable::GetSensor(void) { return Sensor; }
+inline su2double CVariable::GetSensor(void) const { return Sensor; }
 
 inline su2double CVariable::GetSensor(unsigned short iSpecies) { return 0;}
 
@@ -263,7 +263,11 @@ inline su2double CVariable::GetEddyViscosity(void) { return 0; }
 
 inline su2double** CVariable::GetAnisoEddyViscosity(void) const { return NULL; }
 
+inline su2double CVariable::GetAnisoEddyViscosity(unsigned short iDim, unsigned short jDim) const { return 0; }
+
 inline su2double CVariable::GetTraceAnisoEddyViscosity(void) const { return 0; }
+
+inline su2double CVariable::GetReynoldsStress(unsigned short iDim, unsigned short jDim) const { return 0; }
 
 inline su2double CVariable::GetTurbTimescale(void) const { return 0; }
 
@@ -284,6 +288,10 @@ inline su2double CVariable::GetAnisoRatio(void) {return 1; }
 inline su2double CVariable::GetResolutionAdequacy(void) const { return 1; }
 
 inline const su2double* CVariable::GetForcingVector() const { return NULL; }
+
+inline su2double CVariable::GetForcingFactor() const { return 0; }
+
+inline su2double CVariable::GetForcingClipping() const { return 0; }
 
 inline su2double CVariable::GetKineticEnergyRatio(void) const { return 1; }
 
@@ -371,7 +379,12 @@ inline void CVariable::SetSecondaryVar(CFluidModel *FluidModel) { }
 
 inline bool CVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CConfig *config) { return true; }
 
-inline bool CVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel) { return true; }
+inline bool CVariable::SetPrimVar(su2double eddy_visc,
+                                  su2double turb_ke,
+                                  CFluidModel *FluidModel,
+                                  bool fallback_on_error) {
+  return true;
+}
 
 inline bool CVariable::SetPrimVar(su2double Density_Inf, CConfig *config) { return true; }
 
@@ -496,6 +509,10 @@ inline void CVariable::SetKolKineticEnergyRatio(su2double nu) { }
 inline void CVariable::SetResolutionAdequacy(su2double val_r_k) { }
 
 inline void CVariable::SetForcingVector(const su2double* force) { }
+
+inline void CVariable::SetForcingFactor(su2double factor) { }
+
+inline void CVariable::SetForcingClipping(su2double clipping) { }
 
 inline void CVariable::SetKineticEnergyRatio(su2double val_alpha) { }
 
@@ -948,6 +965,10 @@ inline su2double CNSVariable::GetEddyViscosity(void) { return Primitive[nDim+6];
 
 inline su2double** CNSVariable::GetAnisoEddyViscosity(void) const { return AnisoEddyViscosity; }
 
+inline su2double CNSVariable::GetAnisoEddyViscosity(unsigned short iDim, unsigned short jDim) const {
+  return AnisoEddyViscosity[iDim][jDim];
+}
+
 inline su2double CNSVariable::GetTraceAnisoEddyViscosity(void) const {
   if (nDim == 2) {
     return (AnisoEddyViscosity[0][0] + AnisoEddyViscosity[1][1]);
@@ -977,6 +998,14 @@ inline su2double CNSVariable::GetResolutionAdequacy(void) const {
 
 inline const su2double* CNSVariable::GetForcingVector() const {
   return ForcingVector;
+}
+
+inline su2double CNSVariable::GetForcingFactor() const {
+  return ForcingFactor;
+}
+
+inline su2double CNSVariable::GetForcingClipping() const {
+  return ForcingClipping;
 }
 
 inline su2double CNSVariable::GetProduction(void) const { return TurbProduction; }
@@ -1081,6 +1110,14 @@ inline void CNSVariable::SetForcingVector(const su2double* force) {
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     ForcingVector[iDim] = force[iDim];
   }
+}
+
+inline void CNSVariable::SetForcingFactor(su2double factor) {
+  ForcingFactor = factor;
+}
+
+inline void CNSVariable::SetForcingClipping(su2double clipping) {
+  ForcingClipping = clipping;
 }
 
 inline void CNSVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) {
