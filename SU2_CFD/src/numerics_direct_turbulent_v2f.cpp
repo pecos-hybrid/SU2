@@ -265,6 +265,9 @@ CSourcePieceWise_TurbKE::CSourcePieceWise_TurbKE(unsigned short val_nDim,
   C_L     = constants[9];
   C_eta   = constants[10];
 
+  /*--- Coefficient used in the C_e1 equation (usually 0.045 or 0.05) ---*/
+  C_e1_factor = config->Getv2f_Ce1_Constant();
+
 }
 
 CSourcePieceWise_TurbKE::~CSourcePieceWise_TurbKE(void) { }
@@ -411,9 +414,20 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
    * should *not* be large, and should be clipped. As y+ -> 0,
    * C_e1 -> infinity. But for channel flow at Re_tau = 5200, C_e1 < 29 for
    * all y+ > .07. So we can set a relatively low limit (e.g. 100) to enforce
-   * our desired behavior. This should not affect converged solution. ---*/
+   * our desired behavior. This should not affect converged solution.
+   *
+   * Additional note: Here, we use the constant 0.045, instead of 0.05.
+   * This matches the value in:
+   *
+   * Parneix, S., Durbin, P., 1997. Numerical simulation of 3D turbulent
+   * boundary layer using the v2-f model. Annual Research Briefs, Center for
+   * Turbulence Research, NASA Ames/Stanford University, 135–148
+   *
+   * This value improves converge in some cases, though it does significantly
+   * impact C_f in zero-pressure gradient boundary layers.
+   * ---*/
   const su2double inv_zeta = max(tke/v2_lim, 0.5);
-  const su2double C_e1 = min(C_e1o*(1.0+0.05*sqrt(inv_zeta)), 100.0);
+  const su2double C_e1 = min(C_e1o*(1.0+C_e1_factor*sqrt(inv_zeta)), 100.0);
 
   // ... production
   Pe = C_e1*Pk/TurbT;
