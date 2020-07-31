@@ -202,6 +202,10 @@ CTurbSSTVariable::CTurbSSTVariable(su2double val_kine, su2double val_omega, su2d
   kol_time = 0.01 * timescale;
   kol_length = 0.01 * lengthscale;
 
+  /*--- Anisotropy ratio ---*/
+
+  aniso_ratio = 1.0;
+
   // XXX: Rethink how all these terms are handled for halo nodes and the like:
   //  - Production
   //  - SGSProduction

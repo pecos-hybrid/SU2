@@ -372,16 +372,12 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
   // v2 here is *subgrid*, so must multiply by alpha
-  // v2 is initialized at zero to keep compiler warnings happy
-  su2double v2_sgs = 0;
-  if (config->GetKind_Turb_Model() == KE) {
-    v2_sgs = alpha*max(turb_vars->GetSolution(2),1e-8);
-  } else if (config->GetKind_Turb_Model() == SST) {
-    // TODO: Change this to the an estimate of v2 through muT
-    v2_sgs = alpha*2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
-  } else {
+  if (config->GetKind_Turb_Model() != KE &&
+      config->GetKind_Turb_Model() != SST) {
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
+  const su2double aniso_ratio = turb_vars->GetAnisoRatio();
+  const su2double v2_sgs = alpha * ktot * aniso_ratio;
 
   // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
   // here.  TODO: Add divergence contribution.
@@ -458,12 +454,10 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
 
   // 4) Compute inverse length scale tensor from production tensor
-  // NB: Typo in AIAA paper
-  const su2double t0 = 1.5*sqrt(1.5);
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       invLengthTensor[iDim][jDim] =
-        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*rho*v2_sgs*sqrt(v2_sgs));
+        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (rho*v2_sgs*sqrt(v2_sgs));
     }
   }
 

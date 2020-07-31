@@ -952,9 +952,9 @@ public:
 
   /*!
    * \brief A virtual member.
-   * \return The Reynolds stress component anisotropy ratio (max-to-min)
+   * \return The Reynolds stress component anisotropy ratio (min-to-max)
    */
-  virtual su2double GetAnisoRatio(void);
+  virtual su2double GetAnisoRatio(void) const;
 
   /**
    * \brief Get the resolution adequacy parameter for a hybrid RANS/LES model
@@ -4750,6 +4750,7 @@ protected:
             kol_length;
   su2double alpha_kol;
   su2double Production;   /*!< \brief Production of TKE */
+  su2double aniso_ratio; /*--- Anisotropy of the Reynolds stresses, ratio of min to trace ---*/
   
 public:
   /*!
@@ -4846,6 +4847,14 @@ public:
   su2double GetKolKineticEnergyRatio(void) const { return alpha_kol; };
 
   void SetKolKineticEnergyRatio(su2double nu);
+
+  /*!
+   * \brief Get the component anisotropy ratio (min-to-max)
+   * \return The Reynolds stress component anisotropy ratio (min-to-max)
+   */
+  su2double GetAnisoRatio(void) const override { return aniso_ratio; }
+
+  void SetAnisoRatio(su2double val_ratio) { aniso_ratio = val_ratio; }
 };
 
 /*!

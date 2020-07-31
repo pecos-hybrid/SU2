@@ -62,10 +62,11 @@ inline void CTurbKEVariable::SetKolKineticEnergyRatio(const su2double nu) {
   alpha_kol = max(alpha_kol, 1E-8);
 }
 
-inline su2double CTurbKEVariable::GetAnisoRatio(void) {
+inline su2double CTurbKEVariable::GetAnisoRatio(void) const {
   // XXX: This floor is arbitrary.
   const su2double TKE_MIN = EPS;
-  return TWO3*Solution[0]/max(TKE_MIN, Solution[2]);
+  const su2double tke_lim = max(max(0.5*Solution[2], Solution[0]), TKE_MIN);
+  return min(max(0.0, 1.5*Solution[2]/tke_lim), 3.0);
 }
 
 inline su2double CTurbKEVariable::GetTypicalLengthscale(void) const {

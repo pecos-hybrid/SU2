@@ -283,7 +283,7 @@ inline su2double CVariable::GetKolTimescale(void) const { return 0; }
 
 inline su2double CVariable::GetKolKineticEnergyRatio(void) const { return 0; }
 
-inline su2double CVariable::GetAnisoRatio(void) {return 1; }
+inline su2double CVariable::GetAnisoRatio(void) const {return 1; }
 
 inline su2double CVariable::GetResolutionAdequacy(void) const { return 1; }
 
