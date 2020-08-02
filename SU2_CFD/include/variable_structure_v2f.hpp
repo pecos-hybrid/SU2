@@ -108,7 +108,7 @@ public:
    * \brief Get the component anisotropy ratio (min-to-max)
    * \return The Reynolds stress component anisotropy ratio (min-to-max)
    */
-  su2double GetAnisoRatio(void) const;
+  su2double GetAnisoRatio(void) const override;
 
   /*!
    * \brief Set the production of turbulent kinetic energy.
