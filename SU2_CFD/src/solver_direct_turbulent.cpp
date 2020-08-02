@@ -4258,11 +4258,11 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
 
     /*--- Compute anisotropy measure ---*/
     const su2double C_mu_v2f = 0.22;
-    const su2double Tm = node[iPoint]->GetTurbLengthscale();
+    const su2double Tm = node[iPoint]->GetTurbTimescale();
     const su2double v2_over_k = zeta/(C_mu_v2f*Tm);
     const su2double aniso_ratio = min(max(1.5*v2_over_k, 0.0), 3.0);
     CTurbSSTVariable* sst_node = dynamic_cast<CTurbSSTVariable*>(node[iPoint]);
-    sst_node->SetAnisoRatio(1.5*v2_over_k);
+    sst_node->SetAnisoRatio(aniso_ratio);
 
     /* Compute resolution adequacy */
     if (model_split) {
