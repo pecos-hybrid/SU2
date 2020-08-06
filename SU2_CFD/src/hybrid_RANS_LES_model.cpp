@@ -454,10 +454,12 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
 
   // 4) Compute inverse length scale tensor from production tensor
+  // NB: Typo in AIAA paper
+  const su2double t0 = 1.5*sqrt(1.5);
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       invLengthTensor[iDim][jDim] =
-        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (rho*v2_sgs*sqrt(v2_sgs));
+        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*rho*v2_sgs*sqrt(v2_sgs));
     }
   }
 
