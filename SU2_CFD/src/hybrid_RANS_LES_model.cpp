@@ -377,7 +377,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
   const su2double aniso_ratio = turb_vars->GetAnisoRatio();
-  const su2double v2_sgs = alpha * ktot * TWO3 * aniso_ratio;
+  const su2double v2_sgs = alpha * TWO3 * max(ktot * aniso_ratio, 1E-8);
 
   // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
   // here.  TODO: Add divergence contribution.
