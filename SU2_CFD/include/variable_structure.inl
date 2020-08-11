@@ -516,7 +516,7 @@ inline void CVariable::SetForcingFactor(su2double factor) { }
 
 inline void CVariable::SetForcingClipping(su2double clipping) { }
 
-inline void CVariable::SetKineticEnergyRatio(su2double val_alpha) { }
+inline void CVariable::SetKineticEnergyRatio(su2double val_beta) { }
 
 inline void CVariable::AddResolvedTurbStress(unsigned short iDim,
                                                unsigned short jDim,
@@ -1080,8 +1080,8 @@ inline void CNSVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) {
   }
 }
 
-inline void CNSVariable::SetKineticEnergyRatio(const su2double val_alpha) {
-  KineticEnergyRatio = val_alpha;
+inline void CNSVariable::SetKineticEnergyRatio(const su2double val_beta) {
+  KineticEnergyRatio = val_beta;
 }
 
 inline void CNSVariable::AddResolvedTurbStress(unsigned short iDim,

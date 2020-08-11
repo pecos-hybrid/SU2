@@ -138,8 +138,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double v2 = max(solver[TURB_SOL]->node[iPoint]->GetSolution(2), V2_MIN);
 
     // ratio of modeled to total TKE
-    su2double alpha = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
-    alpha = max(alpha, 1e-8);
+    const su2double beta = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+    // ratio of subfilter to total TKE
+    const su2double alpha = max(pow(alpha, 1.7), 1e-8);
 
     // average of r_M
     const su2double resolution_adequacy =
