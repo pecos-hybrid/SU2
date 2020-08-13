@@ -589,9 +589,9 @@ public:
 
   /*!
    * \brief Set the ratio of modeled to total turbulent kinetic energy
-   * \param[in] val_alpha - The turbulent kinetic energy ratio
+   * \param[in] val_beta - The turbulent kinetic energy ratio
    */
-  void SetKineticEnergyRatio(su2double val_alpha);
+  void SetKineticEnergyRatio(su2double val_beta);
 
   /*!
    * \brief Set the turbulent kinetic energy.

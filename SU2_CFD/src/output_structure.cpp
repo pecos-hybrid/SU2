@@ -484,7 +484,7 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
           (config[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
       if (model_split_hybrid) {
-        RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
+        RegisterScalar("beta", "beta", FLOW_SOL,
                        &CVariable::GetKineticEnergyRatio, iZone, true);
         RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
                        &CVariable::GetResolvedKineticEnergy, iZone, true);

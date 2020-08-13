@@ -115,7 +115,7 @@ class TestAvgVariable : public CVariable {
     Primitive[2] = 0.00357933;
     Primitive[3] = -0.266714;
     ResolutionAdequacy = 0.8;
-    KineticEnergyRatio = 0.598898;
+    KineticEnergyRatio = pow(0.598898, 1.0/1.7);
   }
   ~TestAvgVariable() {
     delete [] Primitive;

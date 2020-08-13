@@ -329,8 +329,8 @@ inline void CNumerics::SetResolutionAdequacy(su2double val_r_k) { Resolution_Ade
 
 inline void CNumerics::SetResolvedTurbStress(su2double** val_turb_stress) { }
 
-inline void CNumerics::SetKineticEnergyRatio(su2double val_alpha) {
-  KineticEnergyRatio = val_alpha;
+inline void CNumerics::SetKineticEnergyRatio(su2double val_beta) {
+  KineticEnergyRatio = val_beta;
 }
 
 inline void CNumerics::SetIntermittency(su2double intermittency_in) { }
