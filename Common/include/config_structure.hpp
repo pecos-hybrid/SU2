@@ -564,6 +564,7 @@ private:
   su2double Hybrid_Forcing_Strength,  /*!< \brief An overall scaling coefficient for the periodic forcing .*/
             Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
+  bool Use_SGET_Overresolution_Fix; /*!< \brief Increase subgrid energy dissipation when over-resolved for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
   unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
   su2double* FluctStress_AR_Params; /*!< \brief The parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
@@ -4410,6 +4411,13 @@ public:
    * \return Kind of SGET model
    */
   unsigned short GetKind_Hybrid_SGET_Model(void);
+
+  /*!
+   * \brief Check if the SGET model should increase dissipation in regions
+   *        of over-resolution.
+   * \return True if the SGET model should add an over-resolution fix.
+   */
+  bool GetUse_SGET_Overresolution_Fix(void) const { return Use_SGET_Overresolution_Fix; }
 
   /*!
    * \brief Check if the full resolved turbulent stress is to be used for

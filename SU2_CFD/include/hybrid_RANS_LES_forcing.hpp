@@ -136,12 +136,11 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
 
   su2double GetTargetProduction(su2double v2,
                                 su2double T,
-                                su2double alpha) const;
+                                su2double beta) const;
 
-  su2double ComputeScalingFactor(su2double Ftar,
-                                 su2double resolution_adequacy,
-                                 su2double alpha,
-                                 su2double alpha_kol,
+  su2double ComputeScalingFactor(su2double resolution_adequacy,
+                                 su2double beta,
+                                 su2double beta_kol,
                                  su2double PFtest) const;
 
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,

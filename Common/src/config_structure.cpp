@@ -808,10 +808,13 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("HYBRID_FORCING_STRENGTH", Hybrid_Forcing_Strength, 8);
 
   /*!\brief HYBRID_FORCING_VORTEX_LENGTH  \n DESCRIPTION: The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. \ingroup Config*/
-  addDoubleOption("HYBRID_FORCING_VORTEX_LENGTH", Hybrid_Forcing_Vortex_Length, 4);
+  addDoubleOption("HYBRID_FORCING_VORTEX_LENGTH", Hybrid_Forcing_Vortex_Length, 8);
 
   /*! \brief SUBGRID_ENERGY_TRANSFER_MODEL \n DESCRIPTION: Specify the subgrid energy transfer model to be used with the model-split hybrid RANS/LES model. \n Options: see \link Hybrid_SGET_Model_Map \endlink \n DEFAULT: M43 \ingroup Config */
   addEnumOption("SUBGRID_ENERGY_TRANSFER_MODEL", Kind_Hybrid_SGET_Model, SGET_Model_Map, M43_MODEL);
+
+  /*!\brief USE_SGET_OVERRESOLUTION_FIX \n DESCRIPTION: Increase subgrid dissipation where the simulation is locally over-resolved. */
+  addBoolOption("USE_SGET_OVERRESOLUTION_FIX", Use_SGET_Overresolution_Fix, YES);
 
   /*!\brief USE_RESOLVED_TURB_STRESS \n DESCRIPTION: Use the resolved turbulent stress in stead of improved production for hybrid RANS/LES calculations. \ingroup Config*/
   addBoolOption("USE_RESOLVED_TURB_STRESS", Use_Resolved_Turb_Stress, YES);

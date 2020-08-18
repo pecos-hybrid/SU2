@@ -115,7 +115,7 @@ class TestAvgVariable : public CVariable {
     Primitive[2] = 0.00357933;
     Primitive[3] = -0.266714;
     ResolutionAdequacy = 0.8;
-    KineticEnergyRatio = pow(0.598898, 1.0/1.7);
+    KineticEnergyRatio = 0.598898;
   }
   ~TestAvgVariable() {
     delete [] Primitive;
@@ -247,17 +247,16 @@ BOOST_FIXTURE_TEST_CASE(ForcingTest, ForcingFixture) {
 BOOST_FIXTURE_TEST_CASE(ScalingCoefficient, ForcingFixture) {
 
   const su2double alpha = 0.598898;
-  const su2double Ftar = 49.324157965434289;
   const su2double resolution_adequacy = 0.8;
   const su2double alpha_kol = 1.9086085598731258E-002;
   const su2double PFtest = 3.8390135906329317E-004;
 
   CHybridForcingTG0 forcing(geometry, config);
   forcing.ComputeForcingField(solver, geometry, config);
-  const su2double eta = forcing.ComputeScalingFactor(Ftar, resolution_adequacy,
+  const su2double eta = forcing.ComputeScalingFactor(resolution_adequacy,
                                                      alpha, alpha_kol, PFtest);
 
-  const su2double true_eta = 5.7950398607929117;
+  const su2double true_eta = 0.11748715038893287;
   const su2double tolerance = 1E-4;
   BOOST_CHECK_CLOSE_FRACTION(eta, true_eta, tolerance);
 }
