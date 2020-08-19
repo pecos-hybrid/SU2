@@ -177,17 +177,19 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
      * of the model for fully-developed channel flow problems.  It is
      * unclear how necessary it is more more complex problems. ---*/
 
-    // const su2double avg_resolution_adequacy =
-    //   solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
-    // assert(avg_resolution_adequacy >= 0);
-    // assert(avg_resolution_adequacy == avg_resolution_adequacy);
-    // //const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
-    // const su2double factor = max(min(avg_resolution_adequacy, 10.0), 1.0);
-    // for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    //   for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-    //      aniso_eddy_viscosity[iDim][jDim] *= factor;
-    //   }
-    // }
+    if (config->GetUse_SGET_Overresolution_Fix()) {
+      const su2double avg_rM =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
+      assert(avg_rM >= 0);
+      assert(avg_rM == avg_rM);
+      //const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
+      const su2double factor = max(min(avg_rM*avg_rM, 30.0), 1.0);
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          aniso_eddy_viscosity[iDim][jDim] *= factor;
+        }
+      }
+    }
 
     solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
 
