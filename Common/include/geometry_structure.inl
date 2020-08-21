@@ -147,7 +147,7 @@ inline void CGeometry::Set_MPI_GridVel(CConfig *config) { }
 
 inline void CGeometry::Set_MPI_OldCoord(CConfig *config) { } 
 
-inline void CGeometry::Set_MPI_MaxLength(CConfig *config) { }
+inline void CGeometry::Set_MPI_MaxLength(CConfig *config, int tag) { }
 
 inline void CGeometry::SetPeriodicBoundary(CConfig *config) { }
 
