@@ -155,7 +155,7 @@ protected:
    * This step roughly corresponds to:
    *   // Retrieve U_current
    *   // Retrieve U_average
-   *   dU = (U_current - U_average)*weight;
+   *   dU = (U_current - U_average)*(dt/(dt + averaging_period));
    *   // Store dU
    *
    * Note that the base class (CSolver) updates the average of the solution.
@@ -166,7 +166,7 @@ protected:
    * function if you intend to keep the solution variables. Include
    * this line:
    * \code
-   *   CSolver::UpdateAverage(weight, iPoint, buffer, config);
+   *   CSolver::UpdateAverage(dt, averaging_period, iPoint, buffer, config);
    * \endcode
    *
    * \param[in] weight - The amount to weight the update on the average
@@ -174,7 +174,8 @@ protected:
    * \param[inout] buffer - An allocated array of size nVar for working calculations
    * \param[in] config - Definition of the particular problem.
    */
-  virtual void UpdateAverage(su2double weight,
+  virtual void UpdateAverage(su2double dt,
+                             su2double averaging_period,
                              unsigned long iPoint,
                              su2double* buffer,
                              const CConfig* config);
@@ -9278,10 +9279,11 @@ public:
    * \param buffer - An allocated array of size nVar for working calculations
    * \param[in] config - Definition of the particular problem.
    */
-  void UpdateAverage(su2double weight,
+  void UpdateAverage(su2double dt,
+                     su2double averaging_period,
                      unsigned long iPoint,
                      su2double* buffer,
-                     const CConfig* config);
+                     const CConfig* config) override;
 
   /*!
    * \brief Initialize the extra quantities associated with averages.

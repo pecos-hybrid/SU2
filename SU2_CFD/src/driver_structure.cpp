@@ -1012,8 +1012,11 @@ void CDriver::Geometrical_Preprocessing() {
 
       /*--- Compute the max length. ---*/
 
-      if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
-      geometry_container[iZone][iInst][MESH_0]->SetMaxLength(config_container[iZone]);
+      if ((config_container[iZone]->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+          (config_container[iZone]->isDESBasedModel())) {
+        if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
+        geometry_container[iZone][iInst][MESH_0]->SetMaxLength(config_container[iZone]);
+      }
 
       /*--- Compute cell resolution tensors ---*/
 
@@ -1101,7 +1104,10 @@ void CDriver::Geometrical_Preprocessing() {
 
         /*--- Compute the max length. ---*/
 
-        geometry_container[iZone][iInst][iMGlevel]->SetMaxLength(config_container[iZone]);
+        if ((config_container[iZone]->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+            (config_container[iZone]->isDESBasedModel())) {
+          geometry_container[iZone][iInst][iMGlevel]->SetMaxLength(config_container[iZone]);
+        }
 
         /*--- Find closest neighbor to a surface point ---*/
 

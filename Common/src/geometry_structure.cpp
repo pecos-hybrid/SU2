@@ -1390,7 +1390,10 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
   geometry_container[MESH_0]->SetCoord_CG();
   geometry_container[MESH_0]->SetControlVolume(config, UPDATE);
   geometry_container[MESH_0]->SetBoundControlVolume(config, UPDATE);
-  geometry_container[MESH_0]->SetMaxLength(config);
+  if ((config->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+      (config->isDESBasedModel())) {
+    geometry_container[MESH_0]->SetMaxLength(config);
+  }
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT ||
       config->GetWrt_Resolution_Tensors()) {
     geometry_container[MESH_0]->SetResolutionTensor(config);
@@ -15760,8 +15763,10 @@ void CPhysicalGeometry::SetMaxLength(CConfig* config) {
   }
 
   /*--- Distribute information twice for periodic boundaries ---*/
-  Set_MPI_MaxLength(config);
-  Set_MPI_MaxLength(config);
+  SU2_MPI::Barrier(MPI_COMM_WORLD);
+  Set_MPI_MaxLength(config, 0);
+  SU2_MPI::Barrier(MPI_COMM_WORLD);
+  Set_MPI_MaxLength(config, 1);
 }
 
 void CPhysicalGeometry::MatchInterface(CConfig *config) {
@@ -18318,7 +18323,7 @@ void CPhysicalGeometry::Set_MPI_OldCoord(CConfig *config) {
 
 }
 
-void CPhysicalGeometry::Set_MPI_MaxLength(CConfig *config) {
+void CPhysicalGeometry::Set_MPI_MaxLength(CConfig *config, const int tag) {
 
   unsigned short iMarker, MarkerS, MarkerR;
   unsigned long iVertex, iPoint, nVertexS, nVertexR, nBufferS, nBufferR;
@@ -18359,8 +18364,8 @@ void CPhysicalGeometry::Set_MPI_MaxLength(CConfig *config) {
 
 #ifdef HAVE_MPI
       /*--- Send/Receive information using Sendrecv ---*/
-      SU2_MPI::Sendrecv(Buffer_Send, nBufferS, MPI_DOUBLE, send_to, 0,
-                        Buffer_Receive, nBufferR, MPI_DOUBLE, receive_from, 0,
+      SU2_MPI::Sendrecv(Buffer_Send, nBufferS, MPI_DOUBLE, send_to, tag,
+                        Buffer_Receive, nBufferR, MPI_DOUBLE, receive_from, tag,
                         MPI_COMM_WORLD, &status);
 #else
 
