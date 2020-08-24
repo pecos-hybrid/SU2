@@ -3157,12 +3157,9 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
        * So we change the weight to make the averaging act as if
        * dt = (N_T*timescale)/min_number_samples ---*/
       const unsigned short min_number_samples = 5;
+      const su2double averaging_period = max(N_T * timescale, dt*min_number_samples);
 
-      /*--- For forward Euler, w = dt/T
-       *   For backward Euler, w = dt/(T+dt) ---*/
-      const su2double weight = min(dt/(N_T * timescale + dt), 1.0/min_number_samples);
-
-      UpdateAverage(weight, iPoint, buffer, config);
+      UpdateAverage(dt, averaging_period, iPoint, buffer, config);
     }
 
     delete [] buffer;
@@ -3178,8 +3175,14 @@ void CSolver::SetAverages(CGeometry* geometry, CSolver** solver,
 }
 
 
-void CSolver::UpdateAverage(const su2double weight, const unsigned long iPoint,
-                            su2double* buffer, const CConfig* config) {
+void CSolver::UpdateAverage(const su2double dt,
+                            const su2double averaging_period,
+                            const unsigned long iPoint,
+                            su2double* buffer,
+                            const CConfig* config) {
+  /*--- For forward Euler, w = dt/T
+   *   For backward Euler, w = dt/(T+dt) ---*/
+  const su2double weight = dt/(averaging_period + dt);
 
   assert(average_node != NULL);
   const su2double* average = average_node[iPoint]->GetSolution();

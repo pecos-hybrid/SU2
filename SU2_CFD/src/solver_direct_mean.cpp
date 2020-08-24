@@ -20017,15 +20017,20 @@ void CNSSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CN
   
 }
 
-void CNSSolver::UpdateAverage(const su2double weight,
+void CNSSolver::UpdateAverage(const su2double dt,
+                              const su2double averaging_period,
                               const unsigned long iPoint,
                               su2double* buffer,
                               const CConfig* config) {
 
+  /*--- For forward Euler, w = dt/T
+   *   For backward Euler, w = dt/(T+dt) ---*/
+  const su2double weight = dt/(averaging_period + dt);
+
   assert(average_node != NULL);
 
   // Call base first, to update averages of conserved variables
-  CSolver::UpdateAverage(weight, iPoint, buffer, config);
+  CSolver::UpdateAverage(dt, averaging_period, iPoint, buffer, config);
 
   su2double* fluct_velocity = new su2double[nDim];
   su2double* mean_velocity  = new su2double[nDim];
@@ -20079,7 +20084,8 @@ void CNSSolver::UpdateAverage(const su2double weight,
       /*-- Give Pk a different averaging time than the rest of the terms ---*/
 
       const su2double Pk_relaxation = config->GetProduction_Relaxation();
-      const su2double new_Pk = production + (current_production - production)*weight*Pk_relaxation;
+      const su2double Pk_weight = dt/(dt + averaging_period/Pk_relaxation);
+      const su2double new_Pk = production + (current_production - production)*Pk_weight;
       average_node[iPoint]->SetProduction(new_Pk);
 
       /*--- Update resolved kinetic energy ---*/
