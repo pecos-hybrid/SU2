@@ -947,7 +947,7 @@ public:
    * \brief A virtual member.
    * \param[in] config - Definition of the particular problem.
    */
-  virtual void Set_MPI_MaxLength(CConfig *config);
+  virtual void Set_MPI_MaxLength(CConfig *config, int tag=0);
 
 	/*!
 	 * \brief A virtual member.
@@ -2173,7 +2173,7 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
    * \brief Perform the MPI communication for the max grid spacing.
    * \param[in] config - Definition of the particular problem.
    */
-  void Set_MPI_MaxLength(CConfig *config);
+  void Set_MPI_MaxLength(CConfig *config, int tag=0);
 
   /*!
    * \brief Set the periodic boundary conditions.
