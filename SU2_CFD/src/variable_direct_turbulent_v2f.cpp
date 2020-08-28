@@ -104,7 +104,8 @@ void CTurbKEVariable::SetTurbScales(const su2double nu,
                                     const su2double S,
                                     const su2double VelMag,
                                     const su2double L_inf,
-                                    const bool use_realizability) {
+                                    const bool use_realizability,
+                                    const su2double C_lim) {
   /*--- Scalars ---*/
   const su2double kine = Solution[0];
   const su2double epsi = Solution[1];
@@ -131,7 +132,7 @@ void CTurbKEVariable::SetTurbScales(const su2double nu,
   kol_time     = C_T*sqrt(nu/tdr_lim);
   if (use_realizability) {
     // sqrt(3) instead of sqrt(6) because of sqrt(2) factor in S
-    stag_time    = 0.6/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
+    stag_time    = C_lim/max(sqrt(3.0)*C_mu*S*zeta_lim, S_FLOOR);
     timescale = max(min(typical_time, stag_time), kol_time);
   } else {
     timescale = max(typical_time, kol_time);

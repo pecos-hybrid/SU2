@@ -4425,13 +4425,6 @@ public:
   void SetUse_Resolved_Turb_Stress(bool use_stress);
 
   /*!
-   * \brief Check if the timescale limit should be used in the v2-f
-   *        RANS model.
-   * \return True if the timescale limit should be used.
-   */
-  bool GetUse_v2f_Timescale_Limit(void) const;
-
-  /*!
    * \brief Get the kind of the turbulence model.
    * \return Kind of the turbulence model.
    */
