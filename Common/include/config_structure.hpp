@@ -1156,6 +1156,7 @@ private:
   unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
   su2double v2f_Realizability_Constant; /*!< \brief The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. */
   su2double v2f_Ce1_Constant;
+  su2double v2f_Rf_Constant;
   bool Use_TKE_Diffusion; /*!< \brief Add TKE diffusion model for the molecular and turbulent transport of total energy. */
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
@@ -5191,6 +5192,8 @@ public:
   su2double Getv2f_Realizability_Constant(void) const;
 
   su2double Getv2f_Ce1_Constant(void) const { return v2f_Ce1_Constant; }
+
+  su2double Getv2f_Rf_Constant(void) const { return v2f_Rf_Constant; }
 
   /*!
    * \brief  Add TKE diffusion model for the molecular and turbulent
