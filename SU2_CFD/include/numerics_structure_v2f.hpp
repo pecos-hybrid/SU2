@@ -164,6 +164,8 @@ private:
   C_e2;
   /*--- Coefficient used in the C_e1 equation (usually 0.045 or 0.05) ---*/
   su2double C_e1_factor;
+  /*--- Constant in the numerator of the Rf modification in the f-eqn ---*/
+  su2double Rf_constant;
 
   su2double** ResolvedTurbStress; /*!< \brief Resolved portion of the Reynolds stress */
   su2double SGSProduction; /*!< \brief Production due to the mean turbulent stress, below the filter scale. */

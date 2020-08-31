@@ -1185,6 +1185,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   addDoubleOption("V2F_CE1_CONSTANT", v2f_Ce1_Constant, 0.045);
 
+  /*!\brief V2F_RF_CONSTANT \n DESCRIPTION: If the Rf mod is used, then this is the constant in the numerator of Rf. \n DEFAULT: 3.0 \ingroup Config */
+  addDoubleOption("V2F_RF_CONSTANT", v2f_Rf_Constant, 3.0);
+
   /*!\brief KEEP_PV2_NONNEGATIVE  \n DESCRIPTION: Limit the production of v2 to non-negative values in the v2-f RANS model. \n DEFAULT: True \ingroup Config*/
   addBoolOption("KEEP_PV2_NONNEGATIVE", Pv2_nonnegative, true);
 
