@@ -69,6 +69,13 @@ class CAbstractFileReader {
   virtual void FindClosestPoint(const su2double* coord_i,
                                 unsigned long& jPoint_closest,
                                 su2double& min_distance) const = 0;
+  /**
+   * This must be overriden in all base clases.
+   */
+  virtual void TransformSolution(unsigned long start_index,
+                                 unsigned short val_nVar,
+                                 const su2double* coord_i,
+                                 su2double* solution) const = 0;
 
  public:
 
@@ -95,6 +102,11 @@ class CFileReader_Cartesian : public CAbstractFileReader {
   void FindClosestPoint(const su2double* coord_i,
                         unsigned long& jPoint_closest,
                         su2double& min_distance) const override;
+  void TransformSolution(unsigned long start_index,
+                         unsigned short val_nVar,
+                         const su2double* coord_i,
+                         su2double* solution) const override;
+
  public:
   CFileReader_Cartesian();
 };
@@ -104,6 +116,11 @@ class CFileReader_Cylindrical : public CAbstractFileReader {
   void FindClosestPoint(const su2double* coord_i,
                         unsigned long& jPoint_closest,
                         su2double& min_distance) const override;
+  void TransformSolution(unsigned long start_index,
+                         unsigned short val_nVar,
+                         const su2double* coord_i,
+                         su2double* solution) const override;
+
  public:
   CFileReader_Cylindrical();
 };

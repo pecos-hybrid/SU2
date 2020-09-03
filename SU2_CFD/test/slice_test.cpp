@@ -66,9 +66,9 @@ static void WriteSliceFile(const char* filename) {
   std::ofstream slice_file;
   slice_file.open(filename, ios::out);
   slice_file << "\"x\"	\"y\"	\"Density\"	\"Momentum_x\"	\"Momentum_y\"	\"Momentum_z\"	\"Energy\"	\"TKE\"	\"Dissipation\"	\"v2\"	\"f\"" << std::endl;
-  slice_file << "-3.00000000000000000e+00	0.00000000000000000e+00	1.00000000000000000e+00	0.00000000000000000e+00	0.00000000000000000e+00	0.00000000000000000e+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+00" << std::endl;
-  slice_file << "-2.00000000000000000e+00	1.00000000000000000e+00	1.00000000000000000e+00	1.00000000000000000e+00	0.00000000000000000e+00	0.00000000000000000e+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+00" << std::endl;
-  slice_file << "-1.00000000000000000e+00	2.00000000000000000e+00	1.00000000000000000e+00	2.00000000000000000e+00	0.00000000000000000e+00	0.00000000000000000E+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+02" << std::endl;
+  slice_file << "-3.00000000000000000e+00	1.00000000000000000e+00	1.00000000000000000e+00	0.00000000000000000e+00	3.00000000000000000e+00	0.00000000000000000e+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+00" << std::endl;
+  slice_file << "-2.00000000000000000e+00	2.00000000000000000e+00	1.00000000000000000e+00	1.00000000000000000e+00	4.00000000000000000e+00	0.00000000000000000e+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+00" << std::endl;
+  slice_file << "-1.00000000000000000e+00	3.00000000000000000e+00	1.00000000000000000e+00	2.00000000000000000e+00	5.00000000000000000e+00	0.00000000000000000E+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+02" << std::endl;
   slice_file.close();
 }
 
@@ -81,9 +81,9 @@ class CTestGeometry : public CGeometry {
     nDim = 3;
     node = new CPoint*[nPoint];
     for (unsigned short i = 0; i < 3; i++) {
-      node[i*3+0] = new CPoint(-3, 0, i, 0, config);
-      node[i*3+1] = new CPoint(-2, 1, i, 1, config);
-      node[i*3+2] = new CPoint(-1, 2, i, 2, config);
+      node[i*3+0] = new CPoint(-3, 1, i, 0, config);
+      node[i*3+1] = new CPoint(-2, 2, i, 1, config);
+      node[i*3+2] = new CPoint(-1, 3, i, 2, config);
     }
     for (unsigned short iPoint = 0; iPoint < nPoint; iPoint++) {
       node[iPoint]->SetVolume(1);
@@ -226,23 +226,23 @@ BOOST_FIXTURE_TEST_CASE(ReadFlowVarsInCartesian, SliceFixture) {
   {
     const su2double* solution = flow_sol->node[0]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[1], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_SMALL(solution[1], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 3.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
   }
   {
     const su2double* solution = flow_sol->node[1]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 1.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 4.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
   }
   {
     const su2double* solution = flow_sol->node[2]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 2.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 5.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
   }
 
   /*--- Points 3, 4, 5 have the same x, y as points 0, 1, 2, but
@@ -251,23 +251,23 @@ BOOST_FIXTURE_TEST_CASE(ReadFlowVarsInCartesian, SliceFixture) {
   {
     const su2double* solution = flow_sol->node[3]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[1], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_SMALL(solution[1], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 3.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
   }
   {
     const su2double* solution = flow_sol->node[4]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 1.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 4.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
   }
   {
     const su2double* solution = flow_sol->node[5]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 2.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 5.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
   }
 
 }
@@ -282,7 +282,7 @@ BOOST_FIXTURE_TEST_CASE(ReadFlowVarsInCylindrical, SliceFixture) {
    *---*/
   for (unsigned short i = 0; i < 3; i++) {
     for (unsigned short j = 0; j < 3; j++) {
-      const su2double r = j;
+      const su2double r = 1 + j;
       const su2double theta = M_PI*i/2.0;
       const su2double y = r*cos(theta);
       const su2double z = r*sin(theta);
@@ -300,23 +300,17 @@ BOOST_FIXTURE_TEST_CASE(ReadFlowVarsInCylindrical, SliceFixture) {
   {
     const su2double* solution = flow_sol->node[0]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[1], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_SMALL(solution[1], tolerance);
   }
   {
     const su2double* solution = flow_sol->node[1]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 1.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
   }
   {
     const su2double* solution = flow_sol->node[2]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 2.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
   }
 
   /*--- Points 3, 4, 5 have the same x, r as points 0, 1, 2, but
@@ -325,23 +319,97 @@ BOOST_FIXTURE_TEST_CASE(ReadFlowVarsInCylindrical, SliceFixture) {
   {
     const su2double* solution = flow_sol->node[3]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[1], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_SMALL(solution[1], tolerance);
   }
   {
     const su2double* solution = flow_sol->node[4]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 1.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
   }
   {
     const su2double* solution = flow_sol->node[5]->GetSolution();
     BOOST_CHECK_CLOSE_FRACTION(solution[0], 1.0, tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 2.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(TransformFlowVarsInCylindrical, SliceFixture) {
+  CFileReader_Cylindrical file_reader;
+
+  /*--- Instead of y = 0, 1, 2, 0, 1, 2, 0, 1, 2
+   *               z = 0, 0, 0, 1, 1, 1, 2, 2, 2
+   *    Set        r = 0, 1, 2, 0, 1, 2, 0, 1, 2
+   *               theta = 0, 0, 0, pi/2, pi/2, pi/2, pi, pi, pi
+   *---*/
+  for (unsigned short i = 0; i < 3; i++) {
+    for (unsigned short j = 0; j < 3; j++) {
+      const su2double r = 1 + j;
+      const su2double theta = M_PI*i/2.0;
+      const su2double y = r*cos(theta);
+      const su2double z = r*sin(theta);
+      su2double* coord = geometry->node[i*3+j]->GetCoord();
+      coord[0] = -3+j; coord[1] = y; coord[2] = z;
+    }
+  }
+
+  const unsigned short offset = 0;
+  const unsigned short nVar = 5;
+  file_reader.Read_SliceFile_ASCII(config, slice_filename);
+  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, nVar, offset, flow_sol->node);
+
+  const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
+  {
+    const su2double* solution = flow_sol->node[0]->GetSolution();
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 3.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+  {
+    const su2double* solution = flow_sol->node[1]->GetSolution();
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 4.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+  {
+    const su2double* solution = flow_sol->node[2]->GetSolution();
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 5.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+
+  /*--- Points 3, 4, 5 have the same x, r as points 0, 1, 2, but
+   * they have a different theta.  So the momentum should be rotated ---*/
+
+  {
+    const su2double* solution = flow_sol->node[3]->GetSolution();
+    BOOST_CHECK_SMALL(solution[2], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[3], 3.0, tolerance);
+  }
+  {
+    const su2double* solution = flow_sol->node[4]->GetSolution();
+    BOOST_CHECK_SMALL(solution[2], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[3], 4.0, tolerance);
+  }
+  {
+    const su2double* solution = flow_sol->node[5]->GetSolution();
+    BOOST_CHECK_SMALL(solution[2], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[3], 5.0, tolerance);
+  }
+
+  /*--- Points 3, 4, 5 have the same x, r as points 0, 1, 2, but
+   * they have a different theta.  So the momentum should be rotated ---*/
+
+  {
+    const su2double* solution = flow_sol->node[6]->GetSolution();
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], -3.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+  {
+    const su2double* solution = flow_sol->node[7]->GetSolution();
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], -4.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+  {
+    const su2double* solution = flow_sol->node[8]->GetSolution();
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], -5.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
   }
 }
 
