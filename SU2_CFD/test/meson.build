@@ -11,6 +11,7 @@ endif
 
 SU2_CFD_boost_tests = files(['convective_blending_test.cpp',
                              'hybrid_rdelta_test.cpp',
+                             'slice_test.cpp',
                              'fluctuating_stress_test.cpp',
                              'forcing_test.cpp',
                              'load_heterogeneous_restart.cpp',

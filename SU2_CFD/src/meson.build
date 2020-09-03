@@ -64,6 +64,7 @@ su2_cfd_src = files(['output_structure.cpp',
                      'variable_direct_elasticity.cpp',
                      'variable_structure.cpp',
                      'variable_template.cpp',
+                     'slice_file_reader.cpp',
                      'data_manufactured_solutions.cpp',
                      'driver_direct_multizone.cpp',
                      'driver_direct_singlezone.cpp'])

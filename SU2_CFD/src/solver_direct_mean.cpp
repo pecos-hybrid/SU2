@@ -36,6 +36,7 @@
  */
 
 #include "../include/solver_structure.hpp"
+#include "../include/slice_file_reader.hpp"
 #include "../../Common/include/toolboxes/printing_toolbox.hpp"
 
 CEulerSolver::CEulerSolver(void) : CSolver() {
@@ -15408,17 +15409,39 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
   if (dual_time || time_stepping)
     restart_filename = config->GetUnsteady_FileName(restart_filename, val_iter);
 
-  /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
+  const unsigned short slice_restart_type = config->GetSliceRestartType();
+  if (slice_restart_type == NO_SLICE_RESTART) {
 
-  if (config->GetRead_Binary_Restart()) {
-    Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
+    /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
+
+    if (config->GetRead_Binary_Restart()) {
+      Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
+    } else {
+      Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
+    }
+
+    /*--- Find average flow variables, if present ---*/
+
+    LoadSolution(val_update_geo, restart_filename, config, geometry);
+
   } else {
-    Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
+
+    /*--- Read in the restart data from a slice ---*/
+
+    CAbstractFileReader* file_reader;
+    if (slice_restart_type == CARTESIAN_SLICE) {
+      file_reader = new CFileReader_Cartesian();
+    } else if (slice_restart_type == CYLINDRICAL_SLICE) {
+      file_reader = new CFileReader_Cylindrical();
+    }
+
+    /*--- Flow variables are first in the restart file, so no offset ---*/
+    const unsigned short offset = 0;
+    file_reader->Read_SliceFile_ASCII(config, restart_filename);
+    file_reader->LoadSolutionFromSlice(restart_filename, config, geometry[MESH_0], nVar, offset, node);
+
+    delete file_reader;
   }
-
-  /*--- Find average flow variables, if present ---*/
-
-  LoadSolution(val_update_geo, restart_filename, config, geometry);
 
   /*--- Communicate the loaded solution on the fine grid before we transfer
    it down to the coarse levels. We alo call the preprocessing routine

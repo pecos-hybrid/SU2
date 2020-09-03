@@ -36,6 +36,7 @@
  */
 
 #include "../include/solver_structure.hpp"
+#include "../include/slice_file_reader.hpp"
 
 CTurbSolver::CTurbSolver(void) : CSolver() {
   
@@ -1397,96 +1398,124 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
   if (dual_time|| time_stepping)
     restart_filename = config->GetUnsteady_FileName(restart_filename, val_iter);
 
-  /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
 
-  if (config->GetRead_Binary_Restart()) {
-    Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
-  } else {
-    Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
-  }
+  const unsigned short slice_restart_type = config->GetSliceRestartType();
+  if (slice_restart_type == NO_SLICE_RESTART) {
 
-  int counter = 0;
-  long iPoint_Local = 0; unsigned long iPoint_Global = 0;
-  unsigned long iPoint_Global_Local = 0;
-  unsigned short rbuf_NotMatching = 0, sbuf_NotMatching = 0;
+    /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
 
-  /*--- Skip flow variables ---*/
-  
-  unsigned short skipVars = 0;
-
-  if (nDim == 2) skipVars += 6;
-  if (nDim == 3) skipVars += 8;
-
-  /*--- Adjust the number of solution variables in the incompressible
-   restart. We always carry a space in nVar for the energy equation in the
-   mean flow solver, but we only write it to the restart if it is active.
-   Therefore, we must reduce skipVars here if energy is inactive so that
-   the turbulent variables are read correctly. ---*/
-  
-  bool incompressible       = (config->GetKind_Regime() == INCOMPRESSIBLE);
-  bool energy               = config->GetEnergy_Equation();
-  bool weakly_coupled_heat  = config->GetWeakly_Coupled_Heat();
-  
-  if (incompressible && ((!energy) && (!weakly_coupled_heat))) skipVars--;
-  
-  /*--- Load data from the restart into correct containers. ---*/
-
-  counter = 0;
-  for (iPoint_Global = 0; iPoint_Global < geometry[MESH_0]->GetGlobal_nPointDomain(); iPoint_Global++ ) {
-
-
-    /*--- Retrieve local index. If this node from the restart file lives
-     on the current processor, we will load and instantiate the vars. ---*/
-
-    iPoint_Local = geometry[MESH_0]->GetGlobal_to_Local_Point(iPoint_Global);
-
-    if (iPoint_Local > -1) {
-      
-      /*--- We need to store this point's data, so jump to the correct
-       offset in the buffer of data from the restart file and load it. ---*/
-
-      index = counter*Restart_Vars[1] + skipVars;
-      for (iVar = 0; iVar < nVar; iVar++) Solution[iVar] = Restart_Data[index+iVar];
-      node[iPoint_Local]->SetSolution(Solution);
-      iPoint_Global_Local++;
-
-      /*--- Read in the runtime averages ---*/
-
-      if (runtime_averaging) {
-
-        /*--- Average solution ---*/
-
-        const unsigned short nVar_Flow = solver[MESH_0][FLOW_SOL]->GetnVar();
-        unsigned short nVar_Solution = nVar_Flow + nVar;
-
-        unsigned short nVar_Total = nVar_Solution;
-        if (config->GetWrt_Limiters()) nVar_Total += nVar_Solution;
-        if (config->GetWrt_Residuals()) nVar_Total += nVar_Solution;
-
-        index = counter*Restart_Vars[1] + nDim + nVar_Total + nVar_Flow;
-        for (iVar = 0; iVar < nVar; iVar++)
-          Solution[iVar] = Restart_Data[index+iVar];
-        average_node[iPoint_Local]->SetSolution(Solution);
-      }
-
-      /*--- Increment the overall counter for how many points have been loaded. ---*/
-      counter++;
+    if (config->GetRead_Binary_Restart()) {
+      Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
+    } else {
+      Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
     }
 
-  }
+    int counter = 0;
+    long iPoint_Local = 0; unsigned long iPoint_Global = 0;
+    unsigned long iPoint_Global_Local = 0;
+    unsigned short rbuf_NotMatching = 0, sbuf_NotMatching = 0;
 
-  /*--- Detect a wrong solution file ---*/
+    /*--- Skip flow variables ---*/
+    
+    unsigned short skipVars = 0;
 
-  if (iPoint_Global_Local < nPointDomain) { sbuf_NotMatching = 1; }
+    if (nDim == 2) skipVars += 6;
+    if (nDim == 3) skipVars += 8;
 
-#ifndef HAVE_MPI
-  rbuf_NotMatching = sbuf_NotMatching;
-#else
-  SU2_MPI::Allreduce(&sbuf_NotMatching, &rbuf_NotMatching, 1, MPI_UNSIGNED_SHORT, MPI_SUM, MPI_COMM_WORLD);
-#endif
-  if (rbuf_NotMatching != 0) {
-    SU2_MPI::Error(string("The solution file ") + restart_filename + string(" doesn't match with the mesh file!\n") +
-                   string("It could be empty lines at the end of the file."), CURRENT_FUNCTION);
+    /*--- Adjust the number of solution variables in the incompressible
+    restart. We always carry a space in nVar for the energy equation in the
+    mean flow solver, but we only write it to the restart if it is active.
+    Therefore, we must reduce skipVars here if energy is inactive so that
+    the turbulent variables are read correctly. ---*/
+    
+    bool incompressible       = (config->GetKind_Regime() == INCOMPRESSIBLE);
+    bool energy               = config->GetEnergy_Equation();
+    bool weakly_coupled_heat  = config->GetWeakly_Coupled_Heat();
+    
+    if (incompressible && ((!energy) && (!weakly_coupled_heat))) skipVars--;
+    
+    /*--- Load data from the restart into correct containers. ---*/
+
+    counter = 0;
+    for (iPoint_Global = 0; iPoint_Global < geometry[MESH_0]->GetGlobal_nPointDomain(); iPoint_Global++ ) {
+
+
+      /*--- Retrieve local index. If this node from the restart file lives
+      on the current processor, we will load and instantiate the vars. ---*/
+
+      iPoint_Local = geometry[MESH_0]->GetGlobal_to_Local_Point(iPoint_Global);
+
+      if (iPoint_Local > -1) {
+        
+        /*--- We need to store this point's data, so jump to the correct
+        offset in the buffer of data from the restart file and load it. ---*/
+
+        index = counter*Restart_Vars[1] + skipVars;
+        for (iVar = 0; iVar < nVar; iVar++) Solution[iVar] = Restart_Data[index+iVar];
+        node[iPoint_Local]->SetSolution(Solution);
+        iPoint_Global_Local++;
+
+        /*--- Read in the runtime averages ---*/
+
+        if (runtime_averaging) {
+
+          /*--- Average solution ---*/
+
+          const unsigned short nVar_Flow = solver[MESH_0][FLOW_SOL]->GetnVar();
+          unsigned short nVar_Solution = nVar_Flow + nVar;
+
+          unsigned short nVar_Total = nVar_Solution;
+          if (config->GetWrt_Limiters()) nVar_Total += nVar_Solution;
+          if (config->GetWrt_Residuals()) nVar_Total += nVar_Solution;
+
+          index = counter*Restart_Vars[1] + nDim + nVar_Total + nVar_Flow;
+          for (iVar = 0; iVar < nVar; iVar++)
+            Solution[iVar] = Restart_Data[index+iVar];
+          average_node[iPoint_Local]->SetSolution(Solution);
+        }
+
+        /*--- Increment the overall counter for how many points have been loaded. ---*/
+        counter++;
+      }
+
+    }
+
+    /*--- Detect a wrong solution file ---*/
+
+    if (iPoint_Global_Local < nPointDomain) { sbuf_NotMatching = 1; }
+
+  #ifndef HAVE_MPI
+    rbuf_NotMatching = sbuf_NotMatching;
+  #else
+    SU2_MPI::Allreduce(&sbuf_NotMatching, &rbuf_NotMatching, 1, MPI_UNSIGNED_SHORT, MPI_SUM, MPI_COMM_WORLD);
+  #endif
+    if (rbuf_NotMatching != 0) {
+      SU2_MPI::Error(string("The solution file ") + restart_filename + string(" doesn't match with the mesh file!\n") +
+                    string("It could be empty lines at the end of the file."), CURRENT_FUNCTION);
+    }
+
+  } else {
+
+    /*--- Read in the restart data from a slice ---*/
+
+    CAbstractFileReader* file_reader;
+    if (slice_restart_type == CARTESIAN_SLICE) {
+      file_reader = new CFileReader_Cartesian();
+    } else if (slice_restart_type == CYLINDRICAL_SLICE) {
+      file_reader = new CFileReader_Cylindrical();
+    }
+
+    /*--- Check the assumption that nDim == 3 ---*/
+    if (nDim < 3) {
+      SU2_MPI::Error("Reading a slice file in a 2D problem is not valid.", CURRENT_FUNCTION);
+    }
+
+    /*--- Skip over the flow variables ---*/
+    const unsigned short offset = 5;
+    file_reader->Read_SliceFile_ASCII(config, restart_filename);
+    file_reader->LoadSolutionFromSlice(restart_filename, config, geometry[MESH_0], nVar, offset, node);
+
+    delete file_reader;
   }
 
   /*--- MPI solution and compute the eddy viscosity ---*/

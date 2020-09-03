@@ -59,11 +59,6 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   string text_line;
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
-  int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
-
   /*--- Array initialization ---*/
   constants = NULL;
 
