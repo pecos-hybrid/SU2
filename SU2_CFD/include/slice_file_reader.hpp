@@ -75,6 +75,7 @@ class CAbstractFileReader {
   virtual void TransformSolution(unsigned long start_index,
                                  unsigned short val_nVar,
                                  const su2double* coord_i,
+                                 unsigned short solver_type,
                                  su2double* solution) const = 0;
 
  public:
@@ -87,8 +88,7 @@ class CAbstractFileReader {
   void LoadSolutionFromSlice(const string& restart_filename,
                              CConfig* config,
                              CGeometry* geometry,
-                             unsigned short nVar,
-                             unsigned short offset,
+                             unsigned short solver_type,
                              CVariable** node) const;
 
   const passivedouble* GetRestart_Data() const {
@@ -105,6 +105,7 @@ class CFileReader_Cartesian : public CAbstractFileReader {
   void TransformSolution(unsigned long start_index,
                          unsigned short val_nVar,
                          const su2double* coord_i,
+                         unsigned short solver_type,
                          su2double* solution) const override;
 
  public:
@@ -119,6 +120,7 @@ class CFileReader_Cylindrical : public CAbstractFileReader {
   void TransformSolution(unsigned long start_index,
                          unsigned short val_nVar,
                          const su2double* coord_i,
+                         unsigned short solver_type,
                          su2double* solution) const override;
 
  public:

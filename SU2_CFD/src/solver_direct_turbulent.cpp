@@ -1511,9 +1511,8 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
     }
 
     /*--- Skip over the flow variables ---*/
-    const unsigned short offset = 5;
     file_reader->Read_SliceFile_ASCII(config, restart_filename);
-    file_reader->LoadSolutionFromSlice(restart_filename, config, geometry[MESH_0], nVar, offset, node);
+    file_reader->LoadSolutionFromSlice(restart_filename, config, geometry[MESH_0], TURB_SOL, node);
 
     delete file_reader;
   }

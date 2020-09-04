@@ -15438,7 +15438,7 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
     /*--- Flow variables are first in the restart file, so no offset ---*/
     const unsigned short offset = 0;
     file_reader->Read_SliceFile_ASCII(config, restart_filename);
-    file_reader->LoadSolutionFromSlice(restart_filename, config, geometry[MESH_0], nVar, offset, node);
+    file_reader->LoadSolutionFromSlice(restart_filename, config, geometry[MESH_0], FLOW_SOL, node);
 
     delete file_reader;
   }

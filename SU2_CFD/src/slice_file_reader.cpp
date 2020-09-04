@@ -204,8 +204,7 @@ void CAbstractFileReader::Read_SliceFile_ASCII(CConfig *config,
 void CAbstractFileReader::LoadSolutionFromSlice(const string& restart_filename,
                                                 CConfig* config,
                                                 CGeometry* geometry,
-                                                unsigned short nVar,
-                                                unsigned short offset,
+                                                unsigned short solver_type,
                                                 CVariable** node) const {
   if (geometry->GetnDim() < 3) {
     SU2_MPI::Error("Slice remapping cannot be used with a 2D geometry.", CURRENT_FUNCTION);
@@ -216,6 +215,13 @@ void CAbstractFileReader::LoadSolutionFromSlice(const string& restart_filename,
   const unsigned short nVars_Restart = Restart_Vars[1];
 
   /*--- Load data from the restart into correct containers. ---*/
+  unsigned short offset, nVar;
+  if (solver_type == FLOW_SOL) {
+    offset = 0; nVar = 5;
+  } else {
+    // FIXME: Add in correct number of turbulence variables for SST.
+    offset = 5; nVar = 4;
+  }
 
   unsigned long iPoint_Global_Local = 0;
   su2double local_max_distance = 0;
@@ -246,7 +252,7 @@ void CAbstractFileReader::LoadSolutionFromSlice(const string& restart_filename,
        offset in the buffer of data from the restart file and load it. ---*/
 
       const long index = jPoint_closest*nVars_Restart + skipVars;
-      TransformSolution(index, nVar, coord_i, Solution);
+      TransformSolution(index, nVar, coord_i, solver_type, Solution);
       node[iPoint_Local]->SetSolution(Solution);
       iPoint_Global_Local++;
     }
@@ -300,6 +306,7 @@ void CFileReader_Cartesian::FindClosestPoint(const su2double* coord_i,
 void CFileReader_Cartesian::TransformSolution(const unsigned long start_index,
                                               const unsigned short val_nVar,
                                               const su2double* coord_i,
+                                              const unsigned short solver_type,
                                               su2double* solution) const {
   for (unsigned short iVar = 0; iVar < val_nVar; iVar++) {
     solution[iVar] = Restart_Data[start_index+iVar];
@@ -346,24 +353,34 @@ void CFileReader_Cylindrical::FindClosestPoint(const su2double* coord_i,
 void CFileReader_Cylindrical::TransformSolution(const unsigned long start_index,
                                                 const unsigned short val_nVar,
                                                 const su2double* coord_i,
+                                                const unsigned short solver_type,
                                                 su2double* solution) const {
-  /*--- Density ---*/                                               
-  solution[0] = Restart_Data[start_index];
-  /*--- Axial momentum ---*/                                               
-  solution[1] = Restart_Data[start_index+1];
-  /*--- Total energy ---*/                                               
-  solution[4] = Restart_Data[start_index+4];
+  if (solver_type == FLOW_SOL) {
+    assert(val_nVar == 5);
+    /*--- Density ---*/                                               
+    solution[0] = Restart_Data[start_index];
+    /*--- Axial momentum ---*/                                               
+    solution[1] = Restart_Data[start_index+1];
+    /*--- Total energy ---*/                                               
+    solution[4] = Restart_Data[start_index+4];
 
-  // The axis is hardcoded to be oriented in the x-direction
-  // through the point (0, 0, 0)
+    // The axis is hardcoded to be oriented in the x-direction
+    // through the point (0, 0, 0)
 
-  /*--- "i" is the point on the geometry (3D grid) ---*/
+    /*--- "i" is the point on the geometry (3D grid) ---*/
 
-  const su2double y = coord_i[1];
-  const su2double z = coord_i[2];
-  const su2double theta = atan2(z, y);
-  const su2double rho_u_r = Restart_Data[start_index+2];
-  const su2double rho_u_theta = Restart_Data[start_index+3];
-  solution[2] = rho_u_r*cos(theta) - rho_u_theta*sin(theta);
-  solution[3] = rho_u_r*sin(theta) + rho_u_theta*cos(theta);
+    const su2double y = coord_i[1];
+    const su2double z = coord_i[2];
+    const su2double theta = atan2(z, y);
+    const su2double rho_u_r = Restart_Data[start_index+2];
+    const su2double rho_u_theta = Restart_Data[start_index+3];
+    solution[2] = rho_u_r*cos(theta) - rho_u_theta*sin(theta);
+    solution[3] = rho_u_r*sin(theta) + rho_u_theta*cos(theta);
+
+  } else {
+    /*--- Turb solver ---*/
+    for (unsigned short iVar = 0; iVar < val_nVar; iVar++) {
+      solution[iVar] = Restart_Data[start_index+iVar];
+    }
+  }
 }

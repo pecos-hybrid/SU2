@@ -66,9 +66,9 @@ static void WriteSliceFile(const char* filename) {
   std::ofstream slice_file;
   slice_file.open(filename, ios::out);
   slice_file << "\"x\"	\"y\"	\"Density\"	\"Momentum_x\"	\"Momentum_y\"	\"Momentum_z\"	\"Energy\"	\"TKE\"	\"Dissipation\"	\"v2\"	\"f\"" << std::endl;
-  slice_file << "-3.00000000000000000e+00	1.00000000000000000e+00	1.00000000000000000e+00	0.00000000000000000e+00	3.00000000000000000e+00	0.00000000000000000e+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+00" << std::endl;
-  slice_file << "-2.00000000000000000e+00	2.00000000000000000e+00	1.00000000000000000e+00	1.00000000000000000e+00	4.00000000000000000e+00	0.00000000000000000e+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+00" << std::endl;
-  slice_file << "-1.00000000000000000e+00	3.00000000000000000e+00	1.00000000000000000e+00	2.00000000000000000e+00	5.00000000000000000e+00	0.00000000000000000E+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	0.00000000000000000e+00	0.00000000000000000e+02" << std::endl;
+  slice_file << "-3.00000000000000000e+00	1.00000000000000000e+00	1.00000000000000000e+00	0.00000000000000000e+00	3.00000000000000000e+00	0.00000000000000000e+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	1.00000000000000000e+00	0.00000000000000000e+00" << std::endl;
+  slice_file << "-2.00000000000000000e+00	2.00000000000000000e+00	1.00000000000000000e+00	1.00000000000000000e+00	4.00000000000000000e+00	0.00000000000000000e+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	2.00000000000000000e+00	0.00000000000000000e+00" << std::endl;
+  slice_file << "-1.00000000000000000e+00	3.00000000000000000e+00	1.00000000000000000e+00	2.00000000000000000e+00	5.00000000000000000e+00	0.00000000000000000E+00	2.83000000000000000e+00	0.00000000000000000e+00	3.35000000000000000e-05	3.00000000000000000e+00	0.00000000000000000e+02" << std::endl;
   slice_file.close();
 }
 
@@ -217,10 +217,8 @@ BOOST_FIXTURE_TEST_CASE (SimpleRead, SliceFixture) {
 BOOST_FIXTURE_TEST_CASE(ReadFlowVarsInCartesian, SliceFixture) {
   CFileReader_Cartesian file_reader;
 
-  const unsigned short offset = 0;
-  const unsigned short nVar = 5;
   file_reader.Read_SliceFile_ASCII(config, slice_filename);
-  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, nVar, offset, flow_sol->node);
+  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, FLOW_SOL, flow_sol->node);
 
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   {
@@ -291,10 +289,8 @@ BOOST_FIXTURE_TEST_CASE(ReadFlowVarsInCylindrical, SliceFixture) {
     }
   }
 
-  const unsigned short offset = 0;
-  const unsigned short nVar = 5;
   file_reader.Read_SliceFile_ASCII(config, slice_filename);
-  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, nVar, offset, flow_sol->node);
+  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, FLOW_SOL, flow_sol->node);
 
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   {
@@ -313,8 +309,8 @@ BOOST_FIXTURE_TEST_CASE(ReadFlowVarsInCylindrical, SliceFixture) {
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 2.0, tolerance);
   }
 
-  /*--- Points 3, 4, 5 have the same x, r as points 0, 1, 2, but
-   * they have a different theta.  So the solution should be identical ---*/
+  /*--- points 3, 4, 5 have the same x, r as points 0, 1, 2, but
+   * they have a different theta.  so the solution should be identical ---*/
 
   {
     const su2double* solution = flow_sol->node[3]->GetSolution();
@@ -352,10 +348,8 @@ BOOST_FIXTURE_TEST_CASE(TransformFlowVarsInCylindrical, SliceFixture) {
     }
   }
 
-  const unsigned short offset = 0;
-  const unsigned short nVar = 5;
   file_reader.Read_SliceFile_ASCII(config, slice_filename);
-  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, nVar, offset, flow_sol->node);
+  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, FLOW_SOL, flow_sol->node);
 
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   {
@@ -416,18 +410,71 @@ BOOST_FIXTURE_TEST_CASE(TransformFlowVarsInCylindrical, SliceFixture) {
 BOOST_FIXTURE_TEST_CASE(ReadTurbVarsInCartesian, SliceFixture) {
   CFileReader_Cartesian file_reader;
 
-  const unsigned short offset = 5;
-  const unsigned short nVar = 4;
   file_reader.Read_SliceFile_ASCII(config, slice_filename);
-  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, nVar, offset, turb_sol->node);
+  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, TURB_SOL, turb_sol->node);
 
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
   {
     const su2double* solution = turb_sol->node[0]->GetSolution();
-    BOOST_CHECK_CLOSE_FRACTION(solution[0], 0.0, tolerance);
+    BOOST_CHECK_SMALL(solution[0], tolerance);
     BOOST_CHECK_CLOSE_FRACTION(solution[1], 3.35e-05, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[2], 0.0, tolerance);
-    BOOST_CHECK_CLOSE_FRACTION(solution[3], 0.0, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 1.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(ReadTurbVarsInPolar, SliceFixture) {
+  CFileReader_Cylindrical file_reader;
+
+  /*--- Instead of y = 0, 1, 2, 0, 1, 2, 0, 1, 2
+   *               z = 0, 0, 0, 1, 1, 1, 2, 2, 2
+   *    Set        r = 0, 1, 2, 0, 1, 2, 0, 1, 2
+   *               theta = 0, 0, 0, pi/2, pi/2, pi/2, pi, pi, pi
+   *---*/
+  for (unsigned short i = 0; i < 3; i++) {
+    for (unsigned short j = 0; j < 3; j++) {
+      const su2double r = 1 + j;
+      const su2double theta = M_PI*i/2.0;
+      const su2double y = r*cos(theta);
+      const su2double z = r*sin(theta);
+      su2double* coord = geometry->node[i*3+j]->GetCoord();
+      coord[0] = -3+j; coord[1] = y; coord[2] = z;
+    }
+  }
+
+  file_reader.Read_SliceFile_ASCII(config, slice_filename);
+  file_reader.LoadSolutionFromSlice(slice_filename, config, geometry, TURB_SOL, turb_sol->node);
+
+  const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
+  {
+    const su2double* solution = turb_sol->node[0]->GetSolution();
+    BOOST_CHECK_SMALL(solution[0], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[1], 3.35e-05, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 1.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+  {
+    const su2double* solution = turb_sol->node[1]->GetSolution();
+    BOOST_CHECK_SMALL(solution[0], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[1], 3.35e-05, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 2.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+  /*--- points 3, 4, 5 have the same x, r as points 0, 1, 2, but
+   * they have a different theta.  so the solution should be identical ---*/
+  {
+    const su2double* solution = turb_sol->node[3]->GetSolution();
+    BOOST_CHECK_SMALL(solution[0], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[1], 3.35e-05, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 1.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
+  }
+  {
+    const su2double* solution = turb_sol->node[4]->GetSolution();
+    BOOST_CHECK_SMALL(solution[0], tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[1], 3.35e-05, tolerance);
+    BOOST_CHECK_CLOSE_FRACTION(solution[2], 2.0, tolerance);
+    BOOST_CHECK_SMALL(solution[3], tolerance);
   }
 }
 
