@@ -17795,19 +17795,18 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       assert(k_resolved >= 0);
 
       const su2double tke_lim = max(k_total, 1.0E-8);
-      //const su2double a_kol = 1.0E-2; // XXX: We should actually get the viscous limit here
-      const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
-      su2double alpha_set = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
+      const su2double beta_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+      su2double beta_set = max(min((tke_lim - k_resolved)/tke_lim, 1.0), beta_kol);
 
-      // protect against negative alpha, just in case
-      alpha_set = max(alpha_set, 0.0);
-      average_node[iPoint]->SetKineticEnergyRatio(alpha_set);
-      assert(alpha_set == alpha_set);  // alpha should not be NaN
+      // protect against negative beta, just in case
+      beta_set = max(beta_set, 0.0);
+      average_node[iPoint]->SetKineticEnergyRatio(beta_set);
+      assert(beta_set == beta_set);  // beta should not be NaN
     }
 
     su2double total_tke = 0.0;
     su2double modeled_tke = 0.0;
-    su2double alpha = 1.0;
+    su2double beta = 1.0;
     if (turb_model != NONE) {
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
       if (tkeNeeded) {
@@ -17815,8 +17814,8 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
         total_tke = max(total_tke, tke_min);
 
         if (model_split){
-          alpha = average_node[iPoint]->GetKineticEnergyRatio();
-          modeled_tke = max(alpha*total_tke, 0.0);
+          beta = average_node[iPoint]->GetKineticEnergyRatio();
+          modeled_tke = max(beta*total_tke, 0.0);
         } else {
           modeled_tke = total_tke;
         }
@@ -17839,7 +17838,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
         std::cout << "  modeled_tke = " << modeled_tke << std::endl;
         std::cout << "  resolved ke = " << node[iPoint]->GetVelocity2() << std::endl;
         std::cout << "  total tke   = " << total_tke << std::endl;
-        std::cout << "  alpha       = " << alpha << std::endl;
+        std::cout << "  beta        = " << beta << std::endl;
     }
     node[iPoint]->SetSecondaryVar(FluidModel);
     bool RightAvg = true;
@@ -17849,7 +17848,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
         std::cout << "Error Setting average primitive variables!" << std::endl;
         std::cout << "  resolved ke = " << average_node[iPoint]->GetVelocity2() << std::endl;
         std::cout << "  total tke   = " << total_tke << std::endl;
-        std::cout << "  alpha       = " << alpha << std::endl;
+        std::cout << "  beta = " << beta << std::endl;
       }
       // We don't need the secondary variables
     }
@@ -20030,15 +20029,20 @@ void CNSSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CN
   
 }
 
-void CNSSolver::UpdateAverage(const su2double weight,
+void CNSSolver::UpdateAverage(const su2double dt,
+                              const su2double averaging_period,
                               const unsigned long iPoint,
                               su2double* buffer,
                               const CConfig* config) {
 
+  /*--- For forward Euler, w = dt/T
+   *   For backward Euler, w = dt/(T+dt) ---*/
+  const su2double weight = dt/(averaging_period + dt);
+
   assert(average_node != NULL);
 
   // Call base first, to update averages of conserved variables
-  CSolver::UpdateAverage(weight, iPoint, buffer, config);
+  CSolver::UpdateAverage(dt, averaging_period, iPoint, buffer, config);
 
   su2double* fluct_velocity = new su2double[nDim];
   su2double* mean_velocity  = new su2double[nDim];
@@ -20092,7 +20096,8 @@ void CNSSolver::UpdateAverage(const su2double weight,
       /*-- Give Pk a different averaging time than the rest of the terms ---*/
 
       const su2double Pk_relaxation = config->GetProduction_Relaxation();
-      const su2double new_Pk = production + (current_production - production)*weight*Pk_relaxation;
+      const su2double Pk_weight = dt/(dt + averaging_period/Pk_relaxation);
+      const su2double new_Pk = production + (current_production - production)*Pk_weight;
       average_node[iPoint]->SetProduction(new_Pk);
 
       /*--- Update resolved kinetic energy ---*/
@@ -20132,7 +20137,7 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
     }
 
-    /*--- We can't update alpha (the ratio of modeled to total turbulent
+    /*--- We can't update beta (the ratio of modeled to total turbulent
      * kinetic energy) here because we don't have access to the RANS solver
      * variables. ---*/
 

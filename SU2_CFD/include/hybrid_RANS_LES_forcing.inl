@@ -40,8 +40,8 @@ inline su2double CHybridForcingAbstractBase::TransformCoords(
 
 inline su2double CHybridForcingTG0::GetTargetProduction(const su2double v2,
                                                         const su2double Tsgs,
-                                                        const su2double alpha) const {
-  return C_F * sqrt(alpha*v2)/Tsgs;
+                                                        const su2double beta) const {
+  return C_F * sqrt(beta*v2)/Tsgs;
 }
 
 inline const su2double* CHybridForcingTG0::GetForcingVector(unsigned long iPoint) const {

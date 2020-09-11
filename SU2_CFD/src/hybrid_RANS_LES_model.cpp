@@ -108,12 +108,12 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
   const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
 
   // Compute inverse length scale tensor
-  const su2double alpha =
+  const su2double beta =
       solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
   ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
                          solver_container[FLOW_SOL]->average_node[iPoint],
                          solver_container[TURB_SOL]->node[iPoint],
-                         alpha,
+                         beta,
                          config->GetKind_Hybrid_Resolution_Indicator());
 
   vector<su2double> eigvalues_iLM;
@@ -130,7 +130,7 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
 
   const su2double C_r = 1.0;
   const su2double r_k_min = 1.0E-8;
-  const su2double r_k_max = (alpha > 1) ? 1.0 : 30;
+  const su2double r_k_max = (beta > 1) ? 1.0 : 30;
   const su2double r_k = max(min(C_r*max_eigval, r_k_max), r_k_min);
 
   // Set resolution adequacy in the CNSVariables class
@@ -177,17 +177,19 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
      * of the model for fully-developed channel flow problems.  It is
      * unclear how necessary it is more more complex problems. ---*/
 
-    // const su2double avg_resolution_adequacy =
-    //   solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
-    // assert(avg_resolution_adequacy >= 0);
-    // assert(avg_resolution_adequacy == avg_resolution_adequacy);
-    // //const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
-    // const su2double factor = max(min(avg_resolution_adequacy, 10.0), 1.0);
-    // for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    //   for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-    //      aniso_eddy_viscosity[iDim][jDim] *= factor;
-    //   }
-    // }
+    if (config->GetUse_SGET_Overresolution_Fix()) {
+      const su2double avg_rM =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
+      assert(avg_rM >= 0);
+      assert(avg_rM == avg_rM);
+      //const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
+      const su2double factor = max(min(avg_rM*avg_rM, 30.0), 1.0);
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          aniso_eddy_viscosity[iDim][jDim] *= factor;
+        }
+      }
+    }
 
     solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
 
@@ -250,20 +252,20 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
   su2double** aniso_viscosity_j =
       solver_container[FLOW_SOL]->node[jPoint]->GetAnisoEddyViscosity();
 
-  const su2double alpha_i =
+  const su2double beta_i =
       solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
-  const su2double alpha_j =
+  const su2double beta_j =
       solver_container[FLOW_SOL]->average_node[jPoint]->GetKineticEnergyRatio();
 
   numerics->SetAniso_Eddy_Viscosity(aniso_viscosity_i, aniso_viscosity_j);
-  numerics->SetKineticEnergyRatio(alpha_i, alpha_j);
+  numerics->SetKineticEnergyRatio(beta_i, beta_j);
 }
 
 
 void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
                                               CVariable* flow_avgs,
                                               CVariable* turb_vars,
-                                              const su2double val_alpha,
+                                              const su2double val_beta,
                                               const int short hybrid_res_ind) {
 
   unsigned short iDim, jDim, kDim;
@@ -291,7 +293,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   const su2double rho =  flow_avgs->GetDensity();
 
-  su2double alpha = max(val_alpha, 1e-8);
+  const su2double beta = max(val_beta, 1E-8);
+  const su2double alpha = max(pow(val_beta, 1.7), 1E-8);
 
   // Get primative gradients
   su2double** val_gradprimvar =  flow_vars->GetGradient_Primitive();
@@ -371,25 +374,20 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
-  // v2 here is *subgrid*, so must multiply by alpha
+  // v2 here is *subgrid*, so must multiply by beta
   // v2 is initialized at zero to keep compiler warnings happy
   su2double v2_sgs = 0;
   if (config->GetKind_Turb_Model() == KE) {
-    v2_sgs = alpha*max(turb_vars->GetSolution(2),1e-8);
+    v2_sgs = beta*max(turb_vars->GetSolution(2),1e-8);
   } else if (config->GetKind_Turb_Model() == SST) {
     // TODO: Change this to the an estimate of v2 through muT
-    v2_sgs = alpha*2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
+    v2_sgs = beta*2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
   } else {
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
 
   // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
   // here.  TODO: Add divergence contribution.
-
-  /*--- Testing on the WMH indicates that scaling the whole stress by
-   * alpha*(2-alpha) improves the model performance.  That change would
-   * make the turbulent kinetic energy inconsistent, so it is avoided here.
-   * But that indicates there's some other issue. ---*/
 
   su2double alpha_fac = alpha*(2.0 - alpha);
   alpha_fac = max(alpha_fac, 1e-8);
@@ -423,7 +421,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
           Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][jDim]*div_vel/3.0;
         }
         // rho*k contribtuion
-	Pij[iDim][jDim] -= 2.0/3.0*alpha*rho*ktot *
+	Pij[iDim][jDim] -= 2.0/3.0*beta*rho*ktot *
             (Sd[iDim][jDim] + Om[iDim][jDim] + div_vel*delta[iDim][jDim]/3.0);
       }
     }
@@ -437,7 +435,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
           // Contribution from div of velocity is (intentionally) omitted
         }
         // rho*k contribtuion
-	Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
+	Pij[iDim][jDim] -= 2.0*beta*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
       }
     }
     break;
@@ -479,6 +477,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   }
   if (found_nan) {
     std::cout << "alpha = " << alpha << std::endl;
+    std::cout << "beta  = " << beta << std::endl;
     std::cout << "alpha_fac = " << alpha_fac << std::endl;
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {

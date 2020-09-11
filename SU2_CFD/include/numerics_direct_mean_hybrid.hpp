@@ -60,7 +60,7 @@ private:
   su2double* PrimVar_Average_j; /*!< \brief The primitive variables, computed from average flow variables */
   su2double **Aniso_Eddy_Viscosity_i, **Aniso_Eddy_Viscosity_j; /*!< \brief The anisotropic eddy viscosity from the energy transfer model. */
   su2double **PrimVar_Grad_Average_i, **PrimVar_Grad_Average_j; /*!< \brief The gradient of the primitve variables from the average flow */
-  su2double alpha_i, alpha_j; /*!< \brief The kinetic energy ratio (of modeled to total turbulent kinetic energy) */
+  su2double beta_i, beta_j; /*!< \brief The kinetic energy ratio (of modeled to total turbulent kinetic energy) */
 
 public:
 
@@ -122,11 +122,11 @@ public:
    * the heat flux vector.
    *
    * \param[in] val_gradprimvar - The gradient of the average primitive variables
-   * \param[in] val_alpha - The ratio of modeled to total turbulent kinetic energy
+   * \param[in] val_beta - The ratio of modeled to total turbulent kinetic energy
    * \param[in] val_eddy_viscosity - The average (i.e. RANS) eddy viscosity
    */
   void AddSGSHeatFlux(su2double **val_gradprimvar,
-                      const su2double val_alpha,
+                      const su2double val_beta,
                       const su2double val_eddy_viscosity);
 
   /*!
@@ -149,7 +149,8 @@ public:
    *     turbulence variables.
    * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
    */
-  void SetLaminar_TKE_Diffusion(const su2double* const *val_gradturbvar,
+  void SetLaminar_TKE_Diffusion(const su2double *const *val_gradturbvar,
+                                su2double val_beta,
                                 su2double val_laminar_viscosity);
 
   /*!
@@ -157,11 +158,11 @@ public:
    *
    * \param[in] val_gradturbvar - Mean value of the gradient of the
    *     turbulence variables.
-   * \param[in] val_alpha - Ratio of turbulent kinetic energy
+   * \param[in] val_beta - Ratio of turbulent kinetic energy
    * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
    */
   void AddSGS_TKE_Diffusion(const su2double* const *val_gradturbvar,
-                            su2double val_alpha,
+                            su2double val_beta,
                             su2double val_eddy_viscosity);
 
   /*!
@@ -180,15 +181,15 @@ public:
    *
    * \param[in] val_primvar - The average primitive variables
    * \param[in] val_gradprimvar - The gradient of the average primitive variables
-   * \param[in] val_alpha - The ratio of modeled to total turbulent kinetic energy
+   * \param[in] val_beta - The ratio of modeled to total turbulent kinetic energy
    * \param[in] val_turb_ke - The total (not subfilter) turbulent kinetic energy
    * \param[in] val_eddy_viscosity - The average (i.e. RANS) eddy viscosity
    */
   void AddTauSGS(const su2double *val_primvar,
                  su2double **val_gradprimvar,
-                 const su2double val_alpha,
-                 const su2double val_turb_ke,
-                 const su2double val_eddy_viscosity);
+                 su2double val_beta,
+                 su2double val_turb_ke,
+                 su2double val_eddy_viscosity);
 
   /*!
    * \brief Add the stress tensor from the energy transfer model to the
@@ -247,11 +248,11 @@ public:
 
   /*!
    * \brief Set the ratio of modeled to total turbulent kinetic energy
-   * \param[in] val_alpha_i - The kinetic energy ratio at point i
-   * \param[in] val_alpha_j - The kinetic energy ratio at point j
+   * \param[in] val_beta_i- The kinetic energy ratio at point i
+   * \param[in] val_beta_j - The kinetic energy ratio at point j
    */
-  void SetKineticEnergyRatio(const su2double val_alpha_i,
-                             const su2double val_alpha_j);
+  void SetKineticEnergyRatio(su2double val_beta_i,
+                             su2double val_beta_j);
 };
 
 #include "numerics_direct_mean_hybrid.inl"

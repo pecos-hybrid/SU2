@@ -953,7 +953,8 @@ su2double CNSVariable::GetReynoldsStress(unsigned short iDim, unsigned short jDi
    * here.  The 2/3 \rho k \delta_{ij} must be added to give the proper
    * normal stresses ---*/
 
-  const su2double alpha_fac = KineticEnergyRatio*(2.0 - KineticEnergyRatio);
+  const su2double alpha = pow(KineticEnergyRatio, 1.7);
+  const su2double alpha_fac = alpha*(2.0 - alpha);
   /*--- Primitive[nDim+6] is eddy viscosity.  Can't use GetEddyViscosity
    * due to const qualifiers ---*/
   const su2double mut_sgs = alpha_fac*Primitive[nDim+6];

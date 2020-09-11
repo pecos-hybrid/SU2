@@ -138,8 +138,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     const su2double v2 = max(solver[TURB_SOL]->node[iPoint]->GetSolution(2), V2_MIN);
 
     // ratio of modeled to total TKE
-    su2double alpha = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
-    alpha = max(alpha, 1e-8);
+    const su2double beta = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
 
     // average of r_M
     const su2double resolution_adequacy =
@@ -154,9 +153,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     assert(T_typical >= 0);
     assert(T_kol > 0);
 
-    Lsgs = max(forcing_scale * pow(alpha, 1.5) * L_typical, L_kol);
+    Lsgs = max(forcing_scale * pow(beta, 1.5) * L_typical, L_kol);
     Lsgs = max(Lsgs, L_kol);
-    Tsgs = alpha * T_typical;
+    Tsgs = beta * T_typical;
     Tsgs = max(Tsgs, T_kol);
 
     // Get dwall
@@ -170,7 +169,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
       this->SetTGField(x, Lsgs, D, dwall, h);
     }
 
-    const su2double Ftar = this->GetTargetProduction(v2, Tsgs, alpha);
+    const su2double Ftar = this->GetTargetProduction(v2, Tsgs, beta);
 
     // Compute PFtest
     su2double PFtest = 0.0;
@@ -180,10 +179,10 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     }
     PFtest *= Ftar;
 
-    const su2double alpha_kol = solver[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+    const su2double beta_kol = solver[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
 
-    const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
-                                                     alpha, alpha_kol, PFtest);
+    const su2double eta = this->ComputeScalingFactor(resolution_adequacy,
+                                                     beta, beta_kol, PFtest);
 
     /*--- Check for an unphysically large forcing ---*/
 
@@ -192,17 +191,17 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     for (unsigned short iDim=0; iDim<nDim; iDim++) {
       energy_added += prim_vars[iDim+1]*h[iDim];
     }
-    energy_added *= delta_t * eta;
+    energy_added *= delta_t * eta * Ftar;
     su2double clipping = 1.0;
-    if (energy_added >= alpha*k_tot*0.1) {
-      /*--- Arbitrary constant of 0.99 added to prevent T=0 ---*/
-      clipping = alpha*k_tot/energy_added * 0.10;
+    if (energy_added >= beta*k_tot*0.99) {
+      /*--- Arbitrary constant of 0.99 added to prevent Temp=0 ---*/
+      clipping = beta*k_tot/energy_added * 0.99;
     }
 
 
     /*--- Store eta*h so we can compute the derivatives ---*/
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      node[iPoint][iDim] = clipping*eta*h[iDim];
+      node[iPoint][iDim] = clipping*Ftar*eta*h[iDim];
     }
 
     /*--- Save the forcing for output ---*/
@@ -215,23 +214,18 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 }
 
 su2double CHybridForcingTG0::ComputeScalingFactor(
-                     const su2double Ftar,
                      const su2double resolution_adequacy,
-                     const su2double alpha,
-                     const su2double alpha_kol,
+                     const su2double beta,
+                     const su2double beta_kol,
                      const su2double PFtest) const {
 
   su2double eta = 0.0;
 
-  // TODO: Compare this with Sigfried's improved version once channel
-  // validation is successful.
-  if ( (PFtest >= 0.0) && (resolution_adequacy < 1.0) ) {
-    const su2double Sr = tanh(1.0 - 1.0/sqrt(resolution_adequacy));
-    if (alpha <= alpha_kol) {
-      eta = -Ftar * Sr * (alpha - alpha_kol);
-    } else {
-      eta = -Ftar * Sr;
-    }
+  if (PFtest >= 0.0) {
+    const su2double F_r = -tanh(1.0 - pow(min(resolution_adequacy, 1.0), -0.5));
+    const su2double beta_hat = (1.0 - beta)/max(1.0 - beta_kol, 0.01) - 1;
+    const su2double Dlim = F_r * (tanh(10*beta_hat)+1);
+    eta = F_r - Dlim;
   }
 
   // Check for NaNs in debug mode.

@@ -1277,9 +1277,9 @@ public:
 
   /*!
    * \brief Set the ratio of modeled to total turbulent kinetic energy.
-   * \param[in] val_alpha - The ratio of modeled to total turbulent kinetic energy.
+   * \param[in] val_beta - The ratio of modeled to total turbulent kinetic energy.
    */
-  virtual void SetKineticEnergyRatio(su2double val_alpha);
+  virtual void SetKineticEnergyRatio(su2double val_beta);
 
   /*!
    * \brief Add to the value of the resolved turbulent stress.
@@ -4155,9 +4155,9 @@ public:
 
   /*!
    * \brief Set the ratio of modeled to total turbulent kinetic energy.
-   * \param val_alpha -  The ratio of modeled to total turbulent kinetic energy.
+   * \param val_beta -  The ratio of modeled to total turbulent kinetic energy.
    */
-  void SetKineticEnergyRatio(su2double val_alpha);
+  void SetKineticEnergyRatio(su2double val_beta) override;
 
   /*!
    * \brief Add to the value of the resolved turbulent stress.
@@ -4239,7 +4239,7 @@ public:
    * \brief Get the ratio of modeled to total turbulent kinetic energy.
    * \return The ratio of modeled to total turbulent kinetic energy.
    */
-  su2double GetKineticEnergyRatio(void) const;
+  su2double GetKineticEnergyRatio(void) const override;
 
   /*!
    * \brief Get a component of the resolved turbulent stress.
