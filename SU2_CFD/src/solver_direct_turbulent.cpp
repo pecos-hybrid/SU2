@@ -4251,6 +4251,15 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
   }
 
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
+
+    /*--- Copy over production from flow averages to turbulence variables
+     * This is sometimes redundant, but is essential after averages are
+     * updated. Otherwise the production in the flow nodes and the turbulence
+     * nodes are inconsistent.  ---*/
+
+    if (model_split && !(config->GetUse_Resolved_Turb_Stress())) {
+       node[iPoint]->SetProduction(flow_node[iPoint]->GetProduction());
+    }
     
     /*--- Compute blending functions and cross diffusion ---*/
     

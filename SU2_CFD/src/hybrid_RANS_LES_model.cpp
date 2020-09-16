@@ -374,13 +374,13 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
-  // v2 here is *subgrid*, so must multiply by alpha
   if (config->GetKind_Turb_Model() != KE &&
       config->GetKind_Turb_Model() != SST) {
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
+  // v2 here is *subgrid*, so must multiply by alpha
   const su2double aniso_ratio = turb_vars->GetAnisoRatio();
-  const su2double v2_sgs = alpha * TWO3 * max(ktot * aniso_ratio, 1E-8);
+  const su2double v2_sgs = beta * TWO3 * max(ktot * aniso_ratio, 1E-8);
 
   // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
   // here.  TODO: Add divergence contribution.
