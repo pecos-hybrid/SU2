@@ -283,7 +283,7 @@ inline su2double CVariable::GetKolTimescale(void) const { return 0; }
 
 inline su2double CVariable::GetKolKineticEnergyRatio(void) const { return 0; }
 
-inline su2double CVariable::GetAnisoRatio(void) {return 1; }
+inline su2double CVariable::GetAnisoRatio(void) const {return 1; }
 
 inline su2double CVariable::GetResolutionAdequacy(void) const { return 1; }
 
@@ -497,8 +497,6 @@ inline void CVariable::SetLaminarViscosity(CConfig *config) { }
 inline void CVariable::SetEddyViscosity(su2double eddy_visc) { }
 
 inline void CVariable::SetAnisoEddyViscosity(su2double** aniso_eddy_visc) { }
-
-inline void CVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) { }
 
 inline void CVariable::SetTurbScales(su2double nu,
                                      su2double S,
@@ -1605,16 +1603,11 @@ inline void CDiscAdjVariable::SetSolution_Direct(su2double *val_solution_direct)
 }
 
 inline su2double CTurbSSTVariable::GetTurbTimescale() const {
-  return T;
+  return timescale;
 }
 
 inline su2double CTurbSSTVariable::GetTurbLengthscale() const {
- return L;
-}
-
-inline void CTurbSSTVariable::SetTurbScales(su2double val_turb_T, su2double val_turb_L) {
-  T = val_turb_T;
-  L = val_turb_L;
+ return lengthscale;
 }
 
 inline su2double* CDiscAdjVariable::GetGeometry_Direct() { return Geometry_Direct; }

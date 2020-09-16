@@ -10600,6 +10600,13 @@ public:
   void SetUniformInlet(CConfig* config, unsigned short iMarker);
 
   /*!
+   * \brief Calculates and stores the turbulent timescales and lengthscales
+   * \param[in] solver_container - Container vector with all the solutions
+   * \param[in] config - Definition of the particular problem.
+   */
+  void CalculateTurbScales(CSolver **solver_container, CConfig *config);
+
+  /*!
    * \brief Get the value of the turbulent kinetic energy.
    * \return Value of the turbulent kinetic energy.
    */

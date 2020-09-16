@@ -952,9 +952,9 @@ public:
 
   /*!
    * \brief A virtual member.
-   * \return The Reynolds stress component anisotropy ratio (max-to-min)
+   * \return The Reynolds stress component anisotropy ratio (min-to-max)
    */
-  virtual su2double GetAnisoRatio(void);
+  virtual su2double GetAnisoRatio(void) const;
 
   /**
    * \brief Get the resolution adequacy parameter for a hybrid RANS/LES model
@@ -1236,13 +1236,6 @@ public:
    * \param[in] aniso_eddy_visc - Value of the eddy viscosity.
    */
   virtual void SetAnisoEddyViscosity(su2double** aniso_eddy_visc);
-
-  /*!
-   * \brief A virtual member.
-   * \param[in] val_turb_T - The turbulent timescale
-   * \param[in] val_turb_L - The turbulent lengthscale
-   */
-  virtual void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
 
   /**
    * \brief Sets the turbulent length and timescales
@@ -4748,9 +4741,16 @@ protected:
   su2double F1,    /*!< \brief Menter blending function for blending of k-w and k-eps. */
   F2,            /*!< \brief Menter blending function for stress limiter. */
   CDkw,           /*!< \brief Cross-diffusion. */
-  T,              /*!< \brief Turbulent timescale */
-  L;              /*!< \brief Turbulent lengthscale */
+  timescale,              /*!< \brief Turbulent timescale */
+  lengthscale;              /*!< \brief Turbulent lengthscale */
 
+  su2double typical_time,
+            typical_length,
+            kol_time,
+            kol_length;
+  su2double alpha_kol;
+  su2double Production;   /*!< \brief Production of TKE */
+  su2double aniso_ratio; /*--- Anisotropy of the Reynolds stresses, ratio of min to trace ---*/
   
 public:
   /*!
@@ -4812,11 +4812,49 @@ public:
   su2double GetTurbLengthscale(void) const;
 
   /**
-   * \brief Sets the large-eddy lengthscale and the large-eddy timescale
-   * \param[in] val_turb_T - Large eddy timescale of the turbulence
-   * \param[in] val_turb_L - Large eddy lengthscale of the turbulence
+   * \brief Sets the turbulent length and timescales
+   *
+   * \param[in] nu - The kinematic viscosity
+   * \param[in] S - The magnitude of the deviatoric rate-of-strain
+   * \param[in] VelMag - The magntidue of the freestream velocity
+   * \param[in] L_inf - The freestream (or problem) lengthscale
+   * \param[in] use_realizability - Limit the time and lengthscales based
+   *     on realizability limits on the Reynolds stress tensor.
    */
-  void SetTurbScales(su2double val_turb_T, su2double val_turb_L);
+  void SetTurbScales(su2double nu, su2double S, su2double VelMag,
+                     su2double L_inf, bool use_realizability);
+
+  /*!
+   * \brief Set the production of turbulent kinetic energy.
+   * \param[in] val_production - Production of turbulent kinetic energy.
+   */
+  void SetProduction(su2double val_production) { Production = val_production; }
+
+  /*!
+   * \brief Get the production of turbulent kinetic energy.
+   * \return Production of turbulent kinetic energy.
+   */
+  su2double GetProduction(void) const { return Production; }
+
+  su2double GetTypicalLengthscale(void) const { return typical_length; }
+
+  su2double GetTypicalTimescale(void) const { return typical_time; }
+
+  su2double GetKolLengthscale(void) const { return kol_length; }
+
+  su2double GetKolTimescale(void) const { return kol_time; }
+
+  su2double GetKolKineticEnergyRatio(void) const { return alpha_kol; };
+
+  void SetKolKineticEnergyRatio(su2double nu);
+
+  /*!
+   * \brief Get the component anisotropy ratio (min-to-max)
+   * \return The Reynolds stress component anisotropy ratio (min-to-max)
+   */
+  su2double GetAnisoRatio(void) const override { return aniso_ratio; }
+
+  void SetAnisoRatio(su2double val_ratio) { aniso_ratio = val_ratio; }
 };
 
 /*!

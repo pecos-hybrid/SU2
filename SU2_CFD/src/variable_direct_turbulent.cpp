@@ -185,9 +185,38 @@ CTurbSSTVariable::CTurbSSTVariable(su2double val_kine, su2double val_omega, su2d
   muT = val_muT;
   
   /*--- Initialization of scales with isotropic turbulence assumption ---*/
+ 
+  const su2double C_mu = 0.09;
+  lengthscale = sqrt(val_kine)/(C_mu*val_omega);
+  timescale = 1.0/(C_mu*val_omega);
+  typical_length = lengthscale;
+  typical_time = timescale;
 
-  L = sqrt(val_kine)/val_omega;
-  T = 1.0/val_omega;
+  /*--- Initialization of eddy viscosity ---*/
+  muT = val_muT;
+
+  /*--- Initialize kolmogorov scales to arbitrary values. We don't have
+   * access to laminar viscosity at this point ---*/
+
+  alpha_kol = 0.01;
+  kol_time = 0.01 * timescale;
+  kol_length = 0.01 * lengthscale;
+
+  /*--- Anisotropy ratio ---*/
+
+  aniso_ratio = 1.0;
+
+  // XXX: Rethink how all these terms are handled for halo nodes and the like:
+  //  - Production
+  //  - SGSProduction
+  //  - T, L
+  //  - alpha
+  //  - alpha_kol
+  //  Zero-initializing them is hacky
+
+  /*--- Initialize production ---*/
+
+  Production = 0;
 
   /*--- Allocate and initialize solution for the dual time strategy ---*/
   
@@ -238,4 +267,59 @@ void CTurbSSTVariable::SetBlendingFunc(su2double val_viscosity, su2double val_di
   AD::SetPreaccOut(F1); AD::SetPreaccOut(F2); AD::SetPreaccOut(CDkw);
   AD::EndPreacc();
   
+}
+
+void CTurbSSTVariable::SetTurbScales(const su2double nu,
+                                    const su2double S,
+                                    const su2double VelMag,
+                                    const su2double L_inf,
+                                    const bool use_realizability) {
+
+  /*--- Remember, omega := epsilon / (C_mu * k) . The C_mu is important if
+   * you're going to be comparing k-epsilon type models with SST ---*/
+
+  /*--- Wilcox used C_mu = beta* = 0.09 for his k-omega model. ---*/
+  const su2double C_mu = 0.09;
+
+  /*--- Scalars ---*/
+  const su2double kine = Solution[0];
+  const su2double omega = Solution[1];
+
+  /*--- Relevant scales ---*/
+  const su2double scale = EPS;
+
+  /*--- Clipping to avoid nonphysical quantities
+   * We keep "tke_positive" in order to allow tke=0 but clip negative
+   * values.  If tke is some small nonphysical quantity (but not zero),
+   * then it is possible for L1 > L3 and T1 > T3 when the viscous
+   * scales are smaller than this nonphysical limit. ---*/
+
+  const su2double tke_positive = max(kine, 0.0);
+  const su2double tdr_lim = max(C_mu*kine*omega, scale*VelMag*VelMag*VelMag/L_inf);
+  const su2double inv_omega = min(1.0/omega, 1e4*VelMag/L_inf);
+
+  /*--- The kolmogorov limits are stolen from v2-f ---*/
+
+  typical_time = inv_omega/C_mu;
+  const su2double C_T = 6.0;
+  kol_time     = C_T*sqrt(nu/tdr_lim);
+  timescale = max(typical_time, kol_time);
+
+  typical_length = sqrt(tke_positive)*inv_omega/C_mu;
+  const su2double C_eta = 70.0;
+  kol_length     = C_eta*pow(pow(nu,3.0)/tdr_lim,0.25);
+  lengthscale = max(typical_length, kol_length);
+}
+
+void CTurbSSTVariable::SetKolKineticEnergyRatio(su2double nu) {
+
+  /*--- Remember, omega := epsilon / (C_mu * k) . The C_mu is important ---*/
+  /*--- Wilcox used C_mu = beta* = 0.09 for his k-omega model. ---*/
+  const su2double C_mu = 0.09;
+  const su2double TKE_MIN = 1.0E-8;
+  const su2double ktot = max(Solution[0], TKE_MIN);
+  const su2double omega = Solution[1];
+  const su2double Cnu = 1.0;
+  /*--- A minimum value is necessary to prevent unrealistic low values ---*/
+  alpha_kol = max(min(Cnu*sqrt(C_mu*nu*omega/ktot), 1.0), 0.01);
 }

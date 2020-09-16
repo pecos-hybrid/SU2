@@ -105,10 +105,10 @@ public:
   su2double GetTurbLengthscale(void) const;
 
   /*!
-   * \brief Get the component anisotropy ratio (max-to-min)
-   * \return The Reynolds stress component anisotropy ratio (max-to-min)
+   * \brief Get the component anisotropy ratio (min-to-max)
+   * \return The Reynolds stress component anisotropy ratio (min-to-max)
    */
-  su2double GetAnisoRatio(void);
+  su2double GetAnisoRatio(void) const override;
 
   /*!
    * \brief Set the production of turbulent kinetic energy.

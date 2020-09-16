@@ -17795,6 +17795,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       assert(k_resolved >= 0);
 
       const su2double tke_lim = max(k_total, 1.0E-8);
+
       const su2double beta_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
       su2double beta_set = max(min((tke_lim - k_resolved)/tke_lim, 1.0), beta_kol);
 

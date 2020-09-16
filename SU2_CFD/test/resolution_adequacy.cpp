@@ -309,8 +309,9 @@ BOOST_FIXTURE_TEST_CASE(SimpleRkTest, RkFixture) {
   }
 
   /*--- Set v2 to 4/3 make (3/2*alpha*v2)^(1.5)=1.0 ---*/
-  solver_container[TURB_SOL]->node[iPoint]->SetSolution(0, 0);
+  solver_container[TURB_SOL]->node[iPoint]->SetSolution(0, 3*pow(0.5, -1.0/1.7));
   solver_container[TURB_SOL]->node[iPoint]->SetSolution(2, 4.0/3);
+  solver_container[TURB_SOL]->node[iPoint]->SetmuT(0.0);
 
   /*--- Set alpha to be a realistic value ---*/
   flow_avgs->SetKineticEnergyRatio(pow(0.5, 1.0/1.7));
@@ -322,7 +323,7 @@ BOOST_FIXTURE_TEST_CASE(SimpleRkTest, RkFixture) {
   const su2double r_k = flow_vars->GetResolutionAdequacy();
 
   const su2double tolerance = 10*std::numeric_limits<su2double>::epsilon();
-  BOOST_CHECK_CLOSE_FRACTION(r_k, su2double(0.75), tolerance);
+  BOOST_CHECK_CLOSE_FRACTION(r_k, su2double(1.0), tolerance);
 }
 
 BOOST_AUTO_TEST_SUITE_END();

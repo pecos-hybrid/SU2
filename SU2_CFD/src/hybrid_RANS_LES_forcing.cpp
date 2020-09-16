@@ -131,11 +131,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     /*--- Setup the TG vortex ---*/
 
     // total k, epsilon, and v2 from model
-    // TODO: Generalize beyond v2-f
-    if (config->GetKind_Turb_Model() != KE) {
-      SU2_MPI::Error("Hybrid forcing is only compatible with the v2-f model.", CURRENT_FUNCTION);
-    }
-    const su2double v2 = max(solver[TURB_SOL]->node[iPoint]->GetSolution(2), V2_MIN);
+    const su2double ktot = solver[TURB_SOL]->node[iPoint]->GetSolution(0);
+    const su2double aniso_ratio = solver[TURB_SOL]->node[iPoint]->GetAnisoRatio();
+    const su2double v2 = max(TWO3*ktot*aniso_ratio, V2_MIN);
 
     // ratio of modeled to total TKE
     const su2double beta = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();

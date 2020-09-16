@@ -162,6 +162,11 @@ class TestTurbVariable : public CVariable {
     const su2double Cnu = 1.0;
     return min(Cnu*sqrt(nu*Solution[1])/Solution[0], 1.0);
   }
+
+  su2double GetAnisoRatio(void) const override {
+    const su2double tke_lim = max(0.5*Solution[2], Solution[0]);
+    return min(max(0.0, 1.5*Solution[2]/tke_lim), 3.0);
+  }
 };
 
 class TestSolver : public CSolver {

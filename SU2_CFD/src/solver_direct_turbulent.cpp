@@ -4184,6 +4184,8 @@ void CTurbSSTSolver::Preprocessing(CGeometry *geometry, CSolver **solver_contain
 
   if (limiter_turb) SetSolution_Limiter(geometry, config);
   
+  // TODO: SetAverage_Primitive_Limiter has not been implemented
+  // Only important for 2nd order upwinding of turbulent equations
   if (limiter_flow) solver_container[FLOW_SOL]->SetPrimitive_Limiter(geometry, config);
 
 }
@@ -4192,12 +4194,16 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
   su2double rho = 0.0, mu = 0.0, dist, omega, kine, F2, muT, zeta;
   su2double a1 = constants[7];
   unsigned long iPoint;
-  
+
   /*--- Update flow solution using new k
    * Since T depends on k and viscosity depends on T, we need to update the
    * flow primitives to get a consistent laminar viscosity ---*/
 
   solver_container[FLOW_SOL]->Preprocessing(geometry, solver_container, config, iMesh, NO_RK_ITER, RUNTIME_FLOW_SYS, true);
+
+  const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
+  const su2double VelMag = config->GetModVel_FreeStream();
+  const su2double L_inf = config->GetLength_Reynolds();
   
   /*--- Compute mean flow and turbulence gradients ---*/
   
@@ -4208,16 +4214,34 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
     SetSolution_Gradient_LS(geometry, config);
   }
   
+  CVariable** flow_node;
+  if (model_split) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
   for (iPoint = 0; iPoint < nPoint; iPoint ++) {
+
+    /*--- Copy over production from flow averages to turbulence variables
+     * This is sometimes redundant, but is essential after averages are
+     * updated. Otherwise the production in the flow nodes and the turbulence
+     * nodes are inconsistent.  ---*/
+
+    if (model_split && !(config->GetUse_Resolved_Turb_Stress())) {
+       node[iPoint]->SetProduction(flow_node[iPoint]->GetProduction());
+    }
     
     /*--- Compute blending functions and cross diffusion ---*/
     
-    rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
-    mu  = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
+    rho  = flow_node[iPoint]->GetDensity();
+    mu   = flow_node[iPoint]->GetLaminarViscosity();
+    const su2double nu = mu/rho;
     
     dist = geometry->node[iPoint]->GetWall_Distance();
 
-    const su2double *Vorticity = solver_container[FLOW_SOL]->node[iPoint]->GetVorticity();
+    const su2double *Vorticity = flow_node[iPoint]->GetVorticity();
     const su2double VorticityMag = sqrt(Vorticity[0]*Vorticity[0] +
                                         Vorticity[1]*Vorticity[1] +
                                         Vorticity[2]*Vorticity[2]);
@@ -4236,27 +4260,77 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
 
     /*--- Compute T/L ---*/
 
-    const su2double zeta_lim = max(zeta, EPS);
-    const su2double L = sqrt(kine)*zeta_lim;
-    node[iPoint]->SetTurbScales(zeta_lim, L);
+    /*--- We use SetTurbScales instead of manually setting T, L so
+     * we can set kolmogorov scales too --*/
+    // Note: strMag is not actually used in the function
+    node[iPoint]->SetTurbScales(nu, 0, VelMag, L_inf, false);
+
+    /*--- Compute anisotropy measure ---*/
+    const su2double C_mu_v2f = 0.22;
+    const su2double Tm = node[iPoint]->GetTurbTimescale();
+    const su2double v2_over_k = zeta/(C_mu_v2f*Tm);
+    const su2double aniso_ratio = min(max(1.5*v2_over_k, 0.0), 3.0);
+    CTurbSSTVariable* sst_node = dynamic_cast<CTurbSSTVariable*>(node[iPoint]);
+    sst_node->SetAnisoRatio(aniso_ratio);
+
+    /* Compute resolution adequacy */
+    if (model_split) {
+      HybridMediator->ComputeResolutionAdequacy(geometry, solver_container,
+                                                iPoint);
+    }
     
   }
   
 }
 
+void CTurbSSTSolver::CalculateTurbScales(CSolver **solver_container,
+                                        CConfig *config) {
+
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
+  const su2double VelMag = config->GetModVel_FreeStream();
+  const su2double L_inf = config->GetLength_Reynolds();
+
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+
+    const su2double nu  = flow_node[iPoint]->GetLaminarViscosity() /
+                          flow_node[iPoint]->GetDensity();
+    const su2double S   = flow_node[iPoint]->GetStrainMag();
+
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, false);
+  }
+}
+
 void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics, CConfig *config, unsigned short iMesh, unsigned short iRKStep) {
+
+  const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
+  CVariable** flow_node;
+  if (model_split) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
+  /*--- Update turb scales ---*/
+  // TODO: Evaluate if this should be left in.
+  CalculateTurbScales(solver_container, config);
   
-  unsigned long iPoint;
-  
-  for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
     
     /*--- Conservative variables w/o reconstruction ---*/
     
-    numerics->SetPrimitive(solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive(), NULL);
+    numerics->SetPrimitive(flow_node[iPoint]->GetPrimitive(), NULL);
     
     /*--- Gradient of the primitive and conservative variables ---*/
     
-    numerics->SetPrimVarGradient(solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(), NULL);
+    numerics->SetPrimVarGradient(flow_node[iPoint]->GetGradient_Primitive(), NULL);
     
     /*--- Turbulent variables w/o reconstruction, and its gradient ---*/
     
@@ -4281,17 +4355,36 @@ void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
     
     /*--- Set vorticity and strain rate magnitude ---*/
     
-    numerics->SetVorticity(solver_container[FLOW_SOL]->node[iPoint]->GetVorticity(), NULL);
+    numerics->SetVorticity(flow_node[iPoint]->GetVorticity(), NULL);
     
-    numerics->SetStrainMag(solver_container[FLOW_SOL]->node[iPoint]->GetStrainMag(), 0.0);
+    numerics->SetStrainMag(flow_node[iPoint]->GetStrainMag(), 0.0);
     
     /*--- Cross diffusion ---*/
     
     numerics->SetCrossDiff(node[iPoint]->GetCrossDiff(),0.0);
 
+    /*--- Set the resolved Reynolds stress ---*/
+    if (model_split) {
+      HybridMediator->SetupRANSNumerics(solver_container, numerics, iPoint);
+    }
+
     /*--- Compute the source term ---*/
     
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
+
+    if (model_split) {
+      CSourcePieceWise_TurbSST* sst_numerics =
+          dynamic_cast<CSourcePieceWise_TurbSST*>(numerics);
+      const su2double sgs_production = sst_numerics->GetSGSProduction();
+      solver_container[FLOW_SOL]->average_node[iPoint]->SetSGSProduction(sgs_production);
+      if (config->GetUse_Resolved_Turb_Stress()) {
+        /*--- Production is not passed in, so output it instead ---*/
+        const su2double production = numerics->GetProduction();
+        solver_container[FLOW_SOL]->average_node[iPoint]->SetProduction(production);
+      }
+    }
+    node[iPoint]->SetProduction(numerics->GetProduction());
+    assert(node[iPoint]->GetProduction() == numerics->GetProduction());
     
     /*--- Subtract residual and the Jacobian ---*/
     
@@ -4313,6 +4406,14 @@ void CTurbSSTSolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_cont
   unsigned short iDim, iVar;
   su2double distance, density = 0.0, laminar_viscosity = 0.0, beta_1;
   
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
     
@@ -4329,9 +4430,8 @@ void CTurbSSTSolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_cont
       distance = sqrt(distance);
       
       /*--- Set wall values ---*/
-      
-      density = solver_container[FLOW_SOL]->node[jPoint]->GetDensity();
-      laminar_viscosity = solver_container[FLOW_SOL]->node[jPoint]->GetLaminarViscosity();
+      density = flow_node[jPoint]->GetDensity();
+      laminar_viscosity = flow_node[jPoint]->GetLaminarViscosity();
       
       beta_1 = constants[4];
       
@@ -4356,50 +4456,12 @@ void CTurbSSTSolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_cont
 
 void CTurbSSTSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
                                         unsigned short val_marker, unsigned short iRKStep) {
-  
-  unsigned long iPoint, jPoint, iVertex, total_index;
-  unsigned short iDim, iVar;
-  su2double distance, density = 0.0, laminar_viscosity = 0.0, beta_1;
-  
-  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-    
-    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
-    if (geometry->node[iPoint]->GetDomain()) {
-      
-      /*--- distance to closest neighbor ---*/
-      jPoint = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
-      distance = 0.0;
-      for (iDim = 0; iDim < nDim; iDim++) {
-        distance += (geometry->node[iPoint]->GetCoord(iDim) - geometry->node[jPoint]->GetCoord(iDim))*
-        (geometry->node[iPoint]->GetCoord(iDim) - geometry->node[jPoint]->GetCoord(iDim));
-      }
-      distance = sqrt(distance);
-      
-      /*--- Set wall values ---*/
-      
-      density = solver_container[FLOW_SOL]->node[jPoint]->GetDensity();
-      laminar_viscosity = solver_container[FLOW_SOL]->node[jPoint]->GetLaminarViscosity();
-      
-      beta_1 = constants[4];
-      
-      Solution[0] = 0.0;
-      Solution[1] = 60.0*laminar_viscosity/(density*beta_1*distance*distance);
-      
-      /*--- Set the solution values and zero the residual ---*/
-      node[iPoint]->SetSolution_Old(Solution);
-      node[iPoint]->SetSolution(Solution);
-      LinSysRes.SetBlock_Zero(iPoint);
-      
-      /*--- Change rows of the Jacobian (includes 1 in the diagonal) ---*/
-      for (iVar = 0; iVar < nVar; iVar++) {
-        total_index = iPoint*nVar+iVar;
-        Jacobian.DeleteValsRowi(total_index);
-      }
-      
-    }
-  }
-  
+
+  /*--- Turbulence BCs are the same for isothermal vs heat flux wall ---*/
+
+  BC_HeatFlux_Wall(geometry, solver_container, conv_numerics, visc_numerics,
+                   config, val_marker, iRKStep);
+
 }
 
 void CTurbSSTSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
@@ -4412,6 +4474,14 @@ void CTurbSSTSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_containe
   
   Normal = new su2double[nDim];
   
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
     
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
@@ -4426,7 +4496,7 @@ void CTurbSSTSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_containe
       
       /*--- Retrieve solution at the farfield boundary node ---*/
       
-      V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+      V_domain = flow_node[iPoint]->GetPrimitive();
       
       conv_numerics->SetPrimitive(V_domain, V_infty);
       
@@ -4479,6 +4549,14 @@ void CTurbSSTSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, C
 
   bool grid_movement  = config->GetGrid_Movement();
 
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+  
   string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
   /*--- Loop over all the vertices on this boundary marker ---*/
@@ -4501,9 +4579,9 @@ void CTurbSSTSolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, C
       V_inlet = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
 
       /*--- Retrieve solution at the farfield boundary node ---*/
-
-      V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
-
+      
+      V_domain = flow_node[iPoint]->GetPrimitive();
+      
       /*--- Set various quantities in the solver class ---*/
 
       conv_numerics->SetPrimitive(V_domain, V_inlet);
@@ -4584,6 +4662,14 @@ void CTurbSSTSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container, 
   bool grid_movement  = config->GetGrid_Movement();
   
   Normal = new su2double[nDim];
+
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
   
   /*--- Loop over all the vertices on this boundary marker ---*/
   
@@ -4600,7 +4686,7 @@ void CTurbSSTSolver::BC_Outlet(CGeometry *geometry, CSolver **solver_container, 
       
       /*--- Retrieve solution at the farfield boundary node ---*/
       
-      V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+      V_domain = flow_node[iPoint]->GetPrimitive();
       
       /*--- Set various quantities in the solver class ---*/
       
@@ -4688,6 +4774,14 @@ void CTurbSSTSolver::BC_Inlet_MixingPlane(CGeometry *geometry, CSolver **solver_
 
   bool grid_movement  = config->GetGrid_Movement();
 
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
+
   string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
   /*--- Loop over all the vertices on this boundary marker ---*/
@@ -4719,7 +4813,7 @@ void CTurbSSTSolver::BC_Inlet_MixingPlane(CGeometry *geometry, CSolver **solver_
 
       /*--- Retrieve solution at the farfield boundary node ---*/
 
-      V_domain = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive();
+      V_domain = flow_node[iPoint]->GetPrimitive();
 
       /*--- Set various quantities in the solver class ---*/
 
@@ -4799,6 +4893,10 @@ void CTurbSSTSolver::BC_Inlet_Turbo(CGeometry *geometry, CSolver **solver_contai
   Vel = new su2double[nDim];
 
   bool grid_movement  = config->GetGrid_Movement();
+
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    SU2_MPI::Error("BC_Inlet_Turbo has not been implemented for the model-split hybridization.", CURRENT_FUNCTION);
+  }
 
   string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
 
@@ -4923,6 +5021,14 @@ void CTurbSSTSolver::BC_Fluid_Interface(CGeometry *geometry, CSolver **solver_co
   
   unsigned long nDonorVertex;
   su2double weight;
+
+  CVariable** flow_node;
+  if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    /*--- Use explicit average values instead of fluctuating values ---*/
+    flow_node = solver_container[FLOW_SOL]->average_node;
+  } else {
+    flow_node = solver_container[FLOW_SOL]->node;
+  }
   
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
 
@@ -4950,7 +5056,7 @@ void CTurbSSTSolver::BC_Fluid_Interface(CGeometry *geometry, CSolver **solver_co
             for (iDim = 0; iDim < nDim; iDim++) Normal[iDim] = -Normal[iDim];
 
             for (iVar = 0; iVar < nPrimVar; iVar++) {
-              PrimVar_i[iVar] = solver_container[FLOW_SOL]->node[iPoint]->GetPrimitive(iVar);
+              PrimVar_i[iVar] = flow_node[iPoint]->GetPrimitive(iVar);
               PrimVar_j[iVar] = solver_container[FLOW_SOL]->GetSlidingState(iMarker, iVertex, iVar, jVertex);
             }
 

@@ -5223,6 +5223,10 @@ private:
   su2double CDkw_i, CDkw_j;
   
   bool incompressible;
+
+  su2double** ResolvedTurbStress; /*!< \brief Resolved portion of the Reynolds stress */
+  su2double SGSProduction; /*!< \brief Production due to the mean turbulent stress, below the filter scale. */
+  su2double Production; /*!< \brief Total production, including resolved portions. */
   
 public:
   
@@ -5269,6 +5273,34 @@ public:
    */
   void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
   
+  /*!
+   * \brief Set the resolved turbulent stress
+   * \param[in] val_turb_stress - The turbulent stress to be used
+   */
+  void SetResolvedTurbStress(su2double** val_turb_stress) {
+    ResolvedTurbStress = val_turb_stress;
+  }
+
+  /*!
+   * \brief Set the total production of turbulent kinetic energy.
+   * \param[in] val_production - The total production
+   */
+  void SetProduction(su2double val_production) {
+    Production = val_production;
+  }
+
+  /*!
+   * \brief Get the SGS production.
+   * \return The SGS production term.
+   */
+  su2double GetSGSProduction(void) const { return SGSProduction; }
+
+  /*!
+   * \brief Get the total production of turbulent kinetic energy.
+   * \return The total production of turbulent kinetic energy.
+   */
+  su2double GetProduction(void) const { return Production; }
+
   /*!
    * \brief Initialize the Reynolds Stress Matrix
    * \param[in] turb_ke turbulent kinetic energy of node
