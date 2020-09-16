@@ -2554,6 +2554,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
    * DEFAULT: 0.0 \ingroup Config */
   addDoubleOption("AVERAGING_START_TIME", AveragingStartTime, 0.0);
 
+  addEnumOption("SLICE_RESTART_TYPE", SliceRestartType, SliceRestartType_Map, NO_SLICE_RESTART);
+
   /* END_CONFIG_OPTIONS */
 
 }

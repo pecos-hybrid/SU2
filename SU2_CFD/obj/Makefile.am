@@ -74,6 +74,7 @@ libSU2Core_sources = \
   ../include/numerics_structure_v2f.hpp \
   ../include/output_structure.hpp \
   ../include/output_structure.inl \
+	../include/slice_file_reader.hpp \
   ../include/sgs_model.hpp \
   ../include/sgs_model.inl \
   ../include/solver_structure.hpp \
@@ -131,6 +132,7 @@ libSU2Core_sources = \
   ../src/output_su2.cpp \
   ../src/output_paraview.cpp \
   ../src/python_wrapper_structure.cpp \
+	../src/slice_file_reader.cpp \
   ../src/solver_adjoint_mean.cpp \
   ../src/solver_adjoint_turbulent.cpp \
   ../src/solver_adjoint_discrete.cpp \

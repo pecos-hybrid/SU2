@@ -1394,6 +1394,16 @@ static const map<string, FREESTREAM_TURB_OPTION> FreeStreamTurbOption_Map = CCre
 ("EDDY_VISC_RATIO", EDDY_VISC_RATIO)
 ("TURB_LENGTHSCALE", TURB_LENGTHSCALE);
 
+enum SLICE_RESTART_TYPE {
+  NO_SLICE_RESTART,
+  CARTESIAN_SLICE,
+  CYLINDRICAL_SLICE
+};
+static const map<string, SLICE_RESTART_TYPE> SliceRestartType_Map = CCreateMap<string, SLICE_RESTART_TYPE>
+("NONE", NO_SLICE_RESTART)
+("CARTESIAN_SLICE", CARTESIAN_SLICE)
+("CYLINDRICAL_SLICE", CYLINDRICAL_SLICE);
+
 /*!
  * \brief types engine inflow boundary treatments
  */

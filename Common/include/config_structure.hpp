@@ -1158,6 +1158,7 @@ private:
   su2double v2f_Realizability_Constant; /*!< \brief The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. */
   su2double v2f_Ce1_Constant;
   bool Use_TKE_Diffusion; /*!< \brief Add TKE diffusion model for the molecular and turbulent transport of total energy. */
+  unsigned short SliceRestartType;
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -9619,6 +9620,8 @@ public:
    * \param[in] invalid_state - True if the solution should be written.
    */
   void SetWrt_InvalidState(bool invalid_state) { Wrt_InvalidState = invalid_state; };
+
+  unsigned short GetSliceRestartType(void) const { return SliceRestartType; }
 };
 
 #include "config_structure.inl"
