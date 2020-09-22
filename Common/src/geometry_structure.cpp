@@ -1390,14 +1390,23 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
   geometry_container[MESH_0]->SetCoord_CG();
   geometry_container[MESH_0]->SetControlVolume(config, UPDATE);
   geometry_container[MESH_0]->SetBoundControlVolume(config, UPDATE);
+#ifdef HAVE_MPI
+      SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
   if ((config->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
       (config->isDESBasedModel())) {
     geometry_container[MESH_0]->SetMaxLength(config);
   }
+#ifdef HAVE_MPI
+      SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT ||
       config->GetWrt_Resolution_Tensors()) {
     geometry_container[MESH_0]->SetResolutionTensor(config);
   }
+#ifdef HAVE_MPI
+      SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
   
   for (iMesh = 1; iMesh <= config->GetnMGLevels(); iMesh++) {
     /*--- Update the control volume structures ---*/
@@ -15523,7 +15532,15 @@ void CGeometry::SetResolutionTensor(CConfig *config) {
   }
 
   // Communicate prior to computing eigendecomp
-  Set_MPI_Resolution_Tensor(config);
+#ifdef HAVE_MPI
+  SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+  constexpr int arbitrary_tag = 51;
+  Set_MPI_Resolution_Tensor(config, arbitrary_tag);
+  Set_MPI_Resolution_Tensor(config, (arbitrary_tag + 1));
+#ifdef HAVE_MPI
+  SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
 
   /*--- Compute new eigvalues and eigvectors for the dual grid ---*/
 
@@ -17721,7 +17738,7 @@ void CPhysicalGeometry::Set_MPI_Coord(CConfig *config) {
   
 }
 
-void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config) {
+void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_tag) {
 
   unsigned short iVar, iDim, jVar, jDim;
   unsigned short iMarker, iPeriodic_Index, MarkerS, MarkerR;
@@ -17793,9 +17810,9 @@ void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config) {
 #ifdef HAVE_MPI
 
       /*--- Send/Receive information using Sendrecv ---*/
-      SU2_MPI::Sendrecv(Buffer_Send_M, nBufferS_Vector, MPI_DOUBLE, send_to, 0,
+      SU2_MPI::Sendrecv(Buffer_Send_M, nBufferS_Vector, MPI_DOUBLE, send_to, sendrecv_tag,
                         Buffer_Receive_M, nBufferR_Vector, MPI_DOUBLE, receive_from,
-                        0, MPI_COMM_WORLD, &status);
+                        sendrecv_tag, MPI_COMM_WORLD, &status);
 
 #else
 
@@ -19291,17 +19308,17 @@ void CPhysicalGeometry::SetSensitivity(CConfig *config) {
      points which are distributed throughout the file in blocks of nVar_Restart data. ---*/
 
     int *blocklen = new int[GetnPointDomain()];
-    int *displace = new int[GetnPointDomain()];
+    MPI_Aint *displace = new MPI_Aint[GetnPointDomain()];
 
     counter = 0;
     for (iPoint_Global = 0; iPoint_Global < GetGlobal_nPointDomain(); iPoint_Global++ ) {
       if (GetGlobal_to_Local_Point(iPoint_Global) > -1) {
         blocklen[counter] = nFields;
-        displace[counter] = iPoint_Global*nFields;
+        displace[counter] = iPoint_Global*nFields*sizeof(passivedouble)
         counter++;
       }
     }
-    MPI_Type_indexed(GetnPointDomain(), blocklen, displace, MPI_DOUBLE, &filetype);
+    MPI_Type_create_hindexed(GetnPointDomain(), blocklen, displace, MPI_DOUBLE, &filetype);
     MPI_Type_commit(&filetype);
 
     /*--- Set the view for the MPI file write, i.e., describe the location in

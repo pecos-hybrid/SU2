@@ -929,7 +929,7 @@ public:
     */
    virtual void Set_MPI_Coord(CConfig *config);
 
-   virtual void Set_MPI_Resolution_Tensor(CConfig *config);
+   virtual void Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_tag=0);
 
    /*!
     * \brief A virtual member.
@@ -2155,7 +2155,7 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
    */
   void Set_MPI_Coord(CConfig *config);
 
-  void Set_MPI_Resolution_Tensor(CConfig *config);
+  void Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_tag=0) override;
   
   /*!
    * \brief Perform the MPI communication for the grid velocities.
