@@ -2527,7 +2527,7 @@ void CSolver::Read_SU2_Restart_Binary(CGeometry *geometry, CConfig *config, stri
   for (iPoint_Global = 0; iPoint_Global < geometry->GetGlobal_nPointDomain(); iPoint_Global++ ) {
     if (geometry->GetGlobal_to_Local_Point(iPoint_Global) > -1) {
       blocklen[counter] = nFields;
-      displace[counter] = iPoint_Global*nFields*sizeof(passivedouble)
+      displace[counter] = iPoint_Global*nFields*sizeof(passivedouble);
       counter++;
     }
   }

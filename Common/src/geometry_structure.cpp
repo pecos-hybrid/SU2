@@ -19314,7 +19314,7 @@ void CPhysicalGeometry::SetSensitivity(CConfig *config) {
     for (iPoint_Global = 0; iPoint_Global < GetGlobal_nPointDomain(); iPoint_Global++ ) {
       if (GetGlobal_to_Local_Point(iPoint_Global) > -1) {
         blocklen[counter] = nFields;
-        displace[counter] = iPoint_Global*nFields*sizeof(passivedouble)
+        displace[counter] = iPoint_Global*nFields*sizeof(passivedouble);
         counter++;
       }
     }
