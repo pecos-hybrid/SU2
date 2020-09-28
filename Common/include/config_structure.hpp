@@ -1157,6 +1157,7 @@ private:
   unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
   su2double v2f_Realizability_Constant; /*!< \brief The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. */
   su2double v2f_Ce1_Constant;
+  su2double v2f_Rf_Constant;
   bool Use_TKE_Diffusion; /*!< \brief Add TKE diffusion model for the molecular and turbulent transport of total energy. */
   unsigned short SliceRestartType;
 
@@ -4434,13 +4435,6 @@ public:
   void SetUse_Resolved_Turb_Stress(bool use_stress);
 
   /*!
-   * \brief Check if the timescale limit should be used in the v2-f
-   *        RANS model.
-   * \return True if the timescale limit should be used.
-   */
-  bool GetUse_v2f_Timescale_Limit(void) const;
-
-  /*!
    * \brief Get the kind of the turbulence model.
    * \return Kind of the turbulence model.
    */
@@ -5207,6 +5201,8 @@ public:
   su2double Getv2f_Realizability_Constant(void) const;
 
   su2double Getv2f_Ce1_Constant(void) const { return v2f_Ce1_Constant; }
+
+  su2double Getv2f_Rf_Constant(void) const { return v2f_Rf_Constant; }
 
   /*!
    * \brief  Add TKE diffusion model for the molecular and turbulent

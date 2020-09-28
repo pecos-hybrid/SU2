@@ -819,9 +819,6 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief USE_RESOLVED_TURB_STRESS \n DESCRIPTION: Use the resolved turbulent stress in stead of improved production for hybrid RANS/LES calculations. \ingroup Config*/
   addBoolOption("USE_RESOLVED_TURB_STRESS", Use_Resolved_Turb_Stress, YES);
 
-  /*!\brief V2F_TIMESCALE_LIMIT \n DESCRITPTION: For the v2-f RANS model, limit the timescale in the f-equation to 3/S, where S is the Frobenius norm of the mean rate-of-strain tensor. \ingroup Config */
-  addBoolOption("V2F_TIMESCALE_LIMIT", Use_v2f_Timescale_Limit, NO);
-
   /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
   addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
 
@@ -1189,7 +1186,10 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief V2F_REALIZABILITY_CONSTANT \n DESCRIPTION: The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. \n DEFAULT: 0.6 \ingroup Config */
   addDoubleOption("V2F_REALIZABILITY_CONSTANT", v2f_Realizability_Constant, 0.6);
 
-  addDoubleOption("V2F_CE1_CONSTANT", v2f_Ce1_Constant, 0.045);
+  addDoubleOption("V2F_CE1_CONSTANT", v2f_Ce1_Constant, 0.05);
+
+  /*!\brief V2F_RF_CONSTANT \n DESCRIPTION: If the Rf mod is used, then this is the constant in the numerator of Rf. \n DEFAULT: 3.0 \ingroup Config */
+  addDoubleOption("V2F_RF_CONSTANT", v2f_Rf_Constant, 1.5);
 
   /*!\brief KEEP_PV2_NONNEGATIVE  \n DESCRIPTION: Limit the production of v2 to non-negative values in the v2-f RANS model. \n DEFAULT: True \ingroup Config*/
   addBoolOption("KEEP_PV2_NONNEGATIVE", Pv2_nonnegative, true);

@@ -1299,8 +1299,6 @@ inline bool CConfig::GetBoolUse_v2f_Rf_mod(void) { return Use_v2f_Rf_mod; }
 
 inline bool CConfig::GetBoolUse_v2f_Explicit_WallBC(void) { return Use_v2f_Explicit_WallBC; }
 
-inline bool CConfig::GetUse_v2f_Timescale_Limit(void) const { return Use_v2f_Timescale_Limit; }
-
 inline unsigned short CConfig::GetKind_v2f_Limit(void) const { return Kind_v2f_Limit; }
 
 inline su2double CConfig::Getv2f_Realizability_Constant(void) const { return v2f_Realizability_Constant; }

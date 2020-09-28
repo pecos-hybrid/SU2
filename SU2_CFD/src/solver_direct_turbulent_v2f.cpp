@@ -438,6 +438,8 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
   const unsigned short realizability_limit = config->GetKind_v2f_Limit();
   const bool limit_scales = (realizability_limit == T_L_LIMIT);
+  const bool limit_muT = (realizability_limit == EDDY_VISC_LIMIT);
+  const su2double C_lim = config->Getv2f_Realizability_Constant();
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint ++) {
 
     /*--- Copy over production from flow averages to turbulence variables
@@ -462,7 +464,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     /*--- T & L ---*/
 
-    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales);
+    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales, C_lim);
     node[iPoint]->SetKolKineticEnergyRatio(nu);
 
     const su2double Tm = node[iPoint]->GetTurbTimescale();
@@ -470,9 +472,8 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     /*--- Compute the eddy viscosity ---*/
 
     muT = constants[0]*rho*v2*Tm;
-    if (realizability_limit == EDDY_VISC_LIMIT) {
-      const su2double C_lim = 1.0;
-      muT = min(muT, C_lim*rho*tke/(sqrt(3)*S));
+    if (limit_muT) {
+      muT = min(muT, C_lim*rho*tke/(sqrt(3)*max(S, EPS)));
     }
 
     node[iPoint]->SetmuT(muT);
@@ -502,13 +503,14 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
 
   const bool limit_scales =
     (config->GetKind_v2f_Limit() == T_L_LIMIT);
+  const su2double C_lim = config->Getv2f_Realizability_Constant();
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
     const su2double nu  = flow_node[iPoint]->GetLaminarViscosity() /
                           flow_node[iPoint]->GetDensity();
     const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales);
+    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales, C_lim);
   }
 }
 
