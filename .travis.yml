@@ -7,6 +7,10 @@ sudo: required
 # Language = c or c++ is necessary for easy use of ccache and Travis caching
 language: c++
 
+# Pip caching is not necessary.  It only saves a few seconds total.
+cache:
+    - ccache
+
 compiler:
     - gcc
 
