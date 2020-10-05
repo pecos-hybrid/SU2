@@ -2889,11 +2889,21 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
   
   /*--- MEMORY WARNING: Bad usage of memory here for local_colour_values. Not scalable. 
         In the future, we should avoid sharing a single array of all colors in all nodes. ---*/
-  unsigned long *local_colour_values = new unsigned long[geometry->GetGlobal_nPoint()];
-  unsigned long *local_colour_temp   = new unsigned long[geometry->ending_node[rank]-geometry->starting_node[rank]];
+  const unsigned long val_Global_nPoint = geometry->GetGlobal_nPoint();
+  const unsigned long local_width = geometry->ending_node[rank]-geometry->starting_node[rank];
+  assert(local_width > 0);
+  assert(local_width < val_Global_nPoint);
+  unsigned long *local_colour_values = new unsigned long[val_Global_nPoint];
+  unsigned long *local_colour_temp   = new unsigned long[local_width];
   
-  for (unsigned long i=0; i<geometry->ending_node[rank]-geometry->starting_node[rank]; i++) {
+  unsigned long local_max_color = 0;
+  unsigned long local_min_color = size;
+  for (unsigned long i=0; i<local_width; i++) {
+    assert(i < geometry->GetnPoint());
+    assert(geometry->starting_node[rank]+i < val_Global_nPoint);
     local_colour_temp[i]=geometry->node[i]->GetColor();
+    local_max_color = max(local_max_color, local_colour_temp[i]);
+    local_min_color = max(local_min_color, local_colour_temp[i]);
     local_colour_values[geometry->starting_node[rank]+i]=local_colour_temp[i];
   }
   
@@ -2903,19 +2913,40 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
   
 #ifdef HAVE_MPI
   
+  unsigned long global_min_color, global_max_color;
+  MPI_Reduce(&local_max_color, &global_max_color, 1, MPI_UNSIGNED_LONG, MPI_MAX, MASTER_NODE, MPI_COMM_WORLD);
+  MPI_Reduce(&local_min_color, &global_min_color, 1, MPI_UNSIGNED_LONG, MPI_MIN, MASTER_NODE, MPI_COMM_WORLD);
+  std::cout << ">>> Got here on rank " << rank << endl;
+  if (rank == MASTER_NODE) {
+    std::cout << endl;
+    std::cout << "<<<<<<<<<<<" << std::endl;
+    std::cout << "Max color found: " << global_max_color << std::endl;
+    std::cout << "Min color found: " << global_min_color << std::endl;
+    std::cout << "<<<<<<<<<<<" << std::endl;
+  }
+  
   int comm_counter=0;
   for (iDomain=0; iDomain < (unsigned long)size; iDomain++) {
     if (iDomain != (unsigned long)rank) {
+      assert(comm_counter < offset + size);
+      assert(geometry->ending_node[rank]-geometry->starting_node[rank] > 0);
       SU2_MPI::Isend(local_colour_temp, geometry->ending_node[rank]-geometry->starting_node[rank],
                      MPI_UNSIGNED_LONG, iDomain, iDomain,  MPI_COMM_WORLD, &send_req[comm_counter]);
       comm_counter++;
     }
   }
+  assert(size-1 == comm_counter);
   
   for (iDomain=0; iDomain < (unsigned long)size-1; iDomain++) {
     SU2_MPI::Probe(MPI_ANY_SOURCE, rank, MPI_COMM_WORLD, &status2);
     source = status2.MPI_SOURCE;
+    assert(source != rank);
+    assert(source < size);
     SU2_MPI::Get_count(&status2, MPI_UNSIGNED_LONG, &recv_count);
+    assert(recv_count > 0);
+    assert(starting_node[source] >= 0);
+    assert(starting_node[source] + recv_count == ending_node[source]); 
+    assert(starting_node[source] + recv_count <= val_Global_nPoint);
     SU2_MPI::Recv(&local_colour_values[geometry->starting_node[source]], recv_count,
                   MPI_UNSIGNED_LONG, source, rank, MPI_COMM_WORLD, &status2);
   }
@@ -2924,6 +2955,9 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
    blocking recv's above. ---*/
   
   SU2_MPI::Waitall(size-1, send_req, send_stat);
+  for (unsigned short iProc = 0; iProc < size-1; iProc++) {
+    assert(send_stat[iProc].MPI_ERROR == MPI_SUCCESS);
+  }
   
 #endif
   
