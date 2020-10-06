@@ -804,6 +804,7 @@ private:
   Wrt_InletFile,                   /*!< \brief Write a template inlet profile file */
   Wrt_Slice,                   /*!< \brief Write 1D slice of a 2D cartesian solution */
   Wrt_Projected_Sensitivity,   /*!< \brief Write projected sensitivities (dJ/dx) on surfaces to ASCII file. */
+  Wrt_Partition,               /*!< \brief Write the partition (coloring) to the output */
   Plot_Section_Forces;       /*!< \brief Write sectional forces for specified markers. */
   unsigned short Console_Output_Verb,  /*!< \brief Level of verbosity for console output */
   Kind_Average;        /*!< \brief Particular average for the marker analyze. */
@@ -9622,6 +9623,12 @@ public:
   void SetWrt_InvalidState(bool invalid_state) { Wrt_InvalidState = invalid_state; };
 
   unsigned short GetSliceRestartType(void) const { return SliceRestartType; }
+  
+  /*!
+   * \brief Check if the partition (coloring) should be an output
+   * \return YES if the partition (coloring) should be written
+   */
+  bool GetWrt_Partition(void) const { return Wrt_Partition; }
 };
 
 #include "config_structure.inl"

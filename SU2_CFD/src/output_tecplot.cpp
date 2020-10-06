@@ -213,6 +213,10 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
           Tecplot_File << ", \"Sharp_Edge_Dist\"";
         }
       }
+
+      if (config->GetWrt_Partition()) {
+        Tecplot_File << ", \"Partition\"";
+      }
       
       if (( Kind_Solver == ADJ_EULER              ) ||
           ( Kind_Solver == ADJ_NAVIER_STOKES      ) ||
@@ -3577,6 +3581,11 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
         variables << "Sharp_Edge_Dist ";
         *NVar += 1;
       }
+    }
+
+    if (config->GetWrt_Partition()) {
+      variables << "Partition ";
+      *NVar += 1;
     }
     
 

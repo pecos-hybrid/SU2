@@ -2556,6 +2556,10 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   addEnumOption("SLICE_RESTART_TYPE", SliceRestartType, SliceRestartType_Map, NO_SLICE_RESTART);
 
+  /*!\brief WRT_PARTITION \n DESCRIPTION: Write the paritition (color) of
+    each node \n DEFAULT: False \ingroup Config */
+  addBoolOption("WRT_PARTITION", Wrt_Partition, false);
+
   /* END_CONFIG_OPTIONS */
 
 }

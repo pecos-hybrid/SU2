@@ -2892,7 +2892,7 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
   const unsigned long val_Global_nPoint = geometry->GetGlobal_nPoint();
   const unsigned long local_width = geometry->ending_node[rank]-geometry->starting_node[rank];
   assert(local_width > 0);
-  assert(local_width < val_Global_nPoint);
+  assert(local_width <= val_Global_nPoint);
   unsigned long *local_colour_values = new unsigned long[val_Global_nPoint];
   unsigned long *local_colour_temp   = new unsigned long[local_width];
   
@@ -2916,37 +2916,30 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
   unsigned long global_min_color, global_max_color;
   MPI_Reduce(&local_max_color, &global_max_color, 1, MPI_UNSIGNED_LONG, MPI_MAX, MASTER_NODE, MPI_COMM_WORLD);
   MPI_Reduce(&local_min_color, &global_min_color, 1, MPI_UNSIGNED_LONG, MPI_MIN, MASTER_NODE, MPI_COMM_WORLD);
-  std::cout << ">>> Got here on rank " << rank << endl;
-  if (rank == MASTER_NODE) {
-    std::cout << endl;
-    std::cout << "<<<<<<<<<<<" << std::endl;
-    std::cout << "Max color found: " << global_max_color << std::endl;
-    std::cout << "Min color found: " << global_min_color << std::endl;
-    std::cout << "<<<<<<<<<<<" << std::endl;
-  }
-  
+  assert(global_max_color == 0);
+  assert(global_min_color == size);
   int comm_counter=0;
   for (iDomain=0; iDomain < (unsigned long)size; iDomain++) {
     if (iDomain != (unsigned long)rank) {
-      assert(comm_counter < offset + size);
-      assert(geometry->ending_node[rank]-geometry->starting_node[rank] > 0);
+      // assert(comm_counter < offset + size);
+      // assert(geometry->ending_node[rank]-geometry->starting_node[rank] > 0);
       SU2_MPI::Isend(local_colour_temp, geometry->ending_node[rank]-geometry->starting_node[rank],
                      MPI_UNSIGNED_LONG, iDomain, iDomain,  MPI_COMM_WORLD, &send_req[comm_counter]);
       comm_counter++;
     }
   }
-  assert(size-1 == comm_counter);
+  // assert(size-1 == comm_counter);
   
   for (iDomain=0; iDomain < (unsigned long)size-1; iDomain++) {
     SU2_MPI::Probe(MPI_ANY_SOURCE, rank, MPI_COMM_WORLD, &status2);
     source = status2.MPI_SOURCE;
-    assert(source != rank);
-    assert(source < size);
+    // assert(source != rank);
+    // assert(source < size);
     SU2_MPI::Get_count(&status2, MPI_UNSIGNED_LONG, &recv_count);
-    assert(recv_count > 0);
-    assert(starting_node[source] >= 0);
-    assert(starting_node[source] + recv_count == ending_node[source]); 
-    assert(starting_node[source] + recv_count <= val_Global_nPoint);
+    // assert(recv_count > 0);
+    // assert(starting_node[source] >= 0);
+    // assert(starting_node[source] + recv_count == ending_node[source]); 
+    // assert(starting_node[source] + recv_count <= val_Global_nPoint);
     SU2_MPI::Recv(&local_colour_values[geometry->starting_node[source]], recv_count,
                   MPI_UNSIGNED_LONG, source, rank, MPI_COMM_WORLD, &status2);
   }
@@ -17367,6 +17360,25 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
   MPI_Comm comm = MPI_COMM_WORLD;
 
   /*--- Only call ParMETIS if we have more than one rank to avoid errors ---*/
+
+#ifndef NDEBUG
+  /*--- Double check assumptions going into ParMETIS ---*/
+
+  // No zero or negative node counts on each array
+  for (int i = 0; i < size-1; i++) {
+    assert(ending_node[i+1] > ending_node[i]);
+  }
+
+  // xadj[i+1] - xadj[i] = nNeighbors for point i
+  // TODO: Check that each count of neighbors is correct
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
+    assert(xadj[iPoint+1] > xadj[iPoint]);
+    auto local_n_neighbors = (xadj[iPoint+1] - xadj[iPoint]);
+    assert(local_n_neighbors >= 2);
+    assert(local_n_neighbors <= 10);
+  }
+
+#endif
   
   if (size > SINGLE_NODE) {
     
@@ -17403,6 +17415,18 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
     for (int i = 0; i < size; i++) {
       vtxdist[i+1] = (idx_t)ending_node[i];
     }
+
+  #ifndef NDEBUG
+    // Check that vtxdist is the same for all processors
+    for (int i=0; i < size+1; i++) {
+      unsigned long local_vtxdist = static_cast<unsigned long>(vtxdist[i]);
+      unsigned long global_max, global_min;
+      SU2_MPI::Allreduce(&local_vtxdist, &global_min, 1, MPI_UNSIGNED_LONG, MPI_MIN, MPI_COMM_WORLD);
+      SU2_MPI::Allreduce(&local_vtxdist, &global_max, 1, MPI_UNSIGNED_LONG, MPI_MAX, MPI_COMM_WORLD);
+      assert(local_vtxdist == global_min);
+      assert(local_vtxdist == global_max);
+    }
+  #endif
     
     /*--- Calling ParMETIS ---*/
     if (rank == MASTER_NODE) cout << "Calling ParMETIS...";
