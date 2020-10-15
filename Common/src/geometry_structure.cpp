@@ -93,8 +93,8 @@ CGeometry::CGeometry(void) {
   nNewElem_Bound      = NULL;
   Marker_All_SendRecv = NULL;
   
-  PeriodicPoint[MAX_NUMBER_PERIODIC][2].clear();
-  PeriodicElem[MAX_NUMBER_PERIODIC].clear();
+  PeriodicPoint[MAX_NUMBER_PERIODIC-1][1].clear();
+  PeriodicElem[MAX_NUMBER_PERIODIC-1].clear();
 
   XCoordList.clear();
   Xcoord_plane.clear();
@@ -2903,7 +2903,7 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
     assert(geometry->starting_node[rank]+i < val_Global_nPoint);
     local_colour_temp[i]=geometry->node[i]->GetColor();
     local_max_color = max(local_max_color, local_colour_temp[i]);
-    local_min_color = max(local_min_color, local_colour_temp[i]);
+    local_min_color = min(local_min_color, local_colour_temp[i]);
     local_colour_values[geometry->starting_node[rank]+i]=local_colour_temp[i];
   }
   
@@ -2913,11 +2913,19 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
   
 #ifdef HAVE_MPI
   
+#ifndef NDEBUG
   unsigned long global_min_color, global_max_color;
-  MPI_Reduce(&local_max_color, &global_max_color, 1, MPI_UNSIGNED_LONG, MPI_MAX, MASTER_NODE, MPI_COMM_WORLD);
-  MPI_Reduce(&local_min_color, &global_min_color, 1, MPI_UNSIGNED_LONG, MPI_MIN, MASTER_NODE, MPI_COMM_WORLD);
-  assert(global_max_color == 0);
-  assert(global_min_color == size);
+  MPI_Allreduce(&local_max_color, &global_max_color, 1, MPI_UNSIGNED_LONG, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&local_min_color, &global_min_color, 1, MPI_UNSIGNED_LONG, MPI_MIN, MPI_COMM_WORLD);
+  if (global_min_color > 0) {
+    cout << "Encountered global min color of " << global_min_color << " on rank " << rank << endl;
+    SU2_MPI::Error("Partition coloring did not include 0!", CURRENT_FUNCTION); 
+  }
+  if (global_max_color != (size-1)) {
+    cout << "Encountered global max color of " << global_max_color << " on rank " << rank << endl;
+    SU2_MPI::Error("Partition coloring exceeded number of MPI ranks!", CURRENT_FUNCTION); 
+  }
+#endif
   int comm_counter=0;
   for (iDomain=0; iDomain < (unsigned long)size; iDomain++) {
     if (iDomain != (unsigned long)rank) {
@@ -4644,6 +4652,11 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
       Buffer_Send_nTotalSendDomain_Periodic     = 0;
       Buffer_Send_nTotalReceivedDomain_Periodic = 0;
       
+      /*--- Evaluate the number of already existing periodic boundary conditions ---*/
+
+      std::vector<int> donor_flags(size, 0);
+      std::vector<int> receptor_flags(size, 0);
+
       for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++) {
         if (config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) {
           for (iVertex = 0; iVertex < geometry->GetnElem_Bound(iMarker); iVertex++) {
@@ -4657,6 +4670,7 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
                 for (jMarker = 0; jMarker < geometry->GetnMarker(); jMarker++) {
                   if ((config->GetMarker_All_KindBC(jMarker) == SEND_RECEIVE) &&
                       (config->GetMarker_All_SendRecv(jMarker) == -config->GetMarker_All_SendRecv(iMarker))) {
+                    assert(iVertex < geometry->GetnElem_Bound(jMarker));
                     jPoint = geometry->bound[jMarker][iVertex]->GetNode(0);
                     ReceptorColor = local_colour_values[jPoint];
                   }
@@ -4673,8 +4687,10 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
                 for (jMarker = 0; jMarker < geometry->GetnMarker(); jMarker++) {
                   if ((config->GetMarker_All_KindBC(jMarker) == SEND_RECEIVE) &&
                       (config->GetMarker_All_SendRecv(jMarker) == -config->GetMarker_All_SendRecv(iMarker))) {
+                    assert(iVertex < geometry->GetnElem_Bound(jMarker));
                     jPoint = geometry->bound[jMarker][iVertex]->GetNode(0);
                     DonorColor = local_colour_values[jPoint];
+                    donor_flags[DonorColor] = 1;
                   }
                 }
                 
@@ -4685,6 +4701,22 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
             }
           }
         }
+      }
+
+      bool found_error = false;;
+      std::ostringstream err_msg;
+      for (std::size_t i = 0; i < donor_flags.size(); ++i) {
+        if (donor_flags[i] > 0 && receptor_flags[i] == 0) {
+          err_msg << "On domain " << iDomain << ", found a donor on " << i << " but no matching receptor." << endl;
+          found_error = true;
+        }
+        if (donor_flags[i] == 0 && receptor_flags[i] > 0) {
+          err_msg << "On domain " << iDomain << ", found a receptor on " << i << " but no matching donor." << endl;
+          found_error = true;
+        }
+      }
+      if (found_error) {
+        SU2_MPI::Error(err_msg.str(), CURRENT_FUNCTION);
       }
       
       /*--- Allocate the buffer vectors in the appropiate domain (master, iDomain) ---*/
@@ -5072,6 +5104,7 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
                 for (jMarker = 0; jMarker < geometry->GetnMarker(); jMarker++) {
                   if ((config->GetMarker_All_KindBC(jMarker) == SEND_RECEIVE) &&
                       (config->GetMarker_All_SendRecv(jMarker) == -config->GetMarker_All_SendRecv(iMarker))) {
+                    assert(iVertex < geometry->GetnElem_Bound(jMarker));
                     jPoint = geometry->bound[jMarker][iVertex]->GetNode(0);
                     ReceptorColor = local_colour_values[jPoint];
                   }
@@ -5096,6 +5129,7 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
                 for (jMarker = 0; jMarker < geometry->GetnMarker(); jMarker++) {
                   if ((config->GetMarker_All_KindBC(jMarker) == SEND_RECEIVE) &&
                       (config->GetMarker_All_SendRecv(jMarker) == -config->GetMarker_All_SendRecv(iMarker) )) {
+                    assert(iVertex < geometry->GetnElem_Bound(jMarker));
                     jPoint = geometry->bound[jMarker][iVertex]->GetNode(0);
                     DonorColor = local_colour_values[jPoint];
                   }
@@ -8620,8 +8654,6 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
   unsigned short nDomain, iNode, iDomain, jDomain, jNode;
   vector<unsigned long>::iterator it;
   
-  vector<vector<unsigned long> > SendTransfLocal;	/*!< \brief Vector to store the type of transformation for this send point. */
-  vector<vector<unsigned long> > ReceivedTransfLocal;	/*!< \brief Vector to store the type of transformation for this received point. */
 	vector<vector<unsigned long> > SendDomainLocal; /*!< \brief SendDomain[from domain][to domain] and return the point index of the node that must me sended. */
 	vector<vector<unsigned long> > ReceivedDomainLocal; /*!< \brief SendDomain[from domain][to domain] and return the point index of the node that must me sended. */
 
@@ -8632,10 +8664,9 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
 
   nDomain = size;
   
-  SendTransfLocal.resize(nDomain);
-  ReceivedTransfLocal.resize(nDomain);
   SendDomainLocal.resize(nDomain);
   ReceivedDomainLocal.resize(nDomain);
+
 
   /*--- Loop over the all the points of the elements on this rank in order
    to find the points with different colors. Create the send/received lists
@@ -8680,7 +8711,7 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
   for (iDomain = 0; iDomain < nDomain; iDomain++) {
     sort(SendDomainLocal[iDomain].begin(), SendDomainLocal[iDomain].end());
     it = unique(SendDomainLocal[iDomain].begin(), SendDomainLocal[iDomain].end());
-    SendDomainLocal[iDomain].resize(it - SendDomainLocal[iDomain].begin());
+    SendDomainLocal[iDomain].erase(it, SendDomainLocal[iDomain].end());
   }
   
   /*--- Sort the points that must be received and delete repeated points, note
@@ -8689,7 +8720,7 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
   for (iDomain = 0; iDomain < nDomain; iDomain++) {
     sort(ReceivedDomainLocal[iDomain].begin(), ReceivedDomainLocal[iDomain].end());
     it = unique( ReceivedDomainLocal[iDomain].begin(), ReceivedDomainLocal[iDomain].end());
-    ReceivedDomainLocal[iDomain].resize(it - ReceivedDomainLocal[iDomain].begin());
+    ReceivedDomainLocal[iDomain].erase(it, ReceivedDomainLocal[iDomain].end());
   }
   
   /*--- Create Global to Local Point array, note that the array is smaller (Max_GlobalPoint) than the total
@@ -8713,12 +8744,16 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
       for (iVertex = 0; iVertex < nVertexDomain[nMarker]; iVertex++) {
         
         MI = Global_to_Local_Point.find(SendDomainLocal[iDomain][iVertex]);
-        if (MI != Global_to_Local_Point.end())
+        if (MI != Global_to_Local_Point.end()) {
           iPoint = Global_to_Local_Point[SendDomainLocal[iDomain][iVertex]];
-        else iPoint = -1;
+        } else {
+          // XXX: Unsigned int cast may cause unexpected behavior
+          iPoint = -1;
+          cout << "On rank " << rank << ", could not find ";
+          cout << SendDomainLocal[iDomain][iVertex] << " in Global_to_Local" << endl;
+        }
           
         SendDomainLocal[iDomain][iVertex] = iPoint;
-        SendTransfLocal[iDomain].push_back(0);
       }
       nElem_Bound[nMarker] = nVertexDomain[nMarker];
       bound[nMarker] = new CPrimalGrid*[nElem_Bound[nMarker]];
@@ -8733,12 +8768,16 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
       for (iVertex = 0; iVertex < nVertexDomain[nMarker]; iVertex++) {
         
         MI = Global_to_Local_Point.find(ReceivedDomainLocal[iDomain][iVertex]);
-        if (MI != Global_to_Local_Point.end())
+        if (MI != Global_to_Local_Point.end()) {
           iPoint = Global_to_Local_Point[ReceivedDomainLocal[iDomain][iVertex]];
-        else iPoint = -1;
+        } else {
+          // XXX: Unsigned int cast may cause unexpected behavior
+          iPoint = -1;
+          cout << "On rank " << rank << ", could not find ";
+          cout << ReceivedDomainLocal[iDomain][iVertex] << " in Global_to_Local" << endl;
+        }
         
         ReceivedDomainLocal[iDomain][iVertex] = iPoint;
-        ReceivedTransfLocal[iDomain].push_back(0);
       }
       nElem_Bound[nMarker] = nVertexDomain[nMarker];
       bound[nMarker] = new CPrimalGrid*[nElem_Bound[nMarker]];
@@ -8758,12 +8797,13 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
   iMarkerReceive = nMarker - Counter_Receive;
 
   /*--- First we do the send ---*/
+  constexpr unsigned long SendTransfLocal = 0;
   for (iDomain = 0; iDomain < nDomain; iDomain++) {
     if (SendDomainLocal[iDomain].size() != 0) {
       for (iVertex = 0; iVertex < GetnElem_Bound(iMarkerSend); iVertex++) {
         LocalNode = SendDomainLocal[iDomain][iVertex];
         bound[iMarkerSend][iVertex] = new CVertexMPI(LocalNode, nDim);
-        bound[iMarkerSend][iVertex]->SetRotation_Type(SendTransfLocal[iDomain][iVertex]);
+        bound[iMarkerSend][iVertex]->SetRotation_Type(SendTransfLocal);
       }
       Marker_All_SendRecv[iMarkerSend] = iDomain+1;
       iMarkerSend++;
@@ -8771,12 +8811,13 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
   }
 
   /*--- Second we do the receive ---*/
+  constexpr unsigned long ReceivedTransfLocal = 0;
   for (iDomain = 0; iDomain < nDomain; iDomain++) {
     if (ReceivedDomainLocal[iDomain].size() != 0) {
       for (iVertex = 0; iVertex < GetnElem_Bound(iMarkerReceive); iVertex++) {
         LocalNode = ReceivedDomainLocal[iDomain][iVertex];
         bound[iMarkerReceive][iVertex] = new CVertexMPI(LocalNode, nDim);
-        bound[iMarkerReceive][iVertex]->SetRotation_Type(ReceivedTransfLocal[iDomain][iVertex]);
+        bound[iMarkerReceive][iVertex]->SetRotation_Type(ReceivedTransfLocal);
       }
       Marker_All_SendRecv[iMarkerReceive] = -(iDomain+1);
       iMarkerReceive++;
@@ -8825,13 +8866,13 @@ void CPhysicalGeometry::SetBoundaries(CConfig *config) {
       for (iDomain = 0; iDomain < nDomain; iDomain++)
         for (iMarker = 0; iMarker < nMarker; iMarker++)
           if (bound[iMarker][0]->GetVTK_Type() == VERTEX)
-            if (Marker_All_SendRecv[iMarker] == iDomain) DomainCount[iDomain]++;
+            if (Marker_All_SendRecv[iMarker] == (iDomain+1)) DomainCount[iDomain]++;
     }
     else {
       for (iDomain = 0; iDomain < nDomain; iDomain++)
         for (iMarker = 0; iMarker < nMarker; iMarker++)
           if (bound[iMarker][0]->GetVTK_Type() == VERTEX)
-            if (Marker_All_SendRecv[iMarker] == -iDomain) DomainCount[iDomain]++;
+            if (Marker_All_SendRecv[iMarker] == -(iDomain+1)) DomainCount[iDomain]++;
     }
     
     for (iDomain = 0; iDomain < nDomain; iDomain++)
@@ -8857,11 +8898,11 @@ void CPhysicalGeometry::SetBoundaries(CConfig *config) {
   for (iDomain = 0; iDomain < nDomain; iDomain++) {
     for (iMarker = 0; iMarker < nMarker; iMarker++) {
       if (bound[iMarker][0]->GetVTK_Type() == VERTEX) {
-        if (Marker_All_SendRecv[iMarker] == iDomain) {
+        if (Marker_All_SendRecv[iMarker] == (iDomain+1)) {
           DomainSendMarkers[iDomain][DomainSendCount[iDomain]] = iMarker;
           DomainSendCount[iDomain]++;
         }
-        if (Marker_All_SendRecv[iMarker] == -iDomain) {
+        if (Marker_All_SendRecv[iMarker] == -(iDomain+1)) {
           DomainReceiveMarkers[iDomain][DomainReceiveCount[iDomain]] = iMarker;
           DomainReceiveCount[iDomain]++;
         }
@@ -8873,6 +8914,13 @@ void CPhysicalGeometry::SetBoundaries(CConfig *config) {
    boundaries, because they require some reorganization ---*/
   
   nMarker_SendRecv = nMarker - nMarker_Physical - Duplicate_SendReceive;
+  if (nMarker_SendRecv % 2 > 0) {
+    std::stringstream error_msg;
+    error_msg << "Send/Recv markers should have been set up in pairs.\n";
+    error_msg << "Instead of an even number of Send/Recv markers, found ";
+    error_msg << nMarker_SendRecv << " Send/Recv\nmarkers on rank " << rank << "\n";
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
   bound_Copy = new CPrimalGrid**[nMarker_Physical + nMarker_SendRecv];
   nElem_Bound_Copy = new unsigned long [nMarker_Physical + nMarker_SendRecv];
   Marker_All_SendRecv_Copy = new short [nMarker_Physical + nMarker_SendRecv];
@@ -13777,6 +13825,9 @@ void CPhysicalGeometry::SetVertex(CConfig *config) {
   vertex = new CVertex**[nMarker];
   for (iMarker = 0; iMarker < nMarker; iMarker++) {
     vertex[iMarker] = new CVertex* [nVertex[iMarker]];
+    for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++) {
+      vertex[iMarker][iVertex] = nullptr;
+    }
     nVertex[iMarker] = 0;
     
     /*--- Initialize the number of Bound Vertex for each Marker ---*/
@@ -17815,15 +17866,8 @@ void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_
 
   // std::cout << "Calling Set_MPI_Resolution_Tensor..." << std::endl;
 
-  // ofstream myfile;
-
-  // stringstream ss;
-  // ss << rank;
-  // string srank = ss.str();
-  // string fname("resolution_comm_rank_"+srank+".txt");
-  // myfile.open (fname.c_str());
-
-
+  std::stringstream error_msg;
+  bool throw_error = false;
   
 #ifdef HAVE_MPI
   int send_to, receive_from;
@@ -17835,8 +17879,6 @@ void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_
     if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
 
-      //std::cout << "On send-receive boundary!" << std::endl;
-
       MarkerS = iMarker;  MarkerR = iMarker+1;
 
 #ifdef HAVE_MPI
@@ -17844,6 +17886,17 @@ void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_
       receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
 #endif
 
+      if (MarkerS >= nMarker || MarkerR >= nMarker) {
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+
+         throw_error = true;
+         break;
+      }
       nVertexS = nVertex[MarkerS];
       nVertexR = nVertex[MarkerR];
 
@@ -17856,6 +17909,7 @@ void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_
 
       /*--- Copy the solution old that should be sended ---*/
       for (iVertex = 0; iVertex < nVertexS; iVertex++) {
+        assert(vertex[MarkerS][iVertex] != nullptr);
         iPoint = vertex[MarkerS][iVertex]->GetNode();
         for (iVar = 0; iVar < nDim; iVar++) {
           for (iDim = 0; iDim < nDim; iDim++) {
@@ -17994,8 +18048,10 @@ void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_
 
   }
 
-
-  //myfile.close();
+  SU2_MPI::Barrier(MPI_COMM_WORLD);
+  if (throw_error) {
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
   
   for (iVar = 0; iVar < nDim; iVar++) {
     delete [] Mtensor[iVar];
