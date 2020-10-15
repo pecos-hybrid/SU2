@@ -359,16 +359,14 @@ public:
   
   /*--- Partitioning-specific variables ---*/
   map<unsigned long,unsigned long> Global_to_Local_Elem;
-  unsigned long xadj_size;
-  unsigned long adjacency_size;
   unsigned long *starting_node;
   unsigned long *ending_node;
   unsigned long *npoint_procs;
   unsigned long *nPoint_Linear;
 #ifdef HAVE_MPI
 #ifdef HAVE_PARMETIS
-  idx_t * adjacency;
-  idx_t * xadj;
+  std::vector<idx_t> adjacency;
+  std::vector<idx_t> xadj;
 #endif
 #endif
   

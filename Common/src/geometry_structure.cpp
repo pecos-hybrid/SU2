@@ -10389,11 +10389,10 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
   if ((rank == MASTER_NODE) && (size > SINGLE_NODE))
     cout << "Building the graph adjacency structure." << endl;
   
-  unsigned long loc_adjc_size=0;
   vector<unsigned long> adjac_vec;
   unsigned long adj_elem_size;
   
-  xadj = new idx_t [npoint_procs[rank]+1];
+  xadj.resize(npoint_procs[rank]+1);
   xadj[0]=0;
   vector<unsigned long> temp_adjacency;
   unsigned long local_count=0;
@@ -10411,7 +10410,7 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
     
     sort(temp_adjacency.begin(), temp_adjacency.end());
     it = unique(temp_adjacency.begin(), temp_adjacency.end());
-    loc_adjc_size = it - temp_adjacency.begin();
+    const auto loc_adjc_size = it - temp_adjacency.begin();
     
     temp_adjacency.resize(loc_adjc_size);
     xadj[local_count+1]=xadj[local_count]+loc_adjc_size;
@@ -10430,11 +10429,9 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
    is the array that we will feed to ParMETIS for partitioning. ---*/
   
   adj_elem_size = xadj[npoint_procs[rank]];
-  adjacency = new idx_t [adj_elem_size];
-  copy(adjac_vec.begin(), adjac_vec.end(), adjacency);
-  
-  xadj_size = npoint_procs[rank]+1;
-  adjacency_size = adj_elem_size;
+  adjacency.resize(0);
+  adjacency.reserve(adj_elem_size);
+  copy(adjac_vec.begin(), adjac_vec.end(), adjacency.begin());
   
   /*--- Free temporary memory used to build the adjacency. ---*/
   
@@ -12387,7 +12384,7 @@ void CPhysicalGeometry::Read_CGNS_Format_Parallel(CConfig *config, string val_me
   unsigned long adj_elem_size;
   vector<unsigned long>::iterator it;
   
-  xadj = new idx_t[npoint_procs[rank]+1];
+  xadj.resize(npoint_procs[rank]+1);
   xadj[0]=0;
   vector<unsigned long> temp_adjacency;
   unsigned long local_count=0;
@@ -12416,11 +12413,9 @@ void CPhysicalGeometry::Read_CGNS_Format_Parallel(CConfig *config, string val_me
   /*--- Now that we know the size, create the final adjacency array ---*/
   
   adj_elem_size = xadj[npoint_procs[rank]];
-  adjacency = new idx_t [adj_elem_size];
-  copy(adjac_vec.begin(), adjac_vec.end(), adjacency);
-  
-  xadj_size = npoint_procs[rank]+1;
-  adjacency_size = adj_elem_size;
+  adjacency.resize(0);
+  adjacency.reserve(adj_elem_size);
+  copy(adjac_vec.begin(), adjac_vec.end(), adjacency.begin());
   
   /*--- Free temporary memory used to build the adjacency. ---*/
   
@@ -17369,54 +17364,40 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
     assert(ending_node[i+1] > ending_node[i]);
   }
 
-  // xadj[i+1] - xadj[i] = nNeighbors for point i
-  // TODO: Check that each count of neighbors is correct
+  // Sanity checks on the number of neighbors
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
-    assert(xadj[iPoint+1] > xadj[iPoint]);
     auto local_n_neighbors = (xadj[iPoint+1] - xadj[iPoint]);
-    assert(local_n_neighbors >= 2);
-    assert(local_n_neighbors <= 10);
+    assert(local_n_neighbors >= 0);
+    assert(local_n_neighbors <= 12);
   }
-
 #endif
   
   if (size > SINGLE_NODE) {
     
-    /*--- Create some structures that ParMETIS needs for partitioning. ---*/
-    
-    idx_t numflag, nparts, edgecut, wgtflag, ncon;
-    
-    idx_t *vtxdist = new idx_t[size+1];
-    idx_t *part    = new idx_t[nPoint];
-    
-    real_t ubvec;
-    real_t *tpwgts = new real_t[size];
-    
+    MPI_Comm comm = MPI_COMM_WORLD;
+
     /*--- Some recommended defaults for the various ParMETIS options. ---*/
     
-    wgtflag = 0;
-    numflag = 0;
-    ncon    = 1;
-    ubvec   = 1.05;
-    nparts  = (idx_t)size;
+    idx_t wgtflag = 2;
+    idx_t numflag = 0;
+    idx_t ncon    = 1;
+    real_t ubvec  = 1.0 + config->GetParMETIS_Tolerance();
+    idx_t nparts  = static_cast<idx_t>(size);
     idx_t options[METIS_NOPTIONS];
     METIS_SetDefaultOptions(options);
     options[1] = 0;
     
-    /*--- Fill the necessary ParMETIS data arrays. Note that xadj_size and
-     adjacency_size are class data members that have been defined and set
-     earlier in the partitioning process. ---*/
+    /*--- Fill the necessary ParMETIS data arrays. ---*/
+
+    vector<real_t> tpwgts(size, 1.0/size);
     
-    for (int i = 0; i < size; i++) {
-      tpwgts[i] = 1.0/((real_t)size);
-    }
-    
+    vector<idx_t> vtxdist(size + 1);
     vtxdist[0] = 0;
     for (int i = 0; i < size; i++) {
       vtxdist[i+1] = (idx_t)ending_node[i];
     }
 
-  #ifndef NDEBUG
+#ifndef NDEBUG
     // Check that vtxdist is the same for all processors
     for (int i=0; i < size+1; i++) {
       unsigned long local_vtxdist = static_cast<unsigned long>(vtxdist[i]);
@@ -17426,13 +17407,38 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
       assert(local_vtxdist == global_min);
       assert(local_vtxdist == global_max);
     }
-  #endif
-    
+#endif
+
+    /*--- For most FVM-type operations the amount of work is proportional to the
+     * number of edges, for a few however it is proportional to the number of
+     * points. Therefore, for (static) load balancing we consider a weighted
+     * function of points and number of edges (or neighbors) per point, giving
+     * more importance to the latter skews the partitioner towards evenly
+     * distributing the total number of edges. ---*/
+
+    const auto wp = config->GetParMETIS_PointWeight();
+    const auto we = config->GetParMETIS_EdgeWeight();
+
+    vector<idx_t> vwgt(nPoint);
+    for (unsigned long iPoint = 0; iPoint < nPoint; ++iPoint) {
+      vwgt[iPoint] = wp + we * (xadj[iPoint + 1] - xadj[iPoint]);
+    }
+
+    /*--- Create structures that ParMETIS needs for output. ---*/
+
+    idx_t edgecut;
+    vector<idx_t> part(nPoint);
+
     /*--- Calling ParMETIS ---*/
+
     if (rank == MASTER_NODE) cout << "Calling ParMETIS...";
-    ParMETIS_V3_PartKway(vtxdist,xadj, adjacency, NULL, NULL, &wgtflag,
-                         &numflag, &ncon, &nparts, tpwgts, &ubvec, options,
-                         &edgecut, part, &comm);
+    auto err = ParMETIS_V3_PartKway(vtxdist.data(), xadj.data(),
+                                    adjacency.data(), vwgt.data(), nullptr,
+                                    &wgtflag, &numflag, &ncon, &nparts,
+                                    tpwgts.data(), &ubvec, options, &edgecut,
+                                    part.data(), &comm);
+    if (err != METIS_OK) SU2_MPI::Error("\nParMETIS partitioning failed.",
+                                        CURRENT_FUNCTION);
     if (rank == MASTER_NODE) {
       cout << " graph partitioning complete (";
       cout << edgecut << " edge cuts)." << endl;
@@ -17443,22 +17449,17 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
      results for its initial piece of the grid. ---*/
     
     for (iPoint = 0; iPoint < nPoint; iPoint++) {
+      assert(part[iPoint] < size);
       node[iPoint]->SetColor(part[iPoint]);
     }
-    
-    /*--- Free all memory needed for the ParMETIS structures ---*/
-    
-    delete [] vtxdist;
-    delete [] part;
-    delete [] tpwgts;
-    
   }
   
   /*--- Delete the memory from the geometry class that carried the
    adjacency structure. ---*/
+
+  decltype(xadj)().swap(xadj);
+  decltype(adjacency)().swap(adjacency);
   
-  delete [] xadj;
-  delete [] adjacency;
   
 #endif
 #endif
