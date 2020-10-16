@@ -2899,7 +2899,7 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
   unsigned long local_max_color = 0;
   unsigned long local_min_color = size;
   for (unsigned long i=0; i<local_width; i++) {
-    assert(i < geometry->GetnPoint());
+    assert(i < val_Global_nPoint);
     assert(geometry->starting_node[rank]+i < val_Global_nPoint);
     local_colour_temp[i]=geometry->node[i]->GetColor();
     local_max_color = max(local_max_color, local_colour_temp[i]);
@@ -2929,25 +2929,22 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
   int comm_counter=0;
   for (iDomain=0; iDomain < (unsigned long)size; iDomain++) {
     if (iDomain != (unsigned long)rank) {
-      // assert(comm_counter < offset + size);
-      // assert(geometry->ending_node[rank]-geometry->starting_node[rank] > 0);
+      assert(geometry->ending_node[rank] - geometry->starting_node[rank] > 0);
       SU2_MPI::Isend(local_colour_temp, geometry->ending_node[rank]-geometry->starting_node[rank],
                      MPI_UNSIGNED_LONG, iDomain, iDomain,  MPI_COMM_WORLD, &send_req[comm_counter]);
       comm_counter++;
     }
   }
-  // assert(size-1 == comm_counter);
+  assert(size-1 == comm_counter);
   
   for (iDomain=0; iDomain < (unsigned long)size-1; iDomain++) {
     SU2_MPI::Probe(MPI_ANY_SOURCE, rank, MPI_COMM_WORLD, &status2);
     source = status2.MPI_SOURCE;
-    // assert(source != rank);
-    // assert(source < size);
+    assert(source != rank);
+    assert(source < size);
     SU2_MPI::Get_count(&status2, MPI_UNSIGNED_LONG, &recv_count);
-    // assert(recv_count > 0);
-    // assert(starting_node[source] >= 0);
-    // assert(starting_node[source] + recv_count == ending_node[source]); 
-    // assert(starting_node[source] + recv_count <= val_Global_nPoint);
+    assert(recv_count >= 0);
+    assert(geometry->starting_node[source] + recv_count <= val_Global_nPoint);
     SU2_MPI::Recv(&local_colour_values[geometry->starting_node[source]], recv_count,
                   MPI_UNSIGNED_LONG, source, rank, MPI_COMM_WORLD, &status2);
   }
@@ -4704,7 +4701,7 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
         }
       }
 
-      bool found_error = false;;
+      bool found_error = false;
       std::ostringstream err_msg;
       for (std::size_t i = 0; i < donor_flags.size(); ++i) {
         if (donor_flags[i] > 0 && receptor_flags[i] == 0) {
@@ -8667,7 +8664,6 @@ void CPhysicalGeometry::SetSendReceive(CConfig *config) {
   
   SendDomainLocal.resize(nDomain);
   ReceivedDomainLocal.resize(nDomain);
-
 
   /*--- Loop over the all the points of the elements on this rank in order
    to find the points with different colors. Create the send/received lists
@@ -17419,7 +17415,7 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
   // Sanity checks on the number of neighbors
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     auto local_n_neighbors = (xadj[iPoint+1] - xadj[iPoint]);
-    assert(local_n_neighbors >= 0);
+    assert(local_n_neighbors > 0);
     assert(local_n_neighbors <= 12);
   }
 #endif
