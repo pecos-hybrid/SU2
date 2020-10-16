@@ -4673,6 +4673,7 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
                     assert(iVertex < geometry->GetnElem_Bound(jMarker));
                     jPoint = geometry->bound[jMarker][iVertex]->GetNode(0);
                     ReceptorColor = local_colour_values[jPoint];
+                    receptor_flags[ReceptorColor] = 1;
                   }
                 }
                 
@@ -17393,8 +17394,9 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
   
   /*--- Initialize the color vector ---*/
   
-  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++)
+  for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
     node[iPoint]->SetColor(0);
+  }
   
   /*--- This routine should only ever be called if we have parallel support
    with MPI and have the ParMETIS library compiled and linked. ---*/
@@ -17402,7 +17404,6 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
 #ifdef HAVE_MPI
 #ifdef HAVE_PARMETIS
   
-  unsigned long iPoint;
   MPI_Comm comm = MPI_COMM_WORLD;
 
   /*--- Only call ParMETIS if we have more than one rank to avoid errors ---*/
@@ -17499,7 +17500,7 @@ void CPhysicalGeometry::SetColorGrid_Parallel(CConfig *config) {
      since each processor is calling ParMETIS in parallel and storing the
      results for its initial piece of the grid. ---*/
     
-    for (iPoint = 0; iPoint < nPoint; iPoint++) {
+    for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
       assert(part[iPoint] < size);
       node[iPoint]->SetColor(part[iPoint]);
     }
