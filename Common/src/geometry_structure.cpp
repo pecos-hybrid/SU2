@@ -4714,7 +4714,9 @@ CPhysicalGeometry::CPhysicalGeometry(CGeometry *geometry, CConfig *config) {
         }
       }
       if (found_error) {
-        SU2_MPI::Error(err_msg.str(), CURRENT_FUNCTION);
+        err_msg << "------------------------------------------------------------\n";
+        cout << "------------------------------------------------------------\n";
+        cout << err_msg.str();
       }
       
       /*--- Allocate the buffer vectors in the appropiate domain (master, iDomain) ---*/
@@ -17884,14 +17886,38 @@ void CPhysicalGeometry::Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_
       receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
 #endif
 
-      if (MarkerS >= nMarker || MarkerR >= nMarker) {
+      if (MarkerR >= nMarker) {
+         error_msg << "The partitioning failed!" << endl;
          error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
          error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
          error_msg << "  rank :    " << rank << endl;
          error_msg << "  nMarker : " << nMarker << endl;
-         error_msg << "  MarkerR : " << MarkerR << endl;
          error_msg << "  MarkerS : " << MarkerS << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
 
+         throw_error = true;
+         break;
+      } else if (config->GetMarker_All_KindBC(MarkerR) != SEND_RECEIVE) {
+         error_msg << "The partitioning failed!" << endl;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 found MarkerR that was not SEND_RECEIVE." << endl;
+         error_msg << "  Note: (SEND_RECEIVE == 99)" << endl;
+         error_msg << "  rank:            " << rank << endl;
+         error_msg << "  MarkerS :        " << MarkerS << endl;
+         error_msg << "  MarkerR:         " << MarkerR << endl;
+         error_msg << "  KindBC[MarkerR]: " << config->GetMarker_All_KindBC(MarkerR) << endl;
+         throw_error = true;
+         break;
+      } else if (-config->GetMarker_All_SendRecv(MarkerR) !=
+                 config->GetMarker_All_SendRecv(MarkerS)) {
+         error_msg << "The partitioning failed!" << endl;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 found MarkerR that did not match MarkerS." << endl;
+         error_msg << "  rank:              " << rank << endl;
+         error_msg << "  MarkerS:           " << MarkerS << endl;
+         error_msg << "  MarkerR:           " << MarkerR << endl;
+         error_msg << "  SendRecv[MarkerS]: " << config->GetMarker_All_SendRecv(MarkerS) << endl;
+         error_msg << "  SendRecv[MarkerR]: " << config->GetMarker_All_SendRecv(MarkerR) << endl;
          throw_error = true;
          break;
       }
