@@ -2599,6 +2599,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         iVar_Sharp = nVar_Total; nVar_Total += 1;
       }
     }
+
+    if (config->GetWrt_Partition()) {
+      nVar_Total += 1;
+    }
     
     
     if (( Kind_Solver == ADJ_EULER              ) ||
@@ -3634,6 +3638,50 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         }
       }
     }
+
+    /*--- Communicate the Coloring ---*/
+    
+    if (config->GetWrt_Partition()) {
+        
+      /*--- Loop over this partition to collect the current variable ---*/
+      jPoint = 0;
+      for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+        
+        /*--- Check for halos & write only if requested ---*/
+        
+        if (!Local_Halo[iPoint] || Wrt_Halo) {
+          
+          /*--- Load buffers with the pressure and mach variables. ---*/
+          
+          Buffer_Send_Var[jPoint] = geometry->node[iPoint]->GetColor();
+          jPoint++;
+        }
+      }
+      
+      /*--- Gather the data on the master node. ---*/
+      
+      SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+      
+      /*--- The master node unpacks and sorts this variable by global index ---*/
+      
+      if (rank == MASTER_NODE) {
+        jPoint = 0; iVar = iVar_Sharp+1;
+        for (iProcessor = 0; iProcessor < size; iProcessor++) {
+          for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+            
+            /*--- Get global index, then loop over each variable and store ---*/
+            
+            iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+            Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+            jPoint++;
+          }
+          
+          /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+          
+          jPoint = (iProcessor+1)*nBuffer_Scalar;
+        }
+      }
+    }
     
     /*--- Communicate the surface sensitivity ---*/
     
@@ -4636,6 +4684,10 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       if (((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)))  {
         restart_file << "\t\"Sharp_Edge_Dist\"";
       }
+    }
+
+    if (config->GetWrt_Partition()) {
+      restart_file << "\t\"Partition\"";
     }
     
     if ((Kind_Solver == ADJ_EULER              ) ||
@@ -13529,6 +13581,11 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back("Sharp_Edge_Dist");
     }
     
+    if (config->GetWrt_Partition()) {
+      nVar_Par += 1;
+      Variable_Names.push_back("Partition");
+    }
+    
     /*--- Add the intermittency for the BC trans. model. ---*/
     
     if (transition) {
@@ -13828,6 +13885,10 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         if (config->GetWrt_SharpEdges()) {
           Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetSharpEdge_Distance(); iVar++;
         }
+
+        if (config->GetWrt_Partition()) {
+          Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetColor(); iVar++;
+        }
         
         /*--- Load data for the intermittency of the BC trans. model. ---*/
         
@@ -14108,6 +14169,11 @@ void COutput::LoadLocalData_IncFlow(CConfig *config, CGeometry *geometry, CSolve
       Variable_Names.push_back("Sharp_Edge_Dist");
     }
 
+    if (config->GetWrt_Partition()) {
+      nVar_Par += 1;
+      Variable_Names.push_back("Partition");
+    }
+
     /*--- Add the intermittency for the BC trans. model. ---*/
 
     if (transition) {
@@ -14349,6 +14415,10 @@ void COutput::LoadLocalData_IncFlow(CConfig *config, CGeometry *geometry, CSolve
 
         if (config->GetWrt_SharpEdges()) {
           Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetSharpEdge_Distance(); iVar++;
+        }
+
+        if (config->GetWrt_Partition()) {
+          Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetColor(); iVar++;
         }
         
         /*--- Load data for the intermittency of the BC trans. model. ---*/

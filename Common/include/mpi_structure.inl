@@ -44,6 +44,9 @@ inline void CBaseMPIWrapper::Error(std::string ErrorMsg, std::string FunctionNam
   /* Set MinRankError to Rank, as the error message is called on this rank. */
   MinRankError = Rank;
   int flag = 0;
+  /* Wait a relatively long time. It is better to exit gracefully but slowly
+   * than crash prematurely. */
+  constexpr double delay_time = 15.0;
 
 #if MPI_VERSION >= 3
   /* Find out whether the error call is collective via MPI_Ibarrier. */
@@ -58,12 +61,12 @@ inline void CBaseMPIWrapper::Error(std::string ErrorMsg, std::string FunctionNam
     if( flag ) break;
 
     double currentTime = MPI_Wtime();
-    if(currentTime > startTime + 1.0) break;
+    if(currentTime > startTime + delay_time) break;
   }
 #else
   /* MPI_Ibarrier function is not supported. Simply wait for one
      second to give other ranks the opportunity to reach this point. */
-  sleep(1);
+  sleep(delay_time);
 #endif
 
   if( flag ) {
@@ -98,6 +101,8 @@ inline void CBaseMPIWrapper::Error(std::string ErrorMsg, std::string FunctionNam
     std::cout <<  "------------------------------ Error Exit -------------------------------" << std::endl;
     std::cout << std::endl << std::endl;    
   }
+  /* Give time for the message to flush to the screen. */
+  sleep(5);
   Abort(currentComm, EXIT_FAILURE);
 }
 

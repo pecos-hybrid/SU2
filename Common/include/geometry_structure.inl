@@ -141,7 +141,7 @@ inline void CGeometry::SetRestricted_GridVelocity(CGeometry *fine_mesh, CConfig 
 
 inline void CGeometry::Set_MPI_Coord(CConfig *config) { } 
 
-inline void CGeometry::Set_MPI_Resolution_Tensor(CConfig *config) { }
+inline void CGeometry::Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_tag) { }
 
 inline void CGeometry::Set_MPI_GridVel(CConfig *config) { } 
 

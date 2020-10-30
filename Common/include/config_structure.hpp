@@ -804,6 +804,7 @@ private:
   Wrt_InletFile,                   /*!< \brief Write a template inlet profile file */
   Wrt_Slice,                   /*!< \brief Write 1D slice of a 2D cartesian solution */
   Wrt_Projected_Sensitivity,   /*!< \brief Write projected sensitivities (dJ/dx) on surfaces to ASCII file. */
+  Wrt_Partition,               /*!< \brief Write the partition (coloring) to the output */
   Plot_Section_Forces;       /*!< \brief Write sectional forces for specified markers. */
   unsigned short Console_Output_Verb,  /*!< \brief Level of verbosity for console output */
   Kind_Average;        /*!< \brief Particular average for the marker analyze. */
@@ -1037,7 +1038,9 @@ private:
   bool addCrossTerm;          /*!< \brief Evaluates the need to add the cross term when setting the adjoint output. */
   unsigned long Nonphys_Points, /*!< \brief Current number of non-physical points in the solution. */
   Nonphys_Reconstr;      /*!< \brief Current number of non-physical reconstructions for 2nd-order upwinding. */
-  bool ParMETIS;      /*!< \brief Boolean for activating ParMETIS mode (while testing). */
+  su2double ParMETIS_tolerance;     /*!< \brief Load balancing tolerance for ParMETIS. */
+  long ParMETIS_pointWgt;           /*!< \brief Load balancing weight given to points. */
+  long ParMETIS_edgeWgt;            /*!< \brief Load balancing weight given to edges. */
   unsigned short DirectDiff; /*!< \brief Direct Differentation mode. */
   bool DiscreteAdjoint; /*!< \brief AD-based discrete adjoint mode. */
   unsigned long Wrt_Surf_Freq_DualTime;	/*!< \brief Writing surface solution frequency for Dual Time. */
@@ -9618,6 +9621,27 @@ public:
   void SetWrt_InvalidState(bool invalid_state) { Wrt_InvalidState = invalid_state; };
 
   unsigned short GetSliceRestartType(void) const { return SliceRestartType; }
+  
+  /*!
+   * \brief Check if the partition (coloring) should be an output
+   * \return YES if the partition (coloring) should be written
+   */
+  bool GetWrt_Partition(void) const { return Wrt_Partition; }
+
+  /*!
+   * \brief Get the ParMETIS load balancing tolerance.
+   */
+  passivedouble GetParMETIS_Tolerance() const { return SU2_TYPE::GetValue(ParMETIS_tolerance); }
+
+  /*!
+   * \brief Get the ParMETIS load balancing weight for points.
+   */
+  long GetParMETIS_PointWeight() const { return ParMETIS_pointWgt; }
+
+  /*!
+   * \brief Get the ParMETIS load balancing weight for edges
+   */
+  long GetParMETIS_EdgeWeight() const { return ParMETIS_edgeWgt; }
 };
 
 #include "config_structure.inl"

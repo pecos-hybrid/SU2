@@ -1589,13 +1589,55 @@ void CEulerSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
   SU2_MPI::Status status;
 #endif
   
+  std::stringstream error_msg;
+  bool throw_error = false;
   for (iMarker = 0; iMarker < nMarker; iMarker++) {
     
     if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
-      
+      if (MarkerR >= nMarker) {
+         if (!throw_error) {
+           error_msg << "The partitioning failed!" << endl;
+           error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         }
+         error_msg << "SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         throw_error = true;
+      }
+      if (config->GetMarker_All_KindBC(MarkerR) != SEND_RECEIVE) {
+         if (!throw_error) {
+           error_msg << "The partitioning failed!" << endl;
+           error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         }
+         error_msg << "SU2 found MarkerR that was not SEND_RECEIVE." << endl;
+         error_msg << "  Note: (SEND_RECEIVE == 99)" << endl;
+         error_msg << "  rank:            " << rank << endl;
+         error_msg << "  MarkerS :        " << MarkerS << endl;
+         error_msg << "  MarkerR:         " << MarkerR << endl;
+         error_msg << "  KindBC[MarkerR]: " << config->GetMarker_All_KindBC(MarkerR) << endl;
+         throw_error = true;
+      }
+      if (-config->GetMarker_All_SendRecv(MarkerR) !=
+           config->GetMarker_All_SendRecv(MarkerS)) {
+         if (!throw_error) {
+           error_msg << "The partitioning failed!" << endl;
+           error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         }
+         error_msg << "SU2 found MarkerR that did not match MarkerS." << endl;
+         error_msg << "  rank:              " << rank << endl;
+         error_msg << "  MarkerS:           " << MarkerS << endl;
+         error_msg << "  MarkerR:           " << MarkerR << endl;
+         error_msg << "  SendRecv[MarkerS]: " << config->GetMarker_All_SendRecv(MarkerS) << endl;
+         error_msg << "  SendRecv[MarkerR]: " << config->GetMarker_All_SendRecv(MarkerR) << endl;
+         throw_error = true;
+      }
+      if (throw_error) break;
+
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
       receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
@@ -1692,6 +1734,9 @@ void CEulerSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
     }
     
   }
+  if (throw_error) {
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
   
 }
 
@@ -1715,6 +1760,16 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
 
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
 
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -1898,6 +1953,16 @@ void CEulerSolver::Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config) {
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2014,6 +2079,16 @@ void CEulerSolver::Set_MPI_Undivided_Laplacian(CGeometry *geometry, CConfig *con
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2130,6 +2205,16 @@ void CEulerSolver::Set_MPI_MaxEigenvalue(CGeometry *geometry, CConfig *config) {
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2209,6 +2294,16 @@ void CEulerSolver::Set_MPI_Sensor(CGeometry *geometry, CConfig *config) {
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2288,6 +2383,16 @@ void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *confi
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2447,6 +2552,16 @@ void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfi
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
 
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
 
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2600,6 +2715,16 @@ void CEulerSolver::Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *config
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2727,6 +2852,16 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2893,6 +3028,16 @@ void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConf
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
 
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
 
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -3054,6 +3199,16 @@ void CEulerSolver::Set_MPI_Primitive_Limiter(CGeometry *geometry, CConfig *confi
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
