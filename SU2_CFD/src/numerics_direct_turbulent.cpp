@@ -1254,15 +1254,14 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
 
      if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
        /*--- Limit beta to protect from imbalance in k_model vs k_resolved. ---*/
-       if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
+       // XXX: Get the real beta_kol
+       const su2double beta_kol = 0.01;
+       if (KineticEnergyRatio >= beta_kol && KineticEnergyRatio <= 1.0) {
          const su2double beta = KineticEnergyRatio;
          const su2double alpha = pow(beta, 1.7);
          const su2double alpha_fac = alpha*(2.0 - alpha);
          SGSProduction     = alpha_fac*Eddy_Viscosity_i*StrainMag_i*StrainMag_i
                              - 2.0/3.0*Density_i*beta*TurbVar_i[0]*diverg;
-
-         SGSProduction = min(SGSProduction, beta*20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
-         SGSProduction = max(SGSProduction, 0.0);
 
          if (config->GetUse_Resolved_Turb_Stress()) {
            su2double pk_resolved = 0;
@@ -1286,6 +1285,8 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
        Production = SGSProduction;
      }
    }
+   // Don't use alpha or beta for total production limiter
+   Production = min(Production, 20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
 
    zeta = max(TurbVar_i[1], VorticityMag*F2_i/a1);
 

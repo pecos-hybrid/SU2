@@ -110,10 +110,14 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
   // Compute inverse length scale tensor
   const su2double beta =
       solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+  const su2double beta_kol =
+      solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+  assert(beta <= 1.0+EPS); // Check assumptions on beta
+  const su2double beta_lim = max(beta, beta_kol);
   ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
                          solver_container[FLOW_SOL]->average_node[iPoint],
                          solver_container[TURB_SOL]->node[iPoint],
-                         beta,
+                         beta_lim,
                          config->GetKind_Hybrid_Resolution_Indicator());
 
   vector<su2double> eigvalues_iLM;
@@ -129,8 +133,10 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
   }
 
   const su2double C_r = 1.0;
-  const su2double r_k_min = 1.0E-8;
-  const su2double r_k_max = (beta > 1) ? 1.0 : 30;
+  // If k_res > k_total, then force r_k >= 1 to avoid forcing regions with
+  // unphysical resolved turbulence.
+  const su2double r_k_min = (beta <= beta_kol) ? 1.0 : 1.0E-8;
+  const su2double r_k_max = 30;
   const su2double r_k = max(min(C_r*max_eigval, r_k_max), r_k_min);
 
   // Set resolution adequacy in the CNSVariables class
@@ -252,10 +258,12 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
   su2double** aniso_viscosity_j =
       solver_container[FLOW_SOL]->node[jPoint]->GetAnisoEddyViscosity();
 
-  const su2double beta_i =
-      solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
-  const su2double beta_j =
-      solver_container[FLOW_SOL]->average_node[jPoint]->GetKineticEnergyRatio();
+  const su2double beta_i = max(
+      solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio(),
+      solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio());
+  const su2double beta_j = max(
+      solver_container[FLOW_SOL]->average_node[jPoint]->GetKineticEnergyRatio(),
+      solver_container[TURB_SOL]->node[jPoint]->GetKolKineticEnergyRatio());
 
   numerics->SetAniso_Eddy_Viscosity(aniso_viscosity_i, aniso_viscosity_j);
   numerics->SetKineticEnergyRatio(beta_i, beta_j);

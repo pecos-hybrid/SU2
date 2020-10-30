@@ -137,6 +137,10 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
     // ratio of modeled to total TKE
     const su2double beta = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
+    const su2double beta_kol = solver[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+    // Forcing should be turned off for beta <= beta_kol anyways, but
+    // proceed here
+    const su2double beta_lim = max(beta, beta_kol);
 
     // average of r_M
     const su2double resolution_adequacy =
@@ -151,9 +155,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     assert(T_typical >= 0);
     assert(T_kol > 0);
 
-    Lsgs = max(forcing_scale * pow(beta, 1.5) * L_typical, L_kol);
+    Lsgs = max(forcing_scale * pow(beta_lim, 1.5) * L_typical, L_kol);
     Lsgs = max(Lsgs, L_kol);
-    Tsgs = beta * T_typical;
+    Tsgs = beta_lim * T_typical;
     Tsgs = max(Tsgs, T_kol);
 
     // Get dwall
@@ -167,7 +171,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
       this->SetTGField(x, Lsgs, D, dwall, h);
     }
 
-    const su2double Ftar = this->GetTargetProduction(v2, Tsgs, beta);
+    const su2double Ftar = this->GetTargetProduction(v2, Tsgs, beta_lim);
 
     // Compute PFtest
     su2double PFtest = 0.0;
@@ -176,8 +180,6 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
       PFtest += uf[iDim]*h[iDim];
     }
     PFtest *= Ftar;
-
-    const su2double beta_kol = solver[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
 
     const su2double eta = this->ComputeScalingFactor(resolution_adequacy,
                                                      beta, beta_kol, PFtest);
@@ -191,9 +193,9 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     }
     energy_added *= delta_t * eta * Ftar;
     su2double clipping = 1.0;
-    if (energy_added >= beta*k_tot*0.99) {
+    if (energy_added >= beta_lim*k_tot*0.99) {
       /*--- Arbitrary constant of 0.99 added to prevent Temp=0 ---*/
-      clipping = beta*k_tot/energy_added * 0.99;
+      clipping = beta_lim*k_tot/energy_added * 0.99;
     }
 
 

@@ -17974,11 +17974,12 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 
       const su2double tke_lim = max(k_total, 1.0E-8);
 
-      const su2double beta_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
-      su2double beta_set = max(min((tke_lim - k_resolved)/tke_lim, 1.0), beta_kol);
+      const su2double beta_set = (tke_lim - k_resolved)/tke_lim;
 
-      // protect against negative beta, just in case
-      beta_set = max(beta_set, 0.0);
+      // Allow beta < beta_kol (unphysical beta) to pass through. We'll handle
+      // negative beta as needed in different ways, depending on how
+      // it's used.
+      
       average_node[iPoint]->SetKineticEnergyRatio(beta_set);
       assert(beta_set == beta_set);  // beta should not be NaN
     }
@@ -17994,8 +17995,28 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 
         if (model_split){
           beta = average_node[iPoint]->GetKineticEnergyRatio();
-          modeled_tke = max(beta*total_tke, 0.0);
+          /*--- If k_res is too big, fall back on RANS TKE for
+            energy/temp calc ---*/
+          const su2double beta_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+          if (beta > beta_kol) {
+            modeled_tke = max(beta*total_tke, 0.0);
+            /*--- The *mean* modeled stress uses mean density, but the
+            resolved energy budgeting assumes resolved density.  We need:
+
+               \bar{\rho} k_{mod} = \mean{\rho} \beta k_{tot}
+
+            So we multiply our modeled k by \mean{rho}/\bar{\rho} ---*/
+            const su2double mean_rho = average_node[iPoint]->GetDensity(); 
+            const su2double resolved_rho = node[iPoint]->GetDensity();
+            modeled_tke *= mean_rho / resolved_rho;
+          } else {
+            /*--- k_res is corrupted.  Hack "modeled TKE" to give mean T ---*/
+            const su2double v2_diff = 0.5*(node[iPoint]->GetVelocity2() - average_node[iPoint]->GetVelocity2());
+            const su2double E_diff = (node[iPoint]->GetEnergy() - average_node[iPoint]->GetEnergy());
+            modeled_tke = total_tke + E_diff - v2_diff;
+          }
         } else {
+          // No hybridization, just RANS
           modeled_tke = total_tke;
         }
       }
