@@ -17993,8 +17993,22 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
         total_tke = max(total_tke, tke_min);
 
         if (model_split){
+          /*--- Fix for density
+           * The energy and temperature calculations assume that resolved KE
+           * and turbulent kinetic energy use the same density.  But the AMS
+           * requires a mean model (with mean density) as part of the turbulent
+           * stress (and part of the modeled TKE).
+           *
+           * So we need:
+           *   \bar{\rho} k_{mod} = \mean{\rho} \beta k_{tot}
+           *
+           * This gives us:
+           *   k_{mod} = (\mean{\rho} / \bar{\rho}) \beta k_{tot}
+           * ---*/
+          const su2double mean_rho = average_node[iPoint]->GetSolution(0);
+          const su2double inst_rho = node[iPoint]->GetSolution(0);
           beta = average_node[iPoint]->GetKineticEnergyRatio();
-          modeled_tke = max(beta*total_tke, 0.0);
+          modeled_tke = max(mean_rho/inst_rho*beta*total_tke, 0.0);
         } else {
           modeled_tke = total_tke;
         }
