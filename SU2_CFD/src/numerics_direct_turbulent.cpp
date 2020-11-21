@@ -1294,7 +1294,12 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
    if (using_uq){
     pw = PerturbedStrainMag * PerturbedStrainMag - 2.0/3.0*zeta*diverg;
    } else {
-     pw = StrainMag_i*StrainMag_i - 2.0/3.0*zeta*diverg;
+     if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+       /*--- This is just Pk/ mu_t.  Density and alfa_blended are added later. ---*/
+       pw = Production/max(Eddy_Viscosity_i, 1E-8*Laminar_Viscosity_i);
+     } else {
+       pw = StrainMag_i*StrainMag_i - 2.0/3.0*zeta*diverg;
+     }
    }
    pw = max(pw,0.0);
 
