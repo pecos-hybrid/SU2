@@ -1247,8 +1247,6 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
      if (config->GetBoolDivU_inTKEProduction()) {
        SGSProduction -= 2.0/3.0*Density_i*TurbVar_i[0]*diverg;
      }
-     SGSProduction = min(SGSProduction, 20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
-     SGSProduction = max(SGSProduction, 0.0);
 
      /*--- If using a hybrid method, include resolved production ---*/
 
@@ -1260,9 +1258,6 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
          const su2double alpha_fac = alpha*(2.0 - alpha);
          SGSProduction     = alpha_fac*Eddy_Viscosity_i*StrainMag_i*StrainMag_i
                              - 2.0/3.0*Density_i*beta*TurbVar_i[0]*diverg;
-
-         SGSProduction = min(SGSProduction, beta*20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
-         SGSProduction = max(SGSProduction, 0.0);
 
          if (config->GetUse_Resolved_Turb_Stress()) {
            su2double pk_resolved = 0;
@@ -1301,6 +1296,11 @@ void CSourcePieceWise_TurbSST::ComputeResidual(su2double *val_residual, su2doubl
        pw = StrainMag_i*StrainMag_i - 2.0/3.0*zeta*diverg;
      }
    }
+
+   /*--- Apply production limiters ---*/
+
+   Production = min(Production, 20.0*beta_star*Density_i*TurbVar_i[1]*TurbVar_i[0]);
+   Production = max(Production, 0.0);
    pw = max(pw,0.0);
 
   // check for nans
