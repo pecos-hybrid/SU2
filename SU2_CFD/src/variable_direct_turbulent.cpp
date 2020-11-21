@@ -273,10 +273,16 @@ void CTurbSSTVariable::SetTurbScales(const su2double nu,
                                     const su2double S,
                                     const su2double VelMag,
                                     const su2double L_inf,
-                                    const bool use_realizability) {
+                                    const bool use_realizability,
+                                    const su2double C_lim) {
+  /*--- Stagnation point limiters aren't typically used for SST scales,
+   * since the production limiter and shear stress limiter are used instead.
+   * ---*/
+  assert(not(use_realizability));
 
-  /*--- Remember, omega := epsilon / (C_mu * k) . The C_mu is important if
-   * you're going to be comparing k-epsilon type models with SST ---*/
+  /*--- Remember, omega := epsilon / (C_mu * k) . The C_mu (or
+   * equivalently beta*) is important if you're going to be comparing
+   * k-epsilon type models with SST ---*/
 
   /*--- Wilcox used C_mu = beta* = 0.09 for his k-omega model. ---*/
   const su2double C_mu = 0.09;
