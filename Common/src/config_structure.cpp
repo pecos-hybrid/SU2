@@ -1835,6 +1835,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("WRT_HALO", Wrt_Halo, false);
   /* DESCRIPTION: Output the resolution tensors in the solution files  \ingroup Config*/
   addBoolOption("WRT_RESOLUTION_TENSORS", Wrt_Resolution_Tensors, false);
+  /* DESCRIPTION: Output the eddy viscosity for the fluctuating modeled stress \ingroup Config */
+  addBoolOption("WRT_FLUCT_EDDY_VISC", Wrt_Fluct_Eddy_Visc, false);
   /* DESCRIPTION: Output the Reynolds stress \ingroup Config */
   addBoolOption("WRT_REYNOLDS_STRESS", Wrt_Reynolds_Stress, false);
   /* DESCRIPTION: Output the performance summary to the console at the end of SU2_CFD  \ingroup Config*/

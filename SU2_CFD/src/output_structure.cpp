@@ -492,8 +492,6 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetSGSProduction, iZone, true);
         RegisterScalar("trace_mu_SGET", "trace_mu_SGET", FLOW_SOL,
                        &CVariable::GetTraceAnisoEddyViscosity, iZone);
-        RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
-                       &CVariable::GetAnisoEddyViscosity, iZone);
         RegisterScalar("r_M", "r<sub>M</sub>", FLOW_SOL,
                        &CVariable::GetResolutionAdequacy, iZone, false);
         RegisterScalar("Average_r_M", "avgr<sub>M</sub>", FLOW_SOL,
@@ -506,6 +504,11 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetForcingFactor, iZone, false);
         RegisterScalar("ForcingClipping", "ForcingClipping", FLOW_SOL,
                        &CVariable::GetForcingClipping, iZone, false);
+        
+        if (config[iZone]->GetWrt_Fluct_Turb_Stress()) {
+          RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
+                        &CVariable::GetAnisoEddyViscosity, iZone);
+        }
         if (config[iZone]->GetUse_Resolved_Turb_Stress()) {
           RegisterTensor("tau_res", "tau<sup>res</sup>", FLOW_SOL,
                          &CVariable::GetResolvedTurbStress, iZone, true);
@@ -514,15 +517,6 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
           RegisterTensor("tau_S", "tau_S", FLOW_SOL,
                          &CVariable::GetReynoldsStress, iZone, true);
         }
-        // TODO: Re-incarnate output associated with forcing
-        // RegisterScalar("Forcing_Production", "P<sub>F</sub>", TURB_SOL,
-        //                &CVariable::GetForcingProduction, iZone);
-        // RegisterScalar("Forcing_Ratio", "P<sub>F</sub>", HYBRID_SOL,
-        //                &CVariable::GetForcingRatio, iZone);
-        // RegisterScalar("S_alpha", "S<sub>a</sub>", HYBRID_SOL,
-        //                &CVariable::GetSAlpha, iZone);
-        // RegisterScalar("S_cf", "S<sub>cf</sub>", HYBRID_SOL,
-        //                &CVariable::GetScf, iZone);
       }
     }
   }
