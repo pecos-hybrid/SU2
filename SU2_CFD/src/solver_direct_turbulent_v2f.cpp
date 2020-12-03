@@ -57,7 +57,6 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   unsigned long iPoint;
   ifstream restart_file;
   string text_line;
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   /*--- Array initialization ---*/
   constants = NULL;
@@ -78,9 +77,6 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   /*--- Define geometry constants in the solver structure ---*/
   nDim = geometry->GetnDim();
   node = new CVariable*[nPoint];
-  if (runtime_averaging) {
-    average_node = new CVariable*[nPoint];
-  }
 
   /*--- Single grid simulation ---*/
   if (iMesh == MESH_0) {
@@ -262,23 +258,11 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
                                        muT_Inf, Tm_Inf, Lm_Inf,
                                        nDim, nVar, config);
 
-  if (runtime_averaging) {
-    for (iPoint = 0; iPoint < nPoint; iPoint++) {
-      average_node[iPoint] =
-          new CTurbKEVariable(kine_Inf, epsi_Inf, zeta_Inf, f_Inf, muT_Inf,
-                              Tm_Inf, Lm_Inf, nDim, nVar, config);
-    }
-  }
-
   /*--- MPI solution ---*/
 
   //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
   Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
-  if (runtime_averaging) {
-    Set_MPI_Average_Solution(geometry, config);
-    Set_MPI_Average_Solution(geometry, config);
-  }
 
   /*--- Initializate quantities for SlidingMesh Interface ---*/
 

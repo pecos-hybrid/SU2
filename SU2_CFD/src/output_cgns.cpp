@@ -435,7 +435,7 @@ void COutput::SetCGNS_Solution(CConfig *config, CGeometry *geometry, unsigned sh
   
   /*--- Write averages to CGNS file ---*/
   if (config->GetKind_Averaging() != NO_AVERAGING) {
-    for (jVar = 0; jVar < nVar_Consv; jVar++) {
+    for (jVar = 0; jVar < nVar_Avg; jVar++) {
       name.str(string()); name << "Average " << jVar+1;
       cgns_err = cg_field_write(cgns_file, cgns_base, cgns_zone, cgns_flow, RealDouble,(char *)name.str().c_str(), Data[iVar], &cgns_field); iVar++;
       if (cgns_err) cg_error_print();

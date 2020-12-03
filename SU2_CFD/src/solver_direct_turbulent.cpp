@@ -1437,8 +1437,6 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
   ifstream restart_file;
   string restart_filename = config->GetSolution_FlowFileName();
 
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
-
   /*--- Modify file name for multizone problems ---*/
   if (nZone >1)
     restart_filename = config->GetMultizone_FileName(restart_filename, iZone);
@@ -1504,25 +1502,6 @@ void CTurbSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig *
         for (iVar = 0; iVar < nVar; iVar++) Solution[iVar] = Restart_Data[index+iVar];
         node[iPoint_Local]->SetSolution(Solution);
         iPoint_Global_Local++;
-
-        /*--- Read in the runtime averages ---*/
-
-        if (runtime_averaging) {
-
-          /*--- Average solution ---*/
-
-          const unsigned short nVar_Flow = solver[MESH_0][FLOW_SOL]->GetnVar();
-          unsigned short nVar_Solution = nVar_Flow + nVar;
-
-          unsigned short nVar_Total = nVar_Solution;
-          if (config->GetWrt_Limiters()) nVar_Total += nVar_Solution;
-          if (config->GetWrt_Residuals()) nVar_Total += nVar_Solution;
-
-          index = counter*Restart_Vars[1] + nDim + nVar_Total + nVar_Flow;
-          for (iVar = 0; iVar < nVar; iVar++)
-            Solution[iVar] = Restart_Data[index+iVar];
-          average_node[iPoint_Local]->SetSolution(Solution);
-        }
 
         /*--- Increment the overall counter for how many points have been loaded. ---*/
         counter++;
@@ -1615,7 +1594,6 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   unsigned short iVar, iDim, nLineLets;
   unsigned long iPoint;
   su2double Density_Inf, Viscosity_Inf, Factor_nu_Inf, Factor_nu_Engine, Factor_nu_ActDisk;
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
 
   bool multizone = config->GetMultizone_Problem();
 
@@ -1637,9 +1615,6 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   
   nDim = geometry->GetnDim();
   node = new CVariable*[nPoint];
-  if (runtime_averaging) {
-    average_node = new CVariable*[nPoint];
-  }
   
   /*--- Single grid simulation ---*/
   
@@ -1784,21 +1759,12 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CTurbSAVariable(nu_tilde_Inf, muT_Inf, nDim, nVar, config);
 
-  if (runtime_averaging) {
-    for (iPoint = 0; iPoint < nPoint; iPoint++)
-      average_node[iPoint] = new CTurbSAVariable(nu_tilde_Inf, muT_Inf, nDim, nVar, config);
-  }
-
 
   /*--- MPI solution ---*/
 
 //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
   Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
-  if (runtime_averaging) {
-    Set_MPI_Average_Solution(geometry, config);
-    Set_MPI_Average_Solution(geometry, config);
-  }
 
   /*--- Initializate quantities for SlidingMesh Interface ---*/
 
@@ -3979,8 +3945,6 @@ CTurbSSTSolver::CTurbSSTSolver(CGeometry *geometry, CConfig *config, unsigned sh
   string text_line;
   bool multizone = config->GetMultizone_Problem();
 
-  const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
-
   
   /*--- Array initialization ---*/
   
@@ -4004,9 +3968,6 @@ CTurbSSTSolver::CTurbSSTSolver(CGeometry *geometry, CConfig *config, unsigned sh
   
   nDim = geometry->GetnDim();
   node = new CVariable*[nPoint];
-  if (runtime_averaging) {
-    average_node = new CVariable*[nPoint];
-  }
   
   /*--- Single grid simulation ---*/
   
@@ -4144,20 +4105,12 @@ CTurbSSTSolver::CTurbSSTSolver(CGeometry *geometry, CConfig *config, unsigned sh
   for (iPoint = 0; iPoint < nPoint; iPoint++)
     node[iPoint] = new CTurbSSTVariable(kine_Inf, omega_Inf, muT_Inf, nDim, nVar, constants, config);
 
-  if (runtime_averaging) {
-    for (iPoint = 0; iPoint < nPoint; iPoint++)
-      average_node[iPoint] = new CTurbSSTVariable(kine_Inf, omega_Inf, muT_Inf, nDim, nVar, constants, config);
-  }
 
   /*--- MPI solution ---*/
 
 //TODO fix order of comunication the periodic should be first otherwise you have wrong values on the halo cell after restart
   Set_MPI_Solution(geometry, config);
   Set_MPI_Solution(geometry, config);
-  if (runtime_averaging) {
-    Set_MPI_Average_Solution(geometry, config);
-    Set_MPI_Average_Solution(geometry, config);
-  }
 
   /*--- Initializate quantities for SlidingMesh Interface ---*/
 

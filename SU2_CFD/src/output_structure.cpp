@@ -505,7 +505,7 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
         RegisterScalar("ForcingClipping", "ForcingClipping", FLOW_SOL,
                        &CVariable::GetForcingClipping, iZone, false);
         
-        if (config[iZone]->GetWrt_Fluct_Turb_Stress()) {
+        if (config[iZone]->GetWrt_Fluct_Eddy_Visc()) {
           RegisterTensor("mu_SGET", "mu<sup>SGET</sup>", FLOW_SOL,
                         &CVariable::GetAnisoEddyViscosity, iZone);
         }
@@ -2513,7 +2513,12 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
   
   /*--- Add the average values ---*/
 
-  if (runtime_average) nVar_Total += nVar_Consv;
+  if (runtime_average) {
+    nVar_Avg = solver[FLOW_SOL]->GetnVar();
+    nVar_Total += nVar_Avg;
+  } else {
+    nVar_Avg = 0;
+  }
 
   if (!config->GetLow_MemoryOutput()) {
     
@@ -2769,6 +2774,14 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
       jVar = iVar - nVar_First - nVar_Second;
       CurrentIndex = ThirdIndex;
     }
+
+    const bool average_flow = (runtime_average && CurrentIndex == FLOW_SOL);
+    if (average_flow) {
+      /*--- Check the average nodes to prevent possible segfaults ---*/
+      if (solver[CurrentIndex]->average_node == NULL) {
+        SU2_MPI::Error("Could not find average nodes for the flow solver.", CURRENT_FUNCTION);
+      }
+    }
     
     /*--- Loop over this partition to collect the current variable ---*/
     
@@ -2783,7 +2796,8 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         
         Buffer_Send_Var[jPoint] = solver[CurrentIndex]->node[iPoint]->GetSolution(jVar);
 
-        if (runtime_average) {
+        /*--- Only average the flow variables ---*/
+        if (average_flow) {
           Buffer_Send_Avg[jPoint] = solver[CurrentIndex]->average_node[iPoint]->GetSolution(jVar);
         }
         
@@ -2823,7 +2837,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     for (iPoint = 0; iPoint < nBuffer_Scalar; iPoint++) Buffer_Recv_Var[iPoint] = Buffer_Send_Var[iPoint];
 #endif
 
-    if (runtime_average) {
+    if (average_flow) {
 #ifdef HAVE_MPI
       SU2_MPI::Gather(Buffer_Send_Avg, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Avg, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
 #else
@@ -2874,7 +2888,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
           Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
           
           unsigned short ExtraIndex = nVar_Consv;
-          if (runtime_average) {
+          if (average_flow) {
             Data[iVar+ExtraIndex][iGlobal_Index] = Buffer_Recv_Avg[jPoint];
             ExtraIndex += nVar_Consv;
           }
@@ -4558,7 +4572,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   }
   
   if (config->GetKind_Averaging() != NO_AVERAGING) {
-    for (iVar = 0; iVar < nVar_Consv; iVar++) {
+    for (iVar = 0; iVar < nVar_Avg; iVar++) {
       restart_file << "\t\"Average_" << iVar+1 <<"\"";
     }
   }
@@ -13257,7 +13271,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   unsigned long iVar, jVar;
   unsigned long iPoint, jPoint, iMarker, iVertex;
   unsigned long FirstIndex = NONE, SecondIndex = NONE, ThirdIndex = NONE;
-  unsigned long nVar_First = 0, nVar_Second = 0, nVar_Third = 0, nVar_Consv_Par = 0;
+  unsigned long nVar_First = 0, nVar_Second = 0, nVar_Third = 0, nVar_Consv_Par = 0, nVar_Avg_Par = 0;
   
   su2double RefArea = config->GetRefArea();
   su2double Gamma = config->GetGamma();
@@ -13269,6 +13283,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   bool transition           = (config->GetKind_Trans_Model() == BC);
   bool grid_movement        = (config->GetGrid_Movement());
   bool Wrt_Halo             = config->GetWrt_Halo(), isPeriodic;
+  const bool runtime_average = (config->GetKind_Averaging() != NO_AVERAGING);
   
   int *Local_Halo = NULL;
   
@@ -13304,6 +13319,10 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   if (SecondIndex != NONE) nVar_Second = solver[SecondIndex]->GetnVar();
   if (ThirdIndex != NONE) nVar_Third = solver[ThirdIndex]->GetnVar();
   nVar_Consv_Par = nVar_First + nVar_Second + nVar_Third;
+
+  if (runtime_average) {
+    nVar_Avg_Par = solver[FLOW_SOL]->GetnVar();
+  }
   
   /*--------------------------------------------------------------------------*/
   /*--- Step 1: Register the variables that will be output. To register a  ---*/
@@ -13351,29 +13370,14 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 
   /*--- Add the average solution ---*/
 
-  if (config->GetKind_Averaging() != NO_AVERAGING) {
-    nVar_Par += nVar_Consv_Par;
+  if (runtime_average) {
+    nVar_Par += nVar_Avg_Par;
 
     Variable_Names.push_back("Average_Density");
     Variable_Names.push_back("Average_Momentum_x");
     Variable_Names.push_back("Average_Momentum_y");
     if (geometry->GetnDim() == 3) Variable_Names.push_back("Average_Momentum_z");
     Variable_Names.push_back("Average_Energy");
-
-    if (SecondIndex != NONE) {
-      if (config->GetKind_Turb_Model() == SST) {
-        Variable_Names.push_back("Average_TKE");
-        Variable_Names.push_back("Average_Omega");
-      } else if (config->GetKind_Turb_Model() == KE) {
-        Variable_Names.push_back("Average_TKE");
-        Variable_Names.push_back("Average_Dissipation");
-        Variable_Names.push_back("Average_v2");
-        Variable_Names.push_back("Average_f");
-      } else {
-        /*--- S-A variants ---*/
-        Variable_Names.push_back("Average_Nu_Tilde");
-      }
-    }
   }
 
   /*--- If requested, register the limiter and residuals for all of the
@@ -13736,13 +13740,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         for (jVar = 0; jVar < nVar_First; jVar++) {
           Local_Data[jPoint][iVar] = solver[FirstIndex]->average_node[iPoint]->GetSolution(jVar);
           iVar++;
-        }
-        /*--- RANS Averages ---*/
-        if (SecondIndex != NONE) {
-          for (jVar = 0; jVar < nVar_Second; jVar++) {
-            Local_Data[jPoint][iVar] = solver[SecondIndex]->average_node[iPoint]->GetSolution(jVar);
-            iVar++;
-          }
         }
       }
       

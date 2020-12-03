@@ -178,7 +178,7 @@ class COutput {
   vector<string> Variable_Names;
 
   su2double **Data;
-  unsigned short nVar_Consv, nVar_Total, nVar_Extra, nZones;
+  unsigned short nVar_Consv, nVar_Avg, nVar_Total, nVar_Extra, nZones;
   bool wrote_surf_file, wrote_CGNS_base, wrote_Tecplot_base, wrote_Paraview_base;
   unsigned short wrote_base_file;
   su2double RhoRes_New, *RhoRes_Old;
