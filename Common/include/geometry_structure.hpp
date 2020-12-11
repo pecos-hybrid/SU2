@@ -359,16 +359,14 @@ public:
   
   /*--- Partitioning-specific variables ---*/
   map<unsigned long,unsigned long> Global_to_Local_Elem;
-  unsigned long xadj_size;
-  unsigned long adjacency_size;
   unsigned long *starting_node;
   unsigned long *ending_node;
   unsigned long *npoint_procs;
   unsigned long *nPoint_Linear;
 #ifdef HAVE_MPI
 #ifdef HAVE_PARMETIS
-  idx_t * adjacency;
-  idx_t * xadj;
+  std::vector<idx_t> adjacency;
+  std::vector<idx_t> xadj;
 #endif
 #endif
   
@@ -929,7 +927,7 @@ public:
     */
    virtual void Set_MPI_Coord(CConfig *config);
 
-   virtual void Set_MPI_Resolution_Tensor(CConfig *config);
+   virtual void Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_tag=0);
 
    /*!
     * \brief A virtual member.
@@ -2155,7 +2153,7 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
    */
   void Set_MPI_Coord(CConfig *config);
 
-  void Set_MPI_Resolution_Tensor(CConfig *config);
+  void Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_tag=0) override;
   
   /*!
    * \brief Perform the MPI communication for the grid velocities.

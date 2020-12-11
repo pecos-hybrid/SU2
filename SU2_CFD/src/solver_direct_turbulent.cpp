@@ -111,6 +111,16 @@ void CTurbSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= config->GetnMarker_All()) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << config->GetnMarker_All() << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -198,6 +208,16 @@ void CTurbSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config)
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
 
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= config->GetnMarker_All()) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << config->GetnMarker_All() << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
 
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -285,6 +305,16 @@ void CTurbSolver::Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config) {
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= config->GetnMarker_All()) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << config->GetnMarker_All() << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -364,6 +394,16 @@ void CTurbSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *config
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= config->GetnMarker_All()) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << config->GetnMarker_All() << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -483,6 +523,16 @@ void CTurbSolver::Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *config)
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= config->GetnMarker_All()) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << config->GetnMarker_All() << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -4290,8 +4340,8 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
 
     /*--- We use SetTurbScales instead of manually setting T, L so
      * we can set kolmogorov scales too --*/
-    // Note: strMag and Clim is not actually used SST function
-    node[iPoint]->SetTurbScales(nu, 0.0, VelMag, L_inf, false, 0.0);
+    // Note: strMag is not actually used SST function
+    node[iPoint]->SetTurbScales(nu, 0.0, VelMag, L_inf);
 
     /*--- Compute anisotropy measure ---*/
     const su2double C_mu_v2f = 0.22;
@@ -4331,7 +4381,7 @@ void CTurbSSTSolver::CalculateTurbScales(CSolver **solver_container,
                           flow_node[iPoint]->GetDensity();
     const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, false, 0.0);
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
   }
 }
 

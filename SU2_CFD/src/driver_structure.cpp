@@ -1010,6 +1010,10 @@ void CDriver::Geometrical_Preprocessing() {
       geometry_container[iZone][iInst][MESH_0]->SetControlVolume(config_container[iZone], ALLOCATE);
       geometry_container[iZone][iInst][MESH_0]->SetBoundControlVolume(config_container[iZone], ALLOCATE);
 
+#ifdef HAVE_MPI
+      SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+
       /*--- Compute the max length. ---*/
 
       if ((config_container[iZone]->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
@@ -1018,6 +1022,9 @@ void CDriver::Geometrical_Preprocessing() {
         geometry_container[iZone][iInst][MESH_0]->SetMaxLength(config_container[iZone]);
       }
 
+#ifdef HAVE_MPI
+      SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
       /*--- Compute cell resolution tensors ---*/
 
       if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT ||
