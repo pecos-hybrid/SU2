@@ -179,34 +179,29 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
     const su2double beta_kol = solver[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
 
-    const su2double eta = this->ComputeScalingFactor(resolution_adequacy,
-                                                     beta, beta_kol, PFtest);
+    su2double eta = this->ComputeScalingFactor(resolution_adequacy,
+                                               beta, beta_kol, PFtest);
 
-    /*--- Check for an unphysically large forcing ---*/
-
-    const su2double k_tot = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
-    su2double energy_added = 0.0;
-    for (unsigned short iDim=0; iDim<nDim; iDim++) {
-      energy_added += prim_vars[iDim+1]*h[iDim];
+    // XXX: Turn off forcing around the shock and the separation region.
+    const bool zonal_forcing = true;
+    su2double forcing_clipping = 0.0;
+    if (zonal_forcing) {
+      // We modified "x" above, so retrieve original (global) value of x
+      const su2double x_global = geometry->node[iPoint]->GetCoord(0);
+      forcing_clipping = 0.5 - 0.5*tanh(10*(x_global - 0.35));
+      eta *= forcing_clipping;
     }
-    energy_added *= delta_t * eta * Ftar;
-    su2double clipping = 1.0;
-    if (energy_added >= beta*k_tot*0.99) {
-      /*--- Arbitrary constant of 0.99 added to prevent Temp=0 ---*/
-      clipping = beta*k_tot/energy_added * 0.99;
-    }
-
 
     /*--- Store eta*h so we can compute the derivatives ---*/
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      node[iPoint][iDim] = clipping*Ftar*eta*h[iDim];
+      node[iPoint][iDim] = Ftar*eta*h[iDim];
     }
 
     /*--- Save the forcing for output ---*/
 
     solver[FLOW_SOL]->node[iPoint]->SetForcingVector(node[iPoint]);
     solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
-    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(clipping);
+    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(forcing_clipping);
 
   } // end loop over points
 }
