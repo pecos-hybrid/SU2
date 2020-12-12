@@ -163,6 +163,8 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
   }
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
 
+  const su2double Mean_Bulk_Viscosity = Mean_Laminar_Viscosity * config->GetBulkViscosityRatio();
+
   /*--- Limit beta to protect from imbalance in k_model vs k_resolved ---*/
 
   const su2double Mean_Beta = min(max(0.5*(beta_i + beta_j), 0.0), 1.0);
@@ -212,7 +214,7 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
 
   /*--- Get projected flux tensor ---*/
 
-  SetLaminarStressTensor(Mean_GradPrimVar, Mean_Laminar_Viscosity);
+  SetLaminarStressTensor(Mean_GradPrimVar, Mean_Laminar_Viscosity, Mean_Bulk_Viscosity);
   AddTauSGS(Mean_PrimVar_Average, Mean_GradPrimVar_Average, Mean_Beta,
             Mean_turb_ke, Mean_Eddy_Viscosity);
   AddTauSGET(Mean_GradPrimVar_Fluct,
@@ -247,7 +249,7 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
       }
     } else {
       const su2double dist_ij = sqrt(dist_ij_2);
-      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, 0,
+      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Bulk_Viscosity, 0,
                      dist_ij, UnitNormal);
       AddTauSGETJacobian(Mean_PrimVar, Mean_Aniso_Eddy_Viscosity,
 			 dist_ij, UnitNormal);
@@ -267,7 +269,8 @@ void CAvgGrad_Hybrid::ComputeResidual(su2double *val_residual, su2double **val_J
 }
 
 void CAvgGrad_Hybrid::SetLaminarStressTensor(su2double **val_gradprimvar,
-                                           const su2double val_laminar_viscosity) {
+                                           const su2double val_laminar_viscosity,
+                                           const su2double val_bulk_viscosity) {
 
   unsigned short iDim, jDim;
 
@@ -278,7 +281,8 @@ void CAvgGrad_Hybrid::SetLaminarStressTensor(su2double **val_gradprimvar,
   for (iDim = 0 ; iDim < nDim; iDim++) {
     for (jDim = 0 ; jDim < nDim; jDim++) {
       tau[iDim][jDim] = val_laminar_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
-                        - TWO3*val_laminar_viscosity*div_vel*delta[iDim][jDim];
+                        - TWO3*val_laminar_viscosity*div_vel*delta[iDim][jDim]
+                        + val_bulk_viscosity * div_vel * delta[iDim][jDim];
     }
   }
 }

@@ -4914,6 +4914,7 @@ void CAvgGrad_Base::SetStressTensor(const su2double *val_primvar,
                            const su2double* const *val_gradprimvar,
                            const su2double val_turb_ke,
                            const su2double val_laminar_viscosity,
+                           const su2double val_bulk_viscosity,
                            const su2double val_eddy_viscosity) {
 
   unsigned short iDim, jDim;
@@ -4938,7 +4939,8 @@ void CAvgGrad_Base::SetStressTensor(const su2double *val_primvar,
       for (jDim = 0 ; jDim < nDim; jDim++)
         tau[iDim][jDim] = total_viscosity*( val_gradprimvar[jDim+1][iDim] + val_gradprimvar[iDim+1][jDim] )
                           - TWO3*total_viscosity*div_vel*delta[iDim][jDim]
-                          - TWO3*Density*val_turb_ke*delta[iDim][jDim];
+                          - TWO3*Density*val_turb_ke*delta[iDim][jDim]
+                          + val_bulk_viscosity * div_vel * delta[iDim][jDim];
   }
 }
 
@@ -5176,6 +5178,7 @@ void CAvgGrad_Base::SetPerturbedRSM(su2double turb_ke, CConfig *config){
 
 void CAvgGrad_Base::SetTauJacobian(const su2double *val_Mean_PrimVar,
                                    const su2double val_laminar_viscosity,
+                                   const su2double val_bulk_viscosity,
                                    const su2double val_eddy_viscosity,
                                    const su2double val_dist_ij,
                                    const su2double *val_normal) {
@@ -5185,11 +5188,13 @@ void CAvgGrad_Base::SetTauJacobian(const su2double *val_Mean_PrimVar,
   const su2double Density = val_Mean_PrimVar[nDim+2];
   const su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
   const su2double xi = total_viscosity/(Density*val_dist_ij);
+  const su2double xi_b = val_bulk_viscosity / (Density*val_dist_ij);
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       // Jacobian w.r.t. momentum
-      tau_jacobian_i[iDim][jDim+1] = -xi*(delta[iDim][jDim] + val_normal[iDim]*val_normal[jDim]/3.0);
+      tau_jacobian_i[iDim][jDim+1] = -xi*(delta[iDim][jDim] + val_normal[iDim]*val_normal[jDim]/3.0)
+          - xi_b * val_normal[iDim]*val_normal[jDim];
     }
     // Jacobian w.r.t. density
     tau_jacobian_i[iDim][0] = 0;
@@ -5420,6 +5425,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   Mean_Laminar_Viscosity = 0.5*(Laminar_Viscosity_i + Laminar_Viscosity_j);
   Mean_Eddy_Viscosity = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
+  const su2double Mean_Bulk_Viscosity = Mean_Laminar_Viscosity * config->GetBulkViscosityRatio();
   
   /*--- Mean gradient approximation ---*/
 
@@ -5459,7 +5465,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   /*--- Get projected flux tensor ---*/
 
   SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke,
-         Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+         Mean_Laminar_Viscosity, Mean_Bulk_Viscosity, Mean_Eddy_Viscosity);
   if (config->GetQCR()) AddQCR(Mean_GradPrimVar);
   if (Mean_TauWall > 0) AddTauWall(Normal, Mean_TauWall);
 
@@ -5491,7 +5497,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
       }
     } else {
       const su2double dist_ij = sqrt(dist_ij_2);
-      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
+      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Bulk_Viscosity, Mean_Eddy_Viscosity,
                      dist_ij, UnitNormal);
       SetHeatFluxJacobian(Mean_PrimVar, Mean_Laminar_Viscosity,
                           Mean_Eddy_Viscosity, dist_ij, UnitNormal);
@@ -5721,6 +5727,8 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
   Mean_Thermal_Conductivity = 0.5*(Thermal_Conductivity_i + Thermal_Conductivity_j);
   Mean_Cp                   = 0.5*(Cp_i + Cp_j);
 
+  const su2double Mean_Bulk_Viscosity = Mean_Laminar_Viscosity * config->GetBulkViscosityRatio();
+
   /*--- Mean gradient approximation ---*/
   
   for (iVar = 0; iVar < nDim+1; iVar++) {
@@ -5746,7 +5754,7 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
   /*--- Get projected flux tensor ---*/
   
   SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke,
-         Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+         Mean_Laminar_Viscosity, Mean_Bulk_Viscosity, Mean_Eddy_Viscosity);
 
   SetHeatFluxVector(Mean_GradPrimVar, Mean_Laminar_Viscosity,
                     Mean_Eddy_Viscosity, Mean_Thermal_Conductivity, Mean_Cp);
@@ -5771,7 +5779,7 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
       }
     } else {
       const su2double dist_ij = sqrt(dist_ij_2);
-      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
+      SetTauJacobian(Mean_PrimVar, Mean_Laminar_Viscosity, Mean_Bulk_Viscosity, Mean_Eddy_Viscosity,
                      dist_ij, UnitNormal);
       SetHeatFluxJacobian(Mean_PrimVar, Mean_SecVar, Mean_Eddy_Viscosity,
                           Mean_Thermal_Conductivity, Mean_Cp, dist_ij);

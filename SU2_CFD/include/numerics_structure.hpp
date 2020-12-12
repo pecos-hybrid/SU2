@@ -3255,6 +3255,7 @@ class CAvgGrad_Base : public CNumerics {
    */
   void SetTauJacobian(const su2double* val_Mean_PrimVar,
                       su2double val_laminar_viscosity,
+                      su2double val_bulk_viscosity,
                       su2double val_eddy_viscosity,
                       su2double val_dist_ij,
                       const su2double *val_normal);
@@ -3372,15 +3373,17 @@ class CAvgGrad_Base : public CNumerics {
   /*!
    * \brief Calculate the viscous + turbulent stress tensor
    * \param[in] val_primvar - Primitive variables.
-   * \param[in] val_gradprimvar - Gradient of the primitive variables.
+   * \param[in] val_gradpri,mvar - Gradient of the primitive variables.
    * \param[in] val_turb_ke - Turbulent kinetic energy
-   * \param[in] val_laminar_viscosity - Laminar viscosity.
+   * \param[in] val_laminar_viscosity - Laminar shear viscosity.
+   * \param[in] val_bulk_viscosity - Molecular bulk viscosity
    * \param[in] val_eddy_viscosity - Eddy viscosity.
    */
   void SetStressTensor(const su2double *val_primvar,
                        const su2double* const *val_gradprimvar,
                        su2double val_turb_ke,
                        su2double val_laminar_viscosity,
+                       su2double val_bulk_viscosity,
                        su2double val_eddy_viscosity);
 
   /*!

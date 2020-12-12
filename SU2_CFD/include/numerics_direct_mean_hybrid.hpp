@@ -168,10 +168,12 @@ public:
   /*!
    * \brief Compute the viscous stress tensor due to only the molecular viscosity.
    * \param[in] val_gradprimvar - The resolved gradient of primitive variables
-   * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
+   * \param[in] val_laminar_viscosity - Value of the laminar shear viscosity.
+   * \param[in] val_bulk_viscosity - Value of the laminar bulk viscosity
    */
   void SetLaminarStressTensor(su2double **val_gradprimvar,
-                              const su2double val_laminar_viscosity);
+                              const su2double val_laminar_viscosity,
+                              const su2double val_bulk_viscosity);
 
   /*!
    * \brief Compute the mean subfilter stress.

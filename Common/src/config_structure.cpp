@@ -921,6 +921,10 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Sutherland constant, default value for AIR SI */
   addDoubleOption("SUTHERLAND_CONSTANT", Mu_S, 110.4);
 
+  /*--- Options related to bulk viscosity ----*/
+  /*!\brief BULK_VISCOSITY_RATIO \n DESCRIPTION \n Ratio of the bulk viscosity to the shear viscosity \n DEFAULT: 0.0 \ingroup Config */
+  addDoubleOption("BULK_VISCOSITY_RATIO", BulkViscosityRatio, 0.0);
+
   /*--- Options related to Thermal Conductivity Model ---*/
 
   addEnumOption("CONDUCTIVITY_MODEL", Kind_ConductivityModel, ConductivityModel_Map, CONSTANT_PRANDTL);
@@ -1817,7 +1821,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
    *  \n DESCRIPTION: Write a surface CSV solution file  \ingroup Config*/
   addBoolOption("WRT_CSV_SOL", Wrt_Csv_Sol, true);
   /*!\brief WRT_CSV_SOL
-   *  \n DESCRIPTION: Write a binary coordinates file  \ingroup Config*/
+   *  \n DESCRIPTION: rite a binary coordinates file  \ingroup Config*/
   addBoolOption("WRT_CRD_SOL", Wrt_Crd_Sol, false);
   /*!\brief WRT_SURFACE
    *  \n DESCRIPTION: Output solution at each surface  \ingroup Config*/

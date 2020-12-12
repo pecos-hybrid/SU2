@@ -844,6 +844,7 @@ private:
   Mu_Temperature_RefND,   /*!< \brief Non-dimensional reference temperature for Sutherland model.  */
   Mu_S,     /*!< \brief Reference S for Sutherland model.  */
   Mu_SND,   /*!< \brief Non-dimensional reference S for Sutherland model.  */
+  BulkViscosityRatio, /*!< \brief Ratio of the bulk viscosity to the shear viscosity ---*/
   *CpPolyCoefficients,   /*!< \brief Definition of the temperature polynomial coefficients for specific heat Cp. */
   *MuPolyCoefficients,   /*!< \brief Definition of the temperature polynomial coefficients for viscosity. */
   *KtPolyCoefficients,   /*!< \brief Definition of the temperature polynomial coefficients for thermal conductivity. */
@@ -3964,6 +3965,8 @@ public:
    * \return The non-dimensional reference S.
    */
   su2double GetMu_SND(void);
+
+  su2double GetBulkViscosityRatio(void) const { return BulkViscosityRatio; }
   
   /*!
    * \brief Get the number of coefficients in the temperature polynomial models.

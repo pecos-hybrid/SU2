@@ -460,6 +460,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
         0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*rho*v2_sgs*sqrt(v2_sgs));
     }
   }
+  cout << beta << ", " << ktot << ", " << aniso_ratio << endl;
+  cout << "Denom: " << (t0*v2_sgs*sqrt(v2_sgs)) << endl;
 
 #ifndef NDEBUG
   // check for nans
