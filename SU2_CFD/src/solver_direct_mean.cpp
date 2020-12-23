@@ -15363,6 +15363,11 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
       }
     }
   }
+  if (start_hybrid_from_hybrid) {
+    config->SetLoadHybridFromRANS(false);
+  } else {
+    config->SetLoadHybridFromRANS(true);
+  }
 
   /*--- Load data from the restart into correct containers. ---*/
 
