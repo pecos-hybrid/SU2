@@ -569,6 +569,7 @@ private:
   unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
   su2double* FluctStress_AR_Params; /*!< \brief The parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
   su2double* default_fluct_stress_AR_params; /*!< \brief Default values of the parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
+  bool load_hybrid_from_RANS; /*!< \brief This is set to true if the hybrid solution is to be loaded from a RANS solution. */
 
 
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
@@ -4439,6 +4440,18 @@ public:
    * \param[in] load_stress - True if the resolved turbulent stress is to be used.
    */
   void SetUse_Resolved_Turb_Stress(bool use_stress);
+
+  /*!
+   * \brief Load a hybrid solution from a RANS solution
+   * \param[in] load_value - True if the hybrid RANS/LES solution is to be loaded from RANS
+   */
+  void SetLoadHybridFromRANS(bool load_value) { load_hybrid_from_RANS = load_value; }
+
+  /*!
+   * \brief Load a hybrid solution from a RANS solution
+   * \return True if the hybrid RANS/LES solution is to be loaded from RANS
+   */
+  bool GetLoadHybridFromRANS() const { return load_hybrid_from_RANS; }
 
   /*!
    * \brief Get the kind of the turbulence model.
