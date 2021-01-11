@@ -183,7 +183,7 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
                                                beta, beta_kol, PFtest);
 
     // XXX: Turn off forcing around the shock and the separation region.
-    const bool zonal_forcing = true;
+    const bool zonal_forcing = config->GetHybrid_Forcing_Cutoff();
     su2double forcing_clipping = 0.0;
     if (zonal_forcing) {
       // We modified "x" above, so retrieve original (global) value of x

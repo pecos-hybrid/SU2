@@ -1165,6 +1165,7 @@ private:
   su2double v2f_Rf_Constant;
   bool Use_TKE_Diffusion; /*!< \brief Add TKE diffusion model for the molecular and turbulent transport of total energy. */
   unsigned short SliceRestartType;
+  bool Hybrid_Forcing_Cutoff;
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -9658,6 +9659,8 @@ public:
    * \brief Get the ParMETIS load balancing weight for edges
    */
   long GetParMETIS_EdgeWeight() const { return ParMETIS_edgeWgt; }
+
+  bool GetHybrid_Forcing_Cutoff() const { return Hybrid_Forcing_Cutoff; }
 };
 
 #include "config_structure.inl"

@@ -2570,6 +2570,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
     each node \n DEFAULT: False \ingroup Config */
   addBoolOption("WRT_PARTITION", Wrt_Partition, false);
 
+   addBoolOption("HYBRID_FORCING_CUTOFF", Hybrid_Forcing_Cutoff, false); 
+
   /* END_CONFIG_OPTIONS */
 
 }
