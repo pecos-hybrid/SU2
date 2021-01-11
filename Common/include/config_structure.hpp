@@ -617,6 +617,7 @@ private:
   Kappa_2nd_Heat,     /*!< \brief 2nd order dissipation coefficient for heat equation. */
   Kappa_4th_Heat,     /*!< \brief 4th order dissipation coefficient for heat equation. */  
   Cent_Jac_Fix_Factor;/*!< \brief Multiply the dissipation contribution to the Jacobian of central schemes by this factor to make the global matrix more diagonal dominant. */
+  su2double JST_c4; /*!< \brief Factor multiplied by second order dissipation in JST scheme to reduce 4th order dissipation when 2nd order is active.  */
   su2double Geo_Waterline_Location; /*!< \brief Location of the waterline. */
   
   su2double Min_Beta_RoeTurkel,		/*!< \brief Minimum value of Beta for the Roe-Turkel low Mach preconditioner. */
@@ -4754,6 +4755,13 @@ public:
    * \return Calibrated constant for the JST method for the flow equations.
    */
   su2double GetKappa_4th_Flow(void);
+
+  /*!
+   * \brief Return the factor multiplied by second order dissipation in
+   * JST scheme to reduce 4th order dissipation when 2nd order is active.
+   * \return c4 constant for the JST method for the flow equations
+   */
+  su2double GetJST_c4(void) const { return JST_c4; };
 
   /*!
    * \brief Value of the calibrated constant for the JST method (center scheme).
