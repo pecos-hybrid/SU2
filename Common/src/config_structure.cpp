@@ -1589,6 +1589,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_jst_coeff[0] = 0.5; default_jst_coeff[1] = 0.02;
   /*!\brief JST_SENSOR_COEFF \n DESCRIPTION: 2nd and 4th order artificial dissipation coefficients for the JST method \ingroup Config*/
   addDoubleArrayOption("JST_SENSOR_COEFF", 2, Kappa_Flow, default_jst_coeff);
+  /*!\brief JST_C4 \n DESCRIPTION: Factor multiplied by the 2nd order dissipation to make sure that 4th order dissipation turns off when 2nd order dissipation is strong. \ingroup Config */
+  addDoubleOption("JST_C4", JST_c4, 1.0);
   /*!\brief LAX_SENSOR_COEFF \n DESCRIPTION: 1st order artificial dissipation coefficients for the Lax-Friedrichs method. \ingroup Config*/
   addDoubleOption("LAX_SENSOR_COEFF", Kappa_1st_Flow, 0.15);
   default_ad_coeff_heat[0] = 0.5; default_ad_coeff_heat[1] = 0.02;
@@ -5977,11 +5979,13 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
         if (Kind_Centered_Flow == JST) {
           cout << "Jameson-Schmidt-Turkel scheme (2nd order in space) for the flow inviscid terms."<< endl;
           cout << "JST viscous coefficients (2nd & 4th): " << Kappa_2nd_Flow << ", " << Kappa_4th_Flow <<"." << endl;
+          cout << "JST c4 coefficient: " << JST_c4 << endl;
           cout << "The method includes a grid stretching correction (p = 0.3)."<< endl;
         }
         if (Kind_Centered_Flow == JST_KE) {
           cout << "Jameson-Schmidt-Turkel scheme (2nd order in space) for the flow inviscid terms."<< endl;
           cout << "JST viscous coefficients (2nd & 4th): " << Kappa_2nd_Flow << ", " << Kappa_4th_Flow << "." << endl;
+          cout << "JST c4 coefficient: " << JST_c4 << endl;
           cout << "The method includes a grid stretching correction (p = 0.3)."<< endl;
         }
         if (Kind_Centered_Flow == LAX) {
