@@ -591,22 +591,6 @@ inline su2double CVariable::GetmuT() { return 0;}
 
 inline void CVariable::SetmuT(su2double val_muT) { }
 
-inline void CVariable::SetForcingProduction(su2double val_P_F) { }
-
-inline su2double CVariable::GetForcingProduction(void) { return 0; }
-
-inline void CVariable::SetForcingRatio(su2double P_F_ratio) { }
-
-inline su2double CVariable::GetForcingRatio(void) { return 1; }
-
-inline void CVariable::SetSourceTerms(su2double* val_source_terms) { }
-
-inline su2double* CVariable::GetSourceTerms() { return NULL; }
-
-inline su2double CVariable::GetSAlpha() { return 0; }
-
-inline su2double CVariable::GetScf() { return 0; }
-
 inline su2double* CVariable::GetSolution_Direct() { return NULL; }
 
 inline void CVariable::SetSolution_Direct(su2double *val_solution_direct) { }
@@ -1107,20 +1091,6 @@ inline void CNSVariable::SetResolvedKineticEnergy(void) {
 
 inline void CNSVariable::SetResolutionAdequacy(su2double val_r_k) { ResolutionAdequacy = val_r_k; }
 
-inline void CNSVariable::SetForcingVector(const su2double* force) {
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    ForcingVector[iDim] = force[iDim];
-  }
-}
-
-inline void CNSVariable::SetForcingFactor(su2double factor) {
-  ForcingFactor = factor;
-}
-
-inline void CNSVariable::SetForcingClipping(su2double clipping) {
-  ForcingClipping = clipping;
-}
-
 inline void CNSVariable::SetResolvedKineticEnergy(su2double val_kinetic_energy) {
   ResolvedKineticEnergy = val_kinetic_energy;
 }
@@ -1485,12 +1455,6 @@ inline void CWaveVariable::SetSolution_Direct(su2double *val_solution_direct) { 
 inline su2double* CPotentialVariable::GetChargeDensity() { return Charge_Density;}
 
 inline void CPotentialVariable::SetChargeDensity(su2double positive_charge, su2double negative_charge) {Charge_Density[0] = positive_charge; Charge_Density[1] = negative_charge;}
-
-inline void CTurbVariable::SetForcingProduction(su2double val_P_F) {
-  Forcing_Production = val_P_F;
-}
-
-inline su2double CTurbVariable::GetForcingProduction() { return Forcing_Production; }
 
 inline void CTurbSAVariable::SetHarmonicBalance_Source(unsigned short val_var, su2double val_source) { HB_Source[val_var] = val_source; }
 

@@ -800,6 +800,7 @@ private:
   Wrt_SharpEdges,              /*!< \brief Write residuals to solution file */
   Wrt_Halo,                   /*!< \brief Write rind layers in solution files */
   Wrt_Resolution_Tensors,     /*!< \brief Write resolutions tensors in solution files */
+  Wrt_Hybrid_Forcing,         /*!< \brief Write extra variables for hybrid RANS/LES forcing */
   Wrt_Reynolds_Stress,        /*!< \brief Write Reynolds stress in solution files */
   Wrt_InvalidState,           /*!< \brief Output the solution due to an invalid state error */
   Wrt_Performance,            /*!< \brief Write the performance summary at the end of a calculation.  */
@@ -3376,7 +3377,9 @@ public:
    * \brief Get information about writing the resolution tensors to the solution files.
    * \return <code>TRUE</code> means that resolution tensors will be written to the solution file.
    */
-  bool GetWrt_Resolution_Tensors(void);
+  bool GetWrt_Resolution_Tensors(void) const;
+
+  bool  GetWrt_Hybrid_Forcing(void) const { return Wrt_Hybrid_Forcing; };
 
   /*!
    * \brief Check if we want to write the Reynolds stress.

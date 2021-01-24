@@ -274,9 +274,10 @@ BOOST_FIXTURE_TEST_CASE(TaylorGreenFields, ForcingFixture) {
   su2double D[3] = {M_PI, 0.25, 1.1780972451};
   su2double dwall = 0.171989;
   su2double h[3];
+  su2double periods[3];
 
   CHybridForcingTG0 forcing(geometry, config);
-  forcing.SetTGField(x, Lsgs, D, dwall, h);
+  forcing.SetTGField(x, Lsgs, D, dwall, h, periods);
 
   su2double true_h[3] = {-4.4539063719893331E-003,
                           0.012204205194536234,

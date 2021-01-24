@@ -159,12 +159,14 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     // Get dwall
     dwall = geometry->node[iPoint]->GetWall_Distance();
 
+    // Period of the forcing structure in each direction
+    su2double periods[3];
     if (config->isHybrid_Forced_Axi()) {
       // Angular periodic version 
-      this->SetAxiTGField(x, Lsgs, D, dwall, h);
+      this->SetAxiTGField(x, Lsgs, D, dwall, h, periods);
     } else {
       // Compute TG velocity at this point
-      this->SetTGField(x, Lsgs, D, dwall, h);
+      this->SetTGField(x, Lsgs, D, dwall, h, periods);
     }
 
     const su2double Ftar = this->GetTargetProduction(v2, Tsgs, beta);
@@ -200,8 +202,13 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     /*--- Save the forcing for output ---*/
 
     solver[FLOW_SOL]->node[iPoint]->SetForcingVector(node[iPoint]);
-    solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
-    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(forcing_clipping);
+    if (config->GetWrt_Hybrid_Forcing()) {
+      solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
+      solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(forcing_clipping);
+      solver[FLOW_SOL]->node[iPoint]->SetForcingLength(periods);
+      solver[FLOW_SOL]->node[iPoint]->SetForcingProduction(PFtest);
+      solver[FLOW_SOL]->node[iPoint]->SetForcingStructure(h);
+    }
 
   } // end loop over points
 }
@@ -227,12 +234,13 @@ su2double CHybridForcingTG0::ComputeScalingFactor(
   return eta;
 }
 
-void CHybridForcingTG0::SetTGField(
-                const su2double* x, const su2double Lsgs,
-                const su2double* D,
-                const su2double dwall, su2double* h) const {
+void CHybridForcingTG0::SetTGField(const su2double* x,
+                                   const su2double Lsgs,
+                                   const su2double* D,
+                                   const su2double dwall,
+                                   su2double* h,
+                                   su2double* lmod) const {
 
-  //const su2double A = 1./3., B = -1.0, C = 2./3.;
   constexpr su2double A = 1./3., B = 2./3., C = -1.0;
   su2double a[3];
 
@@ -282,10 +290,12 @@ void CHybridForcingTG0::SetTGField(
 
 }
 
-void CHybridForcingTG0::SetAxiTGField(
-                const su2double* x, const su2double Lsgs,
-                const su2double* D,
-                const su2double dwall, su2double* h) const {
+void CHybridForcingTG0::SetAxiTGField(const su2double* x,
+                                      const su2double Lsgs,
+                                      const su2double* D,
+                                      const su2double dwall,
+                                      su2double* h,
+                                      su2double* lmod) const {
 
   // Convert incoming coords and lengths to cylindrical coords...
   // In these vectors, 0 corresponds to x, 1 corresponds to r, and 2
@@ -324,6 +334,7 @@ void CHybridForcingTG0::SetAxiTGField(
     } else {
       a[ii] = 2*M_PI/ell;
     }
+    lmod[ii] = a[ii]/(2*M_PI);
   }
 
   const su2double A = 1.0;
