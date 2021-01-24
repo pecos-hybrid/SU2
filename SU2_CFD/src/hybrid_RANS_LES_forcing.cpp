@@ -226,3 +226,130 @@ su2double CHybridForcingTG0::ComputeScalingFactor(
 
   return eta;
 }
+
+void CHybridForcingTG0::SetTGField(
+                const su2double* x, const su2double Lsgs,
+                const su2double* D,
+                const su2double dwall, su2double* h) const {
+
+  //const su2double A = 1./3., B = -1.0, C = 2./3.;
+  constexpr su2double A = 1./3., B = 2./3., C = -1.0;
+  su2double a[3];
+
+  /*--- Using the wall-distance as a max is overly conservative. The
+     attached-eddy-hypothesis only says that the largest eddy diameter
+     is proportional to the wall-normal distance; the constant of
+     proportionality is undefined.  Using the mixing length paradigm,
+     the constant of proportionality is the von Karman constant.---*/
+  constexpr su2double kappa = 0.41;
+  /*--- Relationship between k^{3/2}/epsilon and integral
+   lengthscale for high Reynolds numbers. See Pope pg 244 ---*/
+  constexpr su2double L_11_over_L = 0.43;
+  if (dwall > 0 && Lsgs > 0) {
+    for (unsigned int ii=0; ii<3; ii++) {
+      const su2double ell = min(L_11_over_L*Lsgs, kappa*dwall);
+
+      if (D[ii] > 0.0) {
+        const su2double denom = round(D[ii]/min(ell, D[ii]));
+        a[ii] = 2*M_PI/D[ii]*denom;
+      } else {
+        a[ii] = 2*M_PI/ell;
+      }
+    }
+
+    h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
+    h[1] = B * sin(a[0]*x[0]) * cos(a[1]*x[1]) * sin(a[2]*x[2]);
+    h[2] = C * sin(a[0]*x[0]) * sin(a[1]*x[1]) * cos(a[2]*x[2]);
+  } else {
+    h[0] = 0.0;
+    h[1] = 0.0;
+    h[2] = 0.0;
+  }
+
+#ifndef NDEBUG
+  const bool found_nan = ((h[0]!=h[0]) || (h[1]!=h[1]) || (h[2]!=h[2]) );
+  if (found_nan) {
+    std::cout << "Bad value found in forcing!" << std::endl;
+    std::cout << "xyz   = " << x[0] << " " << x[1] << " " << x[2] << std::endl;
+    std::cout << "a     = " << a[0] << " " << a[1] << " " << a[2] << std::endl;
+    std::cout << "dwall = " << dwall << std::endl;
+    std::cout << "Lsgs  = " << Lsgs << std::endl;
+    std::cout << "D     = " << D[0] << " " << D[1] << " " << D[2] << std::endl;
+    std::cout << "h     = " << h[0] << " " << h[1] << " " << h[2] << std::endl;
+    SU2_MPI::Error("Found a NaN in forcing.", CURRENT_FUNCTION);
+  }
+#endif
+
+}
+
+void CHybridForcingTG0::SetAxiTGField(
+                const su2double* x, const su2double Lsgs,
+                const su2double* D,
+                const su2double dwall, su2double* h) const {
+
+  // Convert incoming coords and lengths to cylindrical coords...
+  // In these vectors, 0 corresponds to x, 1 corresponds to r, and 2
+  // corresponds to theta
+  // NB: Assume that user-specified D comes in in x,r,theta
+  su2double r[3];
+  r[0] = x[0]; r[1] = sqrt(x[1]*x[1] + x[2]*x[2]); r[2] = atan(x[2]/x[1]);
+
+  su2double Rsgs[3]; // assume Lsgs in each direction
+  Rsgs[0] = Lsgs;
+  Rsgs[1] = Lsgs; //cos(r[2])*Lsgs + sin(r[2])*Lsgs;
+  // Angle (in radians) of a sector with arc-length Lsgs is Lsgs/r
+  Rsgs[2] = Lsgs/r[1]; //(-sin(r[2])*Lsgs + cos(r[2])*Lsgs)/r[1];
+
+  // Express wall-distance in equivalent radians
+  su2double wall_dist[3] = {dwall, dwall, dwall/r[1]};
+
+  // Set forcing velocity field in x,r,theta coords
+
+  su2double a[3];
+  /*--- Using the wall-distance as a max is overly permissive. The
+     attached-eddy-hypothesis only says that the large-eddy diameter
+     is proportional to the wall-normal distance; the constant of
+     proportionality is undefined.  Using the mixing length paradigm,
+     the constant of proportionality is the von Karman constant.---*/
+  constexpr su2double kappa = 0.41;
+  /*--- Relationship between k^{3/2}/epsilon and integral
+   lengthscale for high Reynolds numbers. See Pope pg 244 ---*/
+  constexpr su2double L_11_over_L = 0.43;
+  for (unsigned int ii=0; ii<3; ii++) {
+    const su2double ell = std::min(L_11_over_L*Rsgs[ii], kappa*wall_dist[ii]);
+
+    if (D[ii] > 0.0) {
+      const su2double denom = round(D[ii]/std::min(ell, D[ii]));
+      a[ii] = 2*M_PI/(D[ii]/denom);
+    } else {
+      a[ii] = 2*M_PI/ell;
+    }
+  }
+
+  const su2double A = 1.0;
+  const su2double B = -A*a[0]/a[1];
+  su2double htmp[3];
+  htmp[0] = A * cos(a[0]*r[0]) * sin(a[1]*r[1]) * sin(a[2]*r[2]);
+  htmp[1] = B * sin(a[0]*r[0]) * cos(a[1]*r[1]) * sin(a[2]*r[2]);
+  /*--- Extra cosine in the next line is not accidental. To satisfy
+        incompressibility, we need:
+           htmp[1] + \partial htmp[2] / \partial r[2] = 0 
+        See Pope Eq. 4.30, on page 110 ---*/
+  htmp[2] = (B/a[2]) * sin(a[0]*r[0]) * cos(a[1]*r[1]) * cos(a[2]*r[2]);
+
+  h[0] = htmp[0];
+  h[1] = htmp[1]*cos(r[2]) - htmp[2]*sin(r[2]);
+  h[2] = htmp[1]*sin(r[2]) + htmp[2]*cos(r[2]);
+
+  bool found_nan = ((h[0]!=h[0]) || (h[1]!=h[1]) || (h[2]!=h[2]) );
+  if (found_nan) {
+    std::cout << "Bad value found in forcing!" << std::endl;
+    std::cout << "xyz = " << x[0] << " " << x[1] << " " << x[2] << std::endl;
+    std::cout << "xrt = " << r[0] << " " << r[1] << " " << r[2] << std::endl;
+    std::cout << "a   = " << a[0] << " " << a[1] << " " << a[2] << std::endl;
+    std::cout << "htmp= " << htmp[0] << " " << htmp[1] << " " << htmp[2] << std::endl;
+    std::cout << "h   = " << h[0] << " " << htmp[1] << " " << htmp[2] << std::endl;
+    SU2_MPI::Error("Found a NaN in forcing.", CURRENT_FUNCTION);
+  }
+
+}
