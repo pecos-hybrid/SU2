@@ -263,6 +263,7 @@ void CHybridForcingTG0::SetTGField(const su2double* x,
       } else {
         a[ii] = 2*M_PI/ell;
       }
+      lmod[ii] = a[ii]/(2*M_PI);
     }
 
     h[0] = A * cos(a[0]*x[0]) * sin(a[1]*x[1]) * sin(a[2]*x[2]);
@@ -272,6 +273,9 @@ void CHybridForcingTG0::SetTGField(const su2double* x,
     h[0] = 0.0;
     h[1] = 0.0;
     h[2] = 0.0;
+    lmod[0] = 0;
+    lmod[1] = 0;
+    lmod[2] = 0;
   }
 
 #ifndef NDEBUG
@@ -279,9 +283,9 @@ void CHybridForcingTG0::SetTGField(const su2double* x,
   if (found_nan) {
     std::cout << "Bad value found in forcing!" << std::endl;
     std::cout << "xyz   = " << x[0] << " " << x[1] << " " << x[2] << std::endl;
-    std::cout << "a     = " << a[0] << " " << a[1] << " " << a[2] << std::endl;
     std::cout << "dwall = " << dwall << std::endl;
     std::cout << "Lsgs  = " << Lsgs << std::endl;
+    std::cout << "a     = " << a[0] << " " << a[1] << " " << a[2] << std::endl;
     std::cout << "D     = " << D[0] << " " << D[1] << " " << D[2] << std::endl;
     std::cout << "h     = " << h[0] << " " << h[1] << " " << h[2] << std::endl;
     SU2_MPI::Error("Found a NaN in forcing.", CURRENT_FUNCTION);
@@ -302,7 +306,7 @@ void CHybridForcingTG0::SetAxiTGField(const su2double* x,
   // corresponds to theta
   // NB: Assume that user-specified D comes in in x,r,theta
   su2double r[3];
-  r[0] = x[0]; r[1] = sqrt(x[1]*x[1] + x[2]*x[2]); r[2] = atan(x[2]/x[1]);
+  r[0] = x[0]; r[1] = sqrt(x[1]*x[1] + x[2]*x[2]); r[2] = atan2(x[2], x[1]);
 
   su2double Rsgs[3]; // assume Lsgs in each direction
   Rsgs[0] = Lsgs;
@@ -325,42 +329,54 @@ void CHybridForcingTG0::SetAxiTGField(const su2double* x,
   /*--- Relationship between k^{3/2}/epsilon and integral
    lengthscale for high Reynolds numbers. See Pope pg 244 ---*/
   constexpr su2double L_11_over_L = 0.43;
-  for (unsigned int ii=0; ii<3; ii++) {
-    const su2double ell = std::min(L_11_over_L*Rsgs[ii], kappa*wall_dist[ii]);
+  if (dwall > 0 && Lsgs > 0) {
+    for (unsigned int ii=0; ii<3; ii++) {
+      const su2double ell = std::min(L_11_over_L*Rsgs[ii], kappa*wall_dist[ii]);
 
-    if (D[ii] > 0.0) {
-      const su2double denom = round(D[ii]/std::min(ell, D[ii]));
-      a[ii] = 2*M_PI/(D[ii]/denom);
-    } else {
-      a[ii] = 2*M_PI/ell;
+      if (D[ii] > 0.0) {
+        const su2double denom = round(D[ii]/std::min(ell, D[ii]));
+        a[ii] = 2*M_PI/(D[ii]/denom);
+      } else {
+        a[ii] = 2*M_PI/ell;
+      }
+      lmod[ii] = a[ii]/(2*M_PI);
     }
-    lmod[ii] = a[ii]/(2*M_PI);
+
+    const su2double A = (abs(a[1]) > 1E-16) ? 1.0 : 0;
+    const su2double B = (abs(a[1]) > 1E-16) ? -A*a[0]/a[1] : 0;
+    // Forcing functions in steamwise, wall-normal, and radial
+    su2double htmp[3];
+    htmp[0] = A * cos(a[0]*r[0]) * sin(a[1]*r[1]) * sin(a[2]*r[2]);
+    htmp[1] = B * sin(a[0]*r[0]) * cos(a[1]*r[1]) * sin(a[2]*r[2]);
+    /*--- Extra cosine in the next line is not accidental. To satisfy
+          incompressibility, we need:
+            htmp[1] + \partial htmp[2] / \partial r[2] = 0 
+          See Pope Eq. 4.30, on page 110 ---*/
+    htmp[2] = (B/a[2]) * sin(a[0]*r[0]) * cos(a[1]*r[1]) * cos(a[2]*r[2]);
+
+    h[0] = htmp[0];
+    h[1] = htmp[1]*cos(r[2]) - htmp[2]*sin(r[2]);
+    h[2] = htmp[1]*sin(r[2]) + htmp[2]*cos(r[2]);
+    bool found_nan = ((h[0]!=h[0]) || (h[1]!=h[1]) || (h[2]!=h[2]) );
+    if (found_nan) {
+      std::cout << "Bad value found in forcing!" << "\n";
+      std::cout << "xyz = " << x[0] << " " << x[1] << " " << x[2] << "\n";
+      std::cout << "xrt = " << r[0] << " " << r[1] << " " << r[2] << "\n";
+      std::cout << "Rsgs = " << Rsgs[0] << " " << Rsgs[1] << " " << Rsgs[2] << "\n";
+      std::cout << "wall_dist = " << wall_dist[0] << " " << wall_dist[1] << " " << wall_dist[2] << "\n";
+      std::cout << "a   = " << a[0] << " " << a[1] << " " << a[2] << "\n";
+      std::cout << "htmp= " << htmp[0] << " " << htmp[1] << " " << htmp[2] << "\n";
+      std::cout << "h   = " << h[0] << " " << h[1] << " " << h[2] << std::endl;
+      SU2_MPI::Error("Found a NaN in forcing.", CURRENT_FUNCTION);
+    }
+  } else {
+    h[0] = 0;
+    h[1] = 0;
+    h[2] = 0;
+    lmod[0] = 0;
+    lmod[1] = 0;
+    lmod[2] = 0;
   }
 
-  const su2double A = 1.0;
-  const su2double B = -A*a[0]/a[1];
-  su2double htmp[3];
-  htmp[0] = A * cos(a[0]*r[0]) * sin(a[1]*r[1]) * sin(a[2]*r[2]);
-  htmp[1] = B * sin(a[0]*r[0]) * cos(a[1]*r[1]) * sin(a[2]*r[2]);
-  /*--- Extra cosine in the next line is not accidental. To satisfy
-        incompressibility, we need:
-           htmp[1] + \partial htmp[2] / \partial r[2] = 0 
-        See Pope Eq. 4.30, on page 110 ---*/
-  htmp[2] = (B/a[2]) * sin(a[0]*r[0]) * cos(a[1]*r[1]) * cos(a[2]*r[2]);
-
-  h[0] = htmp[0];
-  h[1] = htmp[1]*cos(r[2]) - htmp[2]*sin(r[2]);
-  h[2] = htmp[1]*sin(r[2]) + htmp[2]*cos(r[2]);
-
-  bool found_nan = ((h[0]!=h[0]) || (h[1]!=h[1]) || (h[2]!=h[2]) );
-  if (found_nan) {
-    std::cout << "Bad value found in forcing!" << std::endl;
-    std::cout << "xyz = " << x[0] << " " << x[1] << " " << x[2] << std::endl;
-    std::cout << "xrt = " << r[0] << " " << r[1] << " " << r[2] << std::endl;
-    std::cout << "a   = " << a[0] << " " << a[1] << " " << a[2] << std::endl;
-    std::cout << "htmp= " << htmp[0] << " " << htmp[1] << " " << htmp[2] << std::endl;
-    std::cout << "h   = " << h[0] << " " << htmp[1] << " " << htmp[2] << std::endl;
-    SU2_MPI::Error("Found a NaN in forcing.", CURRENT_FUNCTION);
-  }
 
 }
