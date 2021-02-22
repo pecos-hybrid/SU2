@@ -192,8 +192,20 @@ CDriver::CDriver(char* confFile,
         geometry_container[iZone][iInst][iMesh]->MatchActuator_Disk(config_container[iZone]);
       }
 
-    }
+      /*--- Check if Euler & Symmetry markers are straight/plane. This information
+       *         is used in the Euler & Symmetry boundary routines. ---*/
+      if((config_container[iZone]->GetnMarker_Euler() != 0 ||
+            config_container[iZone]->GetnMarker_SymWall() != 0) &&
+          !fem_solver) {
 
+        if (rank == MASTER_NODE)
+          cout << "Checking if Euler & Symmetry markers are straight/plane:" << endl;
+
+        for (iMesh = 0; iMesh <= config_container[iZone]->GetnMGLevels(); iMesh++)
+          geometry_container[iZone][iInst][iMesh]->ComputeSurf_Straightness(config_container[iZone], (iMesh==MESH_0) );
+
+      }
+    }
   }
 
   /*--- If activated by the compile directive, perform a partition analysis. ---*/
@@ -201,6 +213,7 @@ CDriver::CDriver(char* confFile,
   if( fem_solver ) Partition_Analysis_FEM(geometry_container[ZONE_0][INST_0][MESH_0], config_container[ZONE_0]);
   else Partition_Analysis(geometry_container[ZONE_0][INST_0][MESH_0], config_container[ZONE_0]);
 #endif
+
 
   /*--- Output some information about the driver that has been instantiated for the problem. ---*/
 
@@ -997,14 +1010,25 @@ void CDriver::Geometrical_Preprocessing() {
       geometry_container[iZone][iInst][MESH_0]->SetControlVolume(config_container[iZone], ALLOCATE);
       geometry_container[iZone][iInst][MESH_0]->SetBoundControlVolume(config_container[iZone], ALLOCATE);
 
+#ifdef HAVE_MPI
+      SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+
       /*--- Compute the max length. ---*/
 
-      if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
-      geometry_container[iZone][iInst][MESH_0]->SetMaxLength(config_container[iZone]);
+      if ((config_container[iZone]->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+          (config_container[iZone]->isDESBasedModel())) {
+        if ((rank == MASTER_NODE) && (!fea)) cout << "Finding max control volume width." << endl;
+        geometry_container[iZone][iInst][MESH_0]->SetMaxLength(config_container[iZone]);
+      }
 
+#ifdef HAVE_MPI
+      SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
       /*--- Compute cell resolution tensors ---*/
 
-      if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+      if (config_container[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT ||
+          config_container[iZone]->GetWrt_Resolution_Tensors()) {
         if (rank == MASTER_NODE) cout << "Computing cell resolution tensors." << endl;
         geometry_container[iZone][iInst][MESH_0]->SetResolutionTensor(config_container[iZone]);
       }
@@ -1087,7 +1111,10 @@ void CDriver::Geometrical_Preprocessing() {
 
         /*--- Compute the max length. ---*/
 
-        geometry_container[iZone][iInst][iMGlevel]->SetMaxLength(config_container[iZone]);
+        if ((config_container[iZone]->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+            (config_container[iZone]->isDESBasedModel())) {
+          geometry_container[iZone][iInst][iMGlevel]->SetMaxLength(config_container[iZone]);
+        }
 
         /*--- Find closest neighbor to a surface point ---*/
 
@@ -1316,10 +1343,12 @@ void CDriver::Solver_Preprocessing(CSolver ****solver_container, CGeometry ***ge
 
     /*--- Add a fluctuating stress model to the hybrid mediator ---*/
 
-    CFluctuatingStress* fluct_stress;
+    /*--- Initialize as null to prevent compiler warnings ---*/
+    CFluctuatingStress* fluct_stress = nullptr;
     switch (config->GetKind_Hybrid_SGET_Model()) {
-      case NONE: fluct_stress = new CNoStressModel(nDim); break;
       case M43_MODEL: fluct_stress = new CM43Model(nDim, config); break;
+      case NONE: fluct_stress = new CNoStressModel(nDim); break;
+      default: SU2_MPI::Error("Unrecognized SGET model.", CURRENT_FUNCTION); break;
     }
     hybrid_mediator->SetFluctuatingStress(fluct_stress);
 
@@ -1500,6 +1529,11 @@ void CDriver::Solver_Preprocessing(CSolver ****solver_container, CGeometry ***ge
           solver_container[val_iInst][MESH_0][FLOW_SOL]->node[iPoint]->GetResolutionAdequacy();
       assert(rk > 0);
       if (!config->GetRestart() && !config->GetRestart_Flow()) {
+        solver_container[val_iInst][MESH_0][FLOW_SOL]->average_node[iPoint]->SetResolutionAdequacy(rk);
+      } else if (config->GetLoadHybridFromRANS()) {
+        // Averages were set up before the solution or fields were
+        // loaded. We need to set the average resolution adeuqacy as the
+        // instantaneous value.
         solver_container[val_iInst][MESH_0][FLOW_SOL]->average_node[iPoint]->SetResolutionAdequacy(rk);
       } else {
         // Check that we've loaded the resolution adequacy
@@ -3915,10 +3949,13 @@ void CDriver::StartSolver(){
   __itt_resume();
 #endif
 
-  /*--- Main external loop of the solver. Within this loop, each iteration ---*/
+  /*--- Output any files from invalid settings before problems occur ---*/
+
   if (config_container[ZONE_0]->GetWrt_InletFile()) {
     Output(ExtIter);
   }
+
+  /*--- Main external loop of the solver. Within this loop, each iteration ---*/
 
   if (rank == MASTER_NODE)
     cout << endl <<"------------------------------ Begin Solver -----------------------------" << endl;
@@ -4059,6 +4096,16 @@ bool CDriver::Monitor(unsigned long ExtIter) {
     case DISC_ADJ_FEM_EULER: case DISC_ADJ_FEM_NS: case DISC_ADJ_FEM_RANS:
       StopCalc = integration_container[ZONE_0][INST_0][ADJFLOW_SOL]->GetConvergence(); break;
   }
+
+  /*--- Check if we have an invalid state ---*/
+
+  /*--- MPI_CXX_BOOL and MPI_LOR would be better here, but it is not
+   * defined in SU2's mpi headers for serial build ---*/
+  int local_invalid_state = int(config_container[ZONE_0]->GetWrt_InvalidState());
+  int global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  if (global_invalid_state > 0) StopCalc = true;
   
   return StopCalc;
   
@@ -4069,6 +4116,11 @@ void CDriver::Output(unsigned long ExtIter) {
   unsigned long nExtIter = config_container[ZONE_0]->GetnExtIter();
   bool output_files = false;
   
+  int local_invalid_state = int(config_container[ZONE_0]->GetWrt_InvalidState());
+  int global_invalid_state;
+  SU2_MPI::Allreduce(&local_invalid_state, &global_invalid_state, 1,
+                     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
   /*--- Determine whether a solution needs to be written
    after the current iteration ---*/
   
@@ -4108,7 +4160,9 @@ void CDriver::Output(unsigned long ExtIter) {
       
       /*--- No inlet profile file found. Print template. ---*/
       
-      (config_container[ZONE_0]->GetWrt_InletFile())
+      (config_container[ZONE_0]->GetWrt_InletFile()) ||
+
+      (global_invalid_state > 0)
       
       ) {
     
@@ -4309,9 +4363,8 @@ void CFluidDriver::Run() {
 
     /*--- If convergence was reached in every zone --*/
 
-  if (checkConvergence == nZone) break;
+    if (checkConvergence == nZone) break;
   }
-
 }
 
 void CFluidDriver::Transfer_Data(unsigned short donorZone, unsigned short targetZone) {

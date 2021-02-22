@@ -34,6 +34,8 @@ Note that the following guide works only on Linux/MacOS and on Windows using Cyg
   - [MPI installation is not found](#mpi-installation-is-not-found)
   - [mpi4py library is not found](#mpi4py-library-is-not-found)
   - [MKL is not found](#mkl-is-not-found)
+  - [OpenMPI is used in place of MPICH](#openmpi-is-used-in-place-of-mpich)
+  - [The wrong version of OpenMPI is used](#the-wrong-version-of-openmpi-is-used)
 
 ---
 
@@ -237,3 +239,48 @@ export PKG_CONFIG_PATH=$MKLROOT/bin/pkgconfig
 ```
 
 Note that the pkg-config path is one of the variables cached by meson.  That means you'll need to clear your cache every time you change the pkg-config path.  Otherwise, pkg-config will fail to recognize the updated `PKG_CONFIG_PATH`. You can clear the meson build cache by typing `meson configure --clearcache builddir` or deleting the entire build directory.
+
+### OpenMPI is used in place of MPICH ###
+
+
+This problem can be diagnosed in two ways:
+
+1. You try to compile with MPICH, but when you run the executable it runs
+   with several serial jobs instead of one parallel job.
+2. When you compile the program with `ninja ... -v`, you see that the
+   headers and linked files for MPI are *not* the MPICH headers and linked
+   libraries.
+
+This problem occurs when you have both an OpenMPI implementation and an
+MPICH implementation on your system. If you try to compile and run with
+an MPICH implementation, it will compile your program with OpenMPI no
+matter what. As of Meson 0.52.1, Meson first uses pkg-config to look for
+OpenMPI, then looks at the `mpicc` and `mpicxx` wrappers.  It *does* not
+look for MPICH using pkg-config.  If it finds OpenMPI, it will halt
+before it ever looks at `mpicc` or `mpicxx`, and then assume that you want
+the OpenMPI implementation it found.
+
+This is a problem with Meson, not with SU2.  Unfortunately, you cannot
+trick meson by settings `CC=mpicc`.  SU2 uses a `WITH_MPI` preprocessor
+flag that is only enabled if MPI is found.
+
+The only known workarounds are to manually correct the meson files to look
+for MPICH or to switch to OpenMPI.
+
+### The wrong version of OpenMPI is used ###
+
+If you've got multiple versions of OpenMPI, then you must make sure that
+the path to your desired OpenMPI directory is at the start of the
+pkg-config search path. For example, you could set:
+
+```
+export PKG_CONFIG_PATH=$MPI_DIR/lib/pkgconfig:$PKG_CONFIG_DIR
+```
+
+You can check that Meson will find the correct version of OpenMPI using
+pkg-config by running the following command:
+```
+pkg-config --libs ompi-c
+```
+The library include folders shown should match the OpenMPI version you
+are trying to use.

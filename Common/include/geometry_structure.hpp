@@ -316,6 +316,7 @@ public:
 	CVertex*** vertex;		/*!< \brief Boundary Vertex vector (dual grid information). */
   CTurboVertex**** turbovertex; /*!< \brief Boundary Vertex vector ordered for turbomachinery calculation(dual grid information). */
   unsigned long *nVertex;	/*!< \brief Number of vertex for each marker. */
+  vector<bool> bound_is_straight; /*!< \brief Bool if boundary-marker is straight(2D)/plane(3D) for each local marker. */
   unsigned short *nSpanWiseSections; /*!< \brief Number of Span wise section for each turbo marker, indexed by inflow/outflow */
   unsigned short *nSpanSectionsByMarker; /*! <\brief Number of Span wise section for each turbo marker, indexed by marker.  Needed for deallocation.*/
   unsigned short nTurboPerf; /*!< \brief Number of Span wise section for each turbo marker. */
@@ -358,16 +359,14 @@ public:
   
   /*--- Partitioning-specific variables ---*/
   map<unsigned long,unsigned long> Global_to_Local_Elem;
-  unsigned long xadj_size;
-  unsigned long adjacency_size;
   unsigned long *starting_node;
   unsigned long *ending_node;
   unsigned long *npoint_procs;
   unsigned long *nPoint_Linear;
 #ifdef HAVE_MPI
 #ifdef HAVE_PARMETIS
-  idx_t * adjacency;
-  idx_t * xadj;
+  std::vector<idx_t> adjacency;
+  std::vector<idx_t> xadj;
 #endif
 #endif
   
@@ -928,7 +927,7 @@ public:
     */
    virtual void Set_MPI_Coord(CConfig *config);
 
-   virtual void Set_MPI_Resolution_Tensor(CConfig *config);
+   virtual void Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_tag=0);
 
    /*!
     * \brief A virtual member.
@@ -946,7 +945,7 @@ public:
    * \brief A virtual member.
    * \param[in] config - Definition of the particular problem.
    */
-  virtual void Set_MPI_MaxLength(CConfig *config);
+  virtual void Set_MPI_MaxLength(CConfig *config, int tag=0);
 
 	/*!
 	 * \brief A virtual member.
@@ -954,6 +953,16 @@ public:
 	 * \param[in] config - Definition of the particular problem.
 	 */
 	virtual void SetRestricted_GridVelocity(CGeometry *fine_mesh, CConfig *config);
+
+  /*!
+   * \brief Check if a boundary is straight(2D) / plane(3D) for EULER_WALL and SYMMETRY_PLANE 
+   *        only and store the information in bound_is_straight. For all other boundary types
+   *        this will return false and could therfore be wrong. Used ultimately for BC_Slip_Wall.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] print_on_screen - Boolean whether to print result on screen.
+   */
+  void ComputeSurf_Straightness(CConfig *config, 
+                                bool    print_on_screen);
 
 	/*!
 	 * \brief Find and store all vertices on a sharp corner in the geometry.
@@ -2144,7 +2153,7 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
    */
   void Set_MPI_Coord(CConfig *config);
 
-  void Set_MPI_Resolution_Tensor(CConfig *config);
+  void Set_MPI_Resolution_Tensor(CConfig *config, int sendrecv_tag=0) override;
   
   /*!
    * \brief Perform the MPI communication for the grid velocities.
@@ -2162,7 +2171,7 @@ void UpdateTurboVertex(CConfig *config,unsigned short val_iZone, unsigned short 
    * \brief Perform the MPI communication for the max grid spacing.
    * \param[in] config - Definition of the particular problem.
    */
-  void Set_MPI_MaxLength(CConfig *config);
+  void Set_MPI_MaxLength(CConfig *config, int tag=0);
 
   /*!
    * \brief Set the periodic boundary conditions.

@@ -123,25 +123,24 @@ class CHybridForcingTG0 : public CHybridForcingAbstractBase{
    * \param[in]  Lmesh - Mesh length scales
    * \param[in]  D - Domain lengths in periodic directions
    * \param[in]  dwall - Distance to nearest wall
-   * \param[out] b - TG velocity at point.
+   * \param[out] h - TG velocity at point.
    */
   void SetTGField(const su2double* x, su2double Lsgs,
-                  const su2double* Lmesh, const su2double* D,
+                  const su2double* D,
                   su2double dwall, su2double* h) const;
 
   void SetAxiTGField(const su2double* x, const su2double Lsgs,
-		     const su2double* Lmesh, const su2double* D,
+		     const su2double* D,
 		     const su2double dwall, su2double* h) const;
 
 
   su2double GetTargetProduction(su2double v2,
                                 su2double T,
-                                su2double alpha) const;
+                                su2double beta) const;
 
-  su2double ComputeScalingFactor(su2double Ftar,
-                                 su2double resolution_adequacy,
-                                 su2double alpha,
-                                 su2double alpha_kol,
+  su2double ComputeScalingFactor(su2double resolution_adequacy,
+                                 su2double beta,
+                                 su2double beta_kol,
                                  su2double PFtest) const;
 
   void ComputeForcingField(CSolver** solver, CGeometry *geometry,

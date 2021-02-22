@@ -181,8 +181,6 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
   bool disc_adj = config->GetDiscrete_Adjoint();
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
   bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
-  bool dynamic_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
-
 
   char cstr[200], buffer[50];
   string filename, fieldname;
@@ -949,7 +947,7 @@ void COutput::SetParaview_ASCII(CConfig *config, CGeometry *geometry, unsigned s
       VarCounter += nDim*nDim;
     }
 
-    if (dynamic_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       Paraview_File << "\nTENSORS Resolution_Tensor float\n";
 
       for (iPoint = 0; iPoint < nGlobal_Poin; iPoint++) {
@@ -2579,7 +2577,7 @@ void COutput::WriteParaViewBinary_Parallel(CConfig *config,
   
   filename = GetVTKFilename(config, val_iZone, val_nZone, surf_sol);
   
-  int MAX_STRING_LENGTH = 255;
+  constexpr int MAX_STRING_LENGTH = 255;
   char str_buf[MAX_STRING_LENGTH], fname[100];
   
   const int NCOORDS = 3;

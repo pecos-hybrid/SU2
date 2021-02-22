@@ -682,6 +682,8 @@ void CConfig::SetPointersNull(void) {
   
   Current_UnstTime = 0.0;
 
+  Wrt_InvalidState = false;
+
 }
 
 void CConfig::SetRunTime_Options(void) {
@@ -784,6 +786,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RDELTA_INDICATOR_FULLP_VELCON \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RDELTA_INDICATOR_FULLP_VELCON);
 
+  /*! \brief HYBRID_RESOLUTION_PARAMETER \n DESCRIPTION: The resolution adequacy proportionality constant, C_r. \n DEFAULT: 1.0 \ingroup Config */
+  addDoubleOption("HYBRID_RESOLUTION_PARAMETER", Hybrid_Resolution_Parameter, 1.0);
+
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
   addBoolOption("HYBRID_FORCING_AXI", Hybrid_Forcing_Axi, false);
@@ -806,16 +811,16 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("HYBRID_FORCING_STRENGTH", Hybrid_Forcing_Strength, 8);
 
   /*!\brief HYBRID_FORCING_VORTEX_LENGTH  \n DESCRIPTION: The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. \ingroup Config*/
-  addDoubleOption("HYBRID_FORCING_VORTEX_LENGTH", Hybrid_Forcing_Vortex_Length, 4);
+  addDoubleOption("HYBRID_FORCING_VORTEX_LENGTH", Hybrid_Forcing_Vortex_Length, 8);
 
   /*! \brief SUBGRID_ENERGY_TRANSFER_MODEL \n DESCRIPTION: Specify the subgrid energy transfer model to be used with the model-split hybrid RANS/LES model. \n Options: see \link Hybrid_SGET_Model_Map \endlink \n DEFAULT: M43 \ingroup Config */
   addEnumOption("SUBGRID_ENERGY_TRANSFER_MODEL", Kind_Hybrid_SGET_Model, SGET_Model_Map, M43_MODEL);
 
+  /*!\brief USE_SGET_OVERRESOLUTION_FIX \n DESCRIPTION: Increase subgrid dissipation where the simulation is locally over-resolved. */
+  addBoolOption("USE_SGET_OVERRESOLUTION_FIX", Use_SGET_Overresolution_Fix, YES);
+
   /*!\brief USE_RESOLVED_TURB_STRESS \n DESCRIPTION: Use the resolved turbulent stress in stead of improved production for hybrid RANS/LES calculations. \ingroup Config*/
   addBoolOption("USE_RESOLVED_TURB_STRESS", Use_Resolved_Turb_Stress, YES);
-
-  /*!\brief V2F_TIMESCALE_LIMIT \n DESCRITPTION: For the v2-f RANS model, limit the timescale in the f-equation to 3/S, where S is the Frobenius norm of the mean rate-of-strain tensor. \ingroup Config */
-  addBoolOption("V2F_TIMESCALE_LIMIT", Use_v2f_Timescale_Limit, NO);
 
   /*!\brief KIND_V2F_LIMIT \n DESCRITPTION: Specify the type of realizability limit to be used for the v2-f RANS model. \n Options: see \link v2f_Limit_Map \endlink \n DEFAULT: EDDY_VISC_LIMIT \ingroup Config */
   addEnumOption("KIND_V2F_LIMIT", Kind_v2f_Limit, v2f_Limit_Map, EDDY_VISC_LIMIT);
@@ -843,9 +848,19 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("GRAVITY_FORCE", GravityForce, false);
   /* DESCRIPTION: Apply a body force as a source term (NO, YES) */
   addBoolOption("BODY_FORCE", Body_Force, false);
+  /* DESCRIPTION: Apply a density weighting to the body force. (NO, YES) */
+  addBoolOption("DENSITY_WEIGHTED_BODY_FORCE", Density_Weighted_Force, true);
   default_body_force[0] = 0.0; default_body_force[1] = 0.0; default_body_force[2] = 0.0;
   /* DESCRIPTION: Vector of body force values (BodyForce_X, BodyForce_Y, BodyForce_Z) */
   addDoubleArrayOption("BODY_FORCE_VECTOR", 3, Body_Force_Vector, default_body_force);
+  /* DESCRIPTION: Apply a body force as a source term (NO, YES) */
+  addBoolOption("CONSTANT_MASS_FLUX_FORCING", Const_Mass_Flux_Forcing, false);
+  /* DESCRIPTION: Apply a body force as a source term (NO, YES) */
+  addBoolOption("CONSTANT_TEMP_FLUX_FORCING", Const_Temp_Flux_Forcing, false);
+  /*!\brief TARGET_BULK_MOMENTUM \n DESCRIPTION: When constant mass flux forcing is on, this is the target bulk momentum \ingroup Config*/
+  addDoubleOption("TARGET_BULK_MOMENTUM", Target_Bulk_Momentum, 0.0);
+  /*!\brief TARGET_BULK_TEMPERATURE \n DESCRIPTION: When constant temperature flux forcing is on, this is the target bulk temperature \ingroup Config*/
+  addDoubleOption("TARGET_BULK_TEMPERATURE", Target_Bulk_Temperature, 0.0);
   /*!\brief RESTART_SOL \n DESCRIPTION: Restart solution from native solution file \n Options: NO, YES \ingroup Config */
   addBoolOption("RESTART_SOL", Restart, false);
   /*!\brief BINARY_RESTART \n DESCRIPTION: Read / write binary SU2 native restart files. \n Options: YES, NO \ingroup Config */
@@ -1173,6 +1188,11 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief V2F_REALIZABILITY_CONSTANT \n DESCRIPTION: The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. \n DEFAULT: 0.6 \ingroup Config */
   addDoubleOption("V2F_REALIZABILITY_CONSTANT", v2f_Realizability_Constant, 0.6);
+
+  addDoubleOption("V2F_CE1_CONSTANT", v2f_Ce1_Constant, 0.05);
+
+  /*!\brief V2F_RF_CONSTANT \n DESCRIPTION: If the Rf mod is used, then this is the constant in the numerator of Rf. \n DEFAULT: 3.0 \ingroup Config */
+  addDoubleOption("V2F_RF_CONSTANT", v2f_Rf_Constant, 1.5);
 
   /*!\brief KEEP_PV2_NONNEGATIVE  \n DESCRIPTION: Limit the production of v2 to non-negative values in the v2-f RANS model. \n DEFAULT: True \ingroup Config*/
   addBoolOption("KEEP_PV2_NONNEGATIVE", Pv2_nonnegative, true);
@@ -1568,11 +1588,15 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_jst_coeff[0] = 0.5; default_jst_coeff[1] = 0.02;
   /*!\brief JST_SENSOR_COEFF \n DESCRIPTION: 2nd and 4th order artificial dissipation coefficients for the JST method \ingroup Config*/
   addDoubleArrayOption("JST_SENSOR_COEFF", 2, Kappa_Flow, default_jst_coeff);
+  /*!\brief JST_C4 \n DESCRIPTION: Factor multiplied by the 2nd order dissipation to make sure that 4th order dissipation turns off when 2nd order dissipation is strong. \ingroup Config */
+  addDoubleOption("JST_C4", JST_c4, 1.0);
   /*!\brief LAX_SENSOR_COEFF \n DESCRIPTION: 1st order artificial dissipation coefficients for the Lax-Friedrichs method. \ingroup Config*/
   addDoubleOption("LAX_SENSOR_COEFF", Kappa_1st_Flow, 0.15);
   default_ad_coeff_heat[0] = 0.5; default_ad_coeff_heat[1] = 0.02;
   /*!\brief JST_SENSOR_COEFF_HEAT \n DESCRIPTION: 2nd and 4th order artificial dissipation coefficients for the JST method \ingroup Config*/
   addDoubleArrayOption("JST_SENSOR_COEFF_HEAT", 2, Kappa_Heat, default_ad_coeff_heat);
+  /*!\brief CENTRAL_JACOBIAN_FIX_FACTOR \n DESCRIPTION: Improve the numerical properties (diagonal dominance) of the global Jacobian matrix, 3 to 4 is "optimum" (central schemes) \ingroup Config*/
+  addDoubleOption("CENTRAL_JACOBIAN_FIX_FACTOR", Cent_Jac_Fix_Factor, 1.0);
 
   /*!\brief CONV_NUM_METHOD_ADJFLOW
    *  \n DESCRIPTION: Convective numerical method for the adjoint solver.
@@ -1816,6 +1840,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("WRT_HALO", Wrt_Halo, false);
   /* DESCRIPTION: Output the resolution tensors in the solution files  \ingroup Config*/
   addBoolOption("WRT_RESOLUTION_TENSORS", Wrt_Resolution_Tensors, false);
+  /* DESCRIPTION: Output the Reynolds stress \ingroup Config */
+  addBoolOption("WRT_REYNOLDS_STRESS", Wrt_Reynolds_Stress, false);
   /* DESCRIPTION: Output the performance summary to the console at the end of SU2_CFD  \ingroup Config*/
   addBoolOption("WRT_PERFORMANCE", Wrt_Performance, false);
     /* DESCRIPTION: Output a 1D slice of a 2D cartesian solution \ingroup Config*/
@@ -2444,8 +2470,14 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Number of zones of the problem */
   addPythonOption("NZONES");
 
-  /* DESCRIPTION: Activate ParMETIS mode for testing */
-  addBoolOption("PARMETIS", ParMETIS, false);
+  /* DESCRIPTION: ParMETIS load balancing tolerance */
+  addDoubleOption("PARMETIS_TOLERANCE", ParMETIS_tolerance, 0.05);
+
+  /* DESCRIPTION: ParMETIS load balancing weight for points */
+  addLongOption("PARMETIS_POINT_WEIGHT", ParMETIS_pointWgt, 1);
+
+  /* DESCRIPTION: ParMETIS load balancing weight for edges (equiv. to neighbors) */
+  addLongOption("PARMETIS_EDGE_WEIGHT", ParMETIS_edgeWgt, 0);
     
   /*--- options that are used in the Hybrid RANS/LES Simulations  ---*/
   /*!\par CONFIG_CATEGORY:Hybrid_RANSLES Options\ingroup Config*/
@@ -2532,6 +2564,12 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
    * useful when the initial state does not match the desired state.  \n
    * DEFAULT: 0.0 \ingroup Config */
   addDoubleOption("AVERAGING_START_TIME", AveragingStartTime, 0.0);
+
+  addEnumOption("SLICE_RESTART_TYPE", SliceRestartType, SliceRestartType_Map, NO_SLICE_RESTART);
+
+  /*!\brief WRT_PARTITION \n DESCRIPTION: Write the paritition (color) of
+    each node \n DEFAULT: False \ingroup Config */
+  addBoolOption("WRT_PARTITION", Wrt_Partition, false);
 
   /* END_CONFIG_OPTIONS */
 
@@ -3929,6 +3967,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
           RK_cVec[2] = 0.5;
           RK_cVec[3] = 1.0;
         }
+        break;
       case RUNGE_KUTTA_LIMEX_EDIRK:
         if (nRKStep == 0) {
           if (rank == MASTER_NODE) {
@@ -5921,11 +5960,13 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
         if (Kind_Centered_Flow == JST) {
           cout << "Jameson-Schmidt-Turkel scheme (2nd order in space) for the flow inviscid terms."<< endl;
           cout << "JST viscous coefficients (2nd & 4th): " << Kappa_2nd_Flow << ", " << Kappa_4th_Flow <<"." << endl;
+          cout << "JST c4 coefficient: " << JST_c4 << endl;
           cout << "The method includes a grid stretching correction (p = 0.3)."<< endl;
         }
         if (Kind_Centered_Flow == JST_KE) {
           cout << "Jameson-Schmidt-Turkel scheme (2nd order in space) for the flow inviscid terms."<< endl;
           cout << "JST viscous coefficients (2nd & 4th): " << Kappa_2nd_Flow << ", " << Kappa_4th_Flow << "." << endl;
+          cout << "JST c4 coefficient: " << JST_c4 << endl;
           cout << "The method includes a grid stretching correction (p = 0.3)."<< endl;
         }
         if (Kind_Centered_Flow == LAX) {
@@ -8375,6 +8416,16 @@ unsigned short CConfig::GetMarker_Moving(string val_marker) {
     if (Marker_Moving[iMarker_Moving] == val_marker) break;
 
   return iMarker_Moving;
+}
+
+bool CConfig::GetMarker_Moving_Bool(string val_marker) {
+  unsigned short iMarker_Moving;
+
+  /*--- Find the marker for this moving boundary, if it exists. ---*/
+  for (iMarker_Moving = 0; iMarker_Moving < nMarker_Moving; iMarker_Moving++)
+    if (Marker_Moving[iMarker_Moving] == val_marker) return true;
+
+  return false;
 }
 
 su2double CConfig::GetDirichlet_Value(string val_marker) {

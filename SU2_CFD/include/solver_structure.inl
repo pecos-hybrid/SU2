@@ -152,7 +152,7 @@ inline void CSolver::SetPrimitive_Limiter(CGeometry *geometry, CConfig *config) 
 
 inline void CSolver::SetPreconditioner(CConfig *config, unsigned long iPoint) { }
 
-inline void CSolver::SetDistance(CGeometry *geometry, CConfig *config) { };
+inline void CSolver::SetDistance(CGeometry *geometry, CConfig *config) { }
 
 inline su2double CSolver::GetCD_Inv(unsigned short val_marker) { return 0; }
 
@@ -564,9 +564,9 @@ inline void CSolver::SetInlet_FlowDir(unsigned short val_marker, unsigned long v
 
 inline void CSolver::SetInlet_TurbVar(unsigned short val_marker, unsigned long val_vertex, unsigned short val_dim, su2double val_turb_var) { }
 
-inline void CSolver::SetUniformInlet(CConfig* config, unsigned short iMarker) {};
+inline void CSolver::SetUniformInlet(CConfig* config, unsigned short iMarker) {}
 
-inline void CSolver::SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex) { };
+inline void CSolver::SetInletAtVertex(su2double *val_inlet, unsigned short iMarker, unsigned long iVertex) { }
 
 inline su2double CSolver::GetInletAtVertex(su2double *val_inlet, unsigned long val_inlet_point, unsigned short val_kind_marker, string val_marker, CGeometry *geometry, CConfig *config) { return 0; }
 
@@ -696,12 +696,17 @@ inline su2double CSolver::GetTotal_ComboObj(void) { return 0;}
 
 inline void CSolver::Set_Heatflux_Areas(CGeometry *geometry, CConfig *config) { }
 
-inline void CSolver::Evaluate_ObjFunc(CConfig *config) {};
+inline void CSolver::Evaluate_ObjFunc(CConfig *config) {}
 
 inline void CSolver::Solve_System(CGeometry *geometry, CSolver **solver_container, CConfig *config) { }
 
-inline void CSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config, 
-                   unsigned short val_marker, unsigned short iRKStep) { }
+inline void CSolver::BC_Euler_Wall(CGeometry      *geometry, 
+                                   CSolver        **solver_container, 
+                                   CNumerics      *conv_numerics, 
+                                   CNumerics      *visc_numerics, 
+                                   CConfig        *config, 
+                                   unsigned short val_marker,
+                                   unsigned short iRKStep) { }
 
 inline void CSolver::BC_Clamped(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config, 
                    unsigned short val_marker) { }
@@ -1031,7 +1036,7 @@ inline su2double CSolver::GetMax_Delta_Time(unsigned short val_Species) { return
 inline su2double CSolver::GetMin_Delta_Time(unsigned short val_Species) { return 0.0; }
 
 inline void CSolver::Copy_Zone_Solution(CSolver ***solver1_solution, CGeometry **solver1_geometry, CConfig *solver1_config, 
-                      CSolver ***solver2_solution, CGeometry **solver2_geometry, CConfig *solver2_config) {};
+                      CSolver ***solver2_solution, CGeometry **solver2_geometry, CConfig *solver2_config) {}
 
 inline CFluidModel* CSolver::GetFluidModel(void) { return NULL;}
 
@@ -1065,7 +1070,7 @@ inline void CSolver::Initialize_SystemMatrix(CGeometry *geometry, CSolver **solv
 
 inline void CSolver::Compute_IntegrationConstants(CConfig *config) { }
 
-inline void CSolver::SetFSI_ConvValue(unsigned short val_index, su2double val_criteria) { };
+inline void CSolver::SetFSI_ConvValue(unsigned short val_index, su2double val_criteria) { }
 
 inline su2double CSolver::GetFSI_ConvValue(unsigned short val_index) { return 0.0; }
 
@@ -1219,6 +1224,16 @@ inline su2double CSolver::GetConjugateHeatVariable(unsigned short val_marker, un
 inline void CSolver::SetAveragingTimescale(su2double val_timescale) { AveragingTimescale = val_timescale; }
 
 inline su2double CSolver::GetAveragingTimescale(void) const { return AveragingTimescale; }
+
+inline su2double CSolver::GetBulkDensity(void) const { return 0; }
+
+inline su2double CSolver::GetBulkMomentum(void) const { return 0; }
+
+inline su2double CSolver::GetBulkTemperature(void) const { return 0; }
+
+inline su2double CSolver::GetBulkForce(void) const { return 0; }
+
+inline su2double CSolver::GetBulkHeating(void) const { return 0; }
 
 inline su2double CEulerSolver::GetDensity_Inf(void) { return Density_Inf; }
 
@@ -1706,6 +1721,16 @@ inline CFluidModel* CEulerSolver::GetFluidModel(void) { return FluidModel;}
 inline void CEulerSolver::SetPressure_Inf(su2double p_inf) {Pressure_Inf = p_inf;}
 
 inline void CEulerSolver::SetTemperature_Inf(su2double t_inf) {Temperature_Inf = t_inf;}
+
+inline su2double CEulerSolver::GetBulkDensity(void) const { return bulk_density; }
+
+inline su2double CEulerSolver::GetBulkMomentum(void) const { return bulk_density * bulk_velocity; }
+
+inline su2double CEulerSolver::GetBulkTemperature(void) const { return bulk_temperature; }
+
+inline su2double CEulerSolver::GetBulkForce(void) const { return bulk_force; }
+
+inline su2double CEulerSolver::GetBulkHeating(void) const { return bulk_heating; }
 
 inline su2double CNSSolver::GetViscosity_Inf(void) { return Viscosity_Inf; }
 

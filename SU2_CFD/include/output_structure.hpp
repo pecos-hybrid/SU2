@@ -62,7 +62,7 @@
 
 typedef su2double (CVariable::*DataAccessor)() const;
 typedef const su2double* (CVariable::*VectorAccessor)() const;
-typedef su2double** (CVariable::*TensorAccessor)() const;
+typedef su2double (CVariable::*TensorAccessor)(unsigned short, unsigned short) const;
 
 #include "../../Common/include/toolboxes/printing_toolbox.hpp"
 

@@ -41,7 +41,6 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
   
   unsigned short iDim, jDim, iVar, nDim = geometry->GetnDim();
   unsigned short Kind_Solver = config->GetKind_Solver();
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
   unsigned long iPoint, iElem, iNode;
   unsigned long iExtIter = config->GetExtIter();
@@ -203,7 +202,7 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         }
       }
 
-      if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+      if (config->GetWrt_Resolution_Tensors()) {
         for (iDim = 0; iDim < nDim; iDim++)
           for (jDim = 0; jDim < nDim; jDim++)
             Tecplot_File << ", \"Resolution_Tensor_" << iDim << jDim << "\"";
@@ -213,6 +212,10 @@ void COutput::SetTecplotASCII(CConfig *config, CGeometry *geometry, CSolver **so
         if (((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)))  {
           Tecplot_File << ", \"Sharp_Edge_Dist\"";
         }
+      }
+
+      if (config->GetWrt_Partition()) {
+        Tecplot_File << ", \"Partition\"";
       }
       
       if (( Kind_Solver == ADJ_EULER              ) ||
@@ -3566,8 +3569,7 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
       }
     }
 
-    if ((config->GetKind_HybridRANSLES() == MODEL_SPLIT) &&
-        config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       for (unsigned short iDim = 0; iDim < nDim; iDim++)
         for (unsigned short jDim = 0; jDim < nDim; jDim++)
           variables << "Resolution_Tensor_" << iDim << jDim << " ";
@@ -3579,6 +3581,11 @@ string COutput::AssembleVariableNames(CGeometry *geometry, CConfig *config, unsi
         variables << "Sharp_Edge_Dist ";
         *NVar += 1;
       }
+    }
+
+    if (config->GetWrt_Partition()) {
+      variables << "Partition ";
+      *NVar += 1;
     }
     
 

@@ -265,6 +265,10 @@ CSourcePieceWise_TurbKE::CSourcePieceWise_TurbKE(unsigned short val_nDim,
   C_L     = constants[9];
   C_eta   = constants[10];
 
+  /*--- Coefficient used in the C_e1 equation (usually 0.045 or 0.05) ---*/
+  C_e1_factor = config->Getv2f_Ce1_Constant();
+  Rf_constant = config->Getv2f_Rf_Constant();
+
 }
 
 CSourcePieceWise_TurbKE::~CSourcePieceWise_TurbKE(void) { }
@@ -350,19 +354,20 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   SGSProduction = muT*S*S;
   if (config->GetBoolDivU_inTKEProduction()) {
-    SGSProduction -= (2.0/3.0)*rho*tke*diverg;
+    SGSProduction -= TWO3*rho*tke*diverg;
   }
 
   /*--- If using a hybrid method, include resolved production ---*/
 
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
     /*--- Limit alpha to protect from imbalance in k_model vs k_resolved. ---*/
-    if (KineticEnergyRatio >= 0  && KineticEnergyRatio < 1) {
-      const su2double alpha = KineticEnergyRatio;
+    if (KineticEnergyRatio >= 0 && KineticEnergyRatio < 1) {
+      // KineticEnergyRatio is beta
+      const su2double alpha = pow(KineticEnergyRatio, 1.7);
       const su2double alpha_fac = alpha*(2.0 - alpha);
       SGSProduction = alpha_fac*muT*S*S;
       if (config->GetBoolDivU_inTKEProduction()) {
-	SGSProduction -= 2.0/3.0*rho*alpha*tke*diverg;
+	SGSProduction -= TWO3*rho * KineticEnergyRatio * tke*diverg;
       }
 
       if (config->GetUse_Resolved_Turb_Stress()) {
@@ -411,9 +416,10 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
    * should *not* be large, and should be clipped. As y+ -> 0,
    * C_e1 -> infinity. But for channel flow at Re_tau = 5200, C_e1 < 29 for
    * all y+ > .07. So we can set a relatively low limit (e.g. 100) to enforce
-   * our desired behavior. This should not affect converged solution. ---*/
+   * our desired behavior. This should not affect converged solution.
+   * ---*/
   const su2double inv_zeta = max(tke/v2_lim, 0.5);
-  const su2double C_e1 = min(C_e1o*(1.0+0.045*sqrt(inv_zeta)), 100.0);
+  const su2double C_e1 = min(C_e1o*(1.0+C_e1_factor*sqrt(inv_zeta)), 100.0);
 
   // ... production
   Pe = C_e1*Pk/TurbT;
@@ -470,7 +476,8 @@ void CSourcePieceWise_TurbKE::ComputeResidual(su2double *val_residual,
 
   su2double Rf = 1.0/TurbT;
   if (config->GetBoolUse_v2f_Rf_mod()) {
-    Rf = min(1.0/TurbT, S/(sqrt(2.0)*3.0));
+    // sqrt(2) because of sqrt(2) in S
+    Rf = min(1.0/TurbT, S/(sqrt(2.0)*Rf_constant));
   }
 
   Pf = (C_2f*Pk/(rho*tke_lim) - Rf*(C1m6*zeta - ttC1m1)) / Lsq;

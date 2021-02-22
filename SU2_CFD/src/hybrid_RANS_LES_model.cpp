@@ -40,9 +40,10 @@
 #include "mkl_lapacke.h"
 #endif
 
+
 CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
                                    const string& filename)
-    : nDim(nDim), fluct_stress_model(NULL), forcing_model(NULL), config(config) {
+    : nDim(nDim), fluct_stress_model(NULL), config(config), forcing_model(NULL){
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -54,93 +55,19 @@ CHybrid_Mediator::CHybrid_Mediator(unsigned short nDim, CConfig* config,
     aniso_eddy_viscosity[iDim] = new su2double[nDim];
   }
 
-  /*--- Allocate the approximate structure function (used in calcs) ---*/
+  /*--- Allocate the inverse length tensor (used in calcs) ---*/
 
-  Q = new su2double*[nDim];
-  Qapprox = new su2double*[nDim];
   invLengthTensor = new su2double*[nDim];
   for (unsigned int iDim = 0; iDim < nDim; iDim++) {
-    Q[iDim] = new su2double[nDim];
-    Qapprox[iDim] = new su2double[nDim];
     invLengthTensor[iDim] = new su2double[nDim];
   }
-
-  /*--- Load the constants for mapping M to M-tilde ---*/
-
-  if (filename == "") {
-    if (rank == MASTER_NODE) {
-      cout << "WARNING: No file given for hybrid RANS/LES constants." << endl;
-      cout << "         Default (hardcoded) values used." << endl;
-    }
-    constants.resize(3, vector<su2double>(15));
-
-    constants[0][0] =  2.4253168624203;
-    constants[0][1] =  0.3377273122202;
-    constants[0][2] =  0.2454150824949;
-    constants[0][3] = -0.4015732570841;
-    constants[0][4] = -0.3023468205458;
-    constants[0][5] = -0.1386196773678;
-    constants[0][6] =  0.0451966752099;
-    constants[0][7] =  0.0325650620151;
-    constants[0][8] =  0.0093904940685;
-    constants[0][9] = -0.0052447144608;
-    constants[0][10] = -0.0019607919411;
-    constants[0][11] = -0.0005522138218;
-    constants[0][12] =  0.0013947282467;
-    constants[0][13] =  0.0012723863199;
-    constants[0][14] = -0.0000420559137;
-
-    constants[1][0] =  0.6999425502058;
-    constants[1][1] =  0.3056790968854;
-    constants[1][2] = -0.1914576501370;
-    constants[1][3] =  0.0713376305722;
-    constants[1][4] =  0.2874057660774;
-    constants[1][5] =  0.1107104307784;
-    constants[1][6] = -0.0215754933753;
-    constants[1][7] = -0.0652953391552;
-    constants[1][8] = -0.0460413983614;
-    constants[1][9] = -0.0131511446213;
-    constants[1][10] =  0.0015258919631;
-    constants[1][11] =  0.0046851430319;
-    constants[1][12] =  0.0046149483796;
-    constants[1][13] =  0.0020781858721;
-    constants[1][14] =  0.0001722924891;
-
-    constants[2][0] = -0.1451211648913;
-    constants[2][1] = -0.0419089159238;
-    constants[2][2] = -0.0090912831194;
-    constants[2][3] =  0.0120968852318;
-    constants[2][4] = -0.0318033690621;
-    constants[2][5] = -0.0157539031345;
-    constants[2][6] = -0.0007323909092;
-    constants[2][7] =  0.0105452780759;
-    constants[2][8] =  0.0089366657596;
-    constants[2][9] =  0.0030581437094;
-    constants[2][10] = -0.0000170956796;
-    constants[2][11] = -0.0009297436006;
-    constants[2][12] = -0.0010752469431;
-    constants[2][13] = -0.0005650127892;
-    constants[2][14] = -0.0000591358738;
-
-  } else {
-    constants = LoadConstants(filename);
-  }
-
-  /*--- Calculate scaling constants so that zeta -> kroneckor delta for
-   * isotropic cells ---*/
-  vector<su2double> temp_values = GetEigValues_Q(vector<su2double>(3, 1.0));
-  C_zeta = pow(temp_values[0], 0.5);
 }
 
 CHybrid_Mediator::~CHybrid_Mediator() {
   for (unsigned int iDim = 0; iDim < nDim; iDim++) {
-    delete [] Q[iDim];
-    delete [] Qapprox[iDim];
     delete [] invLengthTensor[iDim];
     delete [] aniso_eddy_viscosity[iDim];
   }
-  delete [] Q;
-  delete [] Qapprox;
   delete [] invLengthTensor;
   delete [] aniso_eddy_viscosity;
 
@@ -177,24 +104,16 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
                                                  CSolver **solver_container,
                                                  unsigned long iPoint) {
 
-
-  unsigned short iDim, jDim, kDim, lDim;
-  // XXX: This floor is arbitrary.
-  const su2double TKE_MIN = EPS;
-  su2double r_k;
-
   /*--- Find eigenvalues and eigenvecs for grid-based resolution tensor ---*/
   const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-  const su2double* ResolutionValues = geometry->node[iPoint]->GetResolutionValues();
-  const su2double* const* ResolutionVectors = geometry->node[iPoint]->GetResolutionVectors();
 
   // Compute inverse length scale tensor
-  const su2double alpha =
+  const su2double beta =
       solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
   ComputeInvLengthTensor(solver_container[FLOW_SOL]->node[iPoint],
                          solver_container[FLOW_SOL]->average_node[iPoint],
                          solver_container[TURB_SOL]->node[iPoint],
-                         alpha,
+                         beta,
                          config->GetKind_Hybrid_Resolution_Indicator());
 
   vector<su2double> eigvalues_iLM;
@@ -203,34 +122,22 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
                         eigvalues_iLM, eigvectors_iLM);
 
   su2double max_eigval = 0.0;
-  for (iDim=0; iDim<3; iDim++) {
+  for (unsigned short iDim=0; iDim<3; iDim++) {
     if( abs(eigvalues_iLM[iDim]) > max_eigval) {
       max_eigval = abs(eigvalues_iLM[iDim]);
     }
   }
 
-  su2double LinvM[3][3];
-  su2double frobenius_norm = 0;
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      LinvM[iDim][jDim] = 0.0;
-      for (kDim = 0; kDim < nDim; kDim++) {
-        LinvM[iDim][jDim] += invLengthTensor[jDim][kDim]*ResolutionTensor[kDim][iDim];
-      }
-      frobenius_norm += pow(LinvM[iDim][jDim], 2);
-    }
-  }
-  frobenius_norm = sqrt(frobenius_norm);
-
-    const su2double C_r = 1.0;
-    const su2double r_k_min = 1.0E-8;
-    const su2double r_k_max = 30;
-    r_k = C_r*min(max_eigval, frobenius_norm);
-    r_k = max(min(r_k, r_k_max), r_k_min);
-
-    if (alpha > 1) r_k = min(r_k, 1.0);
+  const su2double C_r = config->GetHybrid_Resolution_Parameter();
+  const su2double r_k_min = 1.0E-8;
+  const su2double r_k_max = (beta > 1) ? 1.0 : 30;
+  const su2double r_k = max(min(C_r*max_eigval, r_k_max), r_k_min);
 
   // Set resolution adequacy in the CNSVariables class
+  // Use the resolved (e.g. instantaneous) variables, instead of the
+  // average variables.  Although r_k uses some average variables, such
+  // as the RANS turbulent stress, the instantaneous resolution adequacy
+  // is still different than the time-averaged resolution adequacy.
   solver_container[FLOW_SOL]->node[iPoint]->SetResolutionAdequacy(r_k);
 }
 
@@ -270,17 +177,19 @@ void CHybrid_Mediator::SetupResolvedFlowSolver(const CGeometry* geometry,
      * of the model for fully-developed channel flow problems.  It is
      * unclear how necessary it is more more complex problems. ---*/
 
-    // const su2double avg_resolution_adequacy =
-    //   solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
-    // assert(avg_resolution_adequacy >= 0);
-    // assert(avg_resolution_adequacy == avg_resolution_adequacy);
-    // //const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
-    // const su2double factor = max(min(avg_resolution_adequacy, 10.0), 1.0);
-    // for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    //   for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-    //      aniso_eddy_viscosity[iDim][jDim] *= factor;
-    //   }
-    // }
+    if (config->GetUse_SGET_Overresolution_Fix()) {
+      const su2double avg_rM =
+        solver_container[FLOW_SOL]->average_node[iPoint]->GetResolutionAdequacy();
+      assert(avg_rM >= 0);
+      assert(avg_rM == avg_rM);
+      //const su2double factor = pow(min(avg_resolution_adequacy, 10.0), 4.0/3);
+      const su2double factor = max(min(avg_rM*avg_rM, 30.0), 1.0);
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        for (unsigned short jDim = 0; jDim < nDim; jDim++) {
+          aniso_eddy_viscosity[iDim][jDim] *= factor;
+        }
+      }
+    }
 
     solver_container[FLOW_SOL]->node[iPoint]->SetAnisoEddyViscosity(aniso_eddy_viscosity);
 
@@ -343,20 +252,20 @@ void CHybrid_Mediator::SetupResolvedFlowNumerics(const CGeometry* geometry,
   su2double** aniso_viscosity_j =
       solver_container[FLOW_SOL]->node[jPoint]->GetAnisoEddyViscosity();
 
-  const su2double alpha_i =
+  const su2double beta_i =
       solver_container[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
-  const su2double alpha_j =
+  const su2double beta_j =
       solver_container[FLOW_SOL]->average_node[jPoint]->GetKineticEnergyRatio();
 
   numerics->SetAniso_Eddy_Viscosity(aniso_viscosity_i, aniso_viscosity_j);
-  numerics->SetKineticEnergyRatio(alpha_i, alpha_j);
+  numerics->SetKineticEnergyRatio(beta_i, beta_j);
 }
 
 
 void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
                                               CVariable* flow_avgs,
                                               CVariable* turb_vars,
-                                              const su2double val_alpha,
+                                              const su2double val_beta,
                                               const int short hybrid_res_ind) {
 
   unsigned short iDim, jDim, kDim;
@@ -384,7 +293,8 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   const su2double rho =  flow_avgs->GetDensity();
 
-  su2double alpha = max(val_alpha, 1e-8);
+  const su2double beta = max(val_beta, 1E-8);
+  const su2double alpha = max(pow(val_beta, 1.7), 1E-8);
 
   // Get primative gradients
   su2double** val_gradprimvar =  flow_vars->GetGradient_Primitive();
@@ -464,23 +374,16 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
   const su2double ktot = max(turb_vars->GetSolution(0),1e-8);
 
-  // v2 here is *subgrid*, so must multiply by alpha
-  su2double v2;
-  if (config->GetKind_Turb_Model() == KE) {
-    v2 = alpha*max(turb_vars->GetSolution(2),1e-8);
-  } else if (config->GetKind_Turb_Model() == SST) {
-    v2 = alpha*2.0*max(turb_vars->GetSolution(0),1e-8)/3.0;
-  } else {
+  if (config->GetKind_Turb_Model() != KE &&
+      config->GetKind_Turb_Model() != SST) {
     SU2_MPI::Error("The RDELTA resolution adequacy option is only implemented for KE and SST turbulence models!", CURRENT_FUNCTION);
   }
+  // v2 here is *subgrid*, so must multiply by alpha
+  const su2double aniso_ratio = turb_vars->GetAnisoRatio();
+  const su2double v2_sgs = beta * TWO3 * max(ktot * aniso_ratio, 1E-8);
 
   // 2) tauSGRS contribution.  NB: Neglecting divergence contribution
   // here.  TODO: Add divergence contribution.
-
-  /*--- Testing on the WMH indicates that scaling the whole stress by
-   * alpha*(2-alpha) improves the model performance.  That change would
-   * make the turbulent kinetic energy inconsistent, so it is avoided here.
-   * But that indicates there's some other issue. ---*/
 
   su2double alpha_fac = alpha*(2.0 - alpha);
   alpha_fac = max(alpha_fac, 1e-8);
@@ -514,7 +417,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
           Pij[iDim][jDim] += 2.0*alpha_fac*eddy_viscosity*Sd_avg[iDim][jDim]*div_vel/3.0;
         }
         // rho*k contribtuion
-	Pij[iDim][jDim] -= 2.0/3.0*alpha*rho*ktot *
+	Pij[iDim][jDim] -= 2.0/3.0*beta*rho*ktot *
             (Sd[iDim][jDim] + Om[iDim][jDim] + div_vel*delta[iDim][jDim]/3.0);
       }
     }
@@ -528,7 +431,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
           // Contribution from div of velocity is (intentionally) omitted
         }
         // rho*k contribtuion
-	Pij[iDim][jDim] -= 2.0*alpha*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
+	Pij[iDim][jDim] -= 2.0*beta*rho*ktot*(Sd[iDim][jDim]+Om[iDim][jDim])/3.0;
       }
     }
     break;
@@ -554,7 +457,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   for (iDim = 0; iDim < nDim; iDim++) {
     for (jDim = 0; jDim < nDim; jDim++) {
       invLengthTensor[iDim][jDim] =
-        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*rho*v2*sqrt(v2));
+        0.5*(Pij[iDim][jDim] + Pij[jDim][iDim]) / (t0*rho*v2_sgs*sqrt(v2_sgs));
     }
   }
 
@@ -570,6 +473,7 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
   }
   if (found_nan) {
     std::cout << "alpha = " << alpha << std::endl;
+    std::cout << "beta  = " << beta << std::endl;
     std::cout << "alpha_fac = " << alpha_fac << std::endl;
     for (iDim = 0; iDim < nDim; iDim++) {
       for (jDim = 0; jDim < nDim; jDim++) {
@@ -588,186 +492,6 @@ void CHybrid_Mediator::ComputeInvLengthTensor(CVariable* flow_vars,
 
 }
 
-
-su2double CHybrid_Mediator::GetProjResolution(const su2double* const* resolution_tensor,
-                                              const vector<su2double>& direction) {
-
-#ifndef NDEBUG
-  su2double magnitude_squared = 0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++)
-    magnitude_squared += direction[iDim]*direction[iDim];
-  if (abs(magnitude_squared - 1.0) > 1e-7) {
-    ostringstream error_msg;
-    error_msg << "The unit vector for the projected resolution calc had a ";
-    error_msg << "magnitude greater than 1!" << endl;
-    error_msg << "    Magnitude: " << sqrt(magnitude_squared);
-    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-  }
-#endif
-
-  su2double temp, result = 0;
-  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-    temp = 0;
-    for (unsigned short jDim = 0; jDim < nDim; jDim++) {
-      temp += resolution_tensor[iDim][jDim]*direction[jDim];
-    }
-    result += temp*temp;
-  }
-  return sqrt(result);
-}
-
-vector<vector<su2double> > CHybrid_Mediator::LoadConstants(const string& filename) {
-  vector<vector<su2double> > output;
-  output.resize(nDim);
-  ifstream file;
-  for (int i=0; i<nDim; i++) {
-    stringstream ss;
-    ss << filename << i << ".dat";
-    string fullname = ss.str();
-    file.open(fullname.c_str());
-    if (file.is_open()) {
-      su2double value;
-      while (file >> value) {
-        output[i].push_back(value);
-      }
-      file.close();
-    } else {
-      ostringstream error_msg;
-      error_msg << "Could not open the hybrid constants file." << endl;
-      error_msg << "       Tried reading file " << fullname;
-      SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
-    }
-  }
-  return output;
-};
-
-vector<su2double> CHybrid_Mediator::GetEigValues_Q(const vector<su2double>& eigvalues_M) {
-  su2double dnorm = *min_element(eigvalues_M.begin(), eigvalues_M.end());
-
-  /*--- Normalize eigenvalues ---*/
-  su2double a, b;
-  if (eigvalues_M[0] == dnorm) {
-    a = eigvalues_M[1]/dnorm;
-    b = eigvalues_M[2]/dnorm;
-  } else if (eigvalues_M[1] == dnorm) {
-    a = eigvalues_M[0]/dnorm;
-    b = eigvalues_M[2]/dnorm;
-  } else {
-    a = eigvalues_M[0]/dnorm;
-    b = eigvalues_M[1]/dnorm;
-  }
-#ifndef NDEBUG
-  if (a < 1 || b < 1) {
-    SU2_MPI::Error("Normalization in the zeta transformation failed!", CURRENT_FUNCTION);
-  }
-#endif
-
-  /*--- Convert to cylindrical coordinates ---*/
-  su2double r = sqrt(a*a + b*b);
-  su2double theta = acos(max(a,b)/r);
-
-  /*--- Convert to more convenient log coordinates ---*/
-  su2double y = log(sin(2*theta));
-  su2double x = log(r);
-
-  vector<su2double> g(3);
-  for (int iDim = 0; iDim < nDim; iDim++) {
-    g[iDim] = constants[iDim][0];
-    g[iDim] += constants[iDim][1]*x;
-    g[iDim] += constants[iDim][2]*y;
-    g[iDim] += constants[iDim][3]*x*x;
-    g[iDim] += constants[iDim][4]*x*y;
-    g[iDim] += constants[iDim][5]*y*y;
-    g[iDim] += constants[iDim][6]*x*x*x;
-    g[iDim] += constants[iDim][7]*x*x*y;
-    g[iDim] += constants[iDim][8]*x*y*y;
-    g[iDim] += constants[iDim][9]*y*y*y;
-    g[iDim] += constants[iDim][10]*x*x*x*x;
-    g[iDim] += constants[iDim][11]*x*x*x*y;
-    g[iDim] += constants[iDim][12]*x*x*y*y;
-    g[iDim] += constants[iDim][13]*x*y*y*y;
-    g[iDim] += constants[iDim][14]*y*y*y*y;
-  }
-
-  vector<su2double> eigvalues_Q(3);
-  for (int iDim = 0; iDim < nDim; iDim++) {
-    su2double d_in = log(eigvalues_M[iDim]/dnorm);
-    eigvalues_Q[iDim] = g[0] + g[1]*d_in + g[2]*pow(d_in, 2);
-    eigvalues_Q[iDim] = exp(eigvalues_Q[iDim]);
-  }
-
-  return eigvalues_Q;
-}
-
-vector<vector<su2double> > CHybrid_Mediator::BuildZeta(const su2double* values_M,
-                                                       const su2double* const* vectors_M) {
-
-  vector<vector<su2double> > zeta(3, vector<su2double>(3,0));
-
-#ifdef HAVE_LAPACK
-  unsigned short iDim, jDim, kDim, lDim;
-
-  vector<su2double> eigvalues_M;
-  for (iDim = 0; iDim < nDim; iDim++)
-    eigvalues_M.push_back(values_M[iDim]);
-
-  /*--- Solve for the modified resolution tensor  ---*/
-  vector<su2double> eigvalues_Zeta = GetEigValues_Zeta(eigvalues_M);
-  vector<vector<su2double> > temp(3, vector<su2double>(3));
-  for (iDim = 0; iDim < nDim; iDim++) {
-    temp[iDim][iDim] = eigvalues_Zeta[iDim];
-  }
-  for (iDim = 0; iDim < nDim; iDim++) {
-    for (jDim = 0; jDim < nDim; jDim++) {
-      zeta[iDim][jDim] = 0.0;
-      for (kDim = 0; kDim < nDim; kDim++) {
-        for (lDim = 0; lDim < nDim; lDim++) {
-          zeta[iDim][jDim] += vectors_M[kDim][iDim] * temp[kDim][lDim] *
-                              vectors_M[lDim][jDim];
-        }
-      }
-    }
-  }
-#else
-  SU2_MPI::Error("Eigensolver without LAPACK not implemented; please use LAPACK.", CURRENT_FUNCTION);
-#endif
-
-  /*--- This return is placed here to avoid "no return" compiler warnings.---*/
-  return zeta;
-
-}
-
-vector<su2double> CHybrid_Mediator::GetEigValues_Zeta(const vector<su2double>& eigvalues_M) {
-  /*--- Find the minimum eigenvalue ---*/
-
-  su2double dnorm = *min_element(eigvalues_M.begin(), eigvalues_M.end());
-
-  /*--- Get eigenvalues to the normalized gradient-gradien tensor ---*/
-
-  vector<su2double> eigvalues_Q = GetEigValues_Q(eigvalues_M);
-#ifndef NDEBUG
-  for (int iDim = 0; iDim < nDim; iDim++) {
-    if (eigvalues_Q[iDim] != eigvalues_Q[iDim]) {
-      SU2_MPI::Error("At least one computed eigenvalue was NaN!", CURRENT_FUNCTION);
-    }
-  }
-#endif
-
-  /*--- Use eigenvalues from M and G to find eigenvalues for modified M ---*/
-
-  vector<su2double> eigvalues_zeta(3);
-  for (int iDim = 0; iDim < nDim; iDim++) {
-    eigvalues_zeta[iDim] = C_zeta*pow((eigvalues_M[iDim]/dnorm),1.0/3)*
-                           pow(eigvalues_Q[iDim],-0.5);
-
-    // XXX: Numerical fit for anisotropic resolution doesn't include > 256
-    if (eigvalues_M[iDim]/dnorm > 256) {
-      eigvalues_zeta[iDim] = max(eigvalues_zeta[iDim], 0.90);
-    }
-  }
-
-  return eigvalues_zeta;
-}
 
 void CHybrid_Mediator::SolveEigen(const su2double* const* M,
                                   vector<su2double> &eigvalues,
@@ -961,10 +685,6 @@ void CHybrid_Mediator::SolveGeneralizedEigen(const su2double* const* A,
 
 }
 
-
-vector<vector<su2double> > CHybrid_Mediator::GetConstants() {
-  return constants;
-}
 
 void CHybrid_Mediator::SetFluctuatingStress(CFluctuatingStress* fluct_stress) {
   fluct_stress_model = fluct_stress;

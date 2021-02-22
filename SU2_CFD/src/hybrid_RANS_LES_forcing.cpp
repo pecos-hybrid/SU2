@@ -98,15 +98,18 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
 
   const su2double time = config->GetCurrent_UnstTimeND();
   assert(time >= 0);
+  /*--- Timestep is used to check if forcing is physical ---*/
+  const su2double delta_t = solver[FLOW_SOL]->node[0]->GetDelta_Time();
+  assert(delta_t > 0);
 
   /*--- Allocate some scratch arrays to avoid continual reallocation ---*/
-  su2double h[nDim]; // Initial TG vortex field.
+  assert(nDim == 3);
+  su2double h[3]; // Initial TG vortex field.
   su2double Lsgs; // SGS length scale
   su2double Tsgs; // SGS time scale
-  su2double x[nDim]; // Position
-  su2double Lmesh[nDim]; // Mesh length scales in coord direction (computed from res tensor)
+  su2double x[3]; // Position
   su2double dwall; // distance to the wall
-  su2double uf[nDim];
+  su2double uf[3];
 
   // Domain lengths for periodic directions
   su2double *D = config->GetHybrid_Forcing_Periodic_Length();
@@ -128,15 +131,12 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     /*--- Setup the TG vortex ---*/
 
     // total k, epsilon, and v2 from model
-    // TODO: Generalize beyond v2-f
-    if (config->GetKind_Turb_Model() != KE) {
-      SU2_MPI::Error("Hybrid forcing is only compatible with the v2-f model.", CURRENT_FUNCTION);
-    }
-    const su2double v2 = max(solver[TURB_SOL]->node[iPoint]->GetSolution(2), V2_MIN);
+    const su2double ktot = solver[TURB_SOL]->node[iPoint]->GetSolution(0);
+    const su2double aniso_ratio = solver[TURB_SOL]->node[iPoint]->GetAnisoRatio();
+    const su2double v2 = max(TWO3*ktot*aniso_ratio, V2_MIN);
 
     // ratio of modeled to total TKE
-    su2double alpha = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
-    alpha = max(alpha, 1e-8);
+    const su2double beta = solver[FLOW_SOL]->average_node[iPoint]->GetKineticEnergyRatio();
 
     // average of r_M
     const su2double resolution_adequacy =
@@ -151,31 +151,23 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     assert(T_typical >= 0);
     assert(T_kol > 0);
 
-    Lsgs = max(forcing_scale * pow(alpha, 1.5) * L_typical, L_kol);
+    Lsgs = max(forcing_scale * pow(beta, 1.5) * L_typical, L_kol);
     Lsgs = max(Lsgs, L_kol);
-    Tsgs = alpha * T_typical;
+    Tsgs = beta * T_typical;
     Tsgs = max(Tsgs, T_kol);
-
-    // FIXME: I think this is equivalent to repo version of CDP,but
-    // not consistent with paper description, except for orthogonal
-    // grids aligned with coordinate axes.  Check with Sigfried.
-    const su2double* const* ResolutionTensor = geometry->node[iPoint]->GetResolutionTensor();
-    Lmesh[0] = ResolutionTensor[0][0];
-    Lmesh[1] = ResolutionTensor[1][1];
-    Lmesh[2] = ResolutionTensor[2][2];
 
     // Get dwall
     dwall = geometry->node[iPoint]->GetWall_Distance();
 
     if (config->isHybrid_Forced_Axi()) {
       // Angular periodic version 
-      this->SetAxiTGField(x, Lsgs, Lmesh, D, dwall, h);
+      this->SetAxiTGField(x, Lsgs, D, dwall, h);
     } else {
       // Compute TG velocity at this point
-      this->SetTGField(x, Lsgs, Lmesh, D, dwall, h);
+      this->SetTGField(x, Lsgs, D, dwall, h);
     }
 
-    const su2double Ftar = this->GetTargetProduction(v2, Tsgs, alpha);
+    const su2double Ftar = this->GetTargetProduction(v2, Tsgs, beta);
 
     // Compute PFtest
     su2double PFtest = 0.0;
@@ -185,15 +177,57 @@ void CHybridForcingTG0::ComputeForcingField(CSolver** solver, CGeometry *geometr
     }
     PFtest *= Ftar;
 
-    const su2double alpha_kol = solver[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+    const su2double beta_kol = solver[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
 
-    const su2double eta = this->ComputeScalingFactor(Ftar, resolution_adequacy,
-                                                     alpha, alpha_kol, PFtest);
+    const su2double eta = this->ComputeScalingFactor(resolution_adequacy,
+                                                     beta, beta_kol, PFtest);
+
+    /*--- Check for an unphysically large forcing ---*/
+
+    const su2double k_tot = solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
+    su2double energy_added = 0.0;
+    for (unsigned short iDim=0; iDim<nDim; iDim++) {
+      energy_added += prim_vars[iDim+1]*h[iDim];
+    }
+    energy_added *= delta_t * eta * Ftar;
+    su2double clipping = 1.0;
+    if (energy_added >= beta*k_tot*0.99) {
+      /*--- Arbitrary constant of 0.99 added to prevent Temp=0 ---*/
+      clipping = beta*k_tot/energy_added * 0.99;
+    }
+
 
     /*--- Store eta*h so we can compute the derivatives ---*/
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
-      node[iPoint][iDim] = eta*h[iDim];
+      node[iPoint][iDim] = clipping*Ftar*eta*h[iDim];
     }
 
+    /*--- Save the forcing for output ---*/
+
+    solver[FLOW_SOL]->node[iPoint]->SetForcingVector(node[iPoint]);
+    solver[FLOW_SOL]->node[iPoint]->SetForcingFactor(eta);
+    solver[FLOW_SOL]->node[iPoint]->SetForcingClipping(clipping);
+
   } // end loop over points
+}
+
+su2double CHybridForcingTG0::ComputeScalingFactor(
+                     const su2double resolution_adequacy,
+                     const su2double beta,
+                     const su2double beta_kol,
+                     const su2double PFtest) const {
+
+  su2double eta = 0.0;
+
+  if (PFtest >= 0.0) {
+    const su2double F_r = -tanh(1.0 - pow(min(resolution_adequacy, 1.0), -0.5));
+    const su2double beta_hat = (1.0 - beta)/max(1.0 - beta_kol, 0.01) - 1;
+    const su2double Dlim = F_r * (tanh(10*beta_hat)+1);
+    eta = F_r - Dlim;
+  }
+
+  // Check for NaNs in debug mode.
+  assert(eta == eta);
+
+  return eta;
 }

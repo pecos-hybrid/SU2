@@ -564,11 +564,13 @@ private:
   su2double Hybrid_Forcing_Strength,  /*!< \brief An overall scaling coefficient for the periodic forcing .*/
             Hybrid_Forcing_Vortex_Length;  /*!< \brief The forcing vortices will be of period N*L, where N is the forcing length and L is the turbulent lengthscale. */
   unsigned short Kind_Hybrid_SGET_Model; /*!< \brief Subgrid energy-transfer (SGET) model for hybrid RANS/LES models. */
+  bool Use_SGET_Overresolution_Fix; /*!< \brief Increase subgrid energy dissipation when over-resolved for hybrid RANS/LES models. */
   bool Use_Resolved_Turb_Stress; /*!< \brief Use the resolved turbulent stress during restarts. */
   unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
   su2double* FluctStress_AR_Params; /*!< \brief The parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
   su2double* default_fluct_stress_AR_params; /*!< \brief Default values of the parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
-
+  bool load_hybrid_from_RANS; /*!< \brief This is set to true if the hybrid solution is to be loaded from a RANS solution. */
+  su2double Hybrid_Resolution_Parameter; /*!< \brief Resolution adequacy parameter for the AMS hybrid RANS/LES model. */
 
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
@@ -613,7 +615,9 @@ private:
   Kappa_2nd_Flow,			/*!< \brief JST 2nd order dissipation coefficient for flow equations. */
   Kappa_4th_Flow,			/*!< \brief JST 4th order dissipation coefficient for flow equations. */
   Kappa_2nd_Heat,     /*!< \brief 2nd order dissipation coefficient for heat equation. */
-  Kappa_4th_Heat;     /*!< \brief 4th order dissipation coefficient for heat equation. */  
+  Kappa_4th_Heat,     /*!< \brief 4th order dissipation coefficient for heat equation. */  
+  Cent_Jac_Fix_Factor;/*!< \brief Multiply the dissipation contribution to the Jacobian of central schemes by this factor to make the global matrix more diagonal dominant. */
+  su2double JST_c4; /*!< \brief Factor multiplied by second order dissipation in JST scheme to reduce 4th order dissipation when 2nd order is active.  */
   su2double Geo_Waterline_Location; /*!< \brief Location of the waterline. */
   
   su2double Min_Beta_RoeTurkel,		/*!< \brief Minimum value of Beta for the Roe-Turkel low Mach preconditioner. */
@@ -796,10 +800,13 @@ private:
   Wrt_SharpEdges,              /*!< \brief Write residuals to solution file */
   Wrt_Halo,                   /*!< \brief Write rind layers in solution files */
   Wrt_Resolution_Tensors,     /*!< \brief Write resolutions tensors in solution files */
+  Wrt_Reynolds_Stress,        /*!< \brief Write Reynolds stress in solution files */
+  Wrt_InvalidState,           /*!< \brief Output the solution due to an invalid state error */
   Wrt_Performance,            /*!< \brief Write the performance summary at the end of a calculation.  */
   Wrt_InletFile,                   /*!< \brief Write a template inlet profile file */
   Wrt_Slice,                   /*!< \brief Write 1D slice of a 2D cartesian solution */
   Wrt_Projected_Sensitivity,   /*!< \brief Write projected sensitivities (dJ/dx) on surfaces to ASCII file. */
+  Wrt_Partition,               /*!< \brief Write the partition (coloring) to the output */
   Plot_Section_Forces;       /*!< \brief Write sectional forces for specified markers. */
   unsigned short Console_Output_Verb,  /*!< \brief Level of verbosity for console output */
   Kind_Average;        /*!< \brief Particular average for the marker analyze. */
@@ -1033,7 +1040,9 @@ private:
   bool addCrossTerm;          /*!< \brief Evaluates the need to add the cross term when setting the adjoint output. */
   unsigned long Nonphys_Points, /*!< \brief Current number of non-physical points in the solution. */
   Nonphys_Reconstr;      /*!< \brief Current number of non-physical reconstructions for 2nd-order upwinding. */
-  bool ParMETIS;      /*!< \brief Boolean for activating ParMETIS mode (while testing). */
+  su2double ParMETIS_tolerance;     /*!< \brief Load balancing tolerance for ParMETIS. */
+  long ParMETIS_pointWgt;           /*!< \brief Load balancing weight given to points. */
+  long ParMETIS_edgeWgt;            /*!< \brief Load balancing weight given to edges. */
   unsigned short DirectDiff; /*!< \brief Direct Differentation mode. */
   bool DiscreteAdjoint; /*!< \brief AD-based discrete adjoint mode. */
   unsigned long Wrt_Surf_Freq_DualTime;	/*!< \brief Writing surface solution frequency for Dual Time. */
@@ -1084,7 +1093,12 @@ private:
   su2double *default_kt_polycoeffs;        /*!< \brief Array for thermal conductivity polynomial coefficients. */
   su2double *ExtraRelFacGiles; /*!< \brief coefficient for extra relaxation factor for Giles BC*/
   bool Body_Force;            /*!< \brief Flag to know if a body force is included in the formulation. */
+  bool Density_Weighted_Force; /*!< \brief True if the body force is density-weighted. */
   su2double *Body_Force_Vector;  /*!< \brief Values of the prescribed body force vector. */
+  bool Const_Mass_Flux_Forcing; /*!< \brief Flag determining if a constant mass flux is imposed by a time-varying body force. */
+  bool Const_Temp_Flux_Forcing; /*!< \brief Flag determining if a constant temperature flux is imposed by a time-varying volumetric heating. */
+  su2double Target_Bulk_Momentum; /*!< \brief Target bulk momentum used in constant mass flux forcing */
+  su2double Target_Bulk_Temperature; /*!< \brief Target bulk temperature used in constant temp flux forcing */
   su2double *FreeStreamTurboNormal; /*!< \brief Direction to initialize the flow in turbomachinery computation */
   su2double Restart_Bandwidth_Agg; /*!< \brief The aggregate of the bandwidth for writing binary restarts (to be averaged later). */
   su2double Max_Vel2; /*!< \brief The maximum velocity^2 in the domain for the incompressible preconditioner. */
@@ -1147,7 +1161,10 @@ private:
   bool Use_v2f_Timescale_Limit; /*!< \brief Limit the timescale in the f-equation of the v2-f RANS model to 3/S. */
   unsigned short Kind_v2f_Limit; /*!< \brief Type of realizability limit imposed on the v2-f RANS model. */
   su2double v2f_Realizability_Constant; /*!< \brief The model constant used in the realizability limit. This is `C_lim` from Sveningsson and Davidson. */
+  su2double v2f_Ce1_Constant;
+  su2double v2f_Rf_Constant;
   bool Use_TKE_Diffusion; /*!< \brief Add TKE diffusion model for the molecular and turbulent transport of total energy. */
+  unsigned short SliceRestartType;
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -2974,10 +2991,28 @@ public:
   su2double *GetWeightsIntegrationADER_DG(void);
 
   /*!
-   * \brief Get the total number of boundary markers.
+   * \brief Get the total number of boundary markers including send/receive domains.
    * \return Total number of boundary markers.
    */
   unsigned short GetnMarker_All(void);
+
+  /*!
+   * \brief Get the total number of boundary markers in the config file.
+   * \return Total number of boundary markers.
+   */
+  unsigned short GetnMarker_CfgFile(void);
+
+  /*!
+   * \brief Get the number of Euler boundary markers.
+   * \return Number of Euler boundary markers.
+   */
+  unsigned short GetnMarker_Euler(void);
+
+  /*!
+   * \brief Get the number of symmetry boundary markers.
+   * \return Number of symmetry boundary markers.
+   */
+  unsigned short GetnMarker_SymWall(void);
   
   /*!
    * \brief Get the total number of boundary markers.
@@ -3340,6 +3375,12 @@ public:
    * \return <code>TRUE</code> means that resolution tensors will be written to the solution file.
    */
   bool GetWrt_Resolution_Tensors(void);
+
+  /*!
+   * \brief Check if we want to write the Reynolds stress.
+   * \return <code>TRUE</code> if we want to write the Reynolds stress
+   */
+  bool GetWrt_Reynolds_Stress(void) const { return Wrt_Reynolds_Stress; };
 
   /*!
    * \brief Get information about writing sectional force files.
@@ -4342,6 +4383,12 @@ public:
   unsigned short GetKind_Hybrid_Resolution_Indicator(void);
 
   /*!
+   * \brief Get the value of the calibrated resolution adequacy constant.
+   * \return Value of the resolution adequacy constant.
+   */
+  su2double GetHybrid_Resolution_Parameter(void) const { return Hybrid_Resolution_Parameter; }
+
+  /*!
    * \brief Checks if a hybrid LES/RANS method should be forced.
    * \return True if the hybrid RANS/LES model is to be forced.
    */
@@ -4379,6 +4426,13 @@ public:
   unsigned short GetKind_Hybrid_SGET_Model(void);
 
   /*!
+   * \brief Check if the SGET model should increase dissipation in regions
+   *        of over-resolution.
+   * \return True if the SGET model should add an over-resolution fix.
+   */
+  bool GetUse_SGET_Overresolution_Fix(void) const { return Use_SGET_Overresolution_Fix; }
+
+  /*!
    * \brief Check if the full resolved turbulent stress is to be used for
    *        hybrid RANS/LES.
    * \return True if the resolved turbulent stress is to be used.
@@ -4392,11 +4446,16 @@ public:
   void SetUse_Resolved_Turb_Stress(bool use_stress);
 
   /*!
-   * \brief Check if the timescale limit should be used in the v2-f
-   *        RANS model.
-   * \return True if the timescale limit should be used.
+   * \brief Load a hybrid solution from a RANS solution
+   * \param[in] load_value - True if the hybrid RANS/LES solution is to be loaded from RANS
    */
-  bool GetUse_v2f_Timescale_Limit(void) const;
+  void SetLoadHybridFromRANS(bool load_value) { load_hybrid_from_RANS = load_value; }
+
+  /*!
+   * \brief Load a hybrid solution from a RANS solution
+   * \return True if the hybrid RANS/LES solution is to be loaded from RANS
+   */
+  bool GetLoadHybridFromRANS() const { return load_hybrid_from_RANS; }
 
   /*!
    * \brief Get the kind of the turbulence model.
@@ -4704,6 +4763,13 @@ public:
   su2double GetKappa_4th_Flow(void);
 
   /*!
+   * \brief Return the factor multiplied by second order dissipation in
+   * JST scheme to reduce 4th order dissipation when 2nd order is active.
+   * \return c4 constant for the JST method for the flow equations
+   */
+  su2double GetJST_c4(void) const { return JST_c4; };
+
+  /*!
    * \brief Value of the calibrated constant for the JST method (center scheme).
    * \return Calibrated constant for the JST-like method for the heat equations.
    */
@@ -4715,6 +4781,12 @@ public:
    */
   su2double GetKappa_4th_Heat(void);
   
+  /*!
+   * \brief Factor by which to multiply the dissipation contribution to Jacobians of central schemes.
+   * \return The factor.
+   */
+  inline su2double GetCent_Jac_Fix_Factor(void) const { return Cent_Jac_Fix_Factor; }
+
   /*!
    * \brief Get the kind of integration scheme (explicit or implicit)
    *        for the adjoint flow equations.
@@ -5157,6 +5229,10 @@ public:
    * \return The realizability model constant
    */
   su2double Getv2f_Realizability_Constant(void) const;
+
+  su2double Getv2f_Ce1_Constant(void) const { return v2f_Ce1_Constant; }
+
+  su2double Getv2f_Rf_Constant(void) const { return v2f_Rf_Constant; }
 
   /*!
    * \brief  Add TKE diffusion model for the molecular and turbulent
@@ -6259,10 +6335,60 @@ public:
   bool GetBody_Force(void);
 
   /*!
+   * \brief Check if the body force is density-weighted.
+   * \return True if the body force is to density-weighted.
+   */
+  bool GetDensity_Weighted_Force(void) const { return Density_Weighted_Force; }
+
+  /*!
    * \brief Get a pointer to the body force vector.
    * \return A pointer to the body force vector.
    */
   su2double* GetBody_Force_Vector(void);
+
+  /*!
+   * \brief Set a component of the body force.
+   * \param[in] val_force - The value of the component of the body force
+   * \param[in] iDim - The component index
+   */
+  void SetBody_Force_Vector(su2double val_force, unsigned short iDim);
+
+  /*!
+   * \brief Check if forcing is applied to maintain a constant mass flux
+   * \return <code>TRUE</code> if it uses a body force; otherwise <code>FALSE</code>.
+   */
+  bool GetConst_Mass_Flux_Forcing(void) const;
+
+  /*!
+   * \brief Check if volumetric heating is applied to maintain a constant
+   *        temperature flux.
+   * \return <code>TRUE</code> if it uses a volumetric heating; otherwise <code>FALSE</code>.
+   */
+  bool GetConst_Temp_Flux_Forcing(void) const;
+
+  /*!
+   * \brief Find the target bulk momentum used in constant mass flux forcing.
+   * \return The target bulk momentum
+   */
+  su2double GetTarget_Bulk_Momentum(void) const;
+
+  /*!
+   * \brief Find the target bulk temperature used in constant mass flux forcing.
+   * \return The target bulk temperature
+   */
+  su2double GetTarget_Bulk_Temperature(void) const;
+
+  /*!
+   * \brief Find the target bulk momentum used in constant mass flux forcing.
+   * \return The target bulk momentum
+   */
+  void SetTarget_Bulk_Momentum(su2double val_momentum);
+
+  /*!
+   * \brief Find the target bulk temperature used in constant mass flux forcing.
+   * \return The target bulk temperature
+   */
+  void SetTarget_Bulk_Temperature(su2double val_temperature);
 
   /*!
    * \brief Get information about the rotational frame.
@@ -6780,6 +6906,14 @@ public:
    */
   unsigned short GetMarker_Moving(string val_marker);
   
+
+  /*!
+   * \brief Get bool if marker is moving. <i>val_marker</i>.
+   * \param[in] val_marker - String of the marker to test.
+   * \return Bool if the marker is a moving boundary <i>val_marker</i>.
+   */
+  bool GetMarker_Moving_Bool(string val_marker);
+
   /*!
    * \brief Get the name of the surface defined in the geometry file.
    * \param[in] val_marker - Value of the marker in which we are interested.
@@ -9500,6 +9634,41 @@ public:
    * \return YES if the forces breakdown file is written.
    */
   bool GetWrt_ForcesBreakdown(void);
+
+  /*!
+   * \brief Check if the solution should be written due to an invalid state.
+   * \return YES if the solution should be written. 
+   */
+  bool GetWrt_InvalidState(void) const { return Wrt_InvalidState; }
+
+  /*!
+   * \brief Set if an invalid solutions state should be saved. 
+   * \param[in] invalid_state - True if the solution should be written.
+   */
+  void SetWrt_InvalidState(bool invalid_state) { Wrt_InvalidState = invalid_state; };
+
+  unsigned short GetSliceRestartType(void) const { return SliceRestartType; }
+  
+  /*!
+   * \brief Check if the partition (coloring) should be an output
+   * \return YES if the partition (coloring) should be written
+   */
+  bool GetWrt_Partition(void) const { return Wrt_Partition; }
+
+  /*!
+   * \brief Get the ParMETIS load balancing tolerance.
+   */
+  passivedouble GetParMETIS_Tolerance() const { return SU2_TYPE::GetValue(ParMETIS_tolerance); }
+
+  /*!
+   * \brief Get the ParMETIS load balancing weight for points.
+   */
+  long GetParMETIS_PointWeight() const { return ParMETIS_pointWgt; }
+
+  /*!
+   * \brief Get the ParMETIS load balancing weight for edges
+   */
+  long GetParMETIS_EdgeWeight() const { return ParMETIS_edgeWgt; }
 };
 
 #include "config_structure.inl"

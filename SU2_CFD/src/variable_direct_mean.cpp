@@ -835,9 +835,11 @@ void CNSVariable::SetRoe_Dissipation_FD(su2double val_wall_dist){
   
 }
 
-bool CNSVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel *FluidModel) {
+bool CNSVariable::SetPrimVar(su2double eddy_visc,
+                             su2double turb_ke,
+                             CFluidModel *FluidModel,
+                             bool fallback_on_error) {
   
-    unsigned short iVar;
   su2double density, staticEnergy;
   bool check_dens = false, check_press = false, check_sos = false,
   check_temp = false, RightVol = true;
@@ -858,37 +860,46 @@ bool CNSVariable::SetPrimVar(su2double eddy_visc, su2double turb_ke, CFluidModel
   
   if (check_temp) {
     std::cout << "Encountered invalid temperature!" << std::endl;
-    std::cout << "T = " << FluidModel->GetTemperature() << std::endl;
-    std::cout << "rho = " << density << std::endl;
-    std::cout << "with E = " << GetEnergy() << ", V2 = " << Velocity2 << ", tke = " << turb_ke << std::endl;
+    std::cout << "  T = " << FluidModel->GetTemperature() << std::endl;
+    std::cout << "  rho = " << density << std::endl;
+    std::cout << "  static energy = " << staticEnergy << std::endl;
+    std::cout << "  with E = " << GetEnergy() << ", V2 = " << Velocity2 << ", tke = " << turb_ke << std::endl;
   }
 
   /*--- Check that the solution has a physical meaning ---*/
   
   if (check_dens || check_press || check_sos  || check_temp) {
-    
-    // /*--- Copy the old solution ---*/
-    
-    // for (iVar = 0; iVar < nVar; iVar++)
-    //   Solution[iVar] = Solution_Old[iVar];
-    
-    // /*--- Recompute the primitive variables ---*/
-    
-    // SetVelocity(); // Computes velocity and velocity^2
-    // density = GetDensity();
-    // staticEnergy = GetEnergy()-0.5*Velocity2 - turb_ke;
-    
-    // /*--- Check will be moved inside fluid model plus error description strings ---*/
-    
-    // FluidModel->SetTDState_rhoe(density, staticEnergy);
-    
-    // SetDensity();
-    // SetPressure(FluidModel->GetPressure());
-    // SetSoundSpeed(FluidModel->GetSoundSpeed2());
-    // SetTemperature(FluidModel->GetTemperature());
-    
-    RightVol = false;
-    return RightVol;
+
+    if (fallback_on_error) {
+      /*--- Copy the old solution ---*/
+
+      for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+        Solution[iVar] = Solution_Old[iVar];
+      }
+
+      /*--- Recompute the primitive variables ---*/
+
+      SetVelocity(); // Computes velocity and velocity^2
+      density = GetDensity();
+      staticEnergy = GetEnergy()-0.5*Velocity2 - turb_ke;
+
+      /*--- Check will be moved inside fluid model plus error description strings ---*/
+
+      FluidModel->SetTDState_rhoe(density, staticEnergy);
+
+      SetDensity();
+      SetPressure(FluidModel->GetPressure());
+      SetSoundSpeed(FluidModel->GetSoundSpeed2());
+      SetTemperature(FluidModel->GetTemperature());
+
+      RightVol = false;
+
+    } else {
+
+      /*--- Keep bad solution, instead of using old solution ---*/
+      RightVol = false;
+      return RightVol;
+    }
   }
   
   /*--- Set enthalpy ---*/
@@ -935,5 +946,27 @@ void CNSVariable::SetSecondaryVar(CFluidModel *FluidModel) {
 
 }
 
+su2double CNSVariable::GetReynoldsStress(unsigned short iDim, unsigned short jDim) const {
 
+  /*--- Note: Typically, turbulent kinetic energy is not available in the
+   * CNSVariable.  So we only calculate the deviatoric Reynolds stress
+   * here.  The 2/3 \rho k \delta_{ij} must be added to give the proper
+   * normal stresses ---*/
+
+  const su2double alpha = pow(KineticEnergyRatio, 1.7);
+  const su2double alpha_fac = alpha*(2.0 - alpha);
+  /*--- Primitive[nDim+6] is eddy viscosity.  Can't use GetEddyViscosity
+   * due to const qualifiers ---*/
+  const su2double mut_sgs = alpha_fac*Primitive[nDim+6];
+
+  su2double tau = mut_sgs*( Gradient_Primitive[jDim+1][iDim] + Gradient_Primitive[iDim+1][jDim] );
+  if (iDim == jDim) {
+    su2double div_vel = 0.0;
+    for (unsigned short kDim = 0 ; kDim < nDim; kDim++) {
+      div_vel += Gradient_Primitive[kDim+1][kDim];
+    }
+    tau -= TWO3*mut_sgs*div_vel;
+  }
+  return tau;
+}
 

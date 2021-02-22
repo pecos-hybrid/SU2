@@ -36,6 +36,7 @@
  */
 
 #include "../include/solver_structure.hpp"
+#include "../include/slice_file_reader.hpp"
 #include "../../Common/include/toolboxes/printing_toolbox.hpp"
 
 CEulerSolver::CEulerSolver(void) : CSolver() {
@@ -168,7 +169,9 @@ CEulerSolver::CEulerSolver(void) : CSolver() {
   CkInflow                      = NULL;
   CkOutflow1                    = NULL;
   CkOutflow2                    = NULL;
- 
+
+  bulk_force = 0;
+  bulk_heating = 0;
 }
 
 CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh) : CSolver() {
@@ -199,6 +202,8 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   bool multizone = config->GetMultizone_Problem();
   string filename_ = config->GetSolution_FlowFileName();
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
 
   /*--- Check for a restart file to evaluate if there is a change in the angle of attack
    before computing all the non-dimesional quantities. ---*/
@@ -467,6 +472,15 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   LinSysSol.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysRes.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysAux.Initialize(nPoint, nPointDomain, nVar, 0.0);
+  if (constant_bulk_momentum || constant_bulk_temperature) {
+    LinSys_w.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_y.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_z.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_d.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_e.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_g.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_forcing_terms.Initialize(nPoint, nPointDomain, nVar, 0.0);
+  }
 
   if (implicit_rk) {
     std::cout << "For RK too..." << std::endl;
@@ -743,6 +757,9 @@ CEulerSolver::CEulerSolver(CGeometry *geometry, CConfig *config, unsigned short 
   Total_CL_Prev = 0.0;    Total_CD_Prev      = 0.0;
   Total_CMx_Prev      = 0.0; Total_CMy_Prev      = 0.0; Total_CMz_Prev      = 0.0;
   Total_AeroCD = 0.0;  Total_SolidCD = 0.0;   Total_IDR   = 0.0;    Total_IDC   = 0.0;
+
+  bulk_force = 0;
+  bulk_heating = 0;
 
   /*--- Read farfield conditions ---*/
   
@@ -1572,13 +1589,55 @@ void CEulerSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
   SU2_MPI::Status status;
 #endif
   
+  std::stringstream error_msg;
+  bool throw_error = false;
   for (iMarker = 0; iMarker < nMarker; iMarker++) {
     
     if ((config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) &&
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
-      
+      if (MarkerR >= nMarker) {
+         if (!throw_error) {
+           error_msg << "The partitioning failed!" << endl;
+           error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         }
+         error_msg << "SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         throw_error = true;
+      }
+      if (config->GetMarker_All_KindBC(MarkerR) != SEND_RECEIVE) {
+         if (!throw_error) {
+           error_msg << "The partitioning failed!" << endl;
+           error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         }
+         error_msg << "SU2 found MarkerR that was not SEND_RECEIVE." << endl;
+         error_msg << "  Note: (SEND_RECEIVE == 99)" << endl;
+         error_msg << "  rank:            " << rank << endl;
+         error_msg << "  MarkerS :        " << MarkerS << endl;
+         error_msg << "  MarkerR:         " << MarkerR << endl;
+         error_msg << "  KindBC[MarkerR]: " << config->GetMarker_All_KindBC(MarkerR) << endl;
+         throw_error = true;
+      }
+      if (-config->GetMarker_All_SendRecv(MarkerR) !=
+           config->GetMarker_All_SendRecv(MarkerS)) {
+         if (!throw_error) {
+           error_msg << "The partitioning failed!" << endl;
+           error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         }
+         error_msg << "SU2 found MarkerR that did not match MarkerS." << endl;
+         error_msg << "  rank:              " << rank << endl;
+         error_msg << "  MarkerS:           " << MarkerS << endl;
+         error_msg << "  MarkerR:           " << MarkerR << endl;
+         error_msg << "  SendRecv[MarkerS]: " << config->GetMarker_All_SendRecv(MarkerS) << endl;
+         error_msg << "  SendRecv[MarkerR]: " << config->GetMarker_All_SendRecv(MarkerR) << endl;
+         throw_error = true;
+      }
+      if (throw_error) break;
+
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
       receive_from = abs(config->GetMarker_All_SendRecv(MarkerR))-1;
@@ -1675,6 +1734,9 @@ void CEulerSolver::Set_MPI_Solution(CGeometry *geometry, CConfig *config) {
     }
     
   }
+  if (throw_error) {
+    SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+  }
   
 }
 
@@ -1698,6 +1760,16 @@ void CEulerSolver::Set_MPI_Average_Solution(CGeometry *geometry, CConfig *config
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
 
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
 
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -1881,6 +1953,16 @@ void CEulerSolver::Set_MPI_Solution_Old(CGeometry *geometry, CConfig *config) {
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -1997,6 +2079,16 @@ void CEulerSolver::Set_MPI_Undivided_Laplacian(CGeometry *geometry, CConfig *con
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2113,6 +2205,16 @@ void CEulerSolver::Set_MPI_MaxEigenvalue(CGeometry *geometry, CConfig *config) {
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2192,6 +2294,16 @@ void CEulerSolver::Set_MPI_Sensor(CGeometry *geometry, CConfig *config) {
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2271,6 +2383,16 @@ void CEulerSolver::Set_MPI_Solution_Gradient(CGeometry *geometry, CConfig *confi
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2430,6 +2552,16 @@ void CEulerSolver::Set_MPI_Average_Solution_Gradient(CGeometry *geometry, CConfi
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
 
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
 
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2583,6 +2715,16 @@ void CEulerSolver::Set_MPI_Solution_Limiter(CGeometry *geometry, CConfig *config
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2710,6 +2852,16 @@ void CEulerSolver::Set_MPI_Primitive_Gradient(CGeometry *geometry, CConfig *conf
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -2876,6 +3028,16 @@ void CEulerSolver::Set_MPI_Average_Primitive_Gradient(CGeometry *geometry, CConf
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
 
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
 
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -3037,6 +3199,16 @@ void CEulerSolver::Set_MPI_Primitive_Limiter(CGeometry *geometry, CConfig *confi
         (config->GetMarker_All_SendRecv(iMarker) > 0)) {
       
       MarkerS = iMarker;  MarkerR = iMarker+1;
+      if (MarkerR >= nMarker) {
+         std::stringstream error_msg;
+         error_msg << "Expected send/receive to marker pairs to be sequential." << endl;
+         error_msg << "  Instead, SU2 encountered MarkerR > nMarker." << endl;
+         error_msg << "  rank :    " << rank << endl;
+         error_msg << "  nMarker : " << nMarker << endl;
+         error_msg << "  MarkerR : " << MarkerR << endl;
+         error_msg << "  MarkerS : " << MarkerS << endl;
+         SU2_MPI::Error(error_msg.str(), CURRENT_FUNCTION);
+      }
       
 #ifdef HAVE_MPI
       send_to = config->GetMarker_All_SendRecv(MarkerS)-1;
@@ -7010,6 +7182,8 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
   bool adjoint = config->GetContinuous_Adjoint();
   bool roe_turkel = config->GetKind_Upwind_Flow() == TURKEL;
   bool low_mach_prec = config->Low_Mach_Preconditioning();
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
   
   /*--- Set maximum residual to zero ---*/
   
@@ -7075,11 +7249,238 @@ void CEulerSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver
       LinSysSol[total_index] = 0.0;
     }
   }
+
+  if (constant_bulk_momentum || constant_bulk_temperature) {
+    LinSys_w.SetValZero();
+    LinSys_y.SetValZero();
+    LinSys_z.SetValZero();
+    LinSys_d.SetValZero();
+    LinSys_e.SetValZero();
+    LinSys_g.SetValZero();
+    LinSys_forcing_terms.SetValZero();
+  }
   
   /*--- Solve or smooth the linear system ---*/
   
   CSysSolve system;
-  IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+  if (constant_bulk_momentum || constant_bulk_temperature) {
+
+    /*--- Calculate forcing
+     *
+     * In order to maintain that the bulk mass flux doesn't change, we
+     * need to solve:
+     *   f = - <d, y> / <d, z>.
+     * where:
+     *   Ay = b
+     *   Az = e
+     * and:
+     *   A = Jacobian matrix for backward Euler
+     *   b = negative residual (without forcing)
+     *   e = the weighting of the forcing at each node
+     *       (volume for momentum, volume*velocity for total energy)
+     *   d = Vector containing the volume of each cell in the rows
+     *       where zero change in flux is required
+     *
+     * Note that the integral of the state is discretely equal to:
+     *   int = <d, u>
+     * where:
+     *   d = volume of that cell
+     *   u = density, momentum, or energy
+     * ---*/
+
+    su2double* f_residual = new su2double[nVar];
+    su2double* f_weight = new su2double[nVar];
+    for (iVar = 0; iVar < nVar; iVar++) {
+      f_residual[iVar] = 0.0;
+      f_weight[iVar] = 0.0;
+    }
+
+    /*--- Solve y = A_inv b
+     * Here, LinSys_y stores the "delta U" that would be used if no
+     * forcing were applied.
+     * ---*/
+
+    IterLinSol = system.Solve(Jacobian, LinSysRes, LinSys_y, geometry, config);
+
+    /*--- Solve z = A_inv e
+     * Here, LinSys_e stores the weighting of the forcing at each node
+     * (e.g. the volume). Then LinSys_z stores the product of the inverse
+     * Jacobian and the weighting vector ---*/
+
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+      const su2double Volume = geometry->node[iPoint]->GetVolume();
+      const su2double u_velocity = node[iPoint]->GetSolution(1) /
+                                   node[iPoint]->GetSolution(0);
+
+      f_weight[0] = 0.0;
+      f_weight[1] = Volume;
+      for (unsigned short iDim = 1; iDim < nDim; iDim++) {
+        f_weight[iDim+1] = 0.0;
+      }
+
+      f_weight[nDim+1] = Volume * u_velocity;
+
+      LinSys_e.AddBlock(iPoint, f_weight);
+    }
+
+    system.Solve(Jacobian, LinSys_e, LinSys_z, geometry, config);
+
+    /*--- Setup the vector of volumes for the "no change in flux"
+     * constraint ---*/
+
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+      const su2double Volume = geometry->node[iPoint]->GetVolume();
+
+      f_weight[0] = 0.0;
+      f_weight[1] = Volume;
+      for (unsigned short iDim = 1; iDim < nDim; iDim++) {
+        f_weight[iDim+1] = 0.0;
+      }
+
+      /*--- We only want to solve for bulk u velocity = constant ---*/
+
+      f_weight[nDim+1] = 0.0;
+
+      LinSys_d.AddBlock(iPoint, f_weight);
+    }
+
+    /*--- We are only solving for the forcing to some finite precision.
+     * This will lead to the bulk momentum drifting away from the
+     * target bulk momentum.  To counteract this, we add in a force
+     * proportional to the difference between the target and the actual
+     * momentum.  This term should go to the precision of the linear
+     * solve after initial transients pass. ---*/
+
+    const su2double Momentum_Ref = config->GetVelocity_Ref() * config->GetDensity_Ref();
+    const su2double target_momentum = config->GetTarget_Bulk_Momentum() / Momentum_Ref;
+    const su2double delta_rhou = (target_momentum - bulk_density * bulk_velocity)*total_volume;
+
+    su2double send_buffer[2], recv_buffer[2];
+    send_buffer[0] = dotProd(LinSys_d, LinSys_y);
+    send_buffer[1] = dotProd(LinSys_d, LinSys_z);
+    SU2_MPI::Reduce(send_buffer, recv_buffer, 2, MPI_DOUBLE, MPI_SUM, MASTER_NODE, MPI_COMM_WORLD);
+    SU2_MPI::Bcast(recv_buffer, 2, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+    const su2double d_Ainv_b = recv_buffer[0];
+    const su2double d_Ainv_e = recv_buffer[1];
+
+    bulk_force = (delta_rhou - d_Ainv_b) / d_Ainv_e;
+
+    /*--- Compute a volumetric heating ---*/
+
+    // TODO: Refactor this so that each type of forcing can be used independently
+
+    if (constant_bulk_temperature) {
+      
+      /*--- Solve w = A_inv g
+       * Here, LinSys_g stores the weighting of the forcing at each node
+       * (e.g. the volume). Then LinSys_w stores the product of the inverse
+       * Jacobian and the weighting vector ---*/
+
+      for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+        const su2double Volume = geometry->node[iPoint]->GetVolume();
+
+        f_weight[0] = 0.0;
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          f_weight[iDim+1] = 0.0;
+        }
+
+        f_weight[nDim+1] = Volume;
+
+        LinSys_g.AddBlock(iPoint, f_weight);
+      }
+
+      system.Solve(Jacobian, LinSys_g, LinSys_w, geometry, config);
+
+      /*--- Setup the vector of volumes for the "no change in flux"
+       * constraint. NOTE: This is *not* the same d vector as in the
+       * forcing solve ---*/
+
+      LinSys_d.SetValZero();
+      for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+        const su2double Volume = geometry->node[iPoint]->GetVolume();
+
+        f_weight[0] = 0.0;
+        for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+          f_weight[iDim+1] = 0.0;
+        }
+
+        /*--- We only want to solve for bulk temp = constant ---*/
+
+        f_weight[nDim+1] = Volume;
+
+        LinSys_d.AddBlock(iPoint, f_weight);
+      }
+
+      const su2double target_temp =
+        config->GetTarget_Bulk_Temperature() / config->GetTemperature_Ref();
+      const su2double cv = config->GetGas_ConstantND() / (Gamma_Minus_One);
+      const su2double delta_rhoE = cv*bulk_density*(target_temp - bulk_temperature)*total_volume;
+
+      su2double send_buffer[2], recv_buffer[2];
+      send_buffer[0] = dotProd(LinSys_d, LinSys_y);
+      send_buffer[1] = dotProd(LinSys_d, LinSys_w);
+      SU2_MPI::Reduce(send_buffer, recv_buffer, 2, MPI_DOUBLE, MPI_SUM, MASTER_NODE, MPI_COMM_WORLD);
+      SU2_MPI::Bcast(recv_buffer, 2, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+      const su2double d_Ainv_b = recv_buffer[0];
+      const su2double d_Ainv_g = recv_buffer[1];
+
+      bulk_heating = (delta_rhoE - d_Ainv_b - d_Ainv_e * bulk_force) / d_Ainv_g;
+
+    } else {
+      bulk_heating = 0.0;
+    }
+
+    /*--- Update residuals ---*/
+
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+
+      const su2double Volume = geometry->node[iPoint]->GetVolume();
+      const su2double u_velocity = node[iPoint]->GetSolution(1) /
+                                   node[iPoint]->GetSolution(0);
+
+      f_residual[0] = 0.0;
+      f_residual[1] = Volume * bulk_force;
+      for (unsigned short iDim = 1; iDim < nDim; iDim++) {
+        f_residual[iDim+1] = 0.0;
+      }
+      f_residual[nDim+1] = Volume * u_velocity * bulk_force + Volume * bulk_heating;
+
+      LinSysRes.AddBlock(iPoint, f_residual);
+    }
+
+    for (iVar = 0; iVar < nVar; iVar++) {
+      SetRes_RMS(iVar, 0.0);
+      SetRes_Max(iVar, 0.0, 0);
+    }
+    for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+      for (iVar = 0; iVar < nVar; iVar++) {
+        total_index = iPoint*nVar + iVar;
+        AddRes_RMS(iVar, LinSysRes[total_index]*LinSysRes[total_index]);
+        AddRes_Max(iVar, fabs(LinSysRes[total_index]), geometry->node[iPoint]->GetGlobalIndex(), geometry->node[iPoint]->GetCoord());
+      }
+    }
+    
+    /*--- Get the solution ---*/
+
+    if (constant_bulk_temperature) {
+      LinSys_forcing_terms.Equals_AX_Plus_BY(bulk_force, LinSys_z, bulk_heating, LinSys_w);
+      LinSysSol.Equals_AX_Plus_BY(1.0, LinSys_y, 1.0, LinSys_forcing_terms);
+    } else {
+      LinSysSol.Equals_AX_Plus_BY(1.0, LinSys_y, bulk_force, LinSys_z);
+    }
+
+    delete [] f_residual;
+    delete [] f_weight;
+
+  } else {
+
+    IterLinSol = system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+
+  }
   
   /*--- The the number of iterations of the linear solver ---*/
   
@@ -10141,190 +10542,308 @@ void CEulerSolver::Evaluate_ObjFunc(CConfig *config) {
   
 }
 
-void CEulerSolver::BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container,
-                                 CNumerics *numerics, CConfig *config,
-                                 unsigned short val_marker, unsigned short iRKStep) {
-  
-  unsigned short iDim, iVar, jVar, kVar, jDim;
-  unsigned long iPoint, iVertex;
-  su2double *Normal = NULL, *GridVel = NULL, Area, UnitNormal[3], *NormalArea,
-  ProjGridVel = 0.0, turb_ke;
-  su2double Density_b, StaticEnergy_b, Enthalpy_b, *Velocity_b, Kappa_b, Chi_b, Energy_b, VelMagnitude2_b, Pressure_b;
-  su2double Density_i, *Velocity_i, ProjVelocity_i = 0.0, Energy_i, VelMagnitude2_i;
-  su2double **Jacobian_b, **DubDu;
-  
-  bool implicit =
+
+void CEulerSolver::BC_Euler_Wall(CGeometry      *geometry,
+                                 CSolver        **solver_container,
+                                 CNumerics      *conv_numerics,
+                                 CNumerics      *visc_numerics,
+                                 CConfig        *config,
+                                 unsigned short val_marker,
+                                 unsigned short iRKStep) {
+
+  /*--- Call the equivalent symmetry plane boundary condition. ---*/
+  BC_Sym_Plane(geometry, solver_container, conv_numerics, visc_numerics, config, val_marker, iRKStep);
+
+}
+
+
+void CEulerSolver::BC_Sym_Plane(CGeometry      *geometry,
+                                CSolver        **solver_container,
+                                CNumerics      *conv_numerics,
+                                CNumerics      *visc_numerics,
+                                CConfig        *config,
+                                unsigned short val_marker,
+                                unsigned short iRKStep) {
+
+  unsigned short iDim, iVar;
+  unsigned long iVertex, iPoint;
+
+  const bool implicit =
     ((config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
      (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK && iRKStep == 0) ||
      (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91 && iRKStep == 0) );
+  const bool viscous  = config->GetViscous();
+  const bool grid_movement  = config->GetGrid_Movement();
+  const bool tkeNeeded = (((config->GetKind_Solver() == RANS ) || (config->GetKind_Solver() == DISC_ADJ_RANS)) &&
+                          ((config->GetKind_Turb_Model() == SST) || (config->GetKind_Turb_Model() == KE)) );
 
+  /*--- Allocation of variables necessary for convective fluxes. ---*/
+  su2double Area, ProjVelocity_i,
+            *V_reflected, 
+            *V_domain,
+            *Normal     = new su2double[nDim],
+            *UnitNormal = new su2double[nDim];
 
-  bool grid_movement = config->GetGrid_Movement();
-  bool tkeNeeded = (((config->GetKind_Solver() == RANS ) || (config->GetKind_Solver() == DISC_ADJ_RANS)) &&
-                    ((config->GetKind_Turb_Model() == SST) || (config->GetKind_Turb_Model() == KE)) );
-  
-  Normal = new su2double[nDim];
-  NormalArea = new su2double[nDim];
-  Velocity_b = new su2double[nDim];
-  Velocity_i = new su2double[nDim];
-  Jacobian_b = new su2double*[nVar];
-  DubDu = new su2double*[nVar];
-  for (iVar = 0; iVar < nVar; iVar++) {
-    Jacobian_b[iVar] = new su2double[nVar];
-    DubDu[iVar] = new su2double[nVar];
-  }
-  
-  /*--- Loop over all the vertices on this boundary marker ---*/
-  
+  /*--- Allocation of variables necessary for viscous fluxes. ---*/
+  su2double ProjGradient, ProjNormVelGrad, ProjTangVelGrad, TangentialNorm,
+            *Tangential  = new su2double[nDim],
+            *GradNormVel = new su2double[nDim],
+            *GradTangVel = new su2double[nDim];
+
+  /*--- Allocation of primitive gradient arrays for viscous fluxes. ---*/
+  su2double **Grad_Reflected = new su2double*[nPrimVarGrad];
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+    Grad_Reflected[iVar] = new su2double[nDim];
+
+  /*--- Loop over all the vertices on this boundary marker. ---*/
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-    
-    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
-    
-    if (geometry->node[iPoint]->GetDomain()) {
-      
-      /*--- Normal vector for this vertex (negative for outward convention) ---*/
-      
-      geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
-      
+
+    if (iVertex == 0 ||
+        geometry->bound_is_straight[val_marker] != true) {
+
+      /*----------------------------------------------------------------------------------------------*/
+      /*--- Preprocessing:                                                                         ---*/
+      /*--- Compute the unit normal and (in case of viscous flow) a corresponding unit tangential  ---*/
+      /*--- to that normal. On a straight(2D)/plane(3D) boundary these two vectors are constant.   ---*/
+      /*--- This circumstance is checked in gemoetry->ComputeSurf_Straightness(...) and stored     ---*/
+      /*--- such that the recomputation does not occur for each node. On true symmetry planes, the ---*/
+      /*--- normal is constant but this routines is used for Symmetry, Euler-Wall in inviscid flow ---*/
+      /*--- and Euler Wall in viscous flow as well. In the latter curvy boundaries are likely to   ---*/
+      /*--- happen. In doubt, the conditional above which checks straightness can be thrown out    ---*/
+      /*--- such that the recomputation is done for each node (which comes with a tiny performance ---*/
+      /*--- penalty).                                                                              ---*/
+      /*----------------------------------------------------------------------------------------------*/
+
+      /*--- Normal vector for a random vertex (zero) on this marker (negate for outward convention). ---*/
+      geometry->vertex[val_marker][iVertex]->GetNormal(Normal); 
+      for (iDim = 0; iDim < nDim; iDim++)
+        Normal[iDim] = -Normal[iDim];
+
+      /*--- Compute unit normal, to be used for unit tangential, projected velocity and velocity 
+            component gradients. ---*/
       Area = 0.0;
-      for (iDim = 0; iDim < nDim; iDim++) Area += Normal[iDim]*Normal[iDim];
+      for (iDim = 0; iDim < nDim; iDim++)
+        Area += Normal[iDim]*Normal[iDim];
       Area = sqrt (Area);
-      
-      for (iDim = 0; iDim < nDim; iDim++) {
-        NormalArea[iDim] = -Normal[iDim];
+
+      for (iDim = 0; iDim < nDim; iDim++)
         UnitNormal[iDim] = -Normal[iDim]/Area;
-      }
-      
-      /*--- Get the state i ---*/
 
-      VelMagnitude2_i = 0.0; ProjVelocity_i = 0.0;
-      for (iDim = 0; iDim < nDim; iDim++) {
-        Velocity_i[iDim] = node[iPoint]->GetVelocity(iDim);
-        ProjVelocity_i += Velocity_i[iDim]*UnitNormal[iDim];
-        VelMagnitude2_i += Velocity_i[iDim]*Velocity_i[iDim];
-      }
-      Density_i = node[iPoint]->GetDensity();
-      Energy_i = node[iPoint]->GetEnergy();
+      /*--- Preprocessing: Compute unit tangential, the direction is arbitrary as long as 
+            t*n=0 && |t|_2 = 1 ---*/
+      if (viscous) {
+        switch( nDim ) {
+          case 2: {
+            Tangential[0] = -UnitNormal[1];
+            Tangential[1] =  UnitNormal[0];
+            break;
+          }
+          case 3: {
+            /*--- n = ai + bj + ck, if |b| > |c| ---*/
+            if( abs(UnitNormal[1]) > abs(UnitNormal[2])) {
+              /*--- t = bi + (c-a)j - bk  ---*/
+              Tangential[0] = UnitNormal[1];
+              Tangential[1] = UnitNormal[2] - UnitNormal[0];
+              Tangential[2] = -UnitNormal[1];
+            } else {
+              /*--- t = ci - cj + (b-a)k  ---*/
+              Tangential[0] = UnitNormal[2];
+              Tangential[1] = -UnitNormal[2];
+              Tangential[2] = UnitNormal[1] - UnitNormal[0];
+            }
+            /*--- Make it a unit vector. ---*/
+            TangentialNorm = sqrt(pow(Tangential[0],2) + pow(Tangential[1],2) + pow(Tangential[2],2));
+            Tangential[0] = Tangential[0] / TangentialNorm;
+            Tangential[1] = Tangential[1] / TangentialNorm;
+            Tangential[2] = Tangential[2] / TangentialNorm;
+            break;
+          }
+        }// switch
+      }//if viscous
+    }//if bound_is_straight
 
-      /*--- Compute the boundary state b ---*/
+    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+    /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
+    if (geometry->node[iPoint]->GetDomain()) {
+
+      /*-------------------------------------------------------------------------------*/
+      /*--- Step 1: For the convective fluxes, create a reflected state of the      ---*/
+      /*---         Primitive variables by copying all interior values to the       ---*/
+      /*---         reflected. Only the velocity is mirrored along the symmetry     ---*/
+      /*---         axis. Based on the Upwind_Residual routine.                     ---*/
+      /*-------------------------------------------------------------------------------*/
+
+      /*--- Allocate the reflected state at the symmetry boundary. ---*/
+      V_reflected = GetCharacPrimVar(val_marker, iVertex);
+
+      /*--- Grid movement ---*/
+      if (grid_movement)
+        conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(),
+                                  geometry->node[iPoint]->GetGridVel());
+
+      /*--- Normal vector for this vertex (negate for outward convention). ---*/
+      geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
+      for (iDim = 0; iDim < nDim; iDim++)
+        Normal[iDim] = -Normal[iDim];
+      conv_numerics->SetNormal(Normal);
+
+      /*--- Get current solution at this boundary node ---*/
+      V_domain = node[iPoint]->GetPrimitive();
+
+      /*--- Set the reflected state based on the boundary node. Scalars are copied and 
+            the velocity is mirrored along the symmetry boundary, i.e. the velocity in 
+            normal direction is substracted twice. ---*/
+      for(iVar = 0; iVar < nPrimVar; iVar++)
+        V_reflected[iVar] = node[iPoint]->GetPrimitive(iVar);
+
+      /*--- Compute velocity in normal direction (ProjVelcity_i=(v*n)) und substract twice from
+            velocity in normal direction: v_r = v - 2 (v*n)n ---*/
+      ProjVelocity_i = 0.0;
+      for (iDim = 0; iDim < nDim; iDim++)
+        ProjVelocity_i += node[iPoint]->GetVelocity(iDim)*UnitNormal[iDim];
 
       for (iDim = 0; iDim < nDim; iDim++)
-        Velocity_b[iDim] = Velocity_i[iDim] - ProjVelocity_i * UnitNormal[iDim]; //Force the velocity to be tangential to the surface.
+        V_reflected[iDim+1] = node[iPoint]->GetVelocity(iDim) - 2.0 * ProjVelocity_i*UnitNormal[iDim];
 
-      if (grid_movement) {
-        GridVel = geometry->node[iPoint]->GetGridVel();
-        ProjGridVel = 0.0;
-        for (iDim = 0; iDim < nDim; iDim++) ProjGridVel += GridVel[iDim]*UnitNormal[iDim];
-        for (iDim = 0; iDim < nDim; iDim++) Velocity_b[iDim] += GridVel[iDim] - ProjGridVel * UnitNormal[iDim];
-      }
+      /*--- Set Primitive and Secondary for numerics class. ---*/
+      conv_numerics->SetPrimitive(V_domain, V_reflected);
+      conv_numerics->SetSecondary(node[iPoint]->GetSecondary(),
+                                  node[iPoint]->GetSecondary());
 
-      VelMagnitude2_b = 0.0;
-      for (iDim = 0; iDim < nDim; iDim++)
-        VelMagnitude2_b += Velocity_b[iDim] * Velocity_b[iDim];
+      /*--- Compute the residual using an upwind scheme. ---*/
+      conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
 
-      /*--- Compute the residual ---*/
-
-      turb_ke = 0.0;
-      if (tkeNeeded) turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-
-      Density_b = Density_i;
-      StaticEnergy_b = Energy_i - 0.5 * VelMagnitude2_i - turb_ke;
-      Energy_b = StaticEnergy_b + 0.5 * VelMagnitude2_b + turb_ke;
-
-      FluidModel->SetTDState_rhoe(Density_b, StaticEnergy_b);
-      Kappa_b = FluidModel->GetdPde_rho() / Density_b;
-      Chi_b = FluidModel->GetdPdrho_e() - Kappa_b * StaticEnergy_b;
-      Pressure_b = FluidModel->GetPressure();
-      Enthalpy_b = Energy_b + Pressure_b/Density_b;
-
-      numerics->GetInviscidProjFlux(&Density_b, Velocity_b, &Pressure_b, &Enthalpy_b, NormalArea, Residual);
-
-      /*--- Grid velocity correction to the energy term ---*/
-      if (grid_movement) {
-        GridVel = geometry->node[iPoint]->GetGridVel();
-        ProjGridVel = 0.0;
-        for (iDim = 0; iDim < nDim; iDim++)
-          ProjGridVel += GridVel[iDim]*UnitNormal[iDim];
-        Residual[nVar-1] += Pressure_b*ProjGridVel*Area;
-      }
-
-      /*--- Add the Reynolds stress tensor contribution ---*/
-
-      if (tkeNeeded) {
-        for (iDim = 0; iDim < nDim; iDim++)
-          Residual[iDim+1] += (2.0/3.0)*Density_b*turb_ke*NormalArea[iDim];
-      }
-      
-      /*--- Add value to the residual ---*/
-      
+      /*--- Update residual value ---*/
       LinSysRes.AddBlock(iPoint, Residual);
-      
-      /*--- Form Jacobians for implicit computations ---*/
-      
+
+      /*--- Jacobian contribution for implicit integration. ---*/
       if (implicit) {
-        
-        /*--- Initialize Jacobian ---*/
-        
-        for (iVar = 0; iVar < nVar; iVar++) {
-          for (jVar = 0; jVar < nVar; jVar++)
-            Jacobian_i[iVar][jVar] = 0.0;
-        }
-        
-        /*--- Compute DubDu ---*/
-
-        for (iVar = 0; iVar < nVar; iVar++) {
-          for (jVar = 0; jVar < nVar; jVar++)
-            DubDu[iVar][jVar]= 0.0;
-          DubDu[iVar][iVar]= 1.0;
-        }
-
-        for (iDim = 0; iDim < nDim; iDim++)
-          for (jDim = 0; jDim<nDim; jDim++)
-            DubDu[iDim+1][jDim+1] -= UnitNormal[iDim]*UnitNormal[jDim];
-        DubDu[nVar-1][0] += 0.5*ProjVelocity_i*ProjVelocity_i;
-        for (iDim = 0; iDim < nDim; iDim++) {
-          DubDu[nVar-1][iDim+1] -= ProjVelocity_i*UnitNormal[iDim];
-        }
-
-        /*--- Compute flux Jacobian in state b ---*/
-
-        numerics->GetInviscidProjJac(Velocity_b, &Enthalpy_b, &Chi_b, &Kappa_b, NormalArea, 1, Jacobian_b);
-
-        // Check for grid movement, should be already considered since Jacobian b is computed from u_b
-        // if (grid_movement) {
-        // Jacobian_b[nVar-1][0] += 0.5*ProjGridVel*ProjGridVel;
-        // for (iDim = 0; iDim < nDim; iDim++)
-        // Jacobian_b[nVar-1][iDim+1] -= ProjGridVel * UnitNormal[iDim];
-        // }
-
-        /*--- Compute numerical flux Jacobian at node i ---*/
-
-        for (iVar = 0; iVar < nVar; iVar++)
-          for (jVar = 0; jVar < nVar; jVar++)
-            for (kVar = 0; kVar < nVar; kVar++)
-              Jacobian_i[iVar][jVar] += Jacobian_b[iVar][kVar] * DubDu[kVar][jVar];
-
-        /*--- Add the Jacobian to the sparse matrix ---*/
-
         Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-
       }
-    }
-  }
-  
+
+      if (viscous) {
+
+        /*-------------------------------------------------------------------------------*/
+        /*--- Step 2: The viscous fluxes of the Navier-Stokes equations depend on the ---*/
+        /*---         Primitive variables and their gradients. The viscous numerics   ---*/
+        /*---         container is filled just as the convective numerics container,  ---*/
+        /*---         but the primitive gradients of the reflected state have to be   ---*/
+        /*---         determined additionally such that symmetry at the boundary is   ---*/
+        /*---         enforced. Based on the Viscous_Residual routine.                ---*/
+        /*-------------------------------------------------------------------------------*/
+
+        /*--- Set the normal vector and the coordinates. ---*/
+        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
+                                geometry->node[iPoint]->GetCoord());
+        visc_numerics->SetNormal(Normal);
+
+        /*--- Set the primitive and Secondary variables. ---*/
+        visc_numerics->SetPrimitive(V_domain, V_reflected);
+        visc_numerics->SetSecondary(node[iPoint]->GetSecondary(), 
+                                    node[iPoint]->GetSecondary());
+
+        /*--- For viscous Fluxes also the gradients of the primitives need to be determined.
+              1. The gradients of scalars are mirrored along the sym plane just as velocity for the primitives
+              2. The gradients of the velocity components need more attention, i.e. the gradient of the
+                 normal velocity in tangential direction is mirrored and the gradient of the tangential velocity in
+                 normal direction is mirrored. ---*/
+
+        /*--- Get gradients of primitives of boundary cell ---*/
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+          for (iDim = 0; iDim < nDim; iDim++)
+            Grad_Reflected[iVar][iDim] = node[iPoint]->GetGradient_Primitive(iVar, iDim);
+
+        /*--- Reflect the gradients for all scalars including the velocity components.
+              The gradients of the velocity components are set later with the
+              correct values: grad(V)_r = grad(V) - 2 [grad(V)*n]n, V beeing any primitive ---*/
+        for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+          if(iVar == 0 || iVar > nDim) { // Exclude velocity component gradients
+
+            /*--- Compute projected part of the gradient in a dot product ---*/
+            ProjGradient = 0.0;
+            for (iDim = 0; iDim < nDim; iDim++)
+              ProjGradient += Grad_Reflected[iVar][iDim]*UnitNormal[iDim];
+
+            for (iDim = 0; iDim < nDim; iDim++)
+              Grad_Reflected[iVar][iDim] = Grad_Reflected[iVar][iDim] - 2.0 * ProjGradient*UnitNormal[iDim];
+          }
+        }
+
+        /*--- Compute gradients of normal and tangential velocity:
+              grad(v*n) = grad(v_x) n_x + grad(v_y) n_y (+ grad(v_z) n_z)
+              grad(v*t) = grad(v_x) t_x + grad(v_y) t_y (+ grad(v_z) t_z) ---*/
+        for (iVar = 0; iVar < nDim; iVar++) { // counts gradient components
+          GradNormVel[iVar] = 0.0;
+          GradTangVel[iVar] = 0.0;
+          for (iDim = 0; iDim < nDim; iDim++) { // counts sum with unit normal/tangential
+            GradNormVel[iVar] += Grad_Reflected[iDim+1][iVar] * UnitNormal[iDim];
+            GradTangVel[iVar] += Grad_Reflected[iDim+1][iVar] * Tangential[iDim];
+          }
+        }
+
+        /*--- Refelect gradients in tangential and normal direction by substracting the normal/tangential
+              component twice, just as done with velocity above.
+              grad(v*n)_r = grad(v*n) - 2 {grad([v*n])*t}t
+              grad(v*t)_r = grad(v*t) - 2 {grad([v*t])*n}n ---*/
+        ProjNormVelGrad = 0.0;
+        ProjTangVelGrad = 0.0;
+        for (iDim = 0; iDim < nDim; iDim++) {
+          ProjNormVelGrad += GradNormVel[iDim]*Tangential[iDim]; //grad([v*n])*t
+          ProjTangVelGrad += GradTangVel[iDim]*UnitNormal[iDim]; //grad([v*t])*n
+        }
+
+        for (iDim = 0; iDim < nDim; iDim++) {
+          GradNormVel[iDim] = GradNormVel[iDim] - 2.0 * ProjNormVelGrad * Tangential[iDim];
+          GradTangVel[iDim] = GradTangVel[iDim] - 2.0 * ProjTangVelGrad * UnitNormal[iDim];
+        }
+
+        /*--- Transfer reflected gradients back into the Cartesian Coordinate system:
+              grad(v_x)_r = grad(v*n)_r n_x + grad(v*t)_r t_x
+              grad(v_y)_r = grad(v*n)_r n_y + grad(v*t)_r t_y
+              ( grad(v_z)_r = grad(v*n)_r n_z + grad(v*t)_r t_z ) ---*/
+        for (iVar = 0; iVar < nDim; iVar++) // loops over the velocity component gradients
+          for (iDim = 0; iDim < nDim; iDim++) // loops over the entries of the above
+            Grad_Reflected[iVar+1][iDim] = GradNormVel[iDim]*UnitNormal[iVar] + GradTangVel[iDim]*Tangential[iVar];
+
+        /*--- Set the primitive gradients of the boundary and reflected state. ---*/
+        visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), Grad_Reflected);
+
+        /*--- Turbulent kinetic energy. ---*/
+        if (tkeNeeded) {
+          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
+                                              solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
+          /*--- XXX: Technically, this gradient should also be reflected.
+            But it should be negligble at a symmetry plane anyways ---*/
+          visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
+                                            solver_container[TURB_SOL]->node[iPoint]->GetGradient());
+        }
+
+        /*--- Compute and update residual. Note that the viscous shear stress tensor is computed in the 
+              following routine based upon the velocity-component gradients. ---*/
+        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
+
+        LinSysRes.SubtractBlock(iPoint, Residual);
+
+        /*--- Jacobian contribution for implicit integration. ---*/
+        if (implicit)
+          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+      }//if viscous
+    }//if GetDomain
+  }//for iVertex
+
+  /*--- Free locally allocated memory ---*/
   delete [] Normal;
-  delete [] NormalArea;
-  delete [] Velocity_b;
-  delete [] Velocity_i;
-  for (iVar = 0; iVar < nVar; iVar++) {
-    delete [] Jacobian_b[iVar];
-    delete [] DubDu[iVar];
-  }
-  delete [] Jacobian_b;
-  delete [] DubDu;
-  
+  delete [] UnitNormal;
+  delete [] Tangential;
+  delete [] GradNormVel;
+  delete [] GradTangVel;
+
+  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
+    delete [] Grad_Reflected[iVar];
+  delete [] Grad_Reflected;
 }
+
 
 void CEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
                                 CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep) {
@@ -13696,264 +14215,6 @@ void CEulerSolver::BC_Engine_Exhaust(CGeometry *geometry, CSolver **solver_conta
   
 }
 
-void CEulerSolver::BC_Sym_Plane(CGeometry *geometry,
-                                CSolver **solver_container,
-                                CNumerics *conv_numerics,
-                                CNumerics *visc_numerics,
-                                CConfig *config,
-                                unsigned short val_marker,
-                                unsigned short iRKStep) {
-  
-  unsigned short iDim, iVar;
-  unsigned long iVertex, iPoint;
-  
-  bool implicit =
-    ((config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT) ||
-     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK && iRKStep == 0) ||
-     (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91 && iRKStep == 0) );
-  
-  /*--- Allocation of variables necessary for convective fluxes. ---*/
-  su2double Area, ProjVelocity_i;
-  su2double *V_reflected, *V_domain;
-  su2double *Normal     = new su2double[nDim];
-  su2double *UnitNormal = new su2double[nDim];
-
-  /*--- Allocation of variables necessary for viscous fluxes. ---*/
-  su2double ProjGradient, ProjNormVelGrad, ProjTangVelGrad;
-  su2double *Tangential      = new su2double[nDim];
-  su2double *GradNormVel     = new su2double[nDim];
-  su2double *GradTangVel     = new su2double[nDim];
-
-  /*--- Allocation of primitive gradient arrays for viscous fluxes. ---*/
-  su2double **Grad_Reflected = new su2double*[nPrimVarGrad];
-  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-    Grad_Reflected[iVar] = new su2double[nDim];
-
-  /*---------------------------------------------------------------------------------------------*/
-  /*--- Preprocessing: On a symmetry-plane, the Unit-Normal is constant. Therefore a constant ---*/
-  /*---                Unit-Tangential to that Unit-Normal can be prescribed. The computation ---*/
-  /*---                of these vectors is done outside the loop (over all Marker-vertices).  ---*/
-  /*---                The "Normal" in SU2 isan Area-Normal and is most likely not constant   ---*/
-  /*---                on the symmetry-plane.                                                 ---*/
-  /*---------------------------------------------------------------------------------------------*/
-
-  /*--- Normal vector for a random vertex (zero) on this marker (negate for outward convention). ---*/
-  geometry->vertex[val_marker][0]->GetNormal(Normal); 
-  for (iDim = 0; iDim < nDim; iDim++)
-    Normal[iDim] = -Normal[iDim];
-
-  /*--- Compute unit normal, to be used for unit tangential, projected velocity and velocity component gradients. ---*/
-  Area = 0.0;
-  for (iDim = 0; iDim < nDim; iDim++)
-    Area += Normal[iDim]*Normal[iDim];
-  Area = sqrt (Area);
-  
-  for (iDim = 0; iDim < nDim; iDim++)
-    UnitNormal[iDim] = -Normal[iDim]/Area;
-
-  /*--- Preprocessing: Compute unit tangential, the direction is arbitrary as long as t*n=0 ---*/
-  if (config->GetViscous()) {
-    switch( nDim ) {
-      case 2: {
-        Tangential[0] = -UnitNormal[1];
-        Tangential[1] =  UnitNormal[0];
-        break;
-      }
-      case 3: {
-        /*--- Find the largest entry index of the UnitNormal, and create Tangential vector based on that. ---*/
-        unsigned short Largest, Arbitrary, Zero;
-        if     (abs(UnitNormal[0]) >= abs(UnitNormal[1]) && 
-                abs(UnitNormal[0]) >= abs(UnitNormal[2])) {Largest=0;Arbitrary=1;Zero=2;}
-        else if(abs(UnitNormal[1]) >= abs(UnitNormal[0]) && 
-                abs(UnitNormal[1]) >= abs(UnitNormal[2])) {Largest=1;Arbitrary=0;Zero=2;}
-        else                                              {Largest=2;Arbitrary=1;Zero=0;}
-
-        Tangential[Largest] = -UnitNormal[Arbitrary]/sqrt(pow(UnitNormal[Largest],2) + pow(UnitNormal[Arbitrary],2));
-        Tangential[Arbitrary] =  UnitNormal[Largest]/sqrt(pow(UnitNormal[Largest],2) + pow(UnitNormal[Arbitrary],2));
-        Tangential[Zero] =  0.0;
-        break;
-      }
-    }
-  }
-  
-  /*--- Loop over all the vertices on this boundary marker. ---*/
-  for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
-    
-    iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
-    
-    /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
-    if (geometry->node[iPoint]->GetDomain()) {
-      
-      /*-------------------------------------------------------------------------------*/
-      /*--- Step 1: For the convective fluxes, create a reflected state of the      ---*/
-      /*---         Primitive variables by copying all interior values to the       ---*/
-      /*---         reflected. Only the velocity is mirrored along the symmetry     ---*/
-      /*---         axis. Based on the Upwind_Residual routine.                     ---*/
-      /*-------------------------------------------------------------------------------*/
-
-      /*--- Allocate the reflected state at the symmetry boundary. ---*/
-      V_reflected = GetCharacPrimVar(val_marker, iVertex);
-
-      /*--- Grid movement ---*/
-      if (config->GetGrid_Movement())
-        conv_numerics->SetGridVel(geometry->node[iPoint]->GetGridVel(), geometry->node[iPoint]->GetGridVel());
-      
-      /*--- Normal vector for this vertex (negate for outward convention). ---*/
-      geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
-      for (iDim = 0; iDim < nDim; iDim++)
-        Normal[iDim] = -Normal[iDim];
-      conv_numerics->SetNormal(Normal);
-      
-      /*--- Get current solution at this boundary node ---*/
-      V_domain = node[iPoint]->GetPrimitive();
-      
-      /*--- Set the reflected state based on the boundary node. Scalars are copied and 
-            the velocity is mirrored along the symmetry boundary, i.e. the velocity in 
-            normal direction is substracted twice. ---*/
-      for(iVar = 0; iVar < nPrimVar; iVar++)
-        V_reflected[iVar] = node[iPoint]->GetPrimitive(iVar);
-
-      /*--- Compute velocity in normal direction (ProjVelcity_i=(v*n)) und substract twice from
-            velocity in normal direction: v_r = v - 2 (v*n)n ---*/
-      ProjVelocity_i = 0.0;
-      for (iDim = 0; iDim < nDim; iDim++)
-        ProjVelocity_i += node[iPoint]->GetVelocity(iDim)*UnitNormal[iDim];
-      
-      for (iDim = 0; iDim < nDim; iDim++)
-        V_reflected[iDim+1] = node[iPoint]->GetVelocity(iDim) - 2.0 * ProjVelocity_i*UnitNormal[iDim];
-      
-      /*--- Set Primitive and Secondary for numerics class. ---*/
-      conv_numerics->SetPrimitive(V_domain, V_reflected);
-      conv_numerics->SetSecondary(node[iPoint]->GetSecondary(), node[iPoint]->GetSecondary());
-      
-      /*--- Compute the residual using an upwind scheme. ---*/
-      conv_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-      
-      /*--- Update residual value ---*/
-      LinSysRes.AddBlock(iPoint, Residual);
-      
-      /*--- Jacobian contribution for implicit integration. ---*/
-      if (implicit) {
-        Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
-      }
-      
-      if (config->GetViscous()) {
-
-        /*-------------------------------------------------------------------------------*/
-        /*--- Step 2: The viscous fluxes of the Navier-Stokes equations depend on the ---*/
-        /*---         Primitive variables and their gradients. The viscous numerics   ---*/
-        /*---         container is filled just as the convective numerics container,  ---*/
-        /*---         but the primitive gradients of the reflected state have to be   ---*/
-        /*---         determined additionally such that symmetry at the boundary is   ---*/
-        /*---         enforced. Based on the Viscous_Residual routine.                ---*/
-        /*-------------------------------------------------------------------------------*/
-        
-        /*--- Set the normal vector and the coordinates. ---*/
-        visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(), geometry->node[iPoint]->GetCoord());
-        visc_numerics->SetNormal(Normal);
-        
-        /*--- Set the primitive and Secondary variables. ---*/
-        visc_numerics->SetPrimitive(V_domain, V_reflected);
-        visc_numerics->SetSecondary(node[iPoint]->GetSecondary(), node[iPoint]->GetSecondary());
-        
-        /*--- For viscous Fluxes also the gradients of the primitives need to be determined.
-              1. The gradients of scalars are mirrored along the sym plane just as velocity for the primitives
-              2. The gradients of the velocity components need more attention, i.e. the gradient of the
-                 normal velocity in tangential direction is mirrored and the gradient of the tangential velocity in 
-                 normal direction is mirrored. ---*/
-
-        /*--- Get gradients of primitives of boundary cell ---*/
-        for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-          for (iDim = 0; iDim < nDim; iDim++)
-            Grad_Reflected[iVar][iDim] = node[iPoint]->GetGradient_Primitive(iVar, iDim);
-        
-        /*--- Reflect the gradients for all scalars including the velocity components.
-              The gradients of the velocity components are set later with the 
-              correct values: grad(V)_r = grad(V) - 2 [grad(V)*n]n, V beeing any primitive ---*/
-        for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-          if(iVar == 0 || iVar > nDim) { // Exclude velocity component gradients
-
-            /*--- Compute projected part of the gradient in a dot product ---*/
-            ProjGradient = 0.0;
-            for (iDim = 0; iDim < nDim; iDim++)
-              ProjGradient += Grad_Reflected[iVar][iDim]*UnitNormal[iDim];
-              
-            for (iDim = 0; iDim < nDim; iDim++)           
-              Grad_Reflected[iVar][iDim] = Grad_Reflected[iVar][iDim] - 2.0 * ProjGradient*UnitNormal[iDim];
-          }
-        }
-        
-        /*--- Compute gradients of normal and tangential velocity:
-              grad(v*n) = grad(v_x) n_x + grad(v_y) n_y (+ grad(v_z) n_z)
-              grad(v*t) = grad(v_x) t_x + grad(v_y) t_y (+ grad(v_z) t_z) ---*/
-        for (iVar = 0; iVar < nDim; iVar++) { // counts gradient components
-          GradNormVel[iVar] = 0.0;
-          GradTangVel[iVar] = 0.0;
-          for (iDim = 0; iDim < nDim; iDim++) { // counts sum with unit normal/tangential
-            GradNormVel[iVar] += Grad_Reflected[iDim+1][iVar] * UnitNormal[iDim];
-            GradTangVel[iVar] += Grad_Reflected[iDim+1][iVar] * Tangential[iDim];
-          }
-        }
-
-        /*--- Refelect gradients in tangential and normal direction by substracting the normal/tangential
-              component twice, just as done with velocity above.
-              grad(v*n)_r = grad(v*n) - 2 {grad([v*n])*t}t
-              grad(v*t)_r = grad(v*t) - 2 {grad([v*t])*n}n ---*/
-        ProjNormVelGrad = 0.0;
-        ProjTangVelGrad = 0.0;
-        for (iDim = 0; iDim < nDim; iDim++) {
-          ProjNormVelGrad += GradNormVel[iDim]*Tangential[iDim]; //grad([v*n])*t
-          ProjTangVelGrad += GradTangVel[iDim]*UnitNormal[iDim]; //grad([v*t])*n
-        }
-        
-        for (iDim = 0; iDim < nDim; iDim++) {
-          GradNormVel[iDim] = GradNormVel[iDim] - 2.0 * ProjNormVelGrad * Tangential[iDim];
-          GradTangVel[iDim] = GradTangVel[iDim] - 2.0 * ProjTangVelGrad * UnitNormal[iDim];
-        }
-        
-        /*--- Transfer reflected gradients back into the Cartesian Coordinate system:
-              grad(v_x)_r = grad(v*n)_r n_x + grad(v*t)_r t_x
-              grad(v_y)_r = grad(v*n)_r n_y + grad(v*t)_r t_y
-              ( grad(v_z)_r = grad(v*n)_r n_z + grad(v*t)_r t_z ) ---*/
-        for (iVar = 0; iVar < nDim; iVar++) // loops over the velocity component gradients
-          for (iDim = 0; iDim < nDim; iDim++) // loops over the entries of the above
-            Grad_Reflected[iVar+1][iDim] = GradNormVel[iDim]*UnitNormal[iVar] + GradTangVel[iDim]*Tangential[iVar];
-        
-        /*--- Set the primitive gradients of the boundary and reflected state. ---*/
-        visc_numerics->SetPrimVarGradient(node[iPoint]->GetGradient_Primitive(), Grad_Reflected);
-        
-        /*--- Turbulent kinetic energy. ---*/
-        if (config->GetKind_Turb_Model() == SST || config->GetKind_Turb_Model() == KE) {
-          visc_numerics->SetTurbKineticEnergy(solver_container[TURB_SOL]->node[iPoint]->GetSolution(0),
-                                              solver_container[TURB_SOL]->node[iPoint]->GetSolution(0));
-          visc_numerics->SetTurbVarGradient(solver_container[TURB_SOL]->node[iPoint]->GetGradient(),
-                                            solver_container[TURB_SOL]->node[iPoint]->GetGradient());
-        }
-        
-        /*--- Compute and update residual. Note that the viscous shear stress tensor is computed in the 
-              following routine based upon the velocity-component gradients. ---*/
-        visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-        
-        LinSysRes.SubtractBlock(iPoint, Residual);
-        
-        /*--- Jacobian contribution for implicit integration. ---*/
-        if (implicit)
-          Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
-      }
-    }
-  }
-  
-  /*--- Free locally allocated memory ---*/
-  delete [] Normal;
-  delete [] UnitNormal;
-  delete [] Tangential;
-  delete [] GradNormVel;
-  delete [] GradTangVel;
-
-  for (iVar = 0; iVar < nPrimVarGrad; iVar++)
-    delete [] Grad_Reflected[iVar];
-  delete [] Grad_Reflected;
-}
 
 void CEulerSolver::BC_Fluid_Interface(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics,
                                          CConfig *config, unsigned short iRKStep) {
@@ -15044,7 +15305,9 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
         }
       }
     } else {
-      cout << "SU2 is set to track the improved production." << endl;
+      if (rank == MASTER_NODE) {
+        cout << "SU2 is set to track the improved production." << endl;
+      }
       if (found_production) {
         if (found_average) {
           if (found_resolved_stress) {
@@ -15099,6 +15362,11 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
         }
       }
     }
+  }
+  if (start_hybrid_from_hybrid) {
+    config->SetLoadHybridFromRANS(false);
+  } else {
+    config->SetLoadHybridFromRANS(true);
   }
 
   /*--- Load data from the restart into correct containers. ---*/
@@ -15216,6 +15484,7 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
             average_node[iPoint_Local]->SetProduction(Restart_Data[index]);
             average_node[iPoint_Local]->SetSGSProduction(Restart_Data[index]);
             average_node[iPoint_Local]->SetResolvedKineticEnergy(0);
+            node[iPoint_Local]->SetResolvedKineticEnergy(0);
           }
         }
       }
@@ -15313,17 +15582,39 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
   if (dual_time || time_stepping)
     restart_filename = config->GetUnsteady_FileName(restart_filename, val_iter);
 
-  /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
+  const unsigned short slice_restart_type = config->GetSliceRestartType();
+  if (slice_restart_type == NO_SLICE_RESTART) {
 
-  if (config->GetRead_Binary_Restart()) {
-    Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
+    /*--- Read the restart data from either an ASCII or binary SU2 file. ---*/
+
+    if (config->GetRead_Binary_Restart()) {
+      Read_SU2_Restart_Binary(geometry[MESH_0], config, restart_filename);
+    } else {
+      Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
+    }
+
+    /*--- Find average flow variables, if present ---*/
+
+    LoadSolution(val_update_geo, restart_filename, config, geometry);
+
   } else {
-    Read_SU2_Restart_ASCII(geometry[MESH_0], config, restart_filename);
+
+    /*--- Read in the restart data from a slice ---*/
+
+    CAbstractFileReader* file_reader;
+    if (slice_restart_type == CARTESIAN_SLICE) {
+      file_reader = new CFileReader_Cartesian();
+    } else if (slice_restart_type == CYLINDRICAL_SLICE) {
+      file_reader = new CFileReader_Cylindrical();
+    }
+
+    /*--- Flow variables are first in the restart file, so no offset ---*/
+    const unsigned short offset = 0;
+    file_reader->Read_SliceFile_ASCII(config, restart_filename);
+    file_reader->LoadSolutionFromSlice(restart_filename, config, geometry[MESH_0], FLOW_SOL, node);
+
+    delete file_reader;
   }
-
-  /*--- Find average flow variables, if present ---*/
-
-  LoadSolution(val_update_geo, restart_filename, config, geometry);
 
   /*--- Communicate the loaded solution on the fine grid before we transfer
    it down to the coarse levels. We alo call the preprocessing routine
@@ -15378,7 +15669,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
     geometry[MESH_0]->SetCoord_CG();
     geometry[MESH_0]->SetControlVolume(config, UPDATE);
     geometry[MESH_0]->SetBoundControlVolume(config, UPDATE);
-    geometry[MESH_0]->SetMaxLength(config);
+    if ((config->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+        (config->isDESBasedModel())) {
+      geometry[MESH_0]->SetMaxLength(config);
+    }
 
     /*--- Update the multigrid structure after setting up the finest grid,
      including computing the grid velocities on the coarser levels. ---*/
@@ -15389,7 +15683,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
       geometry[iMesh]->SetBoundControlVolume(config, geometry[iMeshFine],UPDATE);
       geometry[iMesh]->SetCoord(geometry[iMeshFine]);
       geometry[iMesh]->SetRestricted_GridVelocity(geometry[iMeshFine], config);
-      geometry[iMesh]->SetMaxLength(config);
+      if ((config->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+          (config->isDESBasedModel())) {
+        geometry[iMesh]->SetMaxLength(config);
+      }
       }
     }
 
@@ -15407,7 +15704,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
     geometry[MESH_0]->SetCoord_CG();
     geometry[MESH_0]->SetControlVolume(config, UPDATE);
     geometry[MESH_0]->SetBoundControlVolume(config, UPDATE);
-    geometry[MESH_0]->SetMaxLength(config);
+    if ((config->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+        (config->isDESBasedModel())) {
+      geometry[MESH_0]->SetMaxLength(config);
+    }
 
     /*--- Update the multigrid structure after setting up the finest grid,
      including computing the grid velocities on the coarser levels. ---*/
@@ -15417,7 +15717,10 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
       geometry[iMesh]->SetControlVolume(config, geometry[iMeshFine], UPDATE);
       geometry[iMesh]->SetBoundControlVolume(config, geometry[iMeshFine],UPDATE);
       geometry[iMesh]->SetCoord(geometry[iMeshFine]);
-      geometry[iMesh]->SetMaxLength(config);
+      if ((config->GetKind_RoeLowDiss() != NO_ROELOWDISS) ||
+          (config->isDESBasedModel())) {
+        geometry[iMesh]->SetMaxLength(config);
+      }
     }
   }
 
@@ -16618,6 +16921,8 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
                    (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
   bool implicit_rk = ((config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_EDIRK) ||
                       (config->GetKind_TimeIntScheme_Flow() == RUNGE_KUTTA_LIMEX_SMR91) );
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
   
   bool adjoint = (config->GetContinuous_Adjoint()) || (config->GetDiscrete_Adjoint());
   string filename_ = config->GetSolution_FlowFileName();
@@ -16829,6 +17134,15 @@ CNSSolver::CNSSolver(CGeometry *geometry, CConfig *config, unsigned short iMesh)
   LinSysSol.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysRes.Initialize(nPoint, nPointDomain, nVar, 0.0);
   LinSysAux.Initialize(nPoint, nPointDomain, nVar, 0.0);
+  if (constant_bulk_momentum || constant_bulk_temperature) {
+    LinSys_w.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_y.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_z.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_d.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_e.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_g.Initialize(nPoint, nPointDomain, nVar, 0.0);
+    LinSys_forcing_terms.Initialize(nPoint, nPointDomain, nVar, 0.0);
+  }
 
   if (implicit_rk) {
     LinSysDeltaU.Initialize(nPoint, nPointDomain, nVar, 0.0);
@@ -17485,6 +17799,9 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   const bool roe_low_dissipation  = config->BlendUpwindCentralFluxes();
   bool wall_functions       = config->GetWall_Functions();
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
+  const bool steady_body_forcing = config->GetBody_Force();
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
 
   /*--- Update the angle of attack at the far-field for fixed CL calculations (only direct problem). ---*/
   
@@ -17604,6 +17921,12 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
   
   if (implicit && !config->GetDiscrete_Adjoint()) Jacobian.SetValZero();
 
+  /*--- Compute the bulk quantities ---*/
+  if (iMesh == 0 &&
+      (constant_bulk_momentum || constant_bulk_temperature || steady_body_forcing)) {
+    SetBulk_Forcing(geometry, solver_container, config);
+  }
+
   /*--- Error message ---*/
   
   if (config->GetConsole_Output_Verb() == VERB_HIGH) {
@@ -17631,9 +17954,8 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
 unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CConfig *config, bool Output) {
   
   unsigned long iPoint, ErrorCounter = 0;
-  su2double eddy_visc = 0.0, turb_ke = 0.0, DES_LengthScale = 0.0;
+  su2double eddy_visc = 0.0, DES_LengthScale = 0.0;
   unsigned short turb_model = config->GetKind_Turb_Model();
-  bool RightSol = true;
   
   bool tkeNeeded = (((config->GetKind_Solver() == RANS ) ||
                      (config->GetKind_Solver() == DISC_ADJ_RANS)) &&
@@ -17641,6 +17963,10 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
                      (config->GetKind_Turb_Model() == KE)));
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
+  /*--- For simple time-marching, don't allow unphysical points to be
+    replaced with previous solutions ---*/
+  const bool fallback_on_error =
+      (config->GetUnsteady_Simulation() != TIME_STEPPING);
 
   /*--- Compute the minimum value of TKE allowed ---*/
 
@@ -17655,7 +17981,7 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     /*--- Retrieve the value of the kinetic energy (if need it) ---*/
 
-    if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
+    if (model_split) {
 
       // TODO: Move this to the hybrid mediator to keep the CNSSolver cleaner
       // TODO: Remove extra asserts after testing is complete.
@@ -17665,27 +17991,31 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
       assert(k_resolved >= 0);
 
       const su2double tke_lim = max(k_total, 1.0E-8);
-      //const su2double a_kol = 1.0E-2; // XXX: We should actually get the viscous limit here
-      const su2double a_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
-      su2double alpha_set = max(min((tke_lim - k_resolved)/tke_lim, 1.0), a_kol);
 
-      // protect against negative alpha, just in case
-      alpha_set = max(alpha_set, 0.0);
-      average_node[iPoint]->SetKineticEnergyRatio(alpha_set);
-      assert(alpha_set == alpha_set);  // alpha should not be NaN
+      const su2double beta_kol = solver_container[TURB_SOL]->node[iPoint]->GetKolKineticEnergyRatio();
+      su2double beta_set = max(min((tke_lim - k_resolved)/tke_lim, 1.0), beta_kol);
+
+      // protect against negative beta, just in case
+      beta_set = max(beta_set, 0.0);
+      average_node[iPoint]->SetKineticEnergyRatio(beta_set);
+      assert(beta_set == beta_set);  // beta should not be NaN
     }
 
-    su2double alpha = 1.0;
+    su2double total_tke = 0.0;
+    su2double modeled_tke = 0.0;
+    su2double beta = 1.0;
     if (turb_model != NONE) {
       eddy_visc = solver_container[TURB_SOL]->node[iPoint]->GetmuT();
       if (tkeNeeded) {
-        turb_ke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
-	turb_ke = max(turb_ke, tke_min);
+        total_tke = solver_container[TURB_SOL]->node[iPoint]->GetSolution(0);
+        total_tke = max(total_tke, tke_min);
 
-	// account for resolved portion
-	if (config->GetKind_HybridRANSLES() == MODEL_SPLIT) {
-	  alpha = average_node[iPoint]->GetKineticEnergyRatio();
-	}
+        if (model_split){
+          beta = average_node[iPoint]->GetKineticEnergyRatio();
+          modeled_tke = max(beta*total_tke, 0.0);
+        } else {
+          modeled_tke = total_tke;
+        }
       }
       
       if (config->isDESBasedModel()){
@@ -17698,23 +18028,32 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     node[iPoint]->SetNon_Physical(false);
     
     /*--- Compressible flow, primitive variables nDim+5, (T, vx, vy, vz, P, rho, h, c, lamMu, eddyMu, ThCond, Cp) ---*/
-    
-    RightSol = node[iPoint]->SetPrimVar(eddy_visc, alpha*turb_ke, FluidModel);
+
+    const bool RightSol = node[iPoint]->SetPrimVar(eddy_visc, modeled_tke, FluidModel, fallback_on_error);
     if (!RightSol) {
-	std::cout << "Error Setting instant primitive variables! " << alpha << std::endl;
-	std::cout << "instant: alpha = " << alpha << std::endl;
+      std::cout << "Error Setting instant primitive variables! " << std::endl;
+        std::cout << "  modeled_tke = " << modeled_tke << std::endl;
+        std::cout << "  resolved ke = " << node[iPoint]->GetVelocity2() << std::endl;
+        std::cout << "  total tke   = " << total_tke << std::endl;
+        std::cout << "  beta        = " << beta << std::endl;
     }
     node[iPoint]->SetSecondaryVar(FluidModel);
+    bool RightAvg = true;
     if (runtime_averaging) {
-      bool ierr = average_node[iPoint]->SetPrimVar(eddy_visc, turb_ke, FluidModel);
-      if (!ierr) {
-	std::cout << "Error Setting average primitive variables! " << alpha << std::endl;
-	std::cout << "average: alpha = " << alpha << std::endl;
+      RightAvg = average_node[iPoint]->SetPrimVar(eddy_visc, total_tke, FluidModel, fallback_on_error);
+      if (!RightAvg) {
+        std::cout << "Error Setting average primitive variables!" << std::endl;
+        std::cout << "  resolved ke = " << average_node[iPoint]->GetVelocity2() << std::endl;
+        std::cout << "  total tke   = " << total_tke << std::endl;
+        std::cout << "  beta = " << beta << std::endl;
       }
       // We don't need the secondary variables
     }
 
-    if (!RightSol) { node[iPoint]->SetNon_Physical(true); ErrorCounter++; }
+    if (!RightSol || !RightAvg) {
+      node[iPoint]->SetNon_Physical(true);
+      ErrorCounter++;
+    }
         
     /*--- Set the DES length scale ---*/
     
@@ -17724,6 +18063,13 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
     
     if (!Output) LinSysRes.SetBlock_Zero(iPoint);
     
+  }
+
+  if (ErrorCounter > 0) {
+    config->SetWrt_InvalidState(true);
+  } else {
+    // Override previous invalid states, if now valid
+    config->SetWrt_InvalidState(false);
   }
   
   return ErrorCounter;
@@ -18036,6 +18382,9 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
     // ... evaluate forcing field...
     HybridMediator->ComputeForcingField(solver_container, geometry, config);
 
+    /*--- We don't need to save forcing here. The forcing should save it
+     * automatically in the "SetForcingField" call above ---*/
+
     // ... and add to residual
     for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
 
@@ -18047,10 +18396,6 @@ void CNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_container,
 
       const su2double* Force = HybridMediator->GetForcingVector(iPoint);
       const su2double* MeanForce = average_node[iPoint]->GetForcingVector();
-
-      // Set forcing in variable class (for output purposes)
-      node[iPoint]->SetForcingVector(Force);
-      average_node[iPoint]->SetForcingVector(MeanForce);
 
       // mass (no forcing)
       Residual[0] = 0.0;
@@ -19881,23 +20226,30 @@ void CNSSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_container, CN
   
 }
 
-void CNSSolver::UpdateAverage(const su2double weight,
+void CNSSolver::UpdateAverage(const su2double dt,
+                              const su2double averaging_period,
                               const unsigned long iPoint,
                               su2double* buffer,
                               const CConfig* config) {
 
+  /*--- For forward Euler, w = dt/T
+   *   For backward Euler, w = dt/(T+dt) ---*/
+  const su2double weight = dt/(averaging_period + dt);
+
   assert(average_node != NULL);
 
   // Call base first, to update averages of conserved variables
-  CSolver::UpdateAverage(weight, iPoint, buffer, config);
+  CSolver::UpdateAverage(dt, averaging_period, iPoint, buffer, config);
 
+  su2double* fluct_velocity = new su2double[nDim];
+  su2double* mean_velocity  = new su2double[nDim];
+  su2double* res_velocity   = new su2double[nDim];
   if (config->GetKind_HybridRANSLES() == MODEL_SPLIT && iPoint < nPointDomain) {
     // TODO: Update average solution on MPI halo nodes
     // I don't think it's required right now, since we're only using average
     // solution in the source residual.
     const su2double* resolved_vars = node[iPoint]->GetSolution();
     const su2double* average_vars = average_node[iPoint]->GetSolution();
-    su2double fluct_velocity[nDim];
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       fluct_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0] - average_vars[iDim+1]/average_vars[0];
     }
@@ -19907,11 +20259,13 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
       /*--- Update resolved Reynolds stress ---*/
 
+      const su2double Pk_relaxation = config->GetProduction_Relaxation();
+      const su2double Pk_weight = dt/(dt + averaging_period/Pk_relaxation);
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         for (unsigned short jDim = 0; jDim < nDim; jDim++) {
           const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
           const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
-          const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+          const su2double delta_uiuj = (current_uiuj - average_uiuj)*Pk_weight;
 
           node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
           average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);
@@ -19941,13 +20295,28 @@ void CNSSolver::UpdateAverage(const su2double weight,
       /*-- Give Pk a different averaging time than the rest of the terms ---*/
 
       const su2double Pk_relaxation = config->GetProduction_Relaxation();
-      const su2double new_Pk = production + (current_production - production)*weight*Pk_relaxation;
+      const su2double Pk_weight = dt/(dt + averaging_period/Pk_relaxation);
+      const su2double new_Pk = production + (current_production - production)*Pk_weight;
       average_node[iPoint]->SetProduction(new_Pk);
 
       /*--- Update resolved kinetic energy ---*/
 
-      const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        res_velocity[iDim] = resolved_vars[iDim+1]/resolved_vars[0];
+        mean_velocity[iDim] = average_vars[iDim+1]/average_vars[0];
+      }
+
       su2double current_resolved_k = 0;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+        current_resolved_k += res_velocity[iDim]*res_velocity[iDim]/2 -
+                              mean_velocity[iDim]*mean_velocity[iDim]/2;
+      }
+      node[iPoint]->SetResolvedKineticEnergy(current_resolved_k);
+
+      /*-- TODO: Update this? The mean-fluctuating correlations should vanish,
+       * so the above version and this version should be equivalent. ---*/ 
+      const su2double resolved_k = average_node[iPoint]->GetResolvedKineticEnergy();
+      current_resolved_k = 0;
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         current_resolved_k += fluct_velocity[iDim]*fluct_velocity[iDim]/2;
       }
@@ -19967,7 +20336,7 @@ void CNSSolver::UpdateAverage(const su2double weight,
 
     }
 
-    /*--- We can't update alpha (the ratio of modeled to total turbulent
+    /*--- We can't update beta (the ratio of modeled to total turbulent
      * kinetic energy) here because we don't have access to the RANS solver
      * variables. ---*/
 
@@ -19986,6 +20355,60 @@ void CNSSolver::UpdateAverage(const su2double weight,
     update_mean_F[1] = (inst_F[1] - mean_F[1])*weight + mean_F[1];
     update_mean_F[2] = (inst_F[2] - mean_F[2])*weight + mean_F[2];
     average_node[iPoint]->SetForcingVector(update_mean_F);
+  }
+
+  delete [] fluct_velocity;
+  delete [] res_velocity;
+  delete [] mean_velocity;
+}
+
+void CEulerSolver::SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfig *config) {
+
+  // XXX: This only works in the x direction for now
+
+  su2double local_vol = 0, local_mass = 0, local_momentum = 0, local_temp = 0;
+  for (unsigned long iPoint = 0; iPoint < nPointDomain; iPoint++) {
+    const su2double cell_volume = geometry->node[iPoint]->GetVolume();
+    if (cell_volume > 0.0) {
+      const su2double momentum_x = solver[FLOW_SOL]->node[iPoint]->GetSolution(1);
+      local_vol += cell_volume;
+      local_mass += cell_volume * solver[FLOW_SOL]->node[iPoint]->GetSolution(0);
+      local_momentum += cell_volume * momentum_x;
+      local_temp += cell_volume * momentum_x *
+        solver[FLOW_SOL]->node[iPoint]->GetTemperature();
+    }
+  }
+
+#ifdef HAVE_MPI
+    su2double send_integrals[4], recv_integrals[4];
+    send_integrals[0] = local_vol;
+    send_integrals[1] = local_mass;
+    send_integrals[2] = local_momentum;
+    send_integrals[3] = local_temp;
+    SU2_MPI::Reduce(send_integrals, recv_integrals, 4, MPI_DOUBLE, MPI_SUM, MASTER_NODE, MPI_COMM_WORLD);
+    SU2_MPI::Bcast(recv_integrals, 4, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+    const su2double global_vol = recv_integrals[0];
+    const su2double global_mass = recv_integrals[1];
+    const su2double global_momentum = recv_integrals[2];
+    const su2double global_temp = recv_integrals[3];
+#else
+    const su2double global_vol = local_vol;
+    const su2double global_mass = local_mass;
+    const su2double global_momentum = local_momentum;
+    const su2double global_temp = local_temp;
+#endif
+
+  total_volume = global_vol;
+  bulk_density = global_mass / global_vol;
+  bulk_velocity = global_momentum / (bulk_density * global_vol);
+  bulk_temperature = global_temp /
+      (bulk_density * bulk_velocity * global_vol);
+
+  if (config->GetTarget_Bulk_Momentum() == 0.0) {
+    config->SetTarget_Bulk_Momentum(bulk_density * bulk_velocity);
+  }
+  if (config->GetTarget_Bulk_Temperature() == 0.0) {
+    config->SetTarget_Bulk_Temperature(bulk_temperature);
   }
 }
 

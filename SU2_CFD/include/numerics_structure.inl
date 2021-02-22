@@ -185,7 +185,7 @@ inline void CNumerics::ComputeResidual(su2double *val_resconv_i, su2double *val_
               
 inline void CNumerics::ComputeResidual(su2double **val_stiffmatrix_elem, CConfig *config) { }
 
-inline void CNumerics::GetEq_Rxn_Coefficients(su2double **EqnRxnConstants, CConfig *config) { };
+inline void CNumerics::GetEq_Rxn_Coefficients(su2double **EqnRxnConstants, CConfig *config) { }
                             
 inline void CNumerics::ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, CConfig *config) { }
 
@@ -329,8 +329,8 @@ inline void CNumerics::SetResolutionAdequacy(su2double val_r_k) { Resolution_Ade
 
 inline void CNumerics::SetResolvedTurbStress(su2double** val_turb_stress) { }
 
-inline void CNumerics::SetKineticEnergyRatio(su2double val_alpha) {
-  KineticEnergyRatio = val_alpha;
+inline void CNumerics::SetKineticEnergyRatio(su2double val_beta) {
+  KineticEnergyRatio = val_beta;
 }
 
 inline void CNumerics::SetIntermittency(su2double intermittency_in) { }

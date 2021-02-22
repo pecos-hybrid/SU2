@@ -1299,8 +1299,6 @@ inline bool CConfig::GetBoolUse_v2f_Rf_mod(void) { return Use_v2f_Rf_mod; }
 
 inline bool CConfig::GetBoolUse_v2f_Explicit_WallBC(void) { return Use_v2f_Explicit_WallBC; }
 
-inline bool CConfig::GetUse_v2f_Timescale_Limit(void) const { return Use_v2f_Timescale_Limit; }
-
 inline unsigned short CConfig::GetKind_v2f_Limit(void) const { return Kind_v2f_Limit; }
 
 inline su2double CConfig::Getv2f_Realizability_Constant(void) const { return v2f_Realizability_Constant; }
@@ -1474,6 +1472,12 @@ inline unsigned short CConfig::GetMarker_All_PyCustom(unsigned short val_marker)
 
 inline unsigned short CConfig::GetnMarker_All(void) { return nMarker_All; }
 
+inline unsigned short CConfig::GetnMarker_CfgFile(void) { return nMarker_CfgFile; }
+
+inline unsigned short CConfig::GetnMarker_Euler(void) { return nMarker_Euler; }
+
+inline unsigned short CConfig::GetnMarker_SymWall(void) { return nMarker_SymWall; }
+
 inline unsigned short CConfig::GetnMarker_Max(void) { return nMarker_Max; }
 
 inline unsigned short CConfig::GetnMarker_EngineInflow(void) {	return nMarker_EngineInflow; }
@@ -1601,9 +1605,9 @@ inline void CConfig::AddCurrent_UnstTimeND(su2double delta_time) {
   Current_UnstTime += (delta_time * Time_Ref);
 }
 
-inline void CConfig::SetCurrent_UnstTime(su2double val_time) { Current_UnstTime = val_time; };
+inline void CConfig::SetCurrent_UnstTime(su2double val_time) { Current_UnstTime = val_time; }
 
-inline void CConfig::SetCurrent_UnstTimeND(su2double val_time) { Current_UnstTimeND = val_time; };
+inline void CConfig::SetCurrent_UnstTimeND(su2double val_time) { Current_UnstTimeND = val_time; }
 
 inline void CConfig::SetDelta_UnstTimeND(su2double val_delta_unsttimend) { Delta_UnstTimeND = val_delta_unsttimend; }
 
@@ -1685,9 +1689,25 @@ inline bool CConfig::Low_Mach_Correction(void) { return Low_Mach_Corr; }
 
 inline bool CConfig::GetGravityForce(void) { return GravityForce; }
 
+inline void CConfig::SetBody_Force_Vector(su2double val_force, unsigned short iDim) {
+  Body_Force_Vector[iDim] = val_force;
+}
+
 inline bool CConfig::GetBody_Force(void) { return Body_Force; }
 
 inline su2double* CConfig::GetBody_Force_Vector(void) { return Body_Force_Vector; }
+
+inline bool CConfig::GetConst_Temp_Flux_Forcing(void) const { return Const_Temp_Flux_Forcing; }
+
+inline bool CConfig::GetConst_Mass_Flux_Forcing(void) const { return Const_Mass_Flux_Forcing; }
+
+inline su2double CConfig::GetTarget_Bulk_Momentum(void) const { return Target_Bulk_Momentum; }
+
+inline su2double CConfig::GetTarget_Bulk_Temperature(void) const { return Target_Bulk_Temperature; }
+
+inline void CConfig::SetTarget_Bulk_Momentum(su2double val_momentum) { Target_Bulk_Momentum = val_momentum; }
+
+inline void CConfig::SetTarget_Bulk_Temperature(su2double val_temperature) { Target_Bulk_Temperature = val_temperature; }
 
 inline bool CConfig::GetSmoothNumGrid(void) { return SmoothNumGrid; }
 

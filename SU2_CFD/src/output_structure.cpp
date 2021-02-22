@@ -463,6 +463,11 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
   for (unsigned short iZone = 0; iZone < val_nZone; iZone++) {
     unsigned short Kind_Solver  = config[iZone]->GetKind_Solver();
 
+    if (config[iZone]->GetKind_RoeLowDiss() == NTS_DUCROS ||
+        config[iZone]->GetKind_RoeLowDiss() == FD_DUCROS) {
+      RegisterScalar("DucrosSensor", "DucrosSensor", FLOW_SOL,
+                     &CVariable::GetSensor, iZone, false);
+    }
     if (Kind_Solver == RANS) {
 
       if (config[iZone]->GetKind_Turb_Model() == KE ||
@@ -479,7 +484,7 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
           (config[iZone]->GetKind_HybridRANSLES() == MODEL_SPLIT);
   
       if (model_split_hybrid) {
-        RegisterScalar("alpha", "<greek>a</greek>", FLOW_SOL,
+        RegisterScalar("beta", "beta", FLOW_SOL,
                        &CVariable::GetKineticEnergyRatio, iZone, true);
         RegisterScalar("k_res", "k<sub>res</sub>", FLOW_SOL,
                        &CVariable::GetResolvedKineticEnergy, iZone, true);
@@ -497,9 +502,17 @@ void COutput::RegisterAllVariables(CConfig** config, unsigned short val_nZone) {
                        &CVariable::GetForcingVector, iZone, false);
         RegisterVector("Average_hyb_force", "avgF", FLOW_SOL,
                        &CVariable::GetForcingVector, iZone, true);
+        RegisterScalar("ForcingFactor", "ForcingFactor", FLOW_SOL,
+                       &CVariable::GetForcingFactor, iZone, false);
+        RegisterScalar("ForcingClipping", "ForcingClipping", FLOW_SOL,
+                       &CVariable::GetForcingClipping, iZone, false);
         if (config[iZone]->GetUse_Resolved_Turb_Stress()) {
           RegisterTensor("tau_res", "tau<sup>res</sup>", FLOW_SOL,
                          &CVariable::GetResolvedTurbStress, iZone, true);
+        }
+        if (config[iZone]->GetWrt_Reynolds_Stress()) {
+          RegisterTensor("tau_S", "tau_S", FLOW_SOL,
+                         &CVariable::GetReynoldsStress, iZone, true);
         }
         // TODO: Re-incarnate output associated with forcing
         // RegisterScalar("Forcing_Production", "P<sub>F</sub>", TURB_SOL,
@@ -562,9 +575,9 @@ su2double COutput::RetrieveTensorComponent(CSolver** solver, COutputTensor var,
                                   unsigned long iPoint, unsigned short iDim,
                                   unsigned short jDim) {
   if (var.Average) {
-    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)()[iDim][jDim];
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->average_node[iPoint], var.Accessor)(iDim, jDim);
   } else {
-    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)()[iDim][jDim];
+    return CALL_MEMBER_FN(solver[var.Solver_Type]->node[iPoint], var.Accessor)(iDim, jDim);
   }
 }
 
@@ -2449,7 +2462,6 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
                          ( config->GetKind_Solver() == ADJ_NAVIER_STOKES ) ||
                          ( config->GetKind_Solver() == ADJ_RANS          )   );
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   const bool runtime_average = (config->GetKind_Averaging() != NO_AVERAGING);
   
   unsigned short iDim, jDim;
@@ -2574,7 +2586,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     }
 
 
-    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       // Add the resolution tensors (a rank 3 tensor)
       iVar_Resolution_Tensor = nVar_Total; nVar_Total += 9;
     }
@@ -2586,6 +2598,10 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
         ((Kind_Solver == FEM_EULER) || (Kind_Solver == FEM_NAVIER_STOKES) || (Kind_Solver == FEM_RANS) || (Kind_Solver == FEM_LES)))  {
         iVar_Sharp = nVar_Total; nVar_Total += 1;
       }
+    }
+
+    if (config->GetWrt_Partition()) {
+      nVar_Total += 1;
     }
     
     
@@ -3351,6 +3367,8 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
     
     /*--- Communicate the extra scalar variables ---*/
 
+    // FIXME: Fix how the additional variables work in low memory
+    // If low memory is used, iVar_Additional is uninitialized
     iVar = iVar_Additional;
     
     for (std::vector<COutputVariable>::iterator it = output_vars[val_iZone].begin();
@@ -3514,7 +3532,7 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
 
     /*--- Communicate the Resolution Tensor ---*/
 
-    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       iVar = iVar_Resolution_Tensor;
       for (iDim = 0; iDim < nDim; iDim++) {
         for (jDim = 0; jDim < nDim; jDim++) {
@@ -3617,6 +3635,50 @@ void COutput::MergeSolution(CConfig *config, CGeometry *geometry, CSolver **solv
             
             jPoint = (iProcessor+1)*nBuffer_Scalar;
           }
+        }
+      }
+    }
+
+    /*--- Communicate the Coloring ---*/
+    
+    if (config->GetWrt_Partition()) {
+        
+      /*--- Loop over this partition to collect the current variable ---*/
+      jPoint = 0;
+      for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+        
+        /*--- Check for halos & write only if requested ---*/
+        
+        if (!Local_Halo[iPoint] || Wrt_Halo) {
+          
+          /*--- Load buffers with the pressure and mach variables. ---*/
+          
+          Buffer_Send_Var[jPoint] = geometry->node[iPoint]->GetColor();
+          jPoint++;
+        }
+      }
+      
+      /*--- Gather the data on the master node. ---*/
+      
+      SU2_MPI::Gather(Buffer_Send_Var, nBuffer_Scalar, MPI_DOUBLE, Buffer_Recv_Var, nBuffer_Scalar, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+      
+      /*--- The master node unpacks and sorts this variable by global index ---*/
+      
+      if (rank == MASTER_NODE) {
+        jPoint = 0; iVar = iVar_Sharp+1;
+        for (iProcessor = 0; iProcessor < size; iProcessor++) {
+          for (iPoint = 0; iPoint < Buffer_Recv_nPoint[iProcessor]; iPoint++) {
+            
+            /*--- Get global index, then loop over each variable and store ---*/
+            
+            iGlobal_Index = Buffer_Recv_GlobalIndex[jPoint];
+            Data[iVar][iGlobal_Index] = Buffer_Recv_Var[jPoint];
+            jPoint++;
+          }
+          
+          /*--- Adjust jPoint to index of next proc's data in the buffers. ---*/
+          
+          jPoint = (iProcessor+1)*nBuffer_Scalar;
         }
       }
     }
@@ -4443,7 +4505,6 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
   bool grid_movement = config->GetGrid_Movement();
   bool dynamic_fem = (config->GetDynamic_Analysis() == DYNAMIC);
   bool fem = (config->GetKind_Solver() == FEM_ELASTICITY);
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
   ofstream restart_file;
   ofstream meta_file;
@@ -4595,7 +4656,7 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       }
     }
 
-    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       if (config->GetOutput_FileFormat() == PARAVIEW) {
         restart_file << "\t\"Resolution_Tensor_11\"";
         restart_file << "\t\"Resolution_Tensor_12\"";
@@ -4623,6 +4684,10 @@ void COutput::SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver,
       if (((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) || (Kind_Solver == RANS)))  {
         restart_file << "\t\"Sharp_Edge_Dist\"";
       }
+    }
+
+    if (config->GetWrt_Partition()) {
+      restart_file << "\t\"Partition\"";
     }
     
     if ((Kind_Solver == ADJ_EULER              ) ||
@@ -4826,6 +4891,9 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
 
   bool thermal = false; /* Flag for whether to print heat flux values */
   bool weakly_coupled_heat = config->GetWeakly_Coupled_Heat();
+  const bool steady_body_forcing = config->GetBody_Force();
+  const bool constant_bulk_momentum = config->GetConst_Mass_Flux_Forcing();
+  const bool constant_bulk_temperature = config->GetConst_Temp_Flux_Forcing();
 
   if (config->GetKind_Solver() == RANS || config->GetKind_Solver()  == NAVIER_STOKES) {
     thermal = true;
@@ -4947,6 +5015,8 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
   }
   char fem_resid[]= ",\"Res_FEM[0]\",\"Res_FEM[1]\",\"Res_FEM[2]\"";
   char heat_resid[]= ",\"Res_Heat\"";
+  char forcing_terms[] =
+    ",\"Bulk_Density\",\"Bulk_Momentum\",\"Bulk_Temp\",\"Bulk_Force\",\"Bulk_Heating\"";
   
   /*--- End of the header ---*/
   
@@ -4994,6 +5064,10 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
         if (output_surface) ConvHist_file[0] << d_surface_outputs;
       }
       if (output_comboObj) ConvHist_file[0] << combo_obj;
+      if (constant_bulk_momentum || constant_bulk_temperature ||
+          steady_body_forcing) {
+        ConvHist_file[0] << forcing_terms;
+      }
       ConvHist_file[0] << end;
       
       break;
@@ -5176,7 +5250,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     adj_turb_resid[1000],
     begin_fem[1000], fem_coeff[1000], heat_resid[1000], combo_obj[1000],
     fem_resid[1000], end[1000], end_fem[1000], surface_outputs[1000], d_surface_outputs[1000], d_direct_coeff[1000], turbo_coeff[10000];
-
+    char forcing_terms[1000];
 
     su2double dummy = 0.0, *Coord;
     unsigned short iVar, iMarker_Monitoring;
@@ -5212,6 +5286,10 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     bool nonlinear_analysis = (config[val_iZone]->GetGeometricConditions() == LARGE_DEFORMATIONS);  // Nonlinear analysis.
     bool fsi = (config[val_iZone]->GetFSI_Simulation());          // FEM structural solver.
     bool discadj_fem = (config[val_iZone]->GetKind_Solver() == DISC_ADJ_FEM);
+
+    const bool steady_body_forcing = config[val_iZone]->GetBody_Force();
+    const bool constant_bulk_momentum = config[val_iZone]->GetConst_Mass_Flux_Forcing();
+    const bool constant_bulk_temperature = config[val_iZone]->GetConst_Temp_Flux_Forcing();
     
     bool turbo = config[val_iZone]->GetBoolTurbomachinery();
 
@@ -5267,6 +5345,14 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         D_TotalPressure_Loss = 0.0, D_FlowAngle_Out = 0.0, D_TotalStaticEfficiency = 0.0,
         D_TotalTotalEfficiency = 0.0, D_EntropyGen = 0.0, 
         D_Surface_Uniformity = 0.0, D_Surface_SecondaryStrength = 0.0, D_Surface_MomentumDistortion = 0.0, D_Surface_SecondOverUniform = 0.0, D_Surface_PressureDrop = 0.0;
+    /*--- Initialize and then later check to make that these
+     * arbitrary values aren't used.  If we don't initialize, the
+     * compiler may complain. --*/
+    su2double bulk_density = -1,
+              bulk_momentum = -1,
+              bulk_temp = -1,
+              bulk_force = -1,
+              bulk_heating = -1;
     
     /*--- Residual arrays ---*/
     su2double *residual_flow         = NULL,
@@ -5597,6 +5683,15 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             }
           }
           
+        }
+
+      if (constant_bulk_momentum || constant_bulk_temperature ||
+          steady_body_forcing) {
+          bulk_density = solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL]->GetBulkDensity();
+          bulk_momentum = solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL]->GetBulkMomentum();
+          bulk_temp = solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL]->GetBulkTemperature();
+          bulk_force = solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL]->GetBulkForce();
+          bulk_heating = solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL]->GetBulkHeating();
         }
         
         break;
@@ -5943,6 +6038,20 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
 
             if (weakly_coupled_heat) {
               SPRINTF (heat_resid, ", %14.8e", log10 (residual_heat[0]));
+            }
+
+            if (constant_bulk_momentum || constant_bulk_temperature ||
+                steady_body_forcing) {
+              if (bulk_temp < 0 || bulk_density < 0) {
+                SU2_MPI::Error("Negative values found for the bulk temperature and/or bulk density.\nThis may be due to the variables being used before being set.", CURRENT_FUNCTION);
+              }
+              if ((abs(bulk_momentum - 1) < 1E-14) ||
+                  (abs(bulk_heating - 1) < 1E-14) ||
+                  (abs(bulk_force - 1) < 1E-14)) {
+                SU2_MPI::Error("Bulk momentum/heating/forcing terms are being used without being properly set.", CURRENT_FUNCTION);
+              }
+              SPRINTF(forcing_terms, ", %14.8e, %14.8e, %14.8e, %14.8e, %14.8e", bulk_density,
+                      bulk_momentum, bulk_temp, bulk_force, bulk_heating);
             }
             
             break;
@@ -6460,6 +6569,10 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               if (output_surface) config[val_iZone]->GetHistFile()[0] << d_surface_outputs;
             }
             if (output_comboObj) config[val_iZone]->GetHistFile()[0] << combo_obj;
+            if (constant_bulk_momentum || constant_bulk_temperature ||
+                steady_body_forcing) {
+              config[val_iZone]->GetHistFile()[0] << forcing_terms;
+            }
             config[val_iZone]->GetHistFile()[0] << end;
             config[val_iZone]->GetHistFile()[0].flush();
           }
@@ -6555,6 +6668,10 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               if (output_surface) config[val_iZone]->GetHistFile()[0] << d_surface_outputs;
             }
             if (output_comboObj) config[val_iZone]->GetHistFile()[0] << combo_obj;
+            if (constant_bulk_momentum || constant_bulk_temperature ||
+                steady_body_forcing) {
+              config[val_iZone]->GetHistFile()[0] << forcing_terms;
+            }
             config[val_iZone]->GetHistFile()[0] << end;
             config[val_iZone]->GetHistFile()[0].flush();
           }
@@ -13139,7 +13256,7 @@ void COutput::SetResult_Files_Parallel(CSolver *****solver_container,
 
 void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone) {
   
-  unsigned short iDim, jDim;
+  unsigned short iDim;
   unsigned short Kind_Solver = config->GetKind_Solver();
   unsigned short nDim = geometry->GetnDim();
   
@@ -13156,7 +13273,6 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
   su2double *Grid_Vel = NULL;
   
   bool transition           = (config->GetKind_Trans_Model() == BC);
-  const bool model_split_hybrid = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
   bool grid_movement        = (config->GetGrid_Movement());
   bool Wrt_Halo             = config->GetWrt_Halo(), isPeriodic;
   
@@ -13413,15 +13529,15 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 
     for (std::vector<COutputVector>::iterator it = output_vectors[val_iZone].begin();
          it != output_vectors[val_iZone].end(); ++it) {
-      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
+      for (unsigned int iDim=0; iDim < nDim; iDim++) {
         nVar_Par += 1;
         if (config->GetOutput_FileFormat() == PARAVIEW){
           ostringstream label;
-          label << it->Name << "_" << iDim;
+          label << it->Name << "_" << (iDim+1);
           Variable_Names.push_back(label.str());
         } else {
           ostringstream label;
-          label << it->Tecplot_Name << "<sub>" << iDim << "</sub>";
+          label << it->Tecplot_Name << "<sub>" << (iDim+1) << "</sub>";
           Variable_Names.push_back(label.str());
         }
       }
@@ -13429,23 +13545,23 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
 
     for (std::vector<COutputTensor>::iterator it = output_tensors[val_iZone].begin();
          it != output_tensors[val_iZone].end(); ++it) {
-      for (unsigned int iDim=1; iDim < nDim+1; iDim++) {
-        for (unsigned int jDim=1; jDim < nDim+1; jDim++) {
+      for (unsigned int iDim=0; iDim < nDim; iDim++) {
+        for (unsigned int jDim=0; jDim < nDim; jDim++) {
           nVar_Par += 1;
           if (config->GetOutput_FileFormat() == PARAVIEW){
             ostringstream label;
-            label << it->Name << "_" << iDim << jDim;
+            label << it->Name << "_" << (iDim+1) << (jDim+1);
             Variable_Names.push_back(label.str());
           } else {
             ostringstream label;
-            label << it->Tecplot_Name << "<sub>" << iDim << jDim << "</sub>";
+            label << it->Tecplot_Name << "<sub>" << (iDim+1) << (jDim+1) << "</sub>";
             Variable_Names.push_back(label.str());
           }
         }
       }
     }
 
-    if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+    if (config->GetWrt_Resolution_Tensors()) {
       nVar_Par += 9;
       Variable_Names.push_back("Resolution_Tensor_11");
       Variable_Names.push_back("Resolution_Tensor_12");
@@ -13463,6 +13579,11 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     if (config->GetWrt_SharpEdges()) {
       nVar_Par += 1;
       Variable_Names.push_back("Sharp_Edge_Dist");
+    }
+    
+    if (config->GetWrt_Partition()) {
+      nVar_Par += 1;
+      Variable_Names.push_back("Partition");
     }
     
     /*--- Add the intermittency for the BC trans. model. ---*/
@@ -13750,7 +13871,7 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         /*--- Load data for the resolution tensors ---*/
 
 
-        if (model_split_hybrid && config->GetWrt_Resolution_Tensors()) {
+        if (config->GetWrt_Resolution_Tensors()) {
           for (unsigned short iDim = 0; iDim < nDim; iDim++) {
             for (unsigned short jDim = 0; jDim < nDim; jDim++) {
               Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetResolutionTensor(iDim, jDim);
@@ -13763,6 +13884,10 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         
         if (config->GetWrt_SharpEdges()) {
           Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetSharpEdge_Distance(); iVar++;
+        }
+
+        if (config->GetWrt_Partition()) {
+          Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetColor(); iVar++;
         }
         
         /*--- Load data for the intermittency of the BC trans. model. ---*/
@@ -14044,6 +14169,11 @@ void COutput::LoadLocalData_IncFlow(CConfig *config, CGeometry *geometry, CSolve
       Variable_Names.push_back("Sharp_Edge_Dist");
     }
 
+    if (config->GetWrt_Partition()) {
+      nVar_Par += 1;
+      Variable_Names.push_back("Partition");
+    }
+
     /*--- Add the intermittency for the BC trans. model. ---*/
 
     if (transition) {
@@ -14285,6 +14415,10 @@ void COutput::LoadLocalData_IncFlow(CConfig *config, CGeometry *geometry, CSolve
 
         if (config->GetWrt_SharpEdges()) {
           Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetSharpEdge_Distance(); iVar++;
+        }
+
+        if (config->GetWrt_Partition()) {
+          Local_Data[jPoint][iVar] = geometry->node[iPoint]->GetColor(); iVar++;
         }
         
         /*--- Load data for the intermittency of the BC trans. model. ---*/
@@ -15269,13 +15403,13 @@ void COutput::SortVolumetricConnectivity(CConfig *config,
   
   unsigned long iProcessor;
   unsigned short NODES_PER_ELEMENT = 0;
-  unsigned long iPoint, jPoint, kPoint, nLocalPoint, nTotalPoint;
+  unsigned long iPoint, jPoint, nLocalPoint, nTotalPoint;
   unsigned long nElem_Total = 0, Global_Index;
   
   unsigned long iVertex, iMarker;
   int SendRecv, RecvFrom;
   
-  bool notPeriodic, notHalo, addedPeriodic, isPeriodic;
+  bool notHalo, isPeriodic;
   
   int *Local_Halo = NULL;
   int *Conn_Elem  = NULL;
@@ -15419,27 +15553,8 @@ void COutput::SortVolumetricConnectivity(CConfig *config,
           isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0));
         }
         
-        notPeriodic = (isPeriodic && (SendRecv < 0));
-        
-        /*--- Lastly, check that this isn't an added periodic point that
-         we will forcibly remove. Use the communicated list of these points. ---*/
-        
-        addedPeriodic = false; kPoint = 0;
-        for (iProcessor = 0; iProcessor < (unsigned long)size; iProcessor++) {
-          for (jPoint = 0; jPoint < Buffer_Recv_nAddedPeriodic[iProcessor]; jPoint++) {
-            if (Global_Index == Buffer_Recv_AddedPeriodic[kPoint+jPoint])
-              addedPeriodic = true;
-          }
-          
-          /*--- Adjust jNode to index of next proc's data in the buffers. ---*/
-          
-          kPoint = (iProcessor+1)*maxAddedPeriodic;
-          
-        }
-        
         /*--- If we found either of these types of nodes, flag them to be kept. ---*/
         
-        //if ((notHalo || notPeriodic) && !addedPeriodic) {
         if ((notHalo || isPeriodic)) {
           Local_Halo[iPoint] = false;
         }
@@ -19304,7 +19419,7 @@ void COutput::Write_InletFile_Flow(CConfig *config, CGeometry *geometry, CSolver
 
   unsigned short iMarker, iDim, iVar;
   unsigned long iPoint;
-  su2double turb_val[2] = {0.0,0.0};
+  su2double turb_val[4] = {0.0, 0.0, 0.0, 0.0};
 
   const unsigned short nDim = geometry->GetnDim();
 

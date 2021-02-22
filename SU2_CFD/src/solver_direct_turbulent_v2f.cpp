@@ -44,6 +44,8 @@ CTurbKESolver::CTurbKESolver(void) : CTurbSolver() {
 
   /*--- Array initialization ---*/
   constants = NULL;
+  SlidingState = NULL;
+  SlidingStateNodes = NULL;
 
 }
 
@@ -56,11 +58,6 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   ifstream restart_file;
   string text_line;
   const bool runtime_averaging = (config->GetKind_Averaging() != NO_AVERAGING);
-
-  int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
 
   /*--- Array initialization ---*/
   constants = NULL;
@@ -408,7 +405,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
                                    CConfig *config, unsigned short iMesh) {
 
   su2double rho, nu, S;
-  su2double tke, v2, zeta, muT;
+  su2double tke, v2, muT;
   const bool model_split = (config->GetKind_HybridRANSLES() == MODEL_SPLIT);
 
   /*--- Update flow solution using new k
@@ -440,6 +437,8 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
   const unsigned short realizability_limit = config->GetKind_v2f_Limit();
   const bool limit_scales = (realizability_limit == T_L_LIMIT);
+  const bool limit_muT = (realizability_limit == EDDY_VISC_LIMIT);
+  const su2double C_lim = config->Getv2f_Realizability_Constant();
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint ++) {
 
     /*--- Copy over production from flow averages to turbulence variables
@@ -464,7 +463,7 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
 
     /*--- T & L ---*/
 
-    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales);
+    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales, C_lim);
     node[iPoint]->SetKolKineticEnergyRatio(nu);
 
     const su2double Tm = node[iPoint]->GetTurbTimescale();
@@ -472,9 +471,8 @@ void CTurbKESolver::Postprocessing(CGeometry *geometry,
     /*--- Compute the eddy viscosity ---*/
 
     muT = constants[0]*rho*v2*Tm;
-    if (realizability_limit == EDDY_VISC_LIMIT) {
-      const su2double C_lim = 1.0;
-      muT = min(muT, C_lim*rho*tke/(sqrt(3)*S));
+    if (limit_muT) {
+      muT = min(muT, C_lim*rho*tke/(sqrt(3)*max(S, EPS)));
     }
 
     node[iPoint]->SetmuT(muT);
@@ -504,13 +502,14 @@ void CTurbKESolver::CalculateTurbScales(CSolver **solver_container,
 
   const bool limit_scales =
     (config->GetKind_v2f_Limit() == T_L_LIMIT);
+  const su2double C_lim = config->Getv2f_Realizability_Constant();
   for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++) {
 
     const su2double nu  = flow_node[iPoint]->GetLaminarViscosity() /
                           flow_node[iPoint]->GetDensity();
     const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales);
+    node[iPoint]->SetTurbScales(nu, S, VelInf, L_inf, limit_scales, C_lim);
   }
 }
 
@@ -819,7 +818,7 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
                              unsigned short iRKStep) {
 
   unsigned short iVar, iDim;
-  unsigned long iVertex, iPoint, Point_Normal;
+  unsigned long iVertex, iPoint;
   su2double *V_inlet, *V_domain, *Normal;
 
   /*--- Check that the inlet has been set up correctly ---*/
@@ -846,9 +845,6 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
 
     /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
     if (geometry->node[iPoint]->GetDomain()) {
-
-      /*--- Index of the closest interior node ---*/
-      Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
 
       /*--- Normal vector for this vertex (negate for outward convention) ---*/
       geometry->vertex[val_marker][iVertex]->GetNormal(Normal);
@@ -889,25 +885,7 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
       /*--- Jacobian contribution for implicit integration ---*/
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
 
-//      /*--- Viscous contribution, commented out because serious convergence problems  ---*/
-//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
-//                              geometry->node[Point_Normal]->GetCoord());
-//
-//      visc_numerics->SetNormal(Normal);
-//
-//      /*--- Conservative variables w/o reconstruction ---*/
-//      visc_numerics->SetPrimitive(V_domain, V_inlet);
-//
-//      /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
-//      visc_numerics->SetTurbVar(Solution_i, Solution_j);
-//      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(), node[iPoint]->GetGradient());
-//
-//      /*--- Compute residual, and Jacobians ---*/
-//      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-//
-//      /*--- Subtract residual, and update Jacobians ---*/
-//      LinSysRes.SubtractBlock(iPoint, Residual);
-//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
+      /*--- Viscous contribution, removed due to serious convergence problems  ---*/
 
       // Set f residual correctly to get right update
       LinSysRes.SetBlock(iPoint, 3, Solution_i[3] - f_Inf);
@@ -926,7 +904,7 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
        CNumerics *visc_numerics, CConfig *config, unsigned short val_marker,
        unsigned short iRKStep) {
 
-  unsigned long iPoint, iVertex, Point_Normal;
+  unsigned long iPoint, iVertex;
   unsigned short iVar, iDim;
   su2double *V_outlet, *V_domain, *Normal;
 
@@ -948,9 +926,6 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
 
     /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
     if (geometry->node[iPoint]->GetDomain()) {
-
-      /*--- Index of the closest interior node ---*/
-      Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
 
       /*--- Allocate the value at the outlet ---*/
       V_outlet = solver_container[FLOW_SOL]->GetCharacPrimVar(val_marker, iVertex);
@@ -990,27 +965,6 @@ void CTurbKESolver::BC_Outlet(CGeometry *geometry,
       /*--- Jacobian contribution for implicit integration ---*/
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_i);
       Jacobian.AddBlock(iPoint, iPoint, Jacobian_j); // since soln_j = soln_i
-
-//      /*--- Viscous contribution, commented out because serious convergence problems  ---*/
-//      visc_numerics->SetCoord(geometry->node[iPoint]->GetCoord(),
-//                              geometry->node[Point_Normal]->GetCoord());
-//      visc_numerics->SetNormal(Normal);
-//
-//      /*--- Conservative variables w/o reconstruction ---*/
-//      visc_numerics->SetPrimitive(V_domain, V_outlet);
-//
-//      /*--- Turbulent variables w/o reconstruction, and its gradients ---*/
-//      visc_numerics->SetTurbVar(Solution_i, Solution_j);
-//      visc_numerics->SetTurbVarGradient(node[iPoint]->GetGradient(),
-//                                        node[iPoint]->GetGradient());
-//
-//      /*--- Compute residual, and Jacobians ---*/
-//      visc_numerics->ComputeResidual(Residual, Jacobian_i, Jacobian_j, config);
-//
-//      /*--- Subtract residual, and update Jacobians ---*/
-//      LinSysRes.SubtractBlock(iPoint, Residual);
-//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_i);
-//      Jacobian.SubtractBlock(iPoint, iPoint, Jacobian_j); // since soln_j = soln_i
 
     }
   }

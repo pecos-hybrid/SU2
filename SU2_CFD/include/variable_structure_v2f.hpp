@@ -105,10 +105,10 @@ public:
   su2double GetTurbLengthscale(void) const;
 
   /*!
-   * \brief Get the component anisotropy ratio (max-to-min)
-   * \return The Reynolds stress component anisotropy ratio (max-to-min)
+   * \brief Get the component anisotropy ratio (min-to-max)
+   * \return The Reynolds stress component anisotropy ratio (min-to-max)
    */
-  su2double GetAnisoRatio(void);
+  su2double GetAnisoRatio(void) const override;
 
   /*!
    * \brief Set the production of turbulent kinetic energy.
@@ -131,12 +131,14 @@ public:
    * \param[in] L_inf - The freestream (or problem) lengthscale
    * \param[in] use_realizability - Limit the time and lengthscales based
    *     on realizability limits on the Reynolds stress tensor.
+   * \param[in] C_lim - The model constant used for T (usually 0.6)
    */
   void SetTurbScales(su2double nu,
                      su2double S,
                      su2double VelMag,
                      su2double L_inf,
-                     bool use_realizability);
+                     bool use_realizability=false,
+                     su2double C_lim=0.0) override;
 
   su2double GetTypicalLengthscale(void) const;
 

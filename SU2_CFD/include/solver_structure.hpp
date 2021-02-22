@@ -155,7 +155,7 @@ protected:
    * This step roughly corresponds to:
    *   // Retrieve U_current
    *   // Retrieve U_average
-   *   dU = (U_current - U_average)*weight;
+   *   dU = (U_current - U_average)*(dt/(dt + averaging_period));
    *   // Store dU
    *
    * Note that the base class (CSolver) updates the average of the solution.
@@ -166,7 +166,7 @@ protected:
    * function if you intend to keep the solution variables. Include
    * this line:
    * \code
-   *   CSolver::UpdateAverage(weight, iPoint, buffer, config);
+   *   CSolver::UpdateAverage(dt, averaging_period, iPoint, buffer, config);
    * \endcode
    *
    * \param[in] weight - The amount to weight the update on the average
@@ -174,7 +174,8 @@ protected:
    * \param[inout] buffer - An allocated array of size nVar for working calculations
    * \param[in] config - Definition of the particular problem.
    */
-  virtual void UpdateAverage(su2double weight,
+  virtual void UpdateAverage(su2double dt,
+                             su2double averaging_period,
                              unsigned long iPoint,
                              su2double* buffer,
                              const CConfig* config);
@@ -189,6 +190,14 @@ public:
   CSysVector *LinSysKimp;    /*!< \brief vectors to store implicit part of IMEX substep residual. */
 
   CSysVector LinSysDeltaU;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_w;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_y;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_z;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_d;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_e;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_g;  /*!< \brief vector to store solution update for IMEX. */
+  CSysVector LinSys_forcing_terms;
+  
 
   CSysMatrix Jacobian; /*!< \brief Complete sparse Jacobian structure for implicit computations. */
   
@@ -900,14 +909,20 @@ public:
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  virtual void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                             unsigned short val_marker, unsigned short iRKStep);
-  
+  virtual void BC_Euler_Wall(CGeometry      *geometry, 
+                             CSolver        **solver_container, 
+                             CNumerics      *conv_numerics, 
+                             CNumerics      *visc_numerics, 
+                             CConfig        *config,
+                             unsigned short val_marker,
+                             unsigned short iRKStep);
+
   /*!
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -1155,8 +1170,13 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  virtual void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep);
-  
+  virtual void BC_Sym_Plane(CGeometry      *geometry, 
+                            CSolver        **solver_container, 
+                            CNumerics      *conv_numerics, 
+                            CNumerics      *visc_numerics, 
+                            CConfig        *config, 
+                            unsigned short val_marker,
+                            unsigned short iRKStep);
   
   /*!
    * \brief A virtual member.
@@ -4548,6 +4568,16 @@ public:
    * \return The average timescale
    */
   su2double GetAveragingTimescale(void) const;
+
+  virtual su2double GetBulkDensity(void) const;
+
+  virtual su2double GetBulkMomentum(void) const;
+
+  virtual su2double GetBulkTemperature(void) const;
+
+  virtual su2double GetBulkForce(void) const;
+
+  virtual su2double GetBulkHeating(void) const;
 };
 
 /*!
@@ -4967,6 +4997,10 @@ protected:
   su2double ****SlidingState;
   int **SlidingStateNodes;
 
+  /*-- Bulk variables ---*/
+  su2double total_volume, bulk_density, bulk_velocity, bulk_temperature,
+            bulk_force, bulk_heating;
+
 public:
   
   
@@ -5340,18 +5374,24 @@ public:
   void Evaluate_ObjFunc(CConfig *config);
   
   /*!
-   * \author: G.Gori, S.Vitale, M.Pini, A.Guardone, P.Colonna
+   * \author: T. Kattmann
    *
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker, unsigned short iRKStep);
+  void BC_Euler_Wall(CGeometry      *geometry, 
+                     CSolver        **solver_container, 
+                     CNumerics      *conv_numerics, 
+                     CNumerics      *visc_numerics, 
+                     CConfig        *config,
+                     unsigned short val_marker,
+                     unsigned short iRKStep) override;
   
   /*!
    * \brief Impose the far-field boundary condition using characteristics.
@@ -5376,7 +5416,13 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep);
+  void BC_Sym_Plane(CGeometry      *geometry, 
+                    CSolver        **solver_container, 
+                    CNumerics      *conv_numerics, 
+                    CNumerics      *visc_numerics, 
+                    CConfig        *config, 
+                    unsigned short val_marker,
+                    unsigned short iRKStep) override;
   
  /*!
   * \brief Impose the interface state across sliding meshes.
@@ -7218,6 +7264,18 @@ public:
                     const string& restart_filename,
                     CConfig* config,
                     CGeometry** geometry);
+
+  void SetBulk_Forcing(CGeometry *geometry, CSolver **solver, CConfig *config);
+
+  su2double GetBulkDensity(void) const;
+
+  su2double GetBulkMomentum(void) const;
+
+  su2double GetBulkTemperature(void) const;
+
+  su2double GetBulkForce(void) const;
+
+  su2double GetBulkHeating(void) const;
 };
 
 /*!
@@ -7706,17 +7764,23 @@ public:
   void Evaluate_ObjFunc(CConfig *config);
 
   /*!
-   * \author: G.Gori, S.Vitale, M.Pini, A.Guardone, P.Colonna
+   * \author: T. Kattmann
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker, unsigned short iRKStep);
+  void BC_Euler_Wall(CGeometry      *geometry, 
+                     CSolver        **solver_container, 
+                     CNumerics      *conv_numerics, 
+                     CNumerics      *visc_numerics, 
+                     CConfig        *config,
+                     unsigned short val_marker,
+                     unsigned short iRKStep) override;
   
   /*!
    * \brief Impose the far-field boundary condition using characteristics.
@@ -7741,8 +7805,14 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep);
-  
+  void BC_Sym_Plane(CGeometry      *geometry,
+                    CSolver        **solver_container,
+                    CNumerics      *conv_numerics,
+                    CNumerics      *visc_numerics,
+                    CConfig        *config,
+                    unsigned short val_marker,
+                    unsigned short iRKStep) override;
+
   /*!
    * \brief Impose a subsonic inlet boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -9209,10 +9279,11 @@ public:
    * \param buffer - An allocated array of size nVar for working calculations
    * \param[in] config - Definition of the particular problem.
    */
-  void UpdateAverage(su2double weight,
+  void UpdateAverage(su2double dt,
+                     su2double averaging_period,
                      unsigned long iPoint,
                      su2double* buffer,
-                     const CConfig* config);
+                     const CConfig* config) override;
 
   /*!
    * \brief Initialize the extra quantities associated with averages.
@@ -9793,18 +9864,32 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker, unsigned short iRKStep);
+  void BC_Sym_Plane(CGeometry      *geometry,
+                    CSolver        **solver_container,
+                    CNumerics      *conv_numerics,
+                    CNumerics      *visc_numerics,
+                    CConfig        *config,
+                    unsigned short val_marker,
+                    unsigned short iRKStep) override;
   
   /*!
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] solver_container - Container vector with all the solutions.
-   * \param[in] numerics - Description of the numerical method.
+   * \param[in] conv_numerics - Description of the numerical method.
+   * \param[in] visc_numerics - Description of the numerical method.
    * \param[in] config - Definition of the particular problem.
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
+   * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker, unsigned short iRKStep);
+  void BC_Euler_Wall(CGeometry      *geometry, 
+                     CSolver        **solver_container, 
+                     CNumerics      *conv_numerics, 
+                     CNumerics      *visc_numerics, 
+                     CConfig        *config,
+                     unsigned short val_marker,
+                     unsigned short iRKStep) override;
+
   /*!
    * \brief Impose via the residual the Euler wall boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -10515,6 +10600,13 @@ public:
   void SetUniformInlet(CConfig* config, unsigned short iMarker);
 
   /*!
+   * \brief Calculates and stores the turbulent timescales and lengthscales
+   * \param[in] solver_container - Container vector with all the solutions
+   * \param[in] config - Definition of the particular problem.
+   */
+  void CalculateTurbScales(CSolver **solver_container, CConfig *config);
+
+  /*!
    * \brief Get the value of the turbulent kinetic energy.
    * \return Value of the turbulent kinetic energy.
    */
@@ -11009,9 +11101,14 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker, unsigned short iRKStep);
-  
+  void BC_Euler_Wall(CGeometry      *geometry,
+                     CSolver        **solver_container,
+                     CNumerics      *conv_numerics,
+                     CNumerics      *visc_numerics,
+                     CConfig        *config,
+                     unsigned short val_marker,
+                     unsigned short iRKStep) override;
+
   /*!
    * \brief Impose the interface boundary condition using the residual.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -11085,8 +11182,13 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
-                    unsigned short val_marker, unsigned short iRKStep);
+  void BC_Sym_Plane(CGeometry      *geometry,
+                    CSolver        **solver_container,
+                    CNumerics      *conv_numerics,
+                    CNumerics      *visc_numerics,
+                    CConfig        *config,
+                    unsigned short val_marker,
+                    unsigned short iRKStep) override;
   
   /*!
    * \brief Impose the boundary condition to the far field using characteristics.
@@ -11789,8 +11891,13 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker, unsigned short iRKStep);
+  void BC_Euler_Wall(CGeometry      *geometry,
+                     CSolver        **solver_container,
+                     CNumerics      *conv_numerics,
+                     CNumerics      *visc_numerics,
+                     CConfig        *config,
+                     unsigned short val_marker,
+                     unsigned short iRKStep) override;
   
   /*!
    * \brief Impose a Dirichlet boundary condition.
@@ -13050,8 +13157,13 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Euler_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
-                     unsigned short val_marker, unsigned short iRKStep);
+  void BC_Euler_Wall(CGeometry      *geometry,
+                     CSolver        **solver_container,
+                     CNumerics      *conv_numerics,
+                     CNumerics      *visc_numerics,
+                     CConfig        *config,
+                     unsigned short val_marker,
+                     unsigned short iRKStep) override;
   
   /*!
    * \brief Impose the Navier-Stokes boundary condition (strong).
@@ -13117,8 +13229,13 @@ public:
    * \param[in] val_marker - Surface marker where the boundary condition is applied.
    * \param[in] iRKStep - Current step of the Runge-Kutta iteration.
    */
-  void BC_Sym_Plane(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
-                    unsigned short val_marker, unsigned short iRKStep);
+  void BC_Sym_Plane(CGeometry      *geometry,
+                    CSolver        **solver_container,
+                    CNumerics      *conv_numerics,
+                    CNumerics      *visc_numerics,
+                    CConfig        *config,
+                    unsigned short val_marker,
+                    unsigned short iRKStep) override;
   
   /*!
    * \brief Impose the dirichlet boundary condition.

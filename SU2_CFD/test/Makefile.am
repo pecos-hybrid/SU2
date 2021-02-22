@@ -36,7 +36,6 @@
 check_PROGRAMS  =
 TESTS  =
 
-check_PROGRAMS += load_hybrid_constants_test
 if BUILD_LAPACK
 check_PROGRAMS += eigensolver_test
 check_PROGRAMS += zeta_unit_cell_test
@@ -66,7 +65,6 @@ LDFLAGS  += -mkl
 endif
 
 # Test sources
-load_hybrid_constants_test_SOURCES     = load_hybrid_constants_test.cpp
 if BUILD_LAPACK
 eigensolver_test_SOURCES               = eigensolver_test.cpp
 zeta_unit_cell_test_SOURCES            = zeta_unit_cell_test.cpp
@@ -85,10 +83,12 @@ test_driver_SOURCES = convective_blending_test.cpp \
                       viscous_model_split.cpp \
                       averaging_timescale_test.cpp \
 		      main.cpp
+if BUILD_LAPACK
+test_driver_SOURCES += resolution_adequacy.cpp
+endif
 endif
 
 # Tests to be run
-TESTS += load_hybrid_constants_test
 if BUILD_LAPACK
 TESTS += eigensolver_test
 TESTS += zeta_unit_cell_test
