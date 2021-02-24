@@ -786,6 +786,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RDELTA_INDICATOR_FULLP_VELCON \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RDELTA_INDICATOR_FULLP_VELCON);
 
+  /*! \brief HYBRID_RESOLUTION_PARAMETER \n DESCRIPTION: The resolution adequacy proportionality constant, C_r. \n DEFAULT: 1.0 \ingroup Config */
+  addDoubleOption("HYBRID_RESOLUTION_PARAMETER", Hybrid_Resolution_Parameter, 1.0);
+
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
   addBoolOption("HYBRID_FORCING_AXI", Hybrid_Forcing_Axi, false);
