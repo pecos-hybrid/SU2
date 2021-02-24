@@ -570,7 +570,7 @@ private:
   su2double* FluctStress_AR_Params; /*!< \brief The parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
   su2double* default_fluct_stress_AR_params; /*!< \brief Default values of the parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
   bool load_hybrid_from_RANS; /*!< \brief This is set to true if the hybrid solution is to be loaded from a RANS solution. */
-
+  su2double Hybrid_Resolution_Parameter; /*!< \brief Resolution adequacy parameter for the AMS hybrid RANS/LES model. */
 
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
@@ -4385,6 +4385,12 @@ public:
    * \return Kind of blending scheme.
    */
   unsigned short GetKind_Hybrid_Resolution_Indicator(void);
+
+  /*!
+   * \brief Get the value of the calibrated resolution adequacy constant.
+   * \return Value of the resolution adequacy constant.
+   */
+  su2double GetHybrid_Resolution_Parameter(void) const { return Hybrid_Resolution_Parameter; }
 
   /*!
    * \brief Checks if a hybrid LES/RANS method should be forced.
