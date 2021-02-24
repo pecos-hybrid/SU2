@@ -786,6 +786,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*! \brief HYBRID_RESOLUTION_INDICATOR \n DESCRIPTION: Specify the resolution adequacy indicator to use for hybrid LES/RANS model. \n Options: see \link Hybrid_Res_Ind_Map \endlink \n DEFAULT: RDELTA_INDICATOR_FULLP_VELCON \ingroup Config */
   addEnumOption("HYBRID_RESOLUTION_INDICATOR", Kind_Hybrid_Res_Ind, Hybrid_Res_Ind_Map, RDELTA_INDICATOR_FULLP_VELCON);
 
+  /*! \brief HYBRID_RESOLUTION_PARAMETER \n DESCRIPTION: The resolution adequacy proportionality constant, C_r. \n DEFAULT: 1.0 \ingroup Config */
+  addDoubleOption("HYBRID_RESOLUTION_PARAMETER", Hybrid_Resolution_Parameter, 1.0);
+
   /*!\brief HYBRID_FORCING \n DESCRIPTION: Specify whether the hybrid model should use turbulent forcing. \n Options: NO, YES \n DEFAULT: NO  \ingroup Config*/
   addBoolOption("HYBRID_FORCING", Hybrid_Forcing, false);
   addBoolOption("HYBRID_FORCING_AXI", Hybrid_Forcing_Axi, false);
@@ -1585,6 +1588,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   default_jst_coeff[0] = 0.5; default_jst_coeff[1] = 0.02;
   /*!\brief JST_SENSOR_COEFF \n DESCRIPTION: 2nd and 4th order artificial dissipation coefficients for the JST method \ingroup Config*/
   addDoubleArrayOption("JST_SENSOR_COEFF", 2, Kappa_Flow, default_jst_coeff);
+  /*!\brief JST_C4 \n DESCRIPTION: Factor multiplied by the 2nd order dissipation to make sure that 4th order dissipation turns off when 2nd order dissipation is strong. \ingroup Config */
+  addDoubleOption("JST_C4", JST_c4, 1.0);
   /*!\brief LAX_SENSOR_COEFF \n DESCRIPTION: 1st order artificial dissipation coefficients for the Lax-Friedrichs method. \ingroup Config*/
   addDoubleOption("LAX_SENSOR_COEFF", Kappa_1st_Flow, 0.15);
   default_ad_coeff_heat[0] = 0.5; default_ad_coeff_heat[1] = 0.02;
@@ -5955,11 +5960,13 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
         if (Kind_Centered_Flow == JST) {
           cout << "Jameson-Schmidt-Turkel scheme (2nd order in space) for the flow inviscid terms."<< endl;
           cout << "JST viscous coefficients (2nd & 4th): " << Kappa_2nd_Flow << ", " << Kappa_4th_Flow <<"." << endl;
+          cout << "JST c4 coefficient: " << JST_c4 << endl;
           cout << "The method includes a grid stretching correction (p = 0.3)."<< endl;
         }
         if (Kind_Centered_Flow == JST_KE) {
           cout << "Jameson-Schmidt-Turkel scheme (2nd order in space) for the flow inviscid terms."<< endl;
           cout << "JST viscous coefficients (2nd & 4th): " << Kappa_2nd_Flow << ", " << Kappa_4th_Flow << "." << endl;
+          cout << "JST c4 coefficient: " << JST_c4 << endl;
           cout << "The method includes a grid stretching correction (p = 0.3)."<< endl;
         }
         if (Kind_Centered_Flow == LAX) {

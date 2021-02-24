@@ -569,7 +569,8 @@ private:
   unsigned short Kind_SGS_Model;                        /*!< \brief LES SGS model definition. */
   su2double* FluctStress_AR_Params; /*!< \brief The parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
   su2double* default_fluct_stress_AR_params; /*!< \brief Default values of the parameters defining the blending function applied to the fluctuating stress in high-AR cells. */
-
+  bool load_hybrid_from_RANS; /*!< \brief This is set to true if the hybrid solution is to be loaded from a RANS solution. */
+  su2double Hybrid_Resolution_Parameter; /*!< \brief Resolution adequacy parameter for the AMS hybrid RANS/LES model. */
 
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
   Kind_FreeStreamTurbOption, /*!< \brief Kind of freestream boundary condition (Only used for two-equation models) */
@@ -616,6 +617,7 @@ private:
   Kappa_2nd_Heat,     /*!< \brief 2nd order dissipation coefficient for heat equation. */
   Kappa_4th_Heat,     /*!< \brief 4th order dissipation coefficient for heat equation. */  
   Cent_Jac_Fix_Factor;/*!< \brief Multiply the dissipation contribution to the Jacobian of central schemes by this factor to make the global matrix more diagonal dominant. */
+  su2double JST_c4; /*!< \brief Factor multiplied by second order dissipation in JST scheme to reduce 4th order dissipation when 2nd order is active.  */
   su2double Geo_Waterline_Location; /*!< \brief Location of the waterline. */
   
   su2double Min_Beta_RoeTurkel,		/*!< \brief Minimum value of Beta for the Roe-Turkel low Mach preconditioner. */
@@ -4381,6 +4383,12 @@ public:
   unsigned short GetKind_Hybrid_Resolution_Indicator(void);
 
   /*!
+   * \brief Get the value of the calibrated resolution adequacy constant.
+   * \return Value of the resolution adequacy constant.
+   */
+  su2double GetHybrid_Resolution_Parameter(void) const { return Hybrid_Resolution_Parameter; }
+
+  /*!
    * \brief Checks if a hybrid LES/RANS method should be forced.
    * \return True if the hybrid RANS/LES model is to be forced.
    */
@@ -4436,6 +4444,18 @@ public:
    * \param[in] load_stress - True if the resolved turbulent stress is to be used.
    */
   void SetUse_Resolved_Turb_Stress(bool use_stress);
+
+  /*!
+   * \brief Load a hybrid solution from a RANS solution
+   * \param[in] load_value - True if the hybrid RANS/LES solution is to be loaded from RANS
+   */
+  void SetLoadHybridFromRANS(bool load_value) { load_hybrid_from_RANS = load_value; }
+
+  /*!
+   * \brief Load a hybrid solution from a RANS solution
+   * \return True if the hybrid RANS/LES solution is to be loaded from RANS
+   */
+  bool GetLoadHybridFromRANS() const { return load_hybrid_from_RANS; }
 
   /*!
    * \brief Get the kind of the turbulence model.
@@ -4741,6 +4761,13 @@ public:
    * \return Calibrated constant for the JST method for the flow equations.
    */
   su2double GetKappa_4th_Flow(void);
+
+  /*!
+   * \brief Return the factor multiplied by second order dissipation in
+   * JST scheme to reduce 4th order dissipation when 2nd order is active.
+   * \return c4 constant for the JST method for the flow equations
+   */
+  su2double GetJST_c4(void) const { return JST_c4; };
 
   /*!
    * \brief Value of the calibrated constant for the JST method (center scheme).

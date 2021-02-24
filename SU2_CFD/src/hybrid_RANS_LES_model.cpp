@@ -128,7 +128,7 @@ void CHybrid_Mediator::ComputeResolutionAdequacy(const CGeometry* geometry,
     }
   }
 
-  const su2double C_r = 1.0;
+  const su2double C_r = config->GetHybrid_Resolution_Parameter();
   const su2double r_k_min = 1.0E-8;
   const su2double r_k_max = (beta > 1) ? 1.0 : 30;
   const su2double r_k = max(min(C_r*max_eigval, r_k_max), r_k_min);

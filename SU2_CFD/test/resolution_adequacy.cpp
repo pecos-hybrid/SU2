@@ -218,7 +218,7 @@ BOOST_FIXTURE_TEST_CASE(MaxIsOneWhenAlphaGreaterThanOne, RkFixture) {
   }
 
   /*--- Set alpha to be an unrealistic value ---*/
-  flow_avgs->SetKineticEnergyRatio(pow(1.1, 1.0/1.7));
+  flow_avgs->SetKineticEnergyRatio(1.1);
 
   /*--- Test --*/
 
@@ -254,7 +254,7 @@ BOOST_FIXTURE_TEST_CASE(MaxIs30WhenAlphaLessThanOne, RkFixture) {
   }
 
   /*--- Set alpha to be a realistic value ---*/
-  flow_avgs->SetKineticEnergyRatio(pow(0.5, 1.0/1.7));
+  flow_avgs->SetKineticEnergyRatio(0.5);
 
   /*--- Test --*/
 
@@ -282,7 +282,7 @@ BOOST_FIXTURE_TEST_CASE(MinEnforcedWhenRkIsSmall, RkFixture) {
   }
 
   /*--- Set alpha to be a realistic value ---*/
-  flow_avgs->SetKineticEnergyRatio(pow(0.5, 1.0/1.7));
+  flow_avgs->SetKineticEnergyRatio(0.5);
 
   /*--- Test --*/
 
@@ -299,8 +299,8 @@ BOOST_FIXTURE_TEST_CASE(SimpleRkTest, RkFixture) {
   /*--- Setup ---*/
 
   const unsigned short iPoint = 0;
-  flow_vars->AddGradient_Primitive(1, 1, 1.0);
-  flow_avgs->AddGradient_Primitive(1, 1, 1.0);
+  flow_vars->AddGradient_Primitive(1, 1, 3.0);
+  flow_avgs->AddGradient_Primitive(1, 1, 3.0);
 
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
@@ -308,13 +308,23 @@ BOOST_FIXTURE_TEST_CASE(SimpleRkTest, RkFixture) {
     }
   }
 
-  /*--- Set v2 to 4/3 make (3/2*alpha*v2)^(1.5)=1.0 ---*/
-  solver_container[TURB_SOL]->node[iPoint]->SetSolution(0, 3*pow(0.5, -1.0/1.7));
-  solver_container[TURB_SOL]->node[iPoint]->SetSolution(2, 4.0/3);
+  /*--- Set v2 to 4/3 make (3/2*alpha*k*ratio)^(1.5)=1.0 ---*/
+
+  /*--- We want
+     (1.5 * beta * TWO3 * ktot * aniso_ratio)^(1.5) = 1.0
+
+     aniso_ratio is equal to 1.5*v2/ktot
+
+     So v2 = 4.0/3 will give (3/2 * 1/2 * 2/3 * 2) = 1
+     ---*/
+  const su2double v2_total = 4.0/3;
+  solver_container[TURB_SOL]->node[iPoint]->SetSolution(2, v2_total);
+  /*--- We set k to 1/2 * (3*v2), to make sure we don't hit realizability limits ---*/
+  solver_container[TURB_SOL]->node[iPoint]->SetSolution(0, 0.5*v2_total*3);
   solver_container[TURB_SOL]->node[iPoint]->SetmuT(0.0);
 
   /*--- Set alpha to be a realistic value ---*/
-  flow_avgs->SetKineticEnergyRatio(pow(0.5, 1.0/1.7));
+  flow_avgs->SetKineticEnergyRatio(0.5);
 
   /*--- Test --*/
 
