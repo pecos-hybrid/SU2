@@ -1252,8 +1252,8 @@ public:
                              su2double S,
                              su2double VelMag,
                              su2double L_inf,
-                             bool use_realizability,
-                             su2double C_lim);
+                             bool use_realizability=false,
+                             su2double C_lim=0.0);
 
 
   virtual void SetKolKineticEnergyRatio(su2double nu);
@@ -4823,8 +4823,12 @@ public:
    * \param[in] use_realizability - Limit the time and lengthscales based
    *     on realizability limits on the Reynolds stress tensor.
    */
-  void SetTurbScales(su2double nu, su2double S, su2double VelMag,
-                     su2double L_inf, bool use_realizability);
+  void SetTurbScales(su2double nu,
+                     su2double S,
+                     su2double VelMag,
+                     su2double L_inf,
+                     bool use_realizability=false,
+                     su2double C_lim=0.0) override;
 
   /*!
    * \brief Set the production of turbulent kinetic energy.

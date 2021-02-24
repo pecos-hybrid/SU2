@@ -15363,6 +15363,11 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
       }
     }
   }
+  if (start_hybrid_from_hybrid) {
+    config->SetLoadHybridFromRANS(false);
+  } else {
+    config->SetLoadHybridFromRANS(true);
+  }
 
   /*--- Load data from the restart into correct containers. ---*/
 
@@ -20241,11 +20246,13 @@ void CNSSolver::UpdateAverage(const su2double dt,
 
       /*--- Update resolved Reynolds stress ---*/
 
+      const su2double Pk_relaxation = config->GetProduction_Relaxation();
+      const su2double Pk_weight = dt/(dt + averaging_period/Pk_relaxation);
       for (unsigned short iDim = 0; iDim < nDim; iDim++) {
         for (unsigned short jDim = 0; jDim < nDim; jDim++) {
           const su2double current_uiuj = -resolved_rho*fluct_velocity[iDim]*fluct_velocity[jDim];
           const su2double average_uiuj = average_node[iPoint]->GetResolvedTurbStress(iDim, jDim);
-          const su2double delta_uiuj = (current_uiuj - average_uiuj)*weight;
+          const su2double delta_uiuj = (current_uiuj - average_uiuj)*Pk_weight;
 
           node[iPoint]->SetResolvedTurbStress(iDim, jDim, current_uiuj);
           average_node[iPoint]->AddResolvedTurbStress(iDim, jDim, delta_uiuj);

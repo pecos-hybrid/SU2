@@ -4293,8 +4293,8 @@ void CTurbSSTSolver::Postprocessing(CGeometry *geometry, CSolver **solver_contai
 
     /*--- We use SetTurbScales instead of manually setting T, L so
      * we can set kolmogorov scales too --*/
-    // Note: strMag and Clim is not actually used SST function
-    node[iPoint]->SetTurbScales(nu, 0.0, VelMag, L_inf, false, 0.0);
+    // Note: strMag is not actually used SST function
+    node[iPoint]->SetTurbScales(nu, 0.0, VelMag, L_inf);
 
     /*--- Compute anisotropy measure ---*/
     const su2double C_mu_v2f = 0.22;
@@ -4334,7 +4334,7 @@ void CTurbSSTSolver::CalculateTurbScales(CSolver **solver_container,
                           flow_node[iPoint]->GetDensity();
     const su2double S   = flow_node[iPoint]->GetStrainMag();
 
-    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf, false, 0.0);
+    node[iPoint]->SetTurbScales(nu, S, VelMag, L_inf);
   }
 }
 

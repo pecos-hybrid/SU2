@@ -1527,6 +1527,11 @@ void CDriver::Solver_Preprocessing(CSolver ****solver_container, CGeometry ***ge
       assert(rk > 0);
       if (!config->GetRestart() && !config->GetRestart_Flow()) {
         solver_container[val_iInst][MESH_0][FLOW_SOL]->average_node[iPoint]->SetResolutionAdequacy(rk);
+      } else if (config->GetLoadHybridFromRANS()) {
+        // Averages were set up before the solution or fields were
+        // loaded. We need to set the average resolution adeuqacy as the
+        // instantaneous value.
+        solver_container[val_iInst][MESH_0][FLOW_SOL]->average_node[iPoint]->SetResolutionAdequacy(rk);
       } else {
         // Check that we've loaded the resolution adequacy
         assert(solver_container[val_iInst][MESH_0][FLOW_SOL]->average_node[iPoint]);

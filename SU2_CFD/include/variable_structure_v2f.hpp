@@ -137,8 +137,8 @@ public:
                      su2double S,
                      su2double VelMag,
                      su2double L_inf,
-                     bool use_realizability,
-                     su2double C_lim) override;
+                     bool use_realizability=false,
+                     su2double C_lim=0.0) override;
 
   su2double GetTypicalLengthscale(void) const;
 
