@@ -226,29 +226,28 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
   const su2double nuInf  = muLamInf/rhoInf;
   const su2double nutInf = muT_Inf /rhoInf;
 
-  // Freestream TKE
   kine_Inf = 1.5*(VelInf*VelInf*Intensity*Intensity);
-
-  // Freestream dissipation
-  epsi_Inf = (2.0/3.0)*constants[0]*(kine_Inf*kine_Inf)/nutInf;
-  const su2double ktmp = 2.0/3.0*constants[0]*constants[8]*kine_Inf/viscRatio;
-  const su2double epsi_Inf_alt = ktmp*ktmp/nuInf;
-  epsi_Inf = min( epsi_Inf, epsi_Inf_alt );
-
-  // Fresstream v2
   zeta_Inf = 2.0/3.0*kine_Inf;
 
-
-  // Freestream time scale
-  Tm_Inf = kine_Inf/max(epsi_Inf,tdr_min);
-  su2double Tkol_inf = constants[8]*sqrt(nuInf/max(epsi_Inf,tdr_min));
-  Tm_Inf = max( Tm_Inf, Tkol_inf );
-
-  // Freestream length scale
-  Lm_Inf = pow(kine_Inf,1.5)/max(epsi_Inf,tdr_min);
-  const su2double nu3 = nuInf*nuInf*nuInf;
-  const su2double Lkol_Inf = constants[10]*pow(nu3/max(epsi_Inf,tdr_min),0.25);
-  Lm_Inf = constants[9] * max( Lm_Inf, Lkol_Inf);
+  /*--- Regardless of turbulence intensity, a turbulent-to-laminar
+   * eddy-viscosity ratio less than 2/3*C_mu*C_T^2 corresponds to
+   * the Kolmogorov limit in the length and timescales. Using eddy
+   * viscosity ratio (instead of length or timescale comparisons) is
+   * a relatively intuitive way to respect this limit. ---*/
+  if (viscRatio > 2.0/3*constants[0]*constants[8]*constants[8]) {
+    epsi_Inf = (2.0/3.0)*constants[0]*(kine_Inf*kine_Inf)/nutInf;
+    Tm_Inf = kine_Inf/max(epsi_Inf,tdr_min);
+    Lm_Inf = pow(kine_Inf,1.5)/max(epsi_Inf,tdr_min);
+  } else {
+    if (rank == MASTER_NODE) {
+      cout << "WARNING: Using alternative freestream definition based on Kolmogorov limit." << endl;
+    }
+    const su2double ktmp = 2.0/3.0*constants[0]*constants[8]*kine_Inf/viscRatio;
+    epsi_Inf = ktmp*ktmp/nuInf;
+    Tm_Inf = constants[8]*sqrt(nuInf/max(epsi_Inf,tdr_min));
+    const su2double nu3 = nuInf*nuInf*nuInf;
+    Lm_Inf = constants[10]*pow(nu3/max(epsi_Inf,tdr_min),0.25);
+  }
 
   // Freestream f
   f_Inf = (10.0/3.0+0.3)*epsi_Inf/max(kine_Inf,tke_min);
@@ -781,10 +780,10 @@ void CTurbKESolver::BC_Far_Field(CGeometry *geometry,
       for (iVar = 0; iVar < nVar; iVar++)
         Solution_i[iVar] = node[iPoint]->GetSolution(iVar);
 
-      Solution_j[0] = node[iPoint]->GetSolution(0);
-      Solution_j[1] = node[iPoint]->GetSolution(1);
-      Solution_j[2] = node[iPoint]->GetSolution(2);
-      Solution_j[3] = node[iPoint]->GetSolution(3);
+      Solution_j[0] = kine_Inf;
+      Solution_j[1] = epsi_Inf;
+      Solution_j[2] = zeta_Inf;
+      Solution_j[3] = f_Inf;
 
       conv_numerics->SetTurbVar(Solution_i, Solution_j);
       /*--- Set Normal (it is necessary to change the sign) ---*/

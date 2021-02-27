@@ -15386,7 +15386,20 @@ void CEulerSolver::LoadSolution(bool val_update_geo,
        offset in the buffer of data from the restart file and load it. ---*/
 
       unsigned long index = counter*Restart_Vars[1] + skipVars;
-      for (unsigned short iVar = 0; iVar < nVar; iVar++) Solution[iVar] = Restart_Data[index+iVar];
+      if (Restart_Data[index] <= 0.0) {
+        SU2_MPI::Error("Encountered density <= 0 while loading solution.", CURRENT_FUNCTION);
+      }
+      for (unsigned short iVar = 0; iVar < nVar; iVar++) {
+        // Check for NaNs in the solution
+        if (Restart_Data[index+iVar] != Restart_Data[index+iVar]) {
+          cout << "Restart Data: " << endl;
+          for (unsigned short jVar = 0; jVar < nVar; jVar++) {
+            cout << "Solution[" << jVar << "] =  " << Restart_Data[index+jVar] << endl;
+          }
+          SU2_MPI::Error("Encountered NaN while loading solution.", CURRENT_FUNCTION);
+        }
+        Solution[iVar] = Restart_Data[index+iVar];
+      }
       node[iPoint_Local]->SetSolution(Solution);
       iPoint_Global_Local++;
 
