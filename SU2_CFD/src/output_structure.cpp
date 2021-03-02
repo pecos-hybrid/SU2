@@ -19467,40 +19467,61 @@ void COutput::Write_InletFile_Flow(CConfig *config, CGeometry *geometry, CSolver
   node_file << "NMARK= " << nMarker_InletFile << endl;
 
   for (iMarker = 0; iMarker < nMarker_InletFile; iMarker++) {
+    cout << "config->GetnMarker_All() = " << config->GetnMarker_All() << "\n";
+    for (unsigned short jMarker = 0; jMarker < config->GetnMarker_All(); jMarker++) {
+      string jMarker_Tag = config->GetMarker_CfgFile_TagBound(jMarker);
+      if (Marker_Tags_InletFile[iMarker] == jMarker_Tag) {
 
-    /*--- Access the default data for this marker. ---*/
+        /*--- Access the default data for this marker. ---*/
 
-    string Marker_Tag   = Marker_Tags_InletFile[iMarker];
-    su2double p_total   = config->GetInlet_Ptotal(Marker_Tag);
-    su2double t_total   = config->GetInlet_Ttotal(Marker_Tag);
-    su2double* flow_dir = config->GetInlet_FlowDir(Marker_Tag);
+        const unsigned short kind_marker =
+            config->GetMarker_CfgFile_KindBC(jMarker_Tag);
+        string Marker_Tag   = Marker_Tags_InletFile[iMarker];
+        su2double state_vars[2];
+        const su2double* flow_vars;
+        if (kind_marker == INLET_FLOW) {
 
-    /*--- Header information for this marker. ---*/
+          state_vars[0] = config->GetInlet_Ttotal(Marker_Tag);
+          state_vars[1] = config->GetInlet_Ptotal(Marker_Tag);
+          flow_vars = config->GetInlet_FlowDir(Marker_Tag);
 
-    node_file << "MARKER_TAG= " << Marker_Tag              << endl;
-    node_file << "NROW="        << nRow_InletFile[iMarker] << endl;
-    node_file << "NCOL="        << nCol_InletFile          << endl;
+        } else if (kind_marker == SUPERSONIC_INLET) {
 
-    node_file << setprecision(15);
-    node_file << std::scientific;
+          state_vars[0] = config->GetInlet_Temperature(Marker_Tag);
+          state_vars[1] = config->GetInlet_Pressure(Marker_Tag);
+          flow_vars = config->GetInlet_Velocity(Marker_Tag);
 
-    /*--- Loop over the data structure and write the coords and vars to file. ---*/
+        } else {
+          SU2_MPI::Error("Could not identify the kind of custom BC.", CURRENT_FUNCTION);
+        }
 
-    for (iPoint = nRowCum_InletFile[iMarker]; iPoint < nRowCum_InletFile[iMarker+1]; iPoint++) {
+        /*--- Header information for this marker. ---*/
 
-      for (iDim = 0; iDim < nDim; iDim++) {
-        node_file << InletCoords[iDim][iPoint] << "\t";
+        node_file << "MARKER_TAG= " << Marker_Tag              << endl;
+        node_file << "NROW="        << nRow_InletFile[iMarker] << endl;
+        node_file << "NCOL="        << nCol_InletFile          << endl;
+
+        node_file << setprecision(15);
+        node_file << std::scientific;
+
+        /*--- Loop over the data structure and write the coords and vars to file. ---*/
+
+        for (iPoint = nRowCum_InletFile[iMarker]; iPoint < nRowCum_InletFile[iMarker+1]; iPoint++) {
+
+          for (iDim = 0; iDim < nDim; iDim++) {
+            node_file << InletCoords[iDim][iPoint] << "\t";
+          }
+          node_file << state_vars[0] << "\t" << state_vars[1];
+          for (iDim = 0; iDim < nDim; iDim++) {
+            node_file << "\t" << flow_vars[iDim];
+          }
+          for (iVar = 0; iVar < nVar_Turb; iVar++) {
+            node_file << "\t" << turb_val[iVar];
+          }
+          node_file << endl;
+        }
       }
-      node_file << t_total << "\t" << p_total;
-      for (iDim = 0; iDim < nDim; iDim++) {
-        node_file << "\t" << flow_dir[iDim];
-      }
-      for (iVar = 0; iVar < nVar_Turb; iVar++) {
-        node_file << "\t" << turb_val[iVar];
-      }
-      node_file << endl;
     }
-
   }
   node_file.close();
 

@@ -1625,9 +1625,11 @@ void CDriver::Inlet_Preprocessing(CSolver ***solver_container, CGeometry **geome
 
     if (euler || ns || adj_euler || adj_ns || disc_adj) {
       solver_container[MESH_0][FLOW_SOL]->LoadInletProfile(geometry, solver_container, config, val_iter, FLOW_SOL, INLET_FLOW);
+      solver_container[MESH_0][FLOW_SOL]->LoadInletProfile(geometry, solver_container, config, val_iter, FLOW_SOL, SUPERSONIC_INLET);
     }
     if (turbulent || adj_turb || disc_adj_turb) {
       solver_container[MESH_0][TURB_SOL]->LoadInletProfile(geometry, solver_container, config, val_iter, TURB_SOL, INLET_FLOW);
+      solver_container[MESH_0][TURB_SOL]->LoadInletProfile(geometry, solver_container, config, val_iter, TURB_SOL, SUPERSONIC_INLET);
     }
 
     if (template_solver) {
@@ -1663,13 +1665,10 @@ void CDriver::Inlet_Preprocessing(CSolver ***solver_container, CGeometry **geome
 
     for (iMesh = 0; iMesh <= config->GetnMGLevels(); iMesh++) {
       for(unsigned short iMarker=0; iMarker < config->GetnMarker_All(); iMarker++) {
-        if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW ||
-            config->GetMarker_All_KindBC(iMarker) == SUPERSONIC_INLET) {
-          if (euler || ns || adj_euler || adj_ns || disc_adj)
-            solver_container[iMesh][FLOW_SOL]->SetUniformInlet(config, iMarker);
-          if (turbulent)
-            solver_container[iMesh][TURB_SOL]->SetUniformInlet(config, iMarker);
-        }
+        if (euler || ns || adj_euler || adj_ns || disc_adj)
+          solver_container[iMesh][FLOW_SOL]->SetUniformInlet(config, iMarker);
+        if (turbulent)
+          solver_container[iMesh][TURB_SOL]->SetUniformInlet(config, iMarker);
       }
     }
     
