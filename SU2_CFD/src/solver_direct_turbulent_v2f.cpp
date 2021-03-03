@@ -1008,9 +1008,7 @@ su2double CTurbKESolver::GetInletAtVertex(su2double *val_inlet,
     const unsigned short offset = nDim + 2 + nDim;
 
     for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
-      if ((config->GetMarker_All_KindBC(iMarker) == INLET_FLOW ||
-           config->GetMarker_All_KindBC(iMarker) == SUPERSONIC_INLET) &&
-          (config->GetMarker_All_TagBound(iMarker) == val_marker)) {
+      if (config->GetMarker_All_TagBound(iMarker) == val_marker) {
         
         for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++){
 

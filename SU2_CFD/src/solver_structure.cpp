@@ -3363,8 +3363,14 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
   /*--- Modify file name for an unsteady restart ---*/
 
-  if (dual_time || time_stepping)
+  if (dual_time || time_stepping) {
+    if (config->GetRestart()) {
       profile_filename = config->GetUnsteady_FileName(profile_filename, val_iter);
+    } else {
+      // Force the iteration passed to prevent a "negative iteration" error
+      profile_filename = config->GetUnsteady_FileName(profile_filename, 1);
+    }
+  }
 
   /*--- Open the file and check for problems. If a file can not be found,
    then a warning will be printed, but the calculation will continue
@@ -3565,9 +3571,12 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
     for (iMesh = 0; iMesh <= config->GetnMGLevels(); iMesh++) {
       for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+        if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW &&
+            config->GetMarker_All_KindBC(iMarker) == SUPERSONIC_INLET) {
           solver[iMesh][KIND_SOLVER]->SetUniformInlet(config, iMarker);
         }
       }
+    }
 
   }
 
