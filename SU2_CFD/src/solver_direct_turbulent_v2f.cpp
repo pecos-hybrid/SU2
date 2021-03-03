@@ -312,18 +312,13 @@ CTurbKESolver::CTurbKESolver(CGeometry *geometry, CConfig *config,
 
   Inlet_TurbVars = new su2double**[nMarker];
   for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++) {
-    if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW ||
-        config->GetMarker_All_KindBC(iMarker) == SUPERSONIC_INLET) {
-      Inlet_TurbVars[iMarker] = new su2double*[nVertex[iMarker]];
-      for(unsigned long iVertex=0; iVertex < nVertex[iMarker]; iVertex++){
-        Inlet_TurbVars[iMarker][iVertex] = new su2double[nVar];
-        Inlet_TurbVars[iMarker][iVertex][0] = kine_Inf;
-        Inlet_TurbVars[iMarker][iVertex][1] = epsi_Inf;
-        Inlet_TurbVars[iMarker][iVertex][2] = zeta_Inf;
-        Inlet_TurbVars[iMarker][iVertex][3] = f_Inf;
-      }
-    } else {
-      Inlet_TurbVars[iMarker] = NULL;
+    Inlet_TurbVars[iMarker] = new su2double*[nVertex[iMarker]];
+    for(unsigned long iVertex=0; iVertex < nVertex[iMarker]; iVertex++){
+      Inlet_TurbVars[iMarker][iVertex] = new su2double[nVar];
+      Inlet_TurbVars[iMarker][iVertex][0] = kine_Inf;
+      Inlet_TurbVars[iMarker][iVertex][1] = epsi_Inf;
+      Inlet_TurbVars[iMarker][iVertex][2] = zeta_Inf;
+      Inlet_TurbVars[iMarker][iVertex][3] = f_Inf;
     }
   }
 
