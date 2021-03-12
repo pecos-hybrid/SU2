@@ -576,8 +576,12 @@ CNSVariable::CNSVariable(void) : CEulerVariable() {
     }
   }
   ForcingVector = new su2double[nDim];
+  ForcingLength = new su2double[nDim];
+  ForcingStructure = new su2double[nDim];
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     ForcingVector[iDim] = 0;
+    ForcingStructure[iDim] = 0;
+    ForcingLength[iDim] = 0;
   }
 }
 
@@ -604,6 +608,8 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     }
 
     ForcingVector = new su2double[nDim];
+    ForcingStructure= new su2double[nDim];
+    ForcingLength = new su2double[nDim];
 
     /*--- Initialize this here so that preprocessing can run properly ---*/
 
@@ -617,6 +623,8 @@ CNSVariable::CNSVariable(su2double val_density, su2double *val_velocity, su2doub
     }
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       ForcingVector[iDim] = 0;
+      ForcingLength[iDim] = 0;
+      ForcingStructure[iDim] = 0;
     }
 
 }
@@ -642,6 +650,8 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     }
 
     ForcingVector = new su2double[nDim];
+    ForcingStructure = new su2double[nDim];
+    ForcingLength = new su2double[nDim];
 
   /*--- Initialize this here so that preprocessing can run properly ---*/
 
@@ -655,6 +665,8 @@ CNSVariable::CNSVariable(su2double *val_solution, unsigned short val_nDim,
     }
     for (unsigned short iDim = 0; iDim < nDim; iDim++) {
       ForcingVector[iDim] = 0;
+      ForcingLength[iDim] = 0;
+      ForcingStructure[iDim] = 0;
     }
     
 
@@ -675,6 +687,8 @@ CNSVariable::~CNSVariable(void) {
   }
   if (ForcingVector != NULL) {
     delete [] ForcingVector;
+    delete [] ForcingStructure;
+    delete [] ForcingLength;
   }
 }
 

@@ -924,6 +924,10 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Sutherland constant, default value for AIR SI */
   addDoubleOption("SUTHERLAND_CONSTANT", Mu_S, 110.4);
 
+  /*--- Options related to bulk viscosity ----*/
+  /*!\brief BULK_VISCOSITY_RATIO \n DESCRIPTION \n Ratio of the bulk viscosity to the shear viscosity \n DEFAULT: 0.0 \ingroup Config */
+  addDoubleOption("BULK_VISCOSITY_RATIO", BulkViscosityRatio, 0.0);
+
   /*--- Options related to Thermal Conductivity Model ---*/
 
   addEnumOption("CONDUCTIVITY_MODEL", Kind_ConductivityModel, ConductivityModel_Map, CONSTANT_PRANDTL);
@@ -1822,7 +1826,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
    *  \n DESCRIPTION: Write a surface CSV solution file  \ingroup Config*/
   addBoolOption("WRT_CSV_SOL", Wrt_Csv_Sol, true);
   /*!\brief WRT_CSV_SOL
-   *  \n DESCRIPTION: Write a binary coordinates file  \ingroup Config*/
+   *  \n DESCRIPTION: rite a binary coordinates file  \ingroup Config*/
   addBoolOption("WRT_CRD_SOL", Wrt_Crd_Sol, false);
   /*!\brief WRT_SURFACE
    *  \n DESCRIPTION: Output solution at each surface  \ingroup Config*/
@@ -1840,6 +1844,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("WRT_HALO", Wrt_Halo, false);
   /* DESCRIPTION: Output the resolution tensors in the solution files  \ingroup Config*/
   addBoolOption("WRT_RESOLUTION_TENSORS", Wrt_Resolution_Tensors, false);
+  /* DESCRIPTION: Output the extra information about hybrid RANS/LES forcing in the solution files  \ingroup Config*/
+  addBoolOption("WRT_HYBRID_FORCING", Wrt_Hybrid_Forcing, false);
   /* DESCRIPTION: Output the Reynolds stress \ingroup Config */
   addBoolOption("WRT_REYNOLDS_STRESS", Wrt_Reynolds_Stress, false);
   /* DESCRIPTION: Output the performance summary to the console at the end of SU2_CFD  \ingroup Config*/
@@ -2570,6 +2576,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief WRT_PARTITION \n DESCRIPTION: Write the paritition (color) of
     each node \n DEFAULT: False \ingroup Config */
   addBoolOption("WRT_PARTITION", Wrt_Partition, false);
+
+   addBoolOption("HYBRID_FORCING_CUTOFF", Hybrid_Forcing_Cutoff, false); 
 
   /* END_CONFIG_OPTIONS */
 
@@ -3927,6 +3935,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
   for (iCFL = 1; iCFL < nCFL; iCFL++)
     CFL[iCFL] = CFL[iCFL-1];
 
+  bool user_specified_RK = true;
   if ((Kind_Solver == EULER) || (Kind_Solver == NAVIER_STOKES) ||
       (Kind_Solver == RANS) || (Kind_Solver == DISC_ADJ_EULER) ||
       (Kind_Solver == DISC_ADJ_NAVIER_STOKES) ||
@@ -3934,10 +3943,13 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
     switch (Kind_TimeIntScheme_Flow) {
       case RUNGE_KUTTA_EXPLICIT:
         if (nRKStep == 0) {
+          user_specified_RK = false;
           if (rank == MASTER_NODE) {
             cout << "No RK coefficients specified.  Defaulting to classical RK4." << endl;
           }
           nRKStep = 4;
+          // Set these variables for consistency.
+          
 
           // alloc and zero out space for coefficients
           RK_aMat = new su2double* [nRKStep];
@@ -3970,15 +3982,24 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
         break;
       case RUNGE_KUTTA_LIMEX_EDIRK:
         if (nRKStep == 0) {
+          user_specified_RK = false;
           if (rank == MASTER_NODE) {
             cout << "No RK coefficients specified.  Defaulting to a 3 stage, 2nd order scheme." << endl;
           }
           nRKStep = 3;
+          /*--- Set these for consistency with user-specified schemes. ---*/
+          nRKBvec = nRKStep;
+          nRKCvec = nRKStep;
+          nRKAmat = (nRKStep*nRKStep - nRKStep)/2;
+          const unsigned short nImp = nRKStep - 1;
+          nRKBvecImp = nImp;
+          nRKCvecImp = nImp;
+          nRKAmatImp = (nImp*nImp + nImp)/2;
 
           // alloc and zero out space for explicit coefficients
           RK_aMat = new su2double* [nRKStep];
-          RK_bVec = new su2double[nRKStep];
-          RK_cVec = new su2double[nRKStep];
+          RK_bVec = new su2double[nRKBvec];
+          RK_cVec = new su2double[nRKCvec];
           for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
             RK_bVec[iRKStep] = 0.0;
             RK_cVec[iRKStep] = 0.0;
@@ -4004,10 +4025,9 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
           RK_cVec[2] = 1.0;
 
           // alloc and zero out space for implicit coefficients
-          unsigned short int nImp = nRKStep - 1;
           RK_aMat_imp = new su2double* [nImp];
-          RK_bVec_imp = new su2double[nImp];
-          RK_cVec_imp = new su2double[nImp];
+          RK_bVec_imp = new su2double[nRKBvecImp];
+          RK_cVec_imp = new su2double[nRKCvecImp];
           for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
             RK_bVec_imp[iRKStep] = 0.0;
             RK_cVec_imp[iRKStep] = 0.0;
@@ -4031,6 +4051,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
         }
         break;
       case RUNGE_KUTTA_LIMEX_SMR91:
+        user_specified_RK = false;
         nRKStep = 3;
         break;
     }
@@ -4060,21 +4081,22 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
         exit(EXIT_FAILURE);
       }
 
-      // If consistent, translate A mat input to full matrix
-      unsigned short count = 0;
-      RK_aMat = new su2double* [nRKStep];
-      for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
-        RK_aMat[iRKStep] = new su2double [nRKStep];
-        for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
-          if (iRKStep>jRKStep) {
-            RK_aMat[iRKStep][jRKStep] = RK_aMat_read[count];
-            count++;
-          } else {
-            RK_aMat[iRKStep][jRKStep] = 0.0;
+      if (user_specified_RK) {
+        // If consistent, translate A mat input to full matrix
+        unsigned short count = 0;
+        RK_aMat = new su2double* [nRKStep];
+        for (unsigned int iRKStep = 0; iRKStep < nRKStep; iRKStep++) {
+          RK_aMat[iRKStep] = new su2double [nRKStep];
+          for (unsigned int jRKStep = 0; jRKStep < nRKStep; jRKStep++) {
+            if (iRKStep>jRKStep) {
+              RK_aMat[iRKStep][jRKStep] = RK_aMat_read[count];
+              count++;
+            } else {
+              RK_aMat[iRKStep][jRKStep] = 0.0;
+            }
           }
         }
       }
-
     }
 
     // If set any of implicit coefficient vectors, check
@@ -4103,17 +4125,19 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
         exit(EXIT_FAILURE);
       }
 
-      // If consistent, translate A mat input to full matrix
-      unsigned short count = 0;
-      RK_aMat_imp = new su2double* [nImp];
-      for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
-        RK_aMat_imp[iRKStep] = new su2double [nImp];
-        for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
-          if (iRKStep>=jRKStep) {
-            RK_aMat_imp[iRKStep][jRKStep] = RK_aMat_read_imp[count];
-            count++;
-          } else {
-            RK_aMat_imp[iRKStep][jRKStep] = 0.0;
+      if (user_specified_RK) {
+        // If consistent, translate A mat input to full matrix
+        unsigned short count = 0;
+        RK_aMat_imp = new su2double* [nImp];
+        for (unsigned int iRKStep = 0; iRKStep < nImp; iRKStep++) {
+          RK_aMat_imp[iRKStep] = new su2double [nImp];
+          for (unsigned int jRKStep = 0; jRKStep < nImp; jRKStep++) {
+            if (iRKStep>=jRKStep) {
+              RK_aMat_imp[iRKStep][jRKStep] = RK_aMat_read_imp[count];
+              count++;
+            } else {
+              RK_aMat_imp[iRKStep][jRKStep] = 0.0;
+            }
           }
         }
       }

@@ -1270,6 +1270,12 @@ public:
 
   virtual void SetForcingClipping(su2double clipping);
 
+  virtual void SetForcingLength(const su2double* val_periods) { };
+
+  virtual void SetForcingStructure(const su2double* val_structure) { };
+
+  virtual void SetForcingProduction(su2double val_production) { };
+
   /*!
    * \brief Set the ratio of modeled to total turbulent kinetic energy.
    * \param[in] val_beta - The ratio of modeled to total turbulent kinetic energy.
@@ -1981,22 +1987,6 @@ public:
    * \param[in] val_muT
    */
   virtual void SetmuT(su2double val_muT);
-
-  virtual void SetForcingProduction(su2double val_P_F);
-
-  virtual void SetForcingRatio(su2double val_P_F_ratio);
-
-  virtual su2double GetForcingProduction();
-
-  virtual su2double GetForcingRatio();
-
-  virtual void SetSourceTerms(su2double* val_source_terms);
-
-  virtual su2double* GetSourceTerms();
-
-  virtual su2double GetSAlpha();
-
-  virtual su2double GetScf();
 
   /*!
    * \brief Add a value to the maximum eigenvalue for the inviscid terms of the PDE.
@@ -4073,6 +4063,9 @@ private:
   su2double* ForcingVector;  /*!< \brief A spatially varying forcing field. Only used in model-split hybrid RANS/LES */
   su2double ForcingFactor;
   su2double ForcingClipping;
+  su2double* ForcingLength;
+  su2double* ForcingStructure;
+  su2double ForcingProduction;
   su2double** ResolvedTurbStress; /*!< \brief The resolved portion of the Reynolds stress tensor */
   su2double ResolvedKineticEnergy; /*!< \brief The resolved portion of the turbulent kinetic energy. */
   su2double TurbProduction; /*!< \brief The total production of turbulent kinetic energy. */
@@ -4180,11 +4173,29 @@ public:
 
   void SetResolutionAdequacy(su2double val_r_k);
 
-  void SetForcingVector(const su2double* force);
+  void SetForcingVector(const su2double* force) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ForcingVector[iDim] = force[iDim];
+    }
+  }
 
-  void SetForcingFactor(su2double factor);
+  void SetForcingFactor(su2double factor) { ForcingFactor = factor; }
 
-  void SetForcingClipping(su2double clipping);
+  void SetForcingClipping(su2double clipping) { ForcingClipping = clipping; }
+
+  void SetForcingStructure(const su2double* val_structure) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ForcingStructure[iDim] = val_structure[iDim];
+    }
+  }
+
+  void SetForcingLength(const su2double* val_periods) {
+    for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+      ForcingLength[iDim] = val_periods[iDim];
+    }
+  }
+
+  void SetForcingProduction(su2double val_production) { ForcingProduction = val_production; }
 
   /*!
    * \brief Store the resolved kinetic energy;
@@ -4586,10 +4597,6 @@ public:
    * \param[in] val_muT - Value of the eddy viscosity.
    */
   void SetmuT(su2double val_muT);
-
-  void SetForcingProduction(su2double val_P_F);
-
-  su2double GetForcingProduction();
 };
 
 /*!

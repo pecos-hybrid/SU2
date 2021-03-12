@@ -800,6 +800,7 @@ private:
   Wrt_SharpEdges,              /*!< \brief Write residuals to solution file */
   Wrt_Halo,                   /*!< \brief Write rind layers in solution files */
   Wrt_Resolution_Tensors,     /*!< \brief Write resolutions tensors in solution files */
+  Wrt_Hybrid_Forcing,         /*!< \brief Write extra variables for hybrid RANS/LES forcing */
   Wrt_Reynolds_Stress,        /*!< \brief Write Reynolds stress in solution files */
   Wrt_InvalidState,           /*!< \brief Output the solution due to an invalid state error */
   Wrt_Performance,            /*!< \brief Write the performance summary at the end of a calculation.  */
@@ -846,6 +847,7 @@ private:
   Mu_Temperature_RefND,   /*!< \brief Non-dimensional reference temperature for Sutherland model.  */
   Mu_S,     /*!< \brief Reference S for Sutherland model.  */
   Mu_SND,   /*!< \brief Non-dimensional reference S for Sutherland model.  */
+  BulkViscosityRatio, /*!< \brief Ratio of the bulk viscosity to the shear viscosity ---*/
   *CpPolyCoefficients,   /*!< \brief Definition of the temperature polynomial coefficients for specific heat Cp. */
   *MuPolyCoefficients,   /*!< \brief Definition of the temperature polynomial coefficients for viscosity. */
   *KtPolyCoefficients,   /*!< \brief Definition of the temperature polynomial coefficients for thermal conductivity. */
@@ -1165,6 +1167,7 @@ private:
   su2double v2f_Rf_Constant;
   bool Use_TKE_Diffusion; /*!< \brief Add TKE diffusion model for the molecular and turbulent transport of total energy. */
   unsigned short SliceRestartType;
+  bool Hybrid_Forcing_Cutoff;
 
   /*--- all_options is a map containing all of the options. This is used during config file parsing
    to track the options which have not been set (so the default values can be used). Without this map
@@ -3374,7 +3377,9 @@ public:
    * \brief Get information about writing the resolution tensors to the solution files.
    * \return <code>TRUE</code> means that resolution tensors will be written to the solution file.
    */
-  bool GetWrt_Resolution_Tensors(void);
+  bool GetWrt_Resolution_Tensors(void) const;
+
+  bool  GetWrt_Hybrid_Forcing(void) const { return Wrt_Hybrid_Forcing; };
 
   /*!
    * \brief Check if we want to write the Reynolds stress.
@@ -3966,6 +3971,8 @@ public:
    * \return The non-dimensional reference S.
    */
   su2double GetMu_SND(void);
+
+  su2double GetBulkViscosityRatio(void) const { return BulkViscosityRatio; }
   
   /*!
    * \brief Get the number of coefficients in the temperature polynomial models.
@@ -9669,6 +9676,8 @@ public:
    * \brief Get the ParMETIS load balancing weight for edges
    */
   long GetParMETIS_EdgeWeight() const { return ParMETIS_edgeWgt; }
+
+  bool GetHybrid_Forcing_Cutoff() const { return Hybrid_Forcing_Cutoff; }
 };
 
 #include "config_structure.inl"

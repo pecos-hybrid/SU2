@@ -110,6 +110,7 @@ BOOST_AUTO_TEST_CASE(RANSStressTensorMatchesModelSplit) {
   gradprimvar[3][1] = 4; // dW/dy
   const su2double turb_ke = 3.0;
   const su2double laminar_viscosity = 7.0;
+  const su2double bulk_viscosity = 1.0;
   const su2double eddy_viscosity = 11.0;
   const su2double alpha = 1.0;
   su2double **rans_tau = new su2double*[nDim];
@@ -124,14 +125,14 @@ BOOST_AUTO_TEST_CASE(RANSStressTensorMatchesModelSplit) {
    * ---*/
 
   rans_numerics.SetStressTensor(primvar, gradprimvar, turb_ke,
-                           laminar_viscosity, eddy_viscosity);
+                           laminar_viscosity, bulk_viscosity, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       rans_tau[iDim][jDim] = rans_numerics.GetStressTensor(iDim, jDim);
     }
   }
 
-  model_split_numerics.SetLaminarStressTensor(gradprimvar, laminar_viscosity);
+  model_split_numerics.SetLaminarStressTensor(gradprimvar, laminar_viscosity, bulk_viscosity);
   model_split_numerics.AddTauSGS(primvar, gradprimvar, alpha, turb_ke, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
@@ -205,6 +206,7 @@ BOOST_AUTO_TEST_CASE(RansStressMatchesIsotropicEddyViscosityStress) {
   gradprimvar[3][1] = 4; // dW/dy
   const su2double turb_ke = 0;
   const su2double laminar_viscosity = 7.0;
+  const su2double bulk_viscosity = 1.0;
   const su2double eddy_viscosity = 11.0;
   su2double **rans_tau = new su2double*[nDim];
   su2double **model_split_tau = new su2double*[nDim];
@@ -227,14 +229,14 @@ BOOST_AUTO_TEST_CASE(RansStressMatchesIsotropicEddyViscosityStress) {
    * ---*/
 
   rans_numerics.SetStressTensor(primvar, gradprimvar, turb_ke,
-                           laminar_viscosity, eddy_viscosity);
+                           laminar_viscosity, bulk_viscosity, eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
       rans_tau[iDim][jDim] = rans_numerics.GetStressTensor(iDim, jDim);
     }
   }
 
-  model_split_numerics.SetLaminarStressTensor(gradprimvar, laminar_viscosity);
+  model_split_numerics.SetLaminarStressTensor(gradprimvar, laminar_viscosity, bulk_viscosity);
   model_split_numerics.AddTauSGET(gradprimvar, aniso_eddy_viscosity);
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     for (unsigned short jDim = 0; jDim < nDim; jDim++) {
