@@ -3423,6 +3423,8 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
             for (iVertex = 0; iVertex < geometry[MESH_0]->nVertex[iMarker]; iVertex++) {
 
               iPoint   = geometry[MESH_0]->vertex[iMarker][iVertex]->GetNode();
+              /*--- Ignore ghost points ---*/
+              if (iPoint >= geometry[MESH_0]->GetnPointDomain()) continue;
               Coord    = geometry[MESH_0]->node[iPoint]->GetCoord();
               min_dist = 1e16;
 
@@ -3571,10 +3573,7 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
     for (iMesh = 0; iMesh <= config->GetnMGLevels(); iMesh++) {
       for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
-        if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW &&
-            config->GetMarker_All_KindBC(iMarker) == SUPERSONIC_INLET) {
-          solver[iMesh][KIND_SOLVER]->SetUniformInlet(config, iMarker);
-        }
+        solver[iMesh][KIND_SOLVER]->SetUniformInlet(config, iMarker);
       }
     }
 

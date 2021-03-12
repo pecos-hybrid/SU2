@@ -19166,7 +19166,8 @@ void COutput::MergeInletCoordinates(CConfig *config, CGeometry *geometry) {
 
   nLocalPoint = 0;
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
-    if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW) {
+    const unsigned short kind_marker = config->GetMarker_All_KindBC(iMarker);
+    if (kind_marker == INLET_FLOW || kind_marker == SUPERSONIC_INLET) {
       for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
         iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
 
@@ -19235,7 +19236,8 @@ void COutput::MergeInletCoordinates(CConfig *config, CGeometry *geometry) {
 
   su2double *Coords_Local; jPoint = 0;
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
-    if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW) {
+    const unsigned short kind_marker = config->GetMarker_All_KindBC(iMarker);
+    if (kind_marker == INLET_FLOW || kind_marker == SUPERSONIC_INLET) {
 
       for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
         iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
@@ -19466,10 +19468,9 @@ void COutput::Write_InletFile_Flow(CConfig *config, CGeometry *geometry, CSolver
 
   node_file << "NMARK= " << nMarker_InletFile << endl;
 
-  for (iMarker = 0; iMarker < nMarker_InletFile; iMarker++) {
-    cout << "config->GetnMarker_All() = " << config->GetnMarker_All() << "\n";
-    for (unsigned short jMarker = 0; jMarker < config->GetnMarker_All(); jMarker++) {
-      string jMarker_Tag = config->GetMarker_CfgFile_TagBound(jMarker);
+  for (unsigned short jMarker = 0; jMarker < config->GetnMarker_All(); jMarker++) {
+    string jMarker_Tag = config->GetMarker_All_TagBound(jMarker);
+    for (iMarker = 0; iMarker < nMarker_InletFile; iMarker++) {
       if (Marker_Tags_InletFile[iMarker] == jMarker_Tag) {
 
         /*--- Access the default data for this marker. ---*/
