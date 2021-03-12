@@ -237,9 +237,9 @@ BOOST_FIXTURE_TEST_CASE(ForcingTest, ForcingFixture) {
   CHybridForcingTG0 forcing(geometry, config);
   forcing.ComputeForcingField(solver, geometry, config);
   const su2double* F = forcing.GetForcingVector(0);
-  const su2double true_F[3] = {-0.08043470719730432,
-                               -1.0438793879055037,
-                                0.01922248395257712};
+  const su2double true_F[3] = {-0.082709456409678722,
+                               -2.9095894977421453,
+                                1.1725021470979606};
 
   const su2double tolerance = 1E-4;
   BOOST_CHECK_CLOSE_FRACTION(F[0], true_F[0], tolerance);
@@ -279,9 +279,9 @@ BOOST_FIXTURE_TEST_CASE(TaylorGreenFields, ForcingFixture) {
   CHybridForcingTG0 forcing(geometry, config);
   forcing.SetTGField(x, Lsgs, D, dwall, h, periods);
 
-  su2double true_h[3] = {-4.4539063719893331E-003,
-                          0.012204205194536234,
-                          0.058321456823961781};
+  su2double true_h[3] = {0.015786539558831542,
+                          0.022964907871814415,
+                          -0.93155085059617082};
   const su2double tolerance = 1E-4;
   BOOST_CHECK_CLOSE_FRACTION(h[0], true_h[0], tolerance);
   BOOST_CHECK_CLOSE_FRACTION(h[1], true_h[1], tolerance);
