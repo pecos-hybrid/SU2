@@ -882,8 +882,8 @@ void CTurbKESolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container,
 
       /*--- Viscous contribution, removed due to serious convergence problems  ---*/
 
-      // Set f residual correctly to get right update
-      LinSysRes.SetBlock(iPoint, 3, Solution_i[3] - f_Inf);
+      // Hack f residual correctly to get right update without viscous contribution
+      LinSysRes.SetBlock(iPoint, 3, Solution_i[3] - Inlet_TurbVars[val_marker][iVertex][3]);
       Jacobian.DeleteValsRowi(iPoint*nVar+3);
 
     }
