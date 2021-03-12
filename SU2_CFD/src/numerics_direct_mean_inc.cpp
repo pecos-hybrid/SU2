@@ -619,6 +619,10 @@ void CAvgGradInc_Flow::ComputeResidual(su2double *val_residual, su2double **val_
   Mean_turb_ke              = 0.5*(turb_ke_i + turb_ke_j);
   Mean_Thermal_Conductivity = 0.5*(Thermal_Conductivity_i + Thermal_Conductivity_j);
 
+  /*--- Incompressible -> no bulk viscosity ---*/
+
+  constexpr su2double Bulk_Viscosity = 0.0; 
+
   /*--- Mean gradient approximation ---*/
   
   for (iVar = 0; iVar < nVar; iVar++)
@@ -634,7 +638,7 @@ void CAvgGradInc_Flow::ComputeResidual(su2double *val_residual, su2double **val_
   
   /*--- Get projected flux tensor ---*/
   SetStressTensor(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke,
-         Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+         Mean_Laminar_Viscosity, Bulk_Viscosity, Mean_Eddy_Viscosity);
   GetViscousIncProjFlux(Mean_GradPrimVar, Normal, Mean_Thermal_Conductivity);
   
   /*--- Update viscous residual ---*/

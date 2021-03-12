@@ -1808,7 +1808,7 @@ inline bool CConfig::GetWrt_SharpEdges(void) { return Wrt_SharpEdges; }
 
 inline bool CConfig::GetWrt_Halo(void) { return Wrt_Halo; }
 
-inline bool CConfig::GetWrt_Resolution_Tensors(void) { return Wrt_Resolution_Tensors; }
+inline bool CConfig::GetWrt_Resolution_Tensors(void) const { return Wrt_Resolution_Tensors; }
 
 inline bool CConfig::GetWrt_Performance(void) { return Wrt_Performance; }
 
